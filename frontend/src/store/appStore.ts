@@ -115,7 +115,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   nomeTitolare: '',
   pin: '',
   emailRecupero: '',
-  themeColor: '#C5A059',
+  themeColor: '#D2691E',
   targetMensile: 3000,
   
   collaboratori: [],
@@ -258,7 +258,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       nomeTitolare: '',
       pin: '',
       emailRecupero: '',
-      themeColor: '#C5A059',
+      themeColor: '#D2691E',
       targetMensile: 3000,
       collaboratori: [],
       fornitori: [],

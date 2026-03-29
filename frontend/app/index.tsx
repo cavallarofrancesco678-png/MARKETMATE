@@ -62,13 +62,10 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.logoContainer}>
-            <NeuBox
-              color={Colors.primary}
-              borderRadius={30}
-              padding={35}
-            >
-              <MarketMateLogo size={100} color={Colors.marrone} />
-            </NeuBox>
+            <View style={styles.logoBox}>
+              <MarketMateLogo size={80} color={Colors.marrone} />
+            </View>
+            <Text style={styles.logoText}>MARKETMATE</Text>
           </View>
 
           <Text style={styles.title}>BENTORNATO</Text>
@@ -77,18 +74,18 @@ export default function LoginScreen() {
           </Text>
 
           <View style={styles.inputContainer}>
-            <NeuBox pressed borderRadius={50} padding={0}>
+            <NeuInset style={styles.pinInput}>
               <TextInput
                 style={styles.input}
                 placeholder="INSERISCI PIN"
-                placeholderTextColor={`${Colors.marrone}80`}
+                placeholderTextColor={Colors.grey}
                 value={pin}
                 onChangeText={setPin}
                 secureTextEntry
                 keyboardType="number-pad"
                 maxLength={6}
               />
-            </NeuBox>
+            </NeuInset>
           </View>
 
           <TouchableOpacity
@@ -101,13 +98,11 @@ export default function LoginScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity onPress={handleConfigura}>
-            <View style={styles.configRow}>
-              <Ionicons name="rocket-outline" size={20} color={Colors.primary} />
-              <Text style={styles.configText}>
-                {isConfigured ? 'Riconfigura l\'app' : 'Prima volta? Configura l\'app'}
-              </Text>
-            </View>
+          <TouchableOpacity onPress={handleConfigura} style={styles.configButton}>
+            <Ionicons name="rocket-outline" size={20} color={Colors.terracotta} />
+            <Text style={styles.configText}>
+              {isConfigured ? 'RICONFIGURA L\'APP' : 'PRIMA VOLTA? CONFIGURA LA APP'}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -118,7 +113,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgWelcome,
+    backgroundColor: Colors.bg,
   },
   centered: {
     justifyContent: 'center',
@@ -138,66 +133,98 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoContainer: {
-    marginTop: 40,
+    marginTop: 30,
     marginBottom: 40,
+    alignItems: 'center',
+  },
+  logoBox: {
+    backgroundColor: Colors.caramello,
+    borderRadius: 25,
+    padding: 25,
+    borderWidth: 3,
+    borderColor: Colors.terracotta,
+    shadowColor: Colors.shadowDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  logoText: {
+    marginTop: 15,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.marroneChiaro,
+    letterSpacing: 3,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
     color: Colors.marrone,
     letterSpacing: 2,
-    marginBottom: 5,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.grey,
-    marginBottom: 60,
+    marginBottom: 50,
   },
   inputContainer: {
     width: '100%',
-    marginBottom: 30,
+    marginBottom: 25,
+  },
+  pinInput: {
+    borderRadius: 30,
   },
   input: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.primary,
+    color: Colors.marrone,
     textAlign: 'center',
-    paddingVertical: 18,
+    paddingVertical: 15,
     paddingHorizontal: 20,
   },
   accediButton: {
     width: '100%',
     backgroundColor: Colors.verde,
-    paddingVertical: 18,
-    borderRadius: 20,
+    paddingVertical: 16,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#6B8E6B',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowRadius: 4,
+    elevation: 4,
   },
   accediText: {
     color: Colors.white,
     fontWeight: '900',
-    fontSize: 18,
-    letterSpacing: 1.5,
+    fontSize: 16,
+    letterSpacing: 2,
     textAlign: 'center',
   },
   divider: {
     width: '100%',
     height: 1,
-    backgroundColor: Colors.shadowDark,
-    marginVertical: 40,
+    backgroundColor: Colors.lightGrey,
+    marginVertical: 35,
   },
-  configRow: {
+  configButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 25,
+    backgroundColor: Colors.bgCard,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: Colors.lightGrey,
   },
   configText: {
-    color: `${Colors.marrone}99`,
+    color: Colors.terracotta,
     fontWeight: 'bold',
-    textDecorationLine: 'underline',
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
 });
