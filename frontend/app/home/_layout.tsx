@@ -5,15 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/theme/colors';
 
 export default function TabLayout() {
-  // Pressed effect icon with scale and inset shadow
+  // Round icons like weather - same size (48px), no labels
   const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => (
     <View style={[
-      styles.iconContainer,
+      styles.iconCircle,
       focused ? styles.iconPressed : styles.iconNormal
     ]}>
       <Ionicons
         name={name as any}
-        size={22}
+        size={24}
         color={focused ? Colors.white : Colors.grey}
       />
     </View>
@@ -23,56 +23,38 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.caramello,
-        tabBarInactiveTintColor: Colors.grey,
+        tabBarShowLabel: false, // NO LABELS
         tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarItemStyle: styles.tabItem,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'HOME',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'SETTING',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="settings" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'STATISTICHE',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="stats-chart" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="stats-chart" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="agenda"
         options={{
-          title: 'AGENDA',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="person" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="person" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="gas"
         options={{
-          title: 'CARBURANTE',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="car" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="car" focused={focused} />,
         }}
       />
     </Tabs>
@@ -83,9 +65,10 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.bgCard,
     borderTopWidth: 0,
-    height: 85,
-    paddingBottom: 25,
-    paddingTop: 8,
+    height: 75,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 20,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     shadowColor: '#000',
@@ -93,41 +76,34 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
   },
-  tabLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  tabItem: {
-    paddingTop: 5,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  // Same size as weather icons (48x48)
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Normal state - raised button
+  // Normal state - raised
   iconNormal: {
     backgroundColor: Colors.bg,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
     elevation: 4,
     borderWidth: 1,
     borderColor: Colors.lightGrey,
   },
-  // Pressed/Active state - inset button
+  // Pressed/Active state
   iconPressed: {
     backgroundColor: Colors.caramello,
-    shadowColor: 'transparent',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
+    shadowOffset: { width: -1, height: -1 },
+    shadowOpacity: 0.1,
     transform: [{ scale: 0.95 }],
     borderWidth: 2,
     borderColor: Colors.terracotta,
