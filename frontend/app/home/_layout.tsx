@@ -2,16 +2,20 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppStore } from '../../src/store/appStore';
 import { Colors } from '../../src/theme/colors';
 
 export default function TabLayout() {
-  const { themeColor } = useAppStore();
-  const activeColor = Colors.terracotta;
-
-  const TabIcon = ({ name, color, focused }: { name: string; color: string; focused: boolean }) => (
-    <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
-      <Ionicons name={name as any} size={22} color={color} />
+  // Pressed effect icon with scale and inset shadow
+  const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => (
+    <View style={[
+      styles.iconContainer,
+      focused ? styles.iconPressed : styles.iconNormal
+    ]}>
+      <Ionicons
+        name={name as any}
+        size={22}
+        color={focused ? Colors.white : Colors.grey}
+      />
     </View>
   );
 
@@ -19,18 +23,19 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: activeColor,
+        tabBarActiveTintColor: Colors.caramello,
         tabBarInactiveTintColor: Colors.grey,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
+        tabBarItemStyle: styles.tabItem,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'HOME',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="home" color={color} focused={focused} />
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="home" focused={focused} />
           ),
         }}
       />
@@ -38,8 +43,8 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'SETTING',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="settings" color={color} focused={focused} />
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="settings" focused={focused} />
           ),
         }}
       />
@@ -47,17 +52,17 @@ export default function TabLayout() {
         name="stats"
         options={{
           title: 'STATISTICHE',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="stats-chart" color={color} focused={focused} />
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="stats-chart" focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="agenda"
         options={{
-          title: 'NOTES',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="document-text" color={color} focused={focused} />
+          title: 'AGENDA',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="person" focused={focused} />
           ),
         }}
       />
@@ -65,8 +70,8 @@ export default function TabLayout() {
         name="gas"
         options={{
           title: 'CARBURANTE',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="car" color={color} focused={focused} />
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="car" focused={focused} />
           ),
         }}
       />
@@ -78,21 +83,24 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.bgCard,
     borderTopWidth: 0,
-    elevation: 10,
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
     height: 85,
     paddingBottom: 25,
-    paddingTop: 10,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    paddingTop: 8,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
   },
   tabLabel: {
     fontSize: 9,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+  },
+  tabItem: {
+    paddingTop: 5,
   },
   iconContainer: {
     width: 44,
@@ -101,7 +109,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconContainerActive: {
-    backgroundColor: `${Colors.arancioChiaro}50`,
+  // Normal state - raised button
+  iconNormal: {
+    backgroundColor: Colors.bg,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.lightGrey,
+  },
+  // Pressed/Active state - inset button
+  iconPressed: {
+    backgroundColor: Colors.caramello,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+    transform: [{ scale: 0.95 }],
+    borderWidth: 2,
+    borderColor: Colors.terracotta,
   },
 });

@@ -18,11 +18,13 @@ import { CalendarModal } from '../../src/components/CalendarModal';
 import { Colors } from '../../src/theme/colors';
 import { formattaDataIta, getGiornoIndex, isToday, isTomorrow } from '../../src/utils/dateUtils';
 
+// 5 Weather icons with soft colors like the reference
 const METEO_OPTIONS = [
-  { icon: 'sunny', label: 'SOLE', color: '#FFB347' },
-  { icon: 'cloud', label: 'NUVOLO', color: '#B8B8B8' },
-  { icon: 'rainy', label: 'PIOGGIA', color: '#6B8DD6' },
-  { icon: 'thunderstorm', label: 'TEMPORALE', color: '#8B4513' },
+  { icon: 'sunny', label: 'SOLE', color: '#FFB347', bgColor: '#FFF3E0' },
+  { icon: 'cloud', label: 'NUVOLO', color: '#90A4AE', bgColor: '#ECEFF1' },
+  { icon: 'rainy', label: 'PIOGGIA', color: '#64B5F6', bgColor: '#E3F2FD' },
+  { icon: 'thunderstorm', label: 'TEMPORALE', color: '#7E57C2', bgColor: '#EDE7F6' },
+  { icon: 'leaf', label: 'VENTO', color: '#81C784', bgColor: '#E8F5E9' },
 ];
 
 export default function HomeScreen() {
@@ -50,6 +52,7 @@ export default function HomeScreen() {
   const [meteo, setMeteo] = useState('SOLE');
   const [showCalendar, setShowCalendar] = useState(false);
   const [showInvenduto, setShowInvenduto] = useState(false);
+  const [showSpeseExtra, setShowSpeseExtra] = useState(false);
 
   // Form fields
   const [lordo, setLordo] = useState('');
@@ -58,7 +61,6 @@ export default function HomeScreen() {
   const [fieraNome, setFieraNome] = useState('');
   const [fieraKm, setFieraKm] = useState('');
   const [fieraPlat, setFieraPlat] = useState('');
-  const [speseExtra, setSpeseExtra] = useState<{ voce: string; importo: number }[]>([]);
   const [presenzaSquadra, setPresenzaSquadra] = useState<Record<string, boolean>>({});
 
   // Get market for current day
@@ -115,12 +117,14 @@ export default function HomeScreen() {
     return costi;
   };
 
-  const getTotaleExtra = () => {
-    return speseExtra.reduce((sum, s) => sum + s.importo, 0);
-  };
-
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
-  const nettoReale = lordoNum - getTotaleFisseOpe() - getTotaleExtra();
+  const contantiNum = parseFloat(contanti.replace(',', '.')) || 0;
+  const posNum = parseFloat(pos.replace(',', '.')) || 0;
+  const nettoReale = lordoNum - getTotaleFisseOpe();
+
+  // Progress calculation
+  const targetG = targetMensile / 26;
+  const progresso = targetG > 0 ? Math.min(lordoNum / targetG, 1) : 0;
 
   // Check notifications
   const hasNotifiche = appuntiAgenda.some(
@@ -129,18 +133,16 @@ export default function HomeScreen() {
 
   const syncConti = (origin: string, value: string) => {
     const l = parseFloat(lordo.replace(',', '.')) || 0;
-    const c = parseFloat(contanti.replace(',', '.')) || 0;
-    const p = parseFloat(pos.replace(',', '.')) || 0;
-
     if (origin === 'lordo') {
       const newLordo = parseFloat(value.replace(',', '.')) || 0;
-      if (newLordo - p > 0) setContanti((newLordo - p).toFixed(2));
+      const p = parseFloat(pos.replace(',', '.')) || 0;
+      if (newLordo - p >= 0) setContanti((newLordo - p).toFixed(2));
     } else if (origin === 'contanti') {
       const newContanti = parseFloat(value.replace(',', '.')) || 0;
-      if (l - newContanti > 0) setPos((l - newContanti).toFixed(2));
+      if (l - newContanti >= 0) setPos((l - newContanti).toFixed(2));
     } else if (origin === 'pos') {
       const newPos = parseFloat(value.replace(',', '.')) || 0;
-      if (l - newPos > 0) setContanti((l - newPos).toFixed(2));
+      if (l - newPos >= 0) setContanti((l - newPos).toFixed(2));
     }
   };
 
@@ -153,14 +155,14 @@ export default function HomeScreen() {
 
     const giornata: Giornata = {
       data: dataCorrente,
-      mercato: mercatoOggi?.mercato || (isFiera ? 'Fiera' : 'Nessuno'),
+      mercato: isFiera ? fieraNome || 'Fiera' : mercatoOggi?.mercato || 'Nessuno',
       meteo,
       km: kmOggi,
       lordo: lordoNum,
       netto: nettoReale,
-      contanti: parseFloat(contanti.replace(',', '.')) || 0,
-      pos: parseFloat(pos.replace(',', '.')) || 0,
-      spese_extra: getTotaleExtra(),
+      contanti: contantiNum,
+      pos: posNum,
+      spese_extra: 0,
       dettaglio_staff: {},
       dettaglio_invenduto: {},
       dettaglio_fornitori: {},
@@ -176,6 +178,31 @@ export default function HomeScreen() {
     ? mercatoOggi.mercato.toUpperCase()
     : 'GIORNO OFF';
 
+  const statusText = isInPiazza ? 'IN PIAZZA' : 'ASSENTE';
+
+  // Pressed button component
+  const PressedButton = ({ 
+    children, 
+    onPress, 
+    pressed = false, 
+    style = {} 
+  }: { 
+    children: React.ReactNode; 
+    onPress: () => void; 
+    pressed?: boolean;
+    style?: any;
+  }) => (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <View style={[
+        styles.pressedButton,
+        pressed && styles.pressedButtonActive,
+        style
+      ]}>
+        {children}
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -189,113 +216,269 @@ export default function HomeScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{nomeAttivita.toUpperCase()}</Text>
+            <View style={styles.headerTop}>
+              <Text style={styles.headerTitle}>{nomeAttivita.toUpperCase()}</Text>
+              <TouchableOpacity
+                style={styles.notificationBtn}
+                onPress={() => hasNotifiche && Alert.alert('Notifiche', 'Hai appuntamenti!')}
+              >
+                <Ionicons
+                  name={hasNotifiche ? 'notifications' : 'notifications-outline'}
+                  size={22}
+                  color={hasNotifiche ? Colors.rosso : Colors.marrone}
+                />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.headerSubtitle}>
               {formattaDataIta(dataCorrente).toUpperCase()} - {mercatoNome}
             </Text>
+            <Text style={styles.headerOwner}>di {nomeTitolare}</Text>
           </View>
 
-          {/* Search/Calendar Bar */}
-          <TouchableOpacity onPress={() => setShowCalendar(true)}>
-            <NeuBox style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={Colors.grey} />
-              <Text style={styles.searchText}>Cerca...</Text>
-            </NeuBox>
+          {/* Status Badge */}
+          <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: isInPiazza ? '#E8F5E9' : '#FFEBEE' }
+            ]}>
+              <View style={[
+                styles.statusDot,
+                { backgroundColor: isInPiazza ? Colors.verde : Colors.rosso }
+              ]} />
+              <Text style={[
+                styles.statusText,
+                { color: isInPiazza ? '#2E7D32' : '#C62828' }
+              ]}>
+                {statusText}
+              </Text>
+            </View>
           </TouchableOpacity>
 
-          {/* Meteo Icons */}
-          <View style={styles.meteoContainer}>
-            {METEO_OPTIONS.map((m) => (
-              <TouchableOpacity
-                key={m.label}
-                style={styles.meteoItem}
-                onPress={() => setMeteo(m.label)}
-              >
-                <View
-                  style={[
-                    styles.meteoCircle,
-                    meteo === m.label && { backgroundColor: m.color },
-                    meteo !== m.label && styles.meteoCircleInactive,
-                  ]}
+          {/* Riepilogo Section */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>RIEPILOGO GIORNALIERO</Text>
+
+            {/* 5 Weather Icons - NO LABELS */}
+            <View style={styles.meteoContainer}>
+              {METEO_OPTIONS.map((m) => (
+                <TouchableOpacity
+                  key={m.label}
+                  onPress={() => setMeteo(m.label)}
+                  activeOpacity={0.7}
                 >
-                  <Ionicons
-                    name={m.icon as any}
-                    size={28}
-                    color={meteo === m.label ? Colors.white : Colors.grey}
+                  <View
+                    style={[
+                      styles.meteoCircle,
+                      meteo === m.label ? styles.meteoCirclePressed : styles.meteoCircleNormal,
+                      { backgroundColor: meteo === m.label ? m.color : m.bgColor }
+                    ]}
+                  >
+                    <Ionicons
+                      name={m.icon as any}
+                      size={26}
+                      color={meteo === m.label ? Colors.white : m.color}
+                    />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* MERCATO / FIERA Switch */}
+            <View style={styles.switchRow}>
+              <PressedButton
+                onPress={() => setIsFiera(false)}
+                pressed={!isFiera}
+                style={styles.switchBtn}
+              >
+                <Text style={[
+                  styles.switchText,
+                  !isFiera && styles.switchTextActive
+                ]}>MERCATO</Text>
+                {!isFiera && <View style={styles.switchIndicator} />}
+              </PressedButton>
+              <PressedButton
+                onPress={() => setIsFiera(true)}
+                pressed={isFiera}
+                style={styles.switchBtn}
+              >
+                <Text style={[
+                  styles.switchText,
+                  isFiera && styles.switchTextActive
+                ]}>FIERA</Text>
+                {isFiera && <View style={styles.switchIndicator} />}
+              </PressedButton>
+            </View>
+
+            {/* FIERA inputs if needed */}
+            {isFiera && (
+              <View style={styles.fieraInputs}>
+                <View style={styles.inputField}>
+                  <Text style={styles.inputLabel}>NOME FIERA</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Es: Fiera di Settembre"
+                    placeholderTextColor={Colors.grey}
+                    value={fieraNome}
+                    onChangeText={setFieraNome}
                   />
                 </View>
-                <Text style={[
-                  styles.meteoLabel,
-                  meteo === m.label && { color: Colors.marrone, fontWeight: 'bold' }
-                ]}>
-                  {m.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Incasso Section */}
-          <View style={styles.incassoRow}>
-            <NeuBox style={styles.incassoCard}>
-              <Text style={styles.incassoLabel}>INCASSO LORDO</Text>
-              <View style={styles.incassoValueRow}>
-                <TextInput
-                  style={styles.incassoInput}
-                  placeholder="0,00"
-                  placeholderTextColor={Colors.grey}
-                  keyboardType="numeric"
-                  value={lordo}
-                  onChangeText={(v) => {
-                    setLordo(v);
-                    syncConti('lordo', v);
-                  }}
-                />
-                <Text style={styles.euroSign}>€</Text>
+                <View style={styles.fieraRow}>
+                  <View style={[styles.inputField, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>KM A/R</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="0"
+                      keyboardType="numeric"
+                      value={fieraKm}
+                      onChangeText={setFieraKm}
+                    />
+                  </View>
+                  <View style={[styles.inputField, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>PLATEATICO €</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="0"
+                      keyboardType="numeric"
+                      value={fieraPlat}
+                      onChangeText={setFieraPlat}
+                    />
+                  </View>
+                </View>
               </View>
-              <Text style={styles.incassoSubtext}>
-                POS {pos || '0'} € | CONTANTI {contanti || '0'} €
-              </Text>
-            </NeuBox>
+            )}
 
-            <View style={styles.inputColumn}>
-              <NeuInset style={styles.smallInput}>
-                <Ionicons name="pencil" size={16} color={Colors.arancio} />
-                <TextInput
-                  style={styles.smallInputText}
-                  placeholder="CONTANTI €"
-                  placeholderTextColor={Colors.grey}
-                  keyboardType="numeric"
-                  value={contanti}
-                  onChangeText={(v) => {
-                    setContanti(v);
-                    syncConti('contanti', v);
-                  }}
-                />
-              </NeuInset>
-              <NeuInset style={styles.smallInput}>
-                <Ionicons name="pencil" size={16} color={Colors.arancio} />
-                <TextInput
-                  style={styles.smallInputText}
-                  placeholder="POS €"
-                  placeholderTextColor={Colors.grey}
-                  keyboardType="numeric"
-                  value={pos}
-                  onChangeText={(v) => {
-                    setPos(v);
-                    syncConti('pos', v);
-                  }}
-                />
-              </NeuInset>
+            {/* Main 2x2 Grid: LORDO, UTILE, CONTANTI, POS */}
+            <View style={styles.moneyGrid}>
+              <View style={styles.moneyRow}>
+                <View style={styles.moneyCard}>
+                  <Text style={styles.moneyLabel}>LORDO</Text>
+                  <View style={styles.moneyInputRow}>
+                    <Text style={styles.euroPre}>€</Text>
+                    <TextInput
+                      style={styles.moneyInput}
+                      placeholder="0.00"
+                      placeholderTextColor={Colors.grey}
+                      keyboardType="numeric"
+                      value={lordo}
+                      onChangeText={(v) => {
+                        setLordo(v);
+                        syncConti('lordo', v);
+                      }}
+                    />
+                  </View>
+                </View>
+                <View style={styles.moneyCard}>
+                  <Text style={styles.moneyLabel}>UTILE</Text>
+                  <Text style={[
+                    styles.moneyValue,
+                    { color: nettoReale >= 0 ? Colors.verde : Colors.rosso }
+                  ]}>
+                    €{nettoReale.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.moneyRow}>
+                <View style={styles.moneyCard}>
+                  <Text style={styles.moneyLabel}>CONTANTI</Text>
+                  <View style={styles.moneyInputRow}>
+                    <Text style={styles.euroPre}>€</Text>
+                    <TextInput
+                      style={styles.moneyInput}
+                      placeholder="0.00"
+                      placeholderTextColor={Colors.grey}
+                      keyboardType="numeric"
+                      value={contanti}
+                      onChangeText={(v) => {
+                        setContanti(v);
+                        syncConti('contanti', v);
+                      }}
+                    />
+                  </View>
+                </View>
+                <View style={styles.moneyCard}>
+                  <Text style={styles.moneyLabel}>POS</Text>
+                  <View style={styles.moneyInputRow}>
+                    <Text style={styles.euroPre}>€</Text>
+                    <TextInput
+                      style={styles.moneyInput}
+                      placeholder="0.00"
+                      placeholderTextColor={Colors.grey}
+                      keyboardType="numeric"
+                      value={pos}
+                      onChangeText={(v) => {
+                        setPos(v);
+                        syncConti('pos', v);
+                      }}
+                    />
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
 
+          {/* SPESE Section */}
+          <Text style={styles.sectionHeader}>SPESE</Text>
+          
+          <View style={styles.speseRow}>
+            <PressedButton
+              onPress={() => setShowSpeseExtra(!showSpeseExtra)}
+              pressed={showSpeseExtra}
+              style={styles.speseBtn}
+            >
+              <Text style={styles.speseBtnText}>SPESE EXTRA</Text>
+              <Ionicons name="chevron-down" size={18} color={Colors.marrone} />
+            </PressedButton>
+            
+            <TouchableOpacity style={styles.speseBtn} activeOpacity={0.8}>
+              <View style={styles.pressedButton}>
+                <Text style={styles.speseBtnText}>SPESE FISSE</Text>
+                <Text style={styles.speseValue}>€{getTotaleFisseOpe().toFixed(2)}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* INVENDUTO / RESI */}
+          <PressedButton
+            onPress={() => setShowInvenduto(!showInvenduto)}
+            pressed={showInvenduto}
+            style={styles.invendutoBtn}
+          >
+            <Text style={styles.invendutoBtnText}>INVENDUTO / RESI</Text>
+            <Ionicons name="arrow-forward" size={18} color={Colors.marrone} />
+          </PressedButton>
+
+          {showInvenduto && isAlimentare && (
+            <View style={styles.invendutoContent}>
+              {fornitori.length > 0 ? (
+                fornitori.flatMap((f) =>
+                  (f.prodotti || []).map((p) => (
+                    <View key={`${f.nome}-${p.nome}`} style={styles.invendutoRow}>
+                      <Text style={styles.invendutoLabel}>{p.nome}</Text>
+                      <View style={styles.kgControls}>
+                        <TouchableOpacity style={styles.kgBtn}>
+                          <Text style={styles.kgBtnText}>-</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.kgValue}>0 KG</Text>
+                        <TouchableOpacity style={styles.kgBtn}>
+                          <Text style={styles.kgBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))
+                )
+              ) : (
+                <Text style={styles.emptyText}>Configura prodotti nelle impostazioni</Text>
+              )}
+            </View>
+          )}
+
           {/* Collaboratori */}
           {collaboratori.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>COLLABORATORI</Text>
+            <View style={styles.collabSection}>
+              <Text style={styles.sectionHeader}>COLLABORATORI OGGI</Text>
               <View style={styles.collabRow}>
                 {collaboratori.map((c) => (
-                  <TouchableOpacity
+                  <PressedButton
                     key={c.nome}
                     onPress={() => {
                       setPresenzaSquadra((prev) => ({
@@ -303,104 +486,66 @@ export default function HomeScreen() {
                         [c.nome]: !prev[c.nome],
                       }));
                     }}
+                    pressed={presenzaSquadra[c.nome]}
+                    style={styles.collabChip}
                   >
-                    <View
-                      style={[
-                        styles.collabChip,
-                        presenzaSquadra[c.nome]
-                          ? { backgroundColor: Colors.caramello }
-                          : { backgroundColor: Colors.lightGrey },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.collabText,
-                          presenzaSquadra[c.nome] && { color: Colors.white },
-                        ]}
-                      >
-                        {c.nome.toUpperCase()}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                    <Text style={[
+                      styles.collabText,
+                      presenzaSquadra[c.nome] && styles.collabTextActive
+                    ]}>
+                      {c.nome.toUpperCase()}
+                    </Text>
+                  </PressedButton>
                 ))}
               </View>
             </View>
           )}
 
-          {/* Invenduto Section */}
-          <TouchableOpacity onPress={() => setShowInvenduto(!showInvenduto)}>
-            <NeuBox style={styles.expandSection}>
-              <Text style={styles.expandTitle}>INVENDUTO</Text>
-              <Ionicons
-                name={showInvenduto ? 'chevron-up' : 'chevron-down'}
-                size={24}
-                color={Colors.marrone}
-              />
-            </NeuBox>
-          </TouchableOpacity>
+          {/* Progress Bar */}
+          <View style={styles.progressSection}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressLabel}>
+                {progresso >= 1 ? 'OBIETTIVO RAGGIUNTO!' : 'COPERTURA COSTI'}
+              </Text>
+              <Text style={styles.progressPercent}>{Math.round(progresso * 100)}%</Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min(progresso * 100, 100)}%`,
+                  backgroundColor: progresso >= 1 ? Colors.verde : Colors.caramello
+                }
+              ]} />
+            </View>
+          </View>
 
-          {showInvenduto && isAlimentare && fornitori.length > 0 && (
-            <NeuBox style={styles.invendutoContent}>
-              {fornitori.flatMap((f) =>
-                (f.prodotti || []).map((p) => (
-                  <View key={`${f.nome}-${p.nome}`} style={styles.invendutoRow}>
-                    <Text style={styles.invendutoLabel}>{p.nome.toUpperCase()}</Text>
-                    <View style={styles.kgInput}>
-                      <TextInput
-                        style={styles.kgInputText}
-                        placeholder="0"
-                        keyboardType="numeric"
-                      />
-                      <Text style={styles.kgLabel}>KG</Text>
-                      <View style={styles.kgButtons}>
-                        <TouchableOpacity style={styles.kgBtn}>
-                          <Text style={styles.kgBtnText}>+</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.kgBtn}>
-                          <Text style={styles.kgBtnText}>-</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                ))
-              )}
-              {fornitori.length === 0 || fornitori.every(f => !f.prodotti?.length) && (
-                <Text style={styles.emptyText}>Aggiungi prodotti nelle impostazioni</Text>
-              )}
-            </NeuBox>
-          )}
+          {/* Action Buttons */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+              <View style={styles.actionBtnInner}>
+                <Ionicons name="receipt" size={18} color={Colors.white} />
+                <Text style={styles.actionBtnText}>SCONTRINO</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleSalvaGiornata} activeOpacity={0.7}>
+              <View style={styles.actionBtnInner}>
+                <Ionicons name="save" size={18} color={Colors.white} />
+                <Text style={styles.actionBtnText}>SALVA</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
-          {/* Salva Dati Button */}
-          <TouchableOpacity style={styles.saveButton} onPress={handleSalvaGiornata}>
-            <Text style={styles.saveButtonText}>SALVA DATI</Text>
-          </TouchableOpacity>
-
-          {/* Spese Giornaliere */}
-          <TouchableOpacity>
-            <NeuBox style={styles.speseCard}>
-              <View style={styles.speseLeft}>
-                <Ionicons name="car" size={24} color={Colors.terracotta} />
-                <Text style={styles.speseTitle}>SPESE GIORNALIERE</Text>
-              </View>
-              <View style={styles.speseRight}>
-                <Text style={styles.speseValue}>€ {getTotaleExtra().toFixed(2)}</Text>
-                <Text style={styles.speseTocca}>Tocca per gestire</Text>
-              </View>
-            </NeuBox>
-          </TouchableOpacity>
-
-          {/* Spese Fisse */}
-          <TouchableOpacity>
-            <NeuBox style={styles.speseCard}>
-              <View style={styles.speseLeft}>
-                <Ionicons name="settings" size={24} color={Colors.terracotta} />
-                <Text style={styles.speseTitle}>SPESE FISSE</Text>
-              </View>
-              <View style={styles.speseRight}>
-                <Text style={styles.speseValue}>€ {getTotaleFisseOpe().toFixed(2)}</Text>
-                <Text style={styles.speseTocca}>Tocca per gestire</Text>
-              </View>
-            </NeuBox>
+          {/* Report Button */}
+          <TouchableOpacity 
+            style={styles.reportBtn}
+            onPress={() => Alert.alert('Report AI', 'Funzionalità in arrivo!')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reportBtnInner}>
+              <Ionicons name="globe" size={22} color={Colors.marrone} />
+              <Text style={styles.reportBtnText}>GENERA REPORT</Text>
+            </View>
           </TouchableOpacity>
 
           <View style={{ height: 30 }} />
@@ -427,13 +572,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 15,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   headerTitle: {
     fontSize: 26,
@@ -441,108 +591,306 @@ const styles = StyleSheet.create({
     color: Colors.marrone,
     letterSpacing: 2,
   },
+  notificationBtn: {
+    position: 'absolute',
+    right: 0,
+    padding: 5,
+  },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.marroneChiaro,
     marginTop: 4,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 20,
-  },
-  searchText: {
+  headerOwner: {
     fontSize: 14,
-    color: Colors.grey,
+    fontStyle: 'italic',
+    color: Colors.caramello,
+    marginTop: 2,
   },
-  meteoContainer: {
+  statusBadge: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 25,
-  },
-  meteoItem: {
     alignItems: 'center',
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 15,
   },
-  meteoCircle: {
-    width: 55,
-    height: 55,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
   },
-  meteoCircleInactive: {
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  sectionCard: {
     backgroundColor: Colors.bgCard,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
     borderWidth: 1,
     borderColor: Colors.lightGrey,
   },
-  meteoLabel: {
-    fontSize: 10,
-    color: Colors.grey,
-    fontWeight: '500',
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.marrone,
+    marginBottom: 15,
+    textAlign: 'center',
   },
-  incassoRow: {
+  meteoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  meteoCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  meteoCircleNormal: {
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  meteoCirclePressed: {
+    shadowColor: '#000',
+    shadowOffset: { width: -1, height: -1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    transform: [{ scale: 0.95 }],
+  },
+  switchRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 15,
   },
-  incassoCard: {
+  switchBtn: {
     flex: 1,
-    backgroundColor: Colors.arancioChiaro,
-    borderWidth: 2,
-    borderColor: Colors.caramello,
-  },
-  incassoLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    marginBottom: 5,
-  },
-  incassoValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  incassoInput: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: Colors.marrone,
-    flex: 1,
-  },
-  euroSign: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-  },
-  incassoSubtext: {
-    fontSize: 10,
-    color: Colors.marroneChiaro,
-    marginTop: 5,
-  },
-  inputColumn: {
-    width: 140,
-    gap: 10,
-  },
-  smallInput: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    paddingVertical: 10,
   },
-  smallInputText: {
-    flex: 1,
+  switchText: {
     fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.grey,
+  },
+  switchTextActive: {
     color: Colors.marrone,
   },
-  section: {
-    marginBottom: 20,
+  switchIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.verde,
   },
-  sectionTitle: {
+  fieraInputs: {
+    marginBottom: 15,
+    gap: 10,
+  },
+  fieraRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  inputField: {
+    backgroundColor: Colors.bg,
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.lightGrey,
+  },
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: Colors.grey,
+    marginBottom: 4,
+  },
+  textInput: {
+    fontSize: 14,
+    color: Colors.marrone,
+    fontWeight: '600',
+  },
+  moneyGrid: {
+    gap: 10,
+  },
+  moneyRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  moneyCard: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+    borderRadius: 15,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.lightGrey,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  moneyLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: Colors.grey,
+    marginBottom: 5,
+  },
+  moneyInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  euroPre: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.marrone,
+    marginRight: 4,
+  },
+  moneyInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '900',
+    color: Colors.marrone,
+  },
+  moneyValue: {
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: Colors.marrone,
+    marginBottom: 10,
+    marginTop: 5,
+  },
+  speseRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  speseBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  speseBtnText: {
     fontSize: 12,
     fontWeight: 'bold',
     color: Colors.marrone,
-    marginBottom: 12,
+  },
+  speseValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.terracotta,
+  },
+  pressedButton: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: 15,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: Colors.lightGrey,
+  },
+  pressedButtonActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: -2, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    backgroundColor: Colors.bg,
+    transform: [{ scale: 0.98 }],
+  },
+  invendutoBtn: {
+    marginBottom: 10,
+  },
+  invendutoBtnText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: Colors.marrone,
+  },
+  invendutoContent: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: 15,
+    padding: 12,
+    marginBottom: 15,
+  },
+  invendutoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.lightGrey,
+  },
+  invendutoLabel: {
+    fontSize: 14,
+    color: Colors.marrone,
+  },
+  kgControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  kgBtn: {
+    width: 28,
+    height: 28,
+    backgroundColor: Colors.caramello,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  kgBtnText: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  kgValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.marrone,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 12,
+    color: Colors.grey,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 15,
+  },
+  collabSection: {
+    marginTop: 10,
+    marginBottom: 15,
   },
   collabRow: {
     flexDirection: 'row',
@@ -550,128 +898,101 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   collabChip: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 25,
+    borderRadius: 20,
   },
   collabText: {
     fontSize: 12,
     fontWeight: 'bold',
+    color: Colors.grey,
+  },
+  collabTextActive: {
     color: Colors.marrone,
   },
-  expandSection: {
+  progressSection: {
+    marginBottom: 20,
+  },
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  expandTitle: {
-    fontSize: 14,
+  progressLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: Colors.caramello,
+  },
+  progressPercent: {
+    fontSize: 11,
     fontWeight: 'bold',
     color: Colors.marrone,
   },
-  invendutoContent: {
+  progressBar: {
+    height: 10,
+    backgroundColor: Colors.bgCard,
+    borderRadius: 5,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.lightGrey,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 15,
   },
-  invendutoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.lightGrey,
+  actionBtn: {
+    flex: 1,
   },
-  invendutoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.marrone,
-  },
-  kgInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.bg,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  kgInputText: {
-    width: 30,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    textAlign: 'center',
-  },
-  kgLabel: {
-    fontSize: 12,
-    color: Colors.grey,
-    marginLeft: 5,
-  },
-  kgButtons: {
-    flexDirection: 'row',
-    marginLeft: 8,
-    gap: 4,
-  },
-  kgBtn: {
-    width: 24,
-    height: 24,
+  actionBtnInner: {
     backgroundColor: Colors.caramello,
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  kgBtnText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    fontSize: 12,
-    color: Colors.grey,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 20,
-  },
-  saveButton: {
-    backgroundColor: Colors.caramello,
-    paddingVertical: 14,
     borderRadius: 25,
+    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 15,
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
     borderWidth: 2,
     borderColor: Colors.terracotta,
   },
-  saveButtonText: {
+  actionBtnText: {
     color: Colors.white,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
-  speseCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+  reportBtn: {
+    marginBottom: 10,
   },
-  speseLeft: {
+  reportBtnInner: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: 20,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: Colors.lightGrey,
   },
-  speseTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  reportBtnText: {
     color: Colors.marrone,
-  },
-  speseRight: {
-    alignItems: 'flex-end',
-  },
-  speseValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: Colors.terracotta,
-  },
-  speseTocca: {
-    fontSize: 10,
-    color: Colors.grey,
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
 });
