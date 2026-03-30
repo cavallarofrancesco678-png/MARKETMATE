@@ -7,10 +7,11 @@ export default function TabLayout() {
   const TabItem = ({ name, label, focused }: { name: string; label: string; focused: boolean }) => (
     <View style={styles.tabItem}>
       <View style={[styles.iconOval, focused && styles.iconOvalActive]}>
+        <View style={styles.ovalShine} />
         <Ionicons
           name={name as any}
-          size={20}
-          color={focused ? '#F0D080' : 'rgba(160,200,190,0.85)'}
+          size={18}
+          color={focused ? '#E8D090' : 'rgba(170,210,200,0.8)'}
         />
       </View>
       <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
@@ -61,47 +62,56 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#1A3535',
+    backgroundColor: '#2D4252',
     borderTopWidth: 0,
-    height: 75,
-    paddingTop: 4,
-    paddingBottom: 6,
-    paddingHorizontal: 6,
+    height: 80,
+    paddingTop: 8,
+    paddingBottom: 10,
+    paddingHorizontal: 4,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     // @ts-ignore
-    boxShadow: '0px -3px 14px rgba(0,0,0,0.3)',
+    boxShadow: '0px -4px 16px rgba(0,0,0,0.3)',
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    width: 62,
+    gap: 4,
   },
   iconOval: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 50,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(40,80,75,0.7)',
+    backgroundColor: 'rgba(45,80,75,0.75)',
+    overflow: 'hidden',
     // @ts-ignore
-    boxShadow: '2px 3px 8px rgba(0,0,0,0.4), inset 0px 1px 4px rgba(120,180,170,0.3)',
+    boxShadow: '2px 3px 8px rgba(0,0,0,0.4), inset 0px 1px 4px rgba(100,170,160,0.25)',
   },
   iconOvalActive: {
-    backgroundColor: 'rgba(50,110,105,0.85)',
+    backgroundColor: 'rgba(50,105,100,0.9)',
     // @ts-ignore
-    boxShadow: '0px 0px 12px rgba(240,208,128,0.4), 2px 3px 8px rgba(0,0,0,0.4), inset 0px 1px 4px rgba(120,180,170,0.3)',
+    boxShadow: '0px 0px 12px rgba(232,208,144,0.35), 2px 3px 8px rgba(0,0,0,0.4), inset 0px 1px 4px rgba(100,170,160,0.25)',
+  },
+  ovalShine: {
+    position: 'absolute',
+    top: 2,
+    left: 8,
+    right: 8,
+    height: 10,
+    backgroundColor: 'rgba(130,185,175,0.2)',
+    borderRadius: 8,
   },
   tabLabel: {
     fontSize: 7,
     fontWeight: '700',
-    color: 'rgba(160,200,190,0.65)',
-    letterSpacing: 0.3,
+    color: 'rgba(195,220,210,0.55)',
+    letterSpacing: 0.2,
     textAlign: 'center',
   },
   tabLabelActive: {
-    color: '#F0D080',
+    color: '#E8D090',
     fontWeight: '800',
   },
 });
