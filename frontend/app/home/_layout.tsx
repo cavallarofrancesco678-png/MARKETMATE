@@ -2,16 +2,15 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../src/theme/colors';
 
 export default function TabLayout() {
   const TabItem = ({ name, label, focused }: { name: string; label: string; focused: boolean }) => (
     <View style={styles.tabItem}>
-      <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+      <View style={[styles.iconOval, focused && styles.iconOvalActive]}>
         <Ionicons
           name={name as any}
-          size={22}
-          color={focused ? '#F0D080' : 'rgba(200,220,210,0.7)'}
+          size={20}
+          color={focused ? '#F0D080' : 'rgba(160,200,190,0.85)'}
         />
       </View>
       <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
@@ -29,7 +28,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ focused }) => <TabItem name="home" label="HOME" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabItem name="home-outline" label="HOME" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -41,19 +40,19 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          tabBarIcon: ({ focused }) => <TabItem name="stats-chart" label="STATISTICHE" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabItem name="bar-chart-outline" label="STATISTICHE" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="gas"
         options={{
-          tabBarIcon: ({ focused }) => <TabItem name="car" label="CARBURANTE" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabItem name="document-text-outline" label="CARBURANTE" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="agenda"
         options={{
-          tabBarIcon: ({ focused }) => <TabItem name="calendar" label="AGENDA" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabItem name="calendar-outline" label="AGENDA" focused={focused} />,
         }}
       />
     </Tabs>
@@ -62,41 +61,44 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#1A3A3A',
+    backgroundColor: '#1A3535',
     borderTopWidth: 0,
-    height: 78,
-    paddingTop: 6,
-    paddingBottom: 8,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    height: 75,
+    paddingTop: 4,
+    paddingBottom: 6,
+    paddingHorizontal: 6,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     // @ts-ignore
-    boxShadow: '0px -4px 16px rgba(0,0,0,0.3)',
+    boxShadow: '0px -3px 14px rgba(0,0,0,0.3)',
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
+    width: 62,
   },
-  iconContainer: {
+  iconOval: {
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(40,80,80,0.6)',
+    backgroundColor: 'rgba(40,80,75,0.7)',
     // @ts-ignore
-    boxShadow: '2px 3px 8px rgba(0,0,0,0.4), -1px -1px 4px rgba(60,100,100,0.3)',
+    boxShadow: '2px 3px 8px rgba(0,0,0,0.4), inset 0px 1px 4px rgba(120,180,170,0.3)',
   },
-  iconContainerActive: {
-    backgroundColor: 'rgba(60,120,110,0.8)',
+  iconOvalActive: {
+    backgroundColor: 'rgba(50,110,105,0.85)',
     // @ts-ignore
-    boxShadow: '0px 0px 12px rgba(240,208,128,0.4), 2px 3px 8px rgba(0,0,0,0.4)',
+    boxShadow: '0px 0px 12px rgba(240,208,128,0.4), 2px 3px 8px rgba(0,0,0,0.4), inset 0px 1px 4px rgba(120,180,170,0.3)',
   },
   tabLabel: {
-    fontSize: 8,
-    fontWeight: '600',
-    color: 'rgba(200,220,210,0.5)',
+    fontSize: 7,
+    fontWeight: '700',
+    color: 'rgba(160,200,190,0.65)',
     letterSpacing: 0.3,
+    textAlign: 'center',
   },
   tabLabelActive: {
     color: '#F0D080',
