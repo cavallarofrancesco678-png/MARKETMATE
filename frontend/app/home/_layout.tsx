@@ -1,8 +1,8 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 // Custom Fuel Pump SVG
 const FuelPumpIcon = ({ color, size }: { color: string; size: number }) => (
@@ -16,50 +16,128 @@ const FuelPumpIcon = ({ color, size }: { color: string; size: number }) => (
 );
 
 export default function TabLayout() {
-  const TabIcon = ({ name, focused, custom }: { name?: string; focused: boolean; custom?: boolean }) => (
-    <View style={[st.oval, focused && st.ovalActive]}>
-      {custom ? (
-        <FuelPumpIcon color={focused ? '#E8D090' : '#B5D8D0'} size={20} />
-      ) : (
-        <Ionicons name={name as any} size={20} color={focused ? '#E8D090' : '#B5D8D0'} />
-      )}
+  const TabIcon = ({
+    name,
+    focused,
+    custom,
+    label,
+  }: {
+    name?: string;
+    focused: boolean;
+    custom?: boolean;
+    label: string;
+  }) => (
+    <View style={st.tabItem}>
+      <View style={[st.oval, focused && st.ovalActive]}>
+        {custom ? (
+          <FuelPumpIcon color={focused ? '#FFFFFF' : '#8AB5AD'} size={20} />
+        ) : (
+          <Ionicons
+            name={name as any}
+            size={20}
+            color={focused ? '#FFFFFF' : '#8AB5AD'}
+          />
+        )}
+      </View>
+      <Text style={[st.label, focused && st.labelActive]}>{label}</Text>
     </View>
   );
 
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarShowLabel: false, tabBarStyle: st.bar }}>
-      <Tabs.Screen name="index" options={{ tabBarIcon: ({ focused }) => <TabIcon name="home-outline" focused={focused} /> }} />
-      <Tabs.Screen name="settings" options={{ tabBarIcon: ({ focused }) => <TabIcon name="settings-outline" focused={focused} /> }} />
-      <Tabs.Screen name="stats" options={{ tabBarIcon: ({ focused }) => <TabIcon name="bar-chart-outline" focused={focused} /> }} />
-      <Tabs.Screen name="gas" options={{ tabBarIcon: ({ focused }) => <TabIcon custom focused={focused} /> }} />
-      <Tabs.Screen name="agenda" options={{ tabBarIcon: ({ focused }) => <TabIcon name="calendar-outline" focused={focused} /> }} />
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: st.bar,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="home" focused={focused} label="HOME" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="settings" focused={focused} label="SETTING" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="bar-chart" focused={focused} label="STATISTICHE" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="gas"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon custom focused={focused} label="CARBURANTE" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="agenda"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="calendar" focused={focused} label="AGENDA" />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
 
 const st = StyleSheet.create({
   bar: {
-    backgroundColor: '#2B5F66',
+    backgroundColor: '#1A3A3A',
     borderTopWidth: 0,
-    height: 68,
-    paddingTop: 10,
+    height: 80,
+    paddingTop: 6,
     paddingBottom: 10,
-    paddingHorizontal: 10,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    paddingHorizontal: 8,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     // @ts-ignore
-    boxShadow: '0px -3px 14px rgba(0,0,0,0.25)',
+    boxShadow: '0px -4px 16px rgba(0,0,0,0.3)',
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
   },
   oval: {
-    width: 48, height: 42, borderRadius: 21,
-    justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(40,85,80,0.7)',
+    width: 46,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(26,58,58,0.8)',
     // @ts-ignore
-    boxShadow: '2px 3px 7px rgba(0,0,0,0.35), inset 0px 1px 3px rgba(100,170,160,0.2)',
+    boxShadow:
+      'inset 1px 1px 4px rgba(0,0,0,0.35), 2px 2px 6px rgba(0,0,0,0.2)',
   },
   ovalActive: {
-    backgroundColor: 'rgba(50,110,100,0.9)',
+    backgroundColor: 'rgba(30,127,133,0.9)',
     // @ts-ignore
-    boxShadow: '0px 0px 10px rgba(232,208,144,0.35), 2px 3px 7px rgba(0,0,0,0.35)',
+    boxShadow:
+      '0px 0px 14px rgba(30,127,133,0.5), 0px 2px 8px rgba(0,0,0,0.3)',
+  },
+  label: {
+    fontSize: 7,
+    fontWeight: '700',
+    color: '#5A8A85',
+    letterSpacing: 0.3,
+  },
+  labelActive: {
+    color: '#C0E8E0',
+    fontWeight: '800',
   },
 });
