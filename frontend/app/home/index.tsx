@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Dimensions, Modal,
+  Dimensions, Modal, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
@@ -12,7 +12,7 @@ const { width: SW } = Dimensions.get('window');
 const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
-/* ─── WEATHER SVG ICONS (more detailed, matching photo) ─── */
+/* ─── WEATHER SVG ICONS ─── */
 const IconSole = ({ c }: { c: string }) => (
   <Svg width="28" height="28" viewBox="0 0 28 28">
     <Circle cx="14" cy="14" r="5" stroke={c} strokeWidth="2" fill="none" />
@@ -54,7 +54,6 @@ const IconNuvola = ({ c }: { c: string }) => (
     <Path d="M7 15a5 5 0 0 1 9.8-1.2A3.5 3.5 0 0 1 20 17.5 3.5 3.5 0 0 1 16.5 21H7.5A4 4 0 0 1 7 15z" stroke={c} strokeWidth="2" fill="none" />
   </Svg>
 );
-
 const WEATHER = [
   { Ico: IconSole, label: 'SOLE' },
   { Ico: IconParziale, label: 'VAR' },
@@ -65,19 +64,19 @@ const WEATHER = [
 
 /* ─── Mini charts ─── */
 const MiniLine = () => (
-  <Svg width="62" height="36" viewBox="0 0 62 36">
-    <Path d="M2 28 Q14 25 18 17 T32 21 T46 12 T60 5" stroke="#3A8AB0" strokeWidth="2.2" fill="none" />
-    <Path d="M2 32 Q16 30 24 26 T38 28 T52 20 T60 16" stroke="#E89060" strokeWidth="1.8" fill="none" />
+  <Svg width="65" height="40" viewBox="0 0 65 40">
+    <Path d="M2 32 Q14 28 18 18 T32 22 T46 12 T63 5" stroke="#3A8AB0" strokeWidth="2.2" fill="none" />
+    <Path d="M2 36 Q16 34 24 28 T38 30 T52 22 T63 18" stroke="#E89060" strokeWidth="1.8" fill="none" />
   </Svg>
 );
 const MiniBar = () => (
-  <Svg width="58" height="36" viewBox="0 0 58 36">
-    <Rect x="2" y="20" width="7" height="16" fill="#5CC0B8" rx="2" />
-    <Rect x="12" y="24" width="7" height="12" fill="#E8A060" rx="2" />
-    <Rect x="22" y="14" width="7" height="22" fill="#5CC0B8" rx="2" />
-    <Rect x="32" y="8" width="7" height="28" fill="#E8A060" rx="2" />
-    <Rect x="42" y="4" width="7" height="32" fill="#5CC0B8" rx="2" />
-    <Rect x="52" y="12" width="7" height="24" fill="#E8A060" rx="2" />
+  <Svg width="60" height="40" viewBox="0 0 60 40">
+    <Rect x="2" y="22" width="7" height="18" fill="#5CC0B8" rx="2" />
+    <Rect x="12" y="26" width="7" height="14" fill="#E8A060" rx="2" />
+    <Rect x="22" y="14" width="7" height="26" fill="#5CC0B8" rx="2" />
+    <Rect x="32" y="8" width="7" height="32" fill="#E8A060" rx="2" />
+    <Rect x="42" y="4" width="7" height="36" fill="#5CC0B8" rx="2" />
+    <Rect x="52" y="14" width="7" height="26" fill="#E8A060" rx="2" />
   </Svg>
 );
 
@@ -90,12 +89,12 @@ export default function HomeScreen() {
   const [presenze, setPresenze] = useState<Record<string, boolean>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [chartMode, setChartMode] = useState<'mese' | 'anno' | 'confronto'>('anno');
+
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');
   const [pos, setPos] = useState('');
   const [speseExtra, setSpeseExtra] = useState('');
   const [invenduto, setInvenduto] = useState('');
-  const [chiedi, setChiedi] = useState('');
 
   const mercatoOggi = agenda[getGiornoIndex(dataCorrente)];
   const mercatoNome = isFiera ? 'Fiera' : (mercatoOggi?.mercato || 'Magenta');
@@ -120,6 +119,24 @@ export default function HomeScreen() {
   const utile = lordoNum - speseFisse - speseExtraNum - invendutoNum;
   const collabNames = collaboratori.length > 0 ? collaboratori.map(c => c.nome) : ['DAVIDE', 'ANTONIO', 'NICOLÒ'];
 
+  // ── Auto-calc CONTANTI ↔ POSS ──
+  const handleContanti = (val: string) => {
+    setContanti(val);
+    const c = parseFloat(val.replace(',', '.')) || 0;
+    if (lordoNum > 0) {
+      const diff = lordoNum - c;
+      setPos(diff > 0 ? diff.toFixed(2) : '0');
+    }
+  };
+  const handlePos = (val: string) => {
+    setPos(val);
+    const p = parseFloat(val.replace(',', '.')) || 0;
+    if (lordoNum > 0) {
+      const diff = lordoNum - p;
+      setContanti(diff > 0 ? diff.toFixed(2) : '0');
+    }
+  };
+
   const changeDate = (off: number) => { const d = new Date(dataCorrente); d.setDate(d.getDate() + off); setDataCorrente(d); };
   const handleSalva = () => {
     salvaGiornata({ data: dataCorrente, mercato: mercatoNome, meteo, km: mercatoOggi?.km || 0,
@@ -127,26 +144,29 @@ export default function HomeScreen() {
       pos: parseFloat(pos.replace(',', '.')) || 0, spese_extra: speseExtraNum,
       dettaglio_staff: presenze, dettaglio_invenduto: { totale: invendutoNum }, dettaglio_fornitori: {},
     } as any);
+    Alert.alert('Salvato!', 'Giornata salvata con successo.');
   };
 
   return (
     <View style={s.root}>
-      {/* HEADER */}
-      <View style={s.header}>
-        <Text style={s.marketName}>{mercatoNome.toUpperCase()}</Text>
-        <View style={s.badges}>
-          <View style={s.badge}><Text style={s.badgeTxt}>Nome</Text><Text style={s.badgeTxt}>Azienda</Text></View>
-          <View style={s.bell}><Ionicons name="notifications" size={15} color="#FFF" /><View style={s.bellDot} /></View>
-        </View>
+      {/* ── HEADER ── */}
+      <Text style={s.marketName}>{mercatoNome.toUpperCase()}</Text>
+      <View style={s.badgesAbsolute}>
+        <View style={s.badge}><Text style={s.badgeTxt}>Nome</Text><Text style={s.badgeTxt}>Azienda</Text></View>
+        <View style={s.bell}><Ionicons name="notifications" size={15} color="#FFF" /><View style={s.bellDot} /></View>
       </View>
 
-      {/* DATE */}
+      {/* ── DATE (no market name, bigger text) ── */}
       <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
         <View style={s.dateRow}>
-          <TouchableOpacity onPress={() => changeDate(-1)}><Ionicons name="chevron-back" size={16} color="#3A6A6A" /></TouchableOpacity>
-          <Ionicons name="calendar-outline" size={13} color="#3A6A6A" />
-          <Text style={s.dateTxt}>{giorno} {data} - {mercatoNome}</Text>
-          <TouchableOpacity onPress={() => changeDate(1)}><Ionicons name="chevron-forward" size={16} color="#3A6A6A" /></TouchableOpacity>
+          <TouchableOpacity onPress={(e) => { e.stopPropagation(); changeDate(-1); }}>
+            <Ionicons name="chevron-back" size={18} color="#3A6A6A" />
+          </TouchableOpacity>
+          <Ionicons name="calendar-outline" size={15} color="#3A6A6A" />
+          <Text style={s.dateTxt}>{giorno} {data}</Text>
+          <TouchableOpacity onPress={(e) => { e.stopPropagation(); changeDate(1); }}>
+            <Ionicons name="chevron-forward" size={18} color="#3A6A6A" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
             <View style={[s.piazza, !isInPiazza && { backgroundColor: '#D55' }]}>
               <Text style={s.piazzaTxt}>{isInPiazza ? 'IN PIAZZA' : 'ASSENTE'}</Text>
@@ -155,7 +175,7 @@ export default function HomeScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* TOGGLE */}
+      {/* ── TOGGLE ── */}
       <View style={s.toggleRow}>
         {['Mercato', 'Fiera'].map((t, i) => {
           const on = i === 0 ? !isFiera : isFiera;
@@ -169,7 +189,7 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {/* WEATHER */}
+      {/* ── WEATHER ── */}
       <View style={s.meteoRow}>
         {WEATHER.map((w, i) => {
           const sel = meteo === w.label;
@@ -183,7 +203,7 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {/* COLLABORATORI */}
+      {/* ── COLLABORATORI ── */}
       <Text style={s.secLabel}>COLLABORATORI</Text>
       <View style={s.collabRow}>
         {collabNames.map((n, i) => {
@@ -198,47 +218,68 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {/* DATA GRID */}
+      {/* ── DATA GRID ── */}
       <View style={s.grid}>
-        {[
-          [{ l: 'LORDO', bold: true, inp: true, v: lordo, fn: setLordo },
-           { l: 'UTILE', bold: true, comp: `€${utile.toFixed(2)}`, clr: utile >= 0 ? '#2A7A5A' : '#D44' }],
-          [{ l: 'CONTANTI', inp: true, v: contanti, fn: setContanti },
-           { l: 'POSS', inp: true, v: pos, fn: setPos }],
-          [{ l: 'SPESE EXTRA', inp: true, v: speseExtra, fn: setSpeseExtra },
-           { l: 'SPESE FISSE', comp: `€${speseFisse.toFixed(2)}` }],
-          [{ l: 'INVENDUTO', inp: true, v: invenduto, fn: setInvenduto },
-           { l: 'CHIEDI', inp: true, v: chiedi, fn: setChiedi }],
-        ].map((row, ri) => (
-          <View key={ri} style={s.gridRow}>
-            {row.map((c: any, ci: number) => (
-              <View key={ci} style={s.card}>
-                <Text style={c.bold ? s.cardBold : s.cardLbl}>{c.l}</Text>
-                {c.inp ? (
-                  <TextInput style={s.cardInp} placeholder="€0,00" placeholderTextColor="#B5A898" keyboardType="numeric" value={c.v} onChangeText={c.fn} />
-                ) : (
-                  <Text style={[s.cardVal, c.bold && { fontWeight: '800', fontSize: 14 }, c.clr && { color: c.clr }]}>{c.comp}</Text>
-                )}
-              </View>
-            ))}
+        {/* ROW 1: LORDO | UTILE */}
+        <View style={s.gridRow}>
+          <View style={s.card}>
+            <Text style={s.cardBold}>LORDO</Text>
+            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={setLordo} selectTextOnFocus />
           </View>
-        ))}
+          <View style={s.card}>
+            <Text style={s.cardBold}>UTILE</Text>
+            <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>€{utile.toFixed(2)}</Text>
+          </View>
+        </View>
+        {/* ROW 2: CONTANTI | POSS (auto-calc) */}
+        <View style={s.gridRow}>
+          <View style={s.card}>
+            <Text style={s.cardLbl}>CONTANTI</Text>
+            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={contanti} onChangeText={handleContanti} selectTextOnFocus />
+          </View>
+          <View style={s.card}>
+            <Text style={s.cardLbl}>POSS</Text>
+            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={pos} onChangeText={handlePos} selectTextOnFocus />
+          </View>
+        </View>
+        {/* ROW 3: SPESE EXTRA | SPESE FISSE */}
+        <View style={s.gridRow}>
+          <View style={s.card}>
+            <Text style={s.cardLbl}>SPESE EXTRA</Text>
+            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={speseExtra} onChangeText={setSpeseExtra} selectTextOnFocus />
+          </View>
+          <View style={s.card}>
+            <Text style={s.cardLbl}>SPESE FISSE</Text>
+            <Text style={s.cardVal}>€{speseFisse.toFixed(2)}</Text>
+          </View>
+        </View>
+        {/* ROW 4: INVENDUTO | CHIEDI (AI Button) */}
+        <View style={s.gridRow}>
+          <View style={s.card}>
+            <Text style={s.cardLbl}>INVENDUTO</Text>
+            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={invenduto} onChangeText={setInvenduto} selectTextOnFocus />
+          </View>
+          <TouchableOpacity style={s.chiediBtn} activeOpacity={0.7} onPress={() => Alert.alert('AI', 'Funzionalità AI in arrivo...')}>
+            <Ionicons name="globe-outline" size={18} color="#1A3535" />
+            <Text style={s.chiediTxt}>CHIEDI</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* STORICO MERCATO */}
+      {/* ── STORICO MERCATO (bigger card, smaller filters) ── */}
       <View style={s.storicoWrap}>
         <TouchableOpacity activeOpacity={0.85} style={s.storico}>
           <View style={s.storicoL}><MiniLine /></View>
           <View style={s.storicoC}>
             <Text style={s.storicoT}>STORICO MERCATO</Text>
             <Text style={s.storicoDay}>del {giorno}</Text>
-            <Text style={s.storicoVal}>€44.130 <Text style={{ color: '#2AA090', fontSize: 11 }}>(+14%)</Text></Text>
+            <Text style={s.storicoVal}>€44.130 <Text style={{ color: '#2AA090', fontSize: 12 }}>(+14%)</Text></Text>
             <Text style={s.storicoSub}>Media scontrino: €18.50</Text>
           </View>
           <View style={s.storicoR}><MiniBar /></View>
         </TouchableOpacity>
         <View style={s.filterRow}>
-          {([['mese','MESE'],['anno','ANNO','(Dodici Mesi)'],['confronto','CONFRONTO','ANNO PREC.']] as const).map(([k,l,sub]) => {
+          {([['mese','MESE'],['anno','ANNO','(12 Mesi)'],['confronto','CONFRONTO','Anno Prec.']] as const).map(([k,l,sub]) => {
             const on = chartMode === k;
             return (
               <TouchableOpacity key={k} style={[s.filterBtn, on && s.filterOn]} onPress={() => setChartMode(k as any)}>
@@ -250,13 +291,13 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* SALVA */}
+      {/* ── SALVA ── */}
       <TouchableOpacity onPress={handleSalva} activeOpacity={0.8} style={s.salva}>
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>SALVA GIORNATA</Text>
       </TouchableOpacity>
 
-      {/* Date Picker */}
+      {/* ── Date Picker Modal ── */}
       <Modal visible={showDatePicker} transparent animationType="fade">
         <TouchableOpacity style={s.overlay} onPress={() => setShowDatePicker(false)} activeOpacity={1}>
           <View style={s.picker}>
@@ -284,120 +325,130 @@ export default function HomeScreen() {
   );
 }
 
-/* ─── STYLES (exact colors from photo analysis) ─── */
+/* ─── STYLES ─── */
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#E2F0E8', paddingHorizontal: 14, paddingTop: 42 },
+  root: { flex: 1, backgroundColor: '#D8EDE5', paddingHorizontal: 14, paddingTop: 48 },
 
-  /* Header */
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
-  marketName: { fontSize: 22, fontWeight: '900', color: '#1A4040', letterSpacing: 1, flex: 1, textAlign: 'center' },
-  badges: { position: 'absolute', right: 0, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  /* Header - MAGENTA higher */
+  marketName: { fontSize: 24, fontWeight: '900', color: '#1A4040', letterSpacing: 1.5, textAlign: 'center', marginBottom: 2 },
+  badgesAbsolute: { position: 'absolute', top: 48, right: 14, flexDirection: 'row', alignItems: 'center', gap: 5 },
   badge: { backgroundColor: '#1E7F85', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, alignItems: 'center' },
   badgeTxt: { color: '#FFF', fontSize: 8, fontWeight: '700' },
   bell: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#1E7F85', justifyContent: 'center', alignItems: 'center' },
   bellDot: { position: 'absolute', top: 3, right: 5, width: 6, height: 6, borderRadius: 3, backgroundColor: '#E44' },
 
-  /* Date */
-  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 6 },
-  dateTxt: { fontSize: 11, fontWeight: '600', color: '#2A5050' },
-  piazza: { backgroundColor: '#1E7F85', borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
-  piazzaTxt: { color: '#FFF', fontSize: 7, fontWeight: '700' },
+  /* Date - bigger text, no market name */
+  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 7 },
+  dateTxt: { fontSize: 14, fontWeight: '700', color: '#2A5050' },
+  piazza: { backgroundColor: '#1E7F85', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  piazzaTxt: { color: '#FFF', fontSize: 8, fontWeight: '700' },
 
-  /* Toggle - Photo: active #1E7F85, inactive #D9E5E2 */
+  /* Toggle */
   toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
   toggle: {
-    backgroundColor: '#D9E5E2', borderRadius: 26, paddingVertical: 11, alignItems: 'center',
+    backgroundColor: '#E0DBC8', borderRadius: 26, paddingVertical: 11, alignItems: 'center',
     // @ts-ignore
-    boxShadow: '3px 4px 8px rgba(160,175,165,0.5), -3px -3px 6px rgba(255,255,255,0.85)',
+    boxShadow: '4px 4px 10px rgba(155,145,125,0.5), -3px -3px 8px rgba(255,255,250,0.85)',
   },
   toggleOn: {
     backgroundColor: '#1E7F85',
     // @ts-ignore
-    boxShadow: '3px 4px 10px rgba(15,60,65,0.55), -2px -2px 5px rgba(45,120,125,0.3)',
+    boxShadow: '4px 4px 10px rgba(15,60,65,0.55), -2px -2px 5px rgba(45,120,125,0.3)',
   },
-  toggleTxt: { fontSize: 14, fontWeight: '700', color: '#4A5555' },
+  toggleTxt: { fontSize: 14, fontWeight: '700', color: '#4A3A2A' },
 
-  /* Weather - Photo: circle color #A2C2DA */
+  /* Weather */
   meteoRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 6, paddingHorizontal: 4 },
   meteo: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#A2C2DA',
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#A0BED0',
     justifyContent: 'center', alignItems: 'center',
     // @ts-ignore
-    boxShadow: '3px 4px 10px rgba(60,100,120,0.5), -3px -3px 8px rgba(200,225,240,0.7)',
+    boxShadow: '4px 4px 10px rgba(60,95,115,0.5), -3px -3px 8px rgba(195,220,238,0.7)',
   },
   meteoOn: {
     backgroundColor: '#5A8EA0',
     // @ts-ignore
-    boxShadow: '3px 4px 10px rgba(30,60,70,0.55), -2px -2px 6px rgba(80,140,160,0.4)',
+    boxShadow: '4px 4px 10px rgba(30,55,65,0.55), -2px -2px 6px rgba(80,140,160,0.4)',
   },
 
   /* Section label */
   secLabel: { fontSize: 9, fontWeight: '700', color: '#5A7575', textAlign: 'center', marginBottom: 4, letterSpacing: 2 },
 
-  /* Collaboratori - Photo: pill color #E5D7B8 */
+  /* Collaboratori */
   collabRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 8 },
   collab: {
-    backgroundColor: '#E5D7B8', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 9,
+    backgroundColor: '#E0DBC8', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 9,
     // @ts-ignore
-    boxShadow: '3px 4px 8px rgba(170,150,120,0.45), -3px -3px 7px rgba(255,255,255,0.85)',
+    boxShadow: '4px 4px 10px rgba(155,145,125,0.5), -3px -3px 8px rgba(255,255,250,0.85)',
   },
   collabOn: {
     backgroundColor: '#1E7F85',
     // @ts-ignore
-    boxShadow: '3px 4px 8px rgba(15,60,65,0.45)',
+    boxShadow: '4px 4px 8px rgba(15,60,65,0.45)',
   },
   collabTxt: { fontSize: 11, fontWeight: '700', color: '#4A3A2A' },
 
-  /* Grid - Photo: card color #F8F8F4 */
+  /* Grid */
   grid: { gap: 8, marginBottom: 8 },
   gridRow: { flexDirection: 'row', gap: 10 },
   card: {
-    flex: 1, backgroundColor: '#F8F8F4', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+    flex: 1, backgroundColor: '#EDE8DA', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     // @ts-ignore
-    boxShadow: '3px 4px 8px rgba(170,175,165,0.4), -3px -3px 7px rgba(255,255,255,0.9)',
+    boxShadow: '4px 4px 10px rgba(160,150,130,0.45), -3px -3px 8px rgba(255,255,250,0.9)',
   },
-  cardLbl: { fontSize: 11, fontWeight: '600', color: '#4A5555' },
+  cardLbl: { fontSize: 11, fontWeight: '600', color: '#4A4A40' },
   cardBold: { fontSize: 13, fontWeight: '800', color: '#1A3535' },
-  cardInp: { fontSize: 13, fontWeight: '700', color: '#1A3535', textAlign: 'right', minWidth: 65, padding: 0 },
+  cardInp: { fontSize: 14, fontWeight: '700', color: '#1A3535', textAlign: 'right', minWidth: 70, padding: 0 },
   cardVal: { fontSize: 13, fontWeight: '700', color: '#1A3535' },
+  cardValBold: { fontSize: 14, fontWeight: '800' },
 
-  /* Storico */
+  /* CHIEDI - AI Button */
+  chiediBtn: {
+    flex: 1, backgroundColor: '#EDE8DA', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
+    // @ts-ignore
+    boxShadow: '4px 4px 10px rgba(160,150,130,0.45), -3px -3px 8px rgba(255,255,250,0.9)',
+  },
+  chiediTxt: { fontSize: 12, fontWeight: '700', color: '#1A3535' },
+
+  /* Storico - bigger card */
   storicoWrap: { marginBottom: 10 },
   storico: {
-    backgroundColor: '#F8F8F4', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14,
-    flexDirection: 'row', alignItems: 'center', marginBottom: 7,
+    backgroundColor: '#EDE8DA', borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 6,
     // @ts-ignore
-    boxShadow: '3px 4px 10px rgba(170,175,165,0.4), -3px -3px 8px rgba(255,255,255,0.9)',
+    boxShadow: '4px 5px 12px rgba(160,150,130,0.45), -3px -3px 8px rgba(255,255,250,0.9)',
   },
   storicoL: { flex: 0.8, alignItems: 'center' },
   storicoC: { flex: 1.4, alignItems: 'center' },
   storicoR: { flex: 0.8, alignItems: 'center' },
-  storicoT: { fontSize: 13, fontWeight: '800', color: '#1A3535' },
-  storicoDay: { fontSize: 9, fontWeight: '600', color: '#5A7575' },
-  storicoVal: { fontSize: 15, fontWeight: '900', color: '#1A3535' },
-  storicoSub: { fontSize: 8, fontWeight: '600', color: '#7A9090', marginTop: 1 },
+  storicoT: { fontSize: 14, fontWeight: '800', color: '#1A3535' },
+  storicoDay: { fontSize: 10, fontWeight: '600', color: '#5A7575' },
+  storicoVal: { fontSize: 16, fontWeight: '900', color: '#1A3535' },
+  storicoSub: { fontSize: 9, fontWeight: '600', color: '#7A9090', marginTop: 2 },
 
-  filterRow: { flexDirection: 'row', gap: 8 },
+  /* Filter buttons - smaller */
+  filterRow: { flexDirection: 'row', gap: 6 },
   filterBtn: {
-    flex: 1, backgroundColor: '#E5D7B8', borderRadius: 14, paddingVertical: 9, alignItems: 'center',
+    flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, paddingVertical: 6, alignItems: 'center',
     // @ts-ignore
-    boxShadow: '3px 3px 8px rgba(170,150,120,0.4), -2px -2px 6px rgba(255,255,255,0.8)',
+    boxShadow: '3px 3px 7px rgba(155,145,125,0.4), -2px -2px 6px rgba(255,255,250,0.8)',
   },
   filterOn: {
     backgroundColor: '#1E7F85',
     // @ts-ignore
-    boxShadow: '3px 4px 10px rgba(15,60,65,0.5), -2px -2px 5px rgba(45,120,125,0.3)',
+    boxShadow: '3px 3px 8px rgba(15,60,65,0.45), -2px -2px 5px rgba(45,120,125,0.3)',
   },
-  filterTxt: { fontSize: 9, fontWeight: '800', color: '#4A3A2A', textAlign: 'center' },
-  filterSub: { fontSize: 6, fontWeight: '600', color: '#7A6A5A', textAlign: 'center' },
+  filterTxt: { fontSize: 8, fontWeight: '800', color: '#4A3A2A', textAlign: 'center' },
+  filterSub: { fontSize: 5.5, fontWeight: '600', color: '#7A6A5A', textAlign: 'center' },
 
   /* Salva */
   salva: {
     backgroundColor: '#1E7F85', borderRadius: 16, paddingVertical: 14,
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
     // @ts-ignore
-    boxShadow: '3px 4px 12px rgba(15,60,65,0.5), -2px -2px 6px rgba(45,120,125,0.3)',
+    boxShadow: '4px 4px 12px rgba(15,60,65,0.5), -2px -2px 6px rgba(45,120,125,0.3)',
   },
   salvaTxt: { color: '#FFF', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
 
@@ -405,9 +456,9 @@ const s = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   picker: { backgroundColor: '#F0EDE5', borderRadius: 20, padding: 20, width: SW * 0.85, alignItems: 'center' },
   pickDay: {
-    width: 42, height: 56, borderRadius: 12, backgroundColor: '#E5D7B8',
+    width: 42, height: 56, borderRadius: 12, backgroundColor: '#E0DBC8',
     justifyContent: 'center', alignItems: 'center',
     // @ts-ignore
-    boxShadow: '2px 2px 6px rgba(160,145,120,0.4), -2px -2px 5px rgba(255,255,255,0.7)',
+    boxShadow: '2px 2px 6px rgba(155,145,125,0.4), -2px -2px 5px rgba(255,255,250,0.7)',
   },
 });
