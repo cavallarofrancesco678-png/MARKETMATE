@@ -7,11 +7,10 @@ export default function TabLayout() {
   const TabIcon = ({ name, label, focused }: { name: string; label: string; focused: boolean }) => (
     <View style={st.item}>
       <View style={[st.oval, focused && st.ovalActive]}>
-        <View style={st.ovalShine} />
         <Ionicons
           name={name as any}
-          size={20}
-          color={focused ? '#E8D088' : '#B0D8D0'}
+          size={22}
+          color={focused ? '#E8D088' : '#B8E0D8'}
         />
       </View>
       <Text style={[st.label, focused && st.labelActive]}>{label}</Text>

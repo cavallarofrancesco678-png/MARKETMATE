@@ -162,11 +162,10 @@ export default function HomeScreen() {
           return (
             <TouchableOpacity key={i} onPress={() => setMeteo(m.label)} activeOpacity={0.7}>
               <View style={[s.meteoCircle, sel && s.meteoSel]}>
-                <View style={s.meteoShine} />
                 {m.icon === 'wind' ? (
-                  <WindSvg size={26} color={sel ? '#FFF' : '#1A3A4A'} />
+                  <WindSvg size={28} color={sel ? '#FFF' : '#1A3040'} />
                 ) : (
-                  <Ionicons name={m.icon as any} size={26} color={sel ? '#FFF' : '#1A3A4A'} />
+                  <Ionicons name={m.icon as any} size={28} color={sel ? '#FFF' : '#1A3040'} />
                 )}
               </View>
             </TouchableOpacity>
@@ -287,7 +286,7 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#D2EBE4', paddingHorizontal: 12, paddingTop: 38 },
 
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 0 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
   marketName: { fontSize: 22, fontWeight: '900', color: '#1A4040', letterSpacing: 1, flex: 1, textAlign: 'center' },
   badges: { position: 'absolute', right: 0, flexDirection: 'row', alignItems: 'center', gap: 5 },
   aziendaBadge: { backgroundColor: '#2A6565', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, alignItems: 'center' },
@@ -295,17 +294,17 @@ const s = StyleSheet.create({
   bellCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#2A6565', justifyContent: 'center', alignItems: 'center' },
   bellDot: { position: 'absolute', top: 3, right: 4, width: 6, height: 6, borderRadius: 3, backgroundColor: '#E44' },
 
-  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 4 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 6 },
   dateTxt: { fontSize: 11, fontWeight: '600', color: '#2A5555' },
   piazzaBadge: { backgroundColor: '#2A6565', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
   piazzaTxt: { color: '#FFF', fontSize: 7, fontWeight: '700' },
 
-  toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 5 },
+  toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
   toggleWrap: { flex: 1 },
   toggleBtn: {
     backgroundColor: '#E8DFC8',
     borderRadius: 24,
-    paddingVertical: 9,
+    paddingVertical: 12,
     alignItems: 'center',
     overflow: 'hidden',
     // @ts-ignore
@@ -324,11 +323,11 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.25)', borderTopLeftRadius: 24, borderTopRightRadius: 24,
   },
 
-  meteoRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 3, paddingHorizontal: 2 },
+  meteoRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 6, paddingHorizontal: 2 },
   meteoCircle: {
-    width: 50, height: 50, borderRadius: 25,
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: '#9AB8C8',
-    justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
+    justifyContent: 'center', alignItems: 'center',
     // @ts-ignore
     boxShadow: '4px 4px 12px rgba(55,90,105,0.55), -3px -3px 8px rgba(190,220,235,0.7)',
   },
@@ -342,11 +341,11 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 10,
   },
 
-  secTitle: { fontSize: 8, fontWeight: '700', color: '#5A7575', textAlign: 'center', marginBottom: 3, letterSpacing: 2 },
+  secTitle: { fontSize: 9, fontWeight: '700', color: '#5A7575', textAlign: 'center', marginBottom: 5, letterSpacing: 2 },
 
-  collabRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 5 },
+  collabRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 8 },
   collabPill: {
-    backgroundColor: '#E8DFC8', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 7, overflow: 'hidden',
+    backgroundColor: '#E8DFC8', borderRadius: 20, paddingHorizontal: 18, paddingVertical: 9, overflow: 'hidden',
     // @ts-ignore
     boxShadow: '4px 4px 10px rgba(160,145,120,0.5), -3px -3px 8px rgba(255,255,255,0.85)',
   },
@@ -357,14 +356,14 @@ const s = StyleSheet.create({
   },
   collabTxt: { fontSize: 10, fontWeight: '700', color: '#4A3A2A' },
 
-  grid: { gap: 7, marginBottom: 5 },
-  gridRow: { flexDirection: 'row', gap: 8 },
+  grid: { gap: 9, marginBottom: 8 },
+  gridRow: { flexDirection: 'row', gap: 10 },
   card: {
     flex: 1,
     backgroundColor: '#F2EAD8',
     borderRadius: 14,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -382,10 +381,10 @@ const s = StyleSheet.create({
   cardVal: { fontSize: 13, fontWeight: '700', color: '#1A3535' },
   cardValBold: { fontSize: 14, fontWeight: '800' },
 
-  storicoSection: { marginBottom: 5 },
+  storicoSection: { marginBottom: 8 },
   storicoCard: {
-    backgroundColor: '#F2EAD8', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 12,
-    flexDirection: 'row', alignItems: 'center', marginBottom: 6, overflow: 'hidden',
+    backgroundColor: '#F2EAD8', borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 8, overflow: 'hidden',
     // @ts-ignore
     boxShadow: '4px 5px 12px rgba(170,150,125,0.45), -3px -3px 8px rgba(255,255,255,0.9)',
   },
@@ -397,9 +396,9 @@ const s = StyleSheet.create({
   storicoVal: { fontSize: 15, fontWeight: '900', color: '#1A3535' },
   storicoMedia: { fontSize: 8, fontWeight: '600', color: '#7A9090', marginTop: 1 },
 
-  filterRow: { flexDirection: 'row', gap: 6 },
+  filterRow: { flexDirection: 'row', gap: 8 },
   filterBtn: {
-    flex: 1, backgroundColor: '#E8DFC8', borderRadius: 14, paddingVertical: 7,
+    flex: 1, backgroundColor: '#E8DFC8', borderRadius: 14, paddingVertical: 10,
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
     // @ts-ignore
     boxShadow: '3px 3px 8px rgba(160,145,120,0.45), -2px -2px 6px rgba(255,255,255,0.85)',
@@ -413,7 +412,7 @@ const s = StyleSheet.create({
   filterSub: { fontSize: 6, fontWeight: '600', color: '#7A6A5A', textAlign: 'center' },
 
   salvaBtn: {
-    backgroundColor: '#1E5555', borderRadius: 14, paddingVertical: 12,
+    backgroundColor: '#1E5555', borderRadius: 16, paddingVertical: 15,
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
     // @ts-ignore
     boxShadow: '4px 4px 12px rgba(15,45,45,0.5), -2px -2px 6px rgba(50,100,100,0.3)',
