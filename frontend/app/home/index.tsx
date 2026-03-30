@@ -18,7 +18,31 @@ const { width: SW } = Dimensions.get('window');
 const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
-// Wind SVG icon
+// Custom Weather SVG Icons for reliable rendering
+const SunSvg = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M16.95 16.95l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M16.95 7.05l1.42-1.42" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
+    <Path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" stroke={color} strokeWidth="2" fill="none" />
+  </Svg>
+);
+const PartlySunnySvg = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M10 2v1.5M3.64 5.64l1.06 1.06M2 12h1.5M5.64 18.36l1.06-1.06" stroke={color} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    <Path d="M10 5.5a4.5 4.5 0 0 1 4 2.2" stroke={color} strokeWidth="1.8" fill="none" />
+    <Path d="M9 11a4 4 0 0 0-3.5 5.8A3 3 0 0 0 6 22h12a3 3 0 0 0 .5-5.95A4 4 0 0 0 9 11z" stroke={color} strokeWidth="2" fill="none" />
+  </Svg>
+);
+const CloudSvg = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M6 20a4 4 0 0 1-.87-7.9A5.5 5.5 0 0 1 16.9 10 3.5 3.5 0 1 1 18 17H6z" stroke={color} strokeWidth="2" fill="none" strokeLinejoin="round" />
+  </Svg>
+);
+const ThunderstormSvg = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M6 16a4 4 0 0 1-.87-7.9A5.5 5.5 0 0 1 16.9 6 3.5 3.5 0 1 1 18 13H6z" stroke={color} strokeWidth="2" fill="none" />
+    <Path d="M13 13l-2 5h3l-2 5" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+  </Svg>
+);
 const WindSvg = ({ size, color }: { size: number; color: string }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M3 8h10a3 3 0 1 0-3-3" stroke={color} strokeWidth="2.2" strokeLinecap="round" fill="none" />
@@ -26,6 +50,14 @@ const WindSvg = ({ size, color }: { size: number; color: string }) => (
     <Path d="M3 16h7a3 3 0 1 1-3 3" stroke={color} strokeWidth="2.2" strokeLinecap="round" fill="none" />
   </Svg>
 );
+
+const WEATHER_ITEMS = [
+  { Comp: SunSvg, label: 'SOLE' },
+  { Comp: PartlySunnySvg, label: 'VAR' },
+  { Comp: CloudSvg, label: 'NUVOLO' },
+  { Comp: ThunderstormSvg, label: 'TEMP' },
+  { Comp: WindSvg, label: 'VENTO' },
+];
 
 // Mini charts for STORICO card
 const MiniLine = () => (
@@ -45,13 +77,7 @@ const MiniBar = () => (
   </Svg>
 );
 
-const METEO_ICONS: { icon: string; label: string }[] = [
-  { icon: 'sunny-outline', label: 'SOLE' },
-  { icon: 'partly-sunny-outline', label: 'VAR' },
-  { icon: 'cloud-outline', label: 'NUVOLO' },
-  { icon: 'thunderstorm-outline', label: 'TEMP' },
-  { icon: 'wind', label: 'VENTO' },
-];
+const WEATHER_ITEMS_LIST = WEATHER_ITEMS;
 
 export default function HomeScreen() {
   const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata } = useAppStore();
@@ -155,18 +181,15 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {/* WEATHER - Big visible icons */}
+      {/* WEATHER - Custom SVG icons for reliable rendering */}
       <View style={s.meteoRow}>
-        {METEO_ICONS.map((m, i) => {
+        {WEATHER_ITEMS.map((m, i) => {
           const sel = meteo === m.label;
+          const IconComp = m.Comp;
           return (
             <TouchableOpacity key={i} onPress={() => setMeteo(m.label)} activeOpacity={0.7}>
               <View style={[s.meteoCircle, sel && s.meteoSel]}>
-                {m.icon === 'wind' ? (
-                  <WindSvg size={28} color={sel ? '#FFF' : '#1A3040'} />
-                ) : (
-                  <Ionicons name={m.icon as any} size={28} color={sel ? '#FFF' : '#1A3040'} />
-                )}
+                <IconComp size={28} color={sel ? '#FFFFFF' : '#1A3040'} />
               </View>
             </TouchableOpacity>
           );
