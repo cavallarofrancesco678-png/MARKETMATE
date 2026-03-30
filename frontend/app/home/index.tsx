@@ -7,42 +7,35 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore, Giornata } from '../../src/store/appStore';
-import { Colors } from '../../src/theme/colors';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
+import { RevenueChart } from '../../src/components/RevenueChart';
 
 const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
-const METEO_OPTIONS = [
+const METEO = [
   { icon: 'sunny-outline', label: 'SOLE' },
-  { icon: 'partly-sunny', label: 'VARIABILE' },
-  { icon: 'rainy', label: 'PIOGGIA' },
-  { icon: 'thunderstorm', label: 'TEMPORALE' },
-  { icon: 'cloud', label: 'NUVOLO' },
+  { icon: 'partly-sunny-outline', label: 'VAR' },
+  { icon: 'rainy-outline', label: 'PIOGGIA' },
+  { icon: 'thunderstorm-outline', label: 'TEMP' },
+  { icon: 'cloud-outline', label: 'NUVOLO' },
 ];
 
 export default function HomeScreen() {
-  const {
-    nomeAttivita,
-    nomeTitolare,
-    agenda,
-    collaboratori,
-    speseAnnue,
-    storicoCarburante,
-    storicoGiornate,
-    salvaGiornata,
-  } = useAppStore();
-
+  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata } = useAppStore();
+  
   const [dataCorrente] = useState(new Date());
   const [isFiera, setIsFiera] = useState(false);
   const [isInPiazza, setIsInPiazza] = useState(true);
   const [meteo, setMeteo] = useState('SOLE');
-  const [presenzaSquadra, setPresenzaSquadra] = useState<Record<string, boolean>>({});
-
+  const [presenze, setPresenze] = useState<Record<string, boolean>>({});
+  
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');
   const [pos, setPos] = useState('');
@@ -51,304 +44,146 @@ export default function HomeScreen() {
   const [chiedi, setChiedi] = useState('');
 
   const mercatoOggi = agenda[getGiornoIndex(dataCorrente)];
-  const mercatoNome = isFiera ? 'Fiera' : (mercatoOggi?.mercato || 'Giorno Off');
+  const mercatoNome = isFiera ? 'Fiera' : (mercatoOggi?.mercato || 'Magenta');
   const giorno = GIORNI[dataCorrente.getDay()];
   const data = `${dataCorrente.getDate()} ${MESI[dataCorrente.getMonth()]}`;
 
   useEffect(() => {
-    const presence: Record<string, boolean> = {};
-    collaboratori.forEach((c) => { presence[c.nome] = false; });
-    setPresenzaSquadra(presence);
+    const p: Record<string, boolean> = {};
+    collaboratori.forEach(c => { p[c.nome] = false; });
+    setPresenze(p);
   }, [collaboratori]);
 
-  const getSpeseFisse = () => {
-    const ggLavorativi = agenda.filter((m) => m.lavorativo).length || 6;
-    const totSpeseAnnue = speseAnnue.reduce((sum, s) => sum + s.importo, 0);
-    const totPlateatici = agenda.reduce((sum, m) => sum + m.p_annuo, 0);
-    return ((totSpeseAnnue + totPlateatici) / (48 * ggLavorativi));
-  };
+  const speseFisse = (() => {
+    const gg = agenda.filter(m => m.lavorativo).length || 6;
+    const tot = speseAnnue.reduce((s, x) => s + x.importo, 0) + agenda.reduce((s, m) => s + m.p_annuo, 0);
+    return tot / (48 * gg);
+  })();
 
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
   const speseExtraNum = parseFloat(speseExtra.replace(',', '.')) || 0;
   const invendutoNum = parseFloat(invenduto.replace(',', '.')) || 0;
-  const speseFisse = getSpeseFisse();
   const utile = lordoNum - speseFisse - speseExtraNum - invendutoNum;
 
-  const handleSalva = () => {
-    const giornata: Giornata = {
-      data: dataCorrente,
-      mercato: mercatoNome,
-      meteo,
-      km: mercatoOggi?.km || 0,
-      lordo: lordoNum,
-      netto: utile,
-      contanti: parseFloat(contanti.replace(',', '.')) || 0,
-      pos: parseFloat(pos.replace(',', '.')) || 0,
-      spese_extra: speseExtraNum,
-      dettaglio_staff: {},
-      dettaglio_invenduto: {},
-      dettaglio_fornitori: {},
-    };
-    salvaGiornata(giornata);
-  };
-
-  // 3D Weather Icon with glass effect
-  const WeatherIcon = ({ icon, isActive, onPress }: { icon: string; isActive: boolean; onPress: () => void }) => (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.meteoOuter, isActive && styles.meteoOuterActive]}>
-        <LinearGradient
-          colors={isActive ? ['#4A9A9A', '#1E5A5A', '#153838'] : ['#E8F4F0', '#C5DDD4', '#9ABFB5']}
-          style={styles.meteoGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.meteoHighlight} />
-          <Ionicons 
-            name={icon as any} 
-            size={26} 
-            color={isActive ? '#FFFFFF' : '#1E5A5A'} 
-          />
-        </LinearGradient>
-      </View>
-    </TouchableOpacity>
-  );
-
-  // 3D Embossed Chip
-  const CollabChip = ({ name, isActive, onPress }: { name: string; isActive: boolean; onPress: () => void }) => (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.chipOuter, isActive && styles.chipOuterActive]}>
-        <View style={[styles.chipInner, isActive && styles.chipInnerActive]}>
-          <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{name}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  // 3D Data Card with shadow
-  const DataCard = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <View style={styles.dataCardOuter}>
-      <View style={styles.dataCardShadow} />
-      <View style={styles.dataCardInner}>
-        <Text style={styles.dataLabel}>{label}</Text>
-        {children}
-      </View>
-    </View>
-  );
+  const collabNames = collaboratori.length > 0 ? collaboratori.map(c => c.nome) : ['DAVIDE', 'ANTONIO', 'NICOLÒ'];
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         
         {/* HEADER */}
         <View style={styles.header}>
           <Text style={styles.title}>MARKETMATE</Text>
           <View style={styles.headerRight}>
-            <View style={styles.nomeAziendaBadge}>
-              <Text style={styles.nomeAziendaText}>Nome</Text>
-              <Text style={styles.nomeAziendaText}>Azienda</Text>
+            <View style={styles.aziendaBadge}>
+              <Text style={styles.aziendaText}>Nome</Text>
+              <Text style={styles.aziendaText}>Azienda</Text>
             </View>
-            <View style={styles.bellOuter}>
-              <LinearGradient
-                colors={['#2A6A6A', '#1E4A4A', '#153838']}
-                style={styles.bellGradient}
-              >
-                <Ionicons name="notifications" size={22} color="#FFFFFF" />
-              </LinearGradient>
+            <View style={styles.bellCircle}>
+              <Ionicons name="notifications" size={18} color="#FFF" />
+              <View style={styles.bellDot} />
             </View>
           </View>
         </View>
 
         {/* SUBHEADER */}
-        <View style={styles.subheader}>
-          <Text style={styles.subheaderText}>{giorno} {data} - {mercatoNome}</Text>
-          <TouchableOpacity 
-            style={[styles.inPiazzaBadge, !isInPiazza && styles.assenteBadge]}
-            onPress={() => setIsInPiazza(!isInPiazza)}
-          >
-            <Text style={styles.inPiazzaText}>{isInPiazza ? 'IN PIAZZA' : 'ASSENTE'}</Text>
+        <View style={styles.subRow}>
+          <Text style={styles.subText}>{giorno} {data} - {mercatoNome}</Text>
+          <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
+            <View style={[styles.piazzaBadge, !isInPiazza && {backgroundColor: '#D55'}]}>
+              <Text style={styles.piazzaText}>{isInPiazza ? 'IN PIAZZA' : 'ASSENTE'}</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
-        {/* MERCATO / FIERA with 3D effect */}
-        <View style={styles.switchRow}>
-          <TouchableOpacity style={styles.switchBtnWrapper} onPress={() => setIsFiera(false)} activeOpacity={0.8}>
-            {!isFiera ? (
-              <LinearGradient colors={['#2A6A6A', '#1E4A4A', '#153838']} style={styles.switchBtnActive}>
-                <Text style={styles.switchTextActive}>Mercato</Text>
-              </LinearGradient>
-            ) : (
-              <View style={styles.switchBtnInactive}>
-                <View style={styles.switchBtnInnerShadow} />
-                <Text style={styles.switchTextInactive}>Mercato</Text>
-              </View>
-            )}
+        {/* TOGGLE MERCATO / FIERA */}
+        <View style={styles.toggleRow}>
+          <TouchableOpacity style={styles.toggleWrap} onPress={() => setIsFiera(false)}>
+            <View style={[styles.toggleBtn, !isFiera && styles.toggleActive]}>
+              <Text style={[styles.toggleText, !isFiera && styles.toggleTextActive]}>Mercato</Text>
+            </View>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.switchBtnWrapper} onPress={() => setIsFiera(true)} activeOpacity={0.8}>
-            {isFiera ? (
-              <LinearGradient colors={['#2A6A6A', '#1E4A4A', '#153838']} style={styles.switchBtnActive}>
-                <Text style={styles.switchTextActive}>Fiera</Text>
-              </LinearGradient>
-            ) : (
-              <View style={styles.switchBtnInactive}>
-                <View style={styles.switchBtnInnerShadow} />
-                <Text style={styles.switchTextInactive}>Fiera</Text>
-              </View>
-            )}
+          <TouchableOpacity style={styles.toggleWrap} onPress={() => setIsFiera(true)}>
+            <View style={[styles.toggleBtn, isFiera && styles.toggleActive]}>
+              <Text style={[styles.toggleText, isFiera && styles.toggleTextActive]}>Fiera</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
-        {/* WEATHER ICONS with 3D glass effect */}
+        {/* WEATHER ICONS - Blue 3D spheres */}
         <View style={styles.meteoRow}>
-          {METEO_OPTIONS.map((m) => (
-            <WeatherIcon 
-              key={m.label} 
-              icon={m.icon} 
-              isActive={meteo === m.label} 
-              onPress={() => setMeteo(m.label)} 
-            />
+          {METEO.map((m, i) => (
+            <TouchableOpacity key={i} onPress={() => setMeteo(m.label)}>
+              <View style={[styles.meteoSphere, meteo === m.label && styles.meteoSphereActive]}>
+                <View style={styles.meteoShine} />
+                <Ionicons name={m.icon as any} size={26} color={meteo === m.label ? '#FFF' : '#3A8A9A'} />
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
 
         {/* COLLABORATORI */}
-        <Text style={styles.sectionLabel}>COLLABORATORI</Text>
+        <Text style={styles.sectionTitle}>COLLABORATORI</Text>
         <View style={styles.collabRow}>
-          {collaboratori.length > 0 ? collaboratori.map((c) => (
-            <CollabChip
-              key={c.nome}
-              name={c.nome.toUpperCase()}
-              isActive={presenzaSquadra[c.nome]}
-              onPress={() => setPresenzaSquadra(prev => ({ ...prev, [c.nome]: !prev[c.nome] }))}
-            />
-          )) : (
-            <>
-              <CollabChip name="DAVIDE" isActive={false} onPress={() => {}} />
-              <CollabChip name="ANTONIO" isActive={false} onPress={() => {}} />
-              <CollabChip name="NICOLÒ" isActive={false} onPress={() => {}} />
-            </>
-          )}
+          {collabNames.map((name, i) => (
+            <TouchableOpacity key={i} onPress={() => setPresenze(p => ({...p, [name]: !p[name]}))}>
+              <View style={[styles.collabPill, presenze[name] && styles.collabPillActive]}>
+                <Text style={[styles.collabText, presenze[name] && styles.collabTextActive]}>{name.toUpperCase()}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* DATA GRID with 3D shadows */}
+        {/* DATA GRID */}
         <View style={styles.dataGrid}>
+          {/* Row 1 */}
           <View style={styles.dataRow}>
-            <DataCard label="LORDO">
-              <TextInput
-                style={styles.dataInput}
-                placeholder="€0,00"
-                placeholderTextColor="#9ABFB5"
-                keyboardType="numeric"
-                value={lordo}
-                onChangeText={setLordo}
-              />
-            </DataCard>
-            <DataCard label="UTILE">
-              <Text style={[styles.dataValue, { color: utile >= 0 ? '#4A9A6A' : '#D46A6A' }]}>
-                €{utile.toFixed(2)}
-              </Text>
-            </DataCard>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>LORDO</Text>
+              <TextInput style={styles.dataInput} placeholder="€0,00" placeholderTextColor="#AAA" keyboardType="numeric" value={lordo} onChangeText={setLordo} />
+            </View>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabelBold}>UTILE</Text>
+              <Text style={[styles.dataValueBold, {color: utile >= 0 ? '#3A8' : '#D55'}]}>€{utile.toFixed(2)}</Text>
+            </View>
           </View>
-
+          {/* Row 2 */}
           <View style={styles.dataRow}>
-            <DataCard label="CONTANTI">
-              <TextInput
-                style={styles.dataInput}
-                placeholder="€0,00"
-                placeholderTextColor="#9ABFB5"
-                keyboardType="numeric"
-                value={contanti}
-                onChangeText={setContanti}
-              />
-            </DataCard>
-            <DataCard label="POS">
-              <TextInput
-                style={styles.dataInput}
-                placeholder="€0,00"
-                placeholderTextColor="#9ABFB5"
-                keyboardType="numeric"
-                value={pos}
-                onChangeText={setPos}
-              />
-            </DataCard>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>CONTANTI</Text>
+              <TextInput style={styles.dataInput} placeholder="€0,00" placeholderTextColor="#AAA" keyboardType="numeric" value={contanti} onChangeText={setContanti} />
+            </View>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>POSS</Text>
+              <TextInput style={styles.dataInput} placeholder="€0,00" placeholderTextColor="#AAA" keyboardType="numeric" value={pos} onChangeText={setPos} />
+            </View>
           </View>
-
+          {/* Row 3 */}
           <View style={styles.dataRow}>
-            <DataCard label="SPESE EXTRA">
-              <TextInput
-                style={styles.dataInput}
-                placeholder="€0,00"
-                placeholderTextColor="#9ABFB5"
-                keyboardType="numeric"
-                value={speseExtra}
-                onChangeText={setSpeseExtra}
-              />
-            </DataCard>
-            <DataCard label="SPESE FISSE">
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>SPESE EXTRA</Text>
+              <TextInput style={styles.dataInput} placeholder="€0,00" placeholderTextColor="#AAA" keyboardType="numeric" value={speseExtra} onChangeText={setSpeseExtra} />
+            </View>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>SPESE FISSE</Text>
               <Text style={styles.dataValue}>€{speseFisse.toFixed(2)}</Text>
-            </DataCard>
+            </View>
           </View>
-
+          {/* Row 4 */}
           <View style={styles.dataRow}>
-            <DataCard label="INVENDUTO">
-              <TextInput
-                style={styles.dataInput}
-                placeholder="€0,00"
-                placeholderTextColor="#9ABFB5"
-                keyboardType="numeric"
-                value={invenduto}
-                onChangeText={setInvenduto}
-              />
-            </DataCard>
-            <DataCard label="CHIEDI">
-              <TextInput
-                style={styles.dataInput}
-                placeholder="€0,00"
-                placeholderTextColor="#9ABFB5"
-                keyboardType="numeric"
-                value={chiedi}
-                onChangeText={setChiedi}
-              />
-            </DataCard>
-          </View>
-        </View>
-
-        {/* GRAFICO with shadow */}
-        <View style={styles.graficoOuter}>
-          <View style={styles.graficoShadow} />
-          <View style={styles.graficoCard}>
-            <View style={styles.graficoLeft}>
-              <View style={styles.miniChartLine}>
-                <View style={[styles.chartWave, { backgroundColor: '#5ABABA' }]} />
-                <View style={[styles.chartWave, { backgroundColor: '#E8A060', marginTop: 5 }]} />
-              </View>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>INVENDUTO</Text>
+              <TextInput style={styles.dataInput} placeholder="€0,00" placeholderTextColor="#AAA" keyboardType="numeric" value={invenduto} onChangeText={setInvenduto} />
             </View>
-            <View style={styles.graficoCenter}>
-              <Text style={styles.graficoTitle}>GRAFICO</Text>
-              <View style={styles.graficoIconWrapper}>
-                <Ionicons name="settings-outline" size={24} color="#5ABABA" />
-              </View>
-              <Text style={styles.graficoSubtext}>Clicca per configurare statistiche</Text>
-            </View>
-            <View style={styles.graficoBars}>
-              <View style={[styles.bar, { height: 20, backgroundColor: '#5ABABA' }]} />
-              <View style={[styles.bar, { height: 30, backgroundColor: '#E8A060' }]} />
-              <View style={[styles.bar, { height: 45, backgroundColor: '#1E5A5A' }]} />
-              <View style={[styles.bar, { height: 35, backgroundColor: '#E8A060' }]} />
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>CHIEDI</Text>
+              <TextInput style={styles.dataInput} placeholder="€0,00" placeholderTextColor="#AAA" keyboardType="numeric" value={chiedi} onChangeText={setChiedi} />
             </View>
           </View>
         </View>
 
-        {/* SALVA Button */}
-        <TouchableOpacity style={styles.salvaOuter} onPress={handleSalva} activeOpacity={0.8}>
-          <View style={styles.salvaShadow} />
-          <LinearGradient
-            colors={['#2A6A6A', '#1E4A4A', '#153838']}
-            style={styles.salvaGradient}
-          >
-            <Ionicons name="save" size={18} color="#FFFFFF" />
-            <Text style={styles.salvaBtnText}>SALVA GIORNATA</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        {/* GRAFICO - REVENUE CHART */}
+        <RevenueChart storicoGiornate={[]} />
 
       </ScrollView>
     </SafeAreaView>
@@ -356,363 +191,70 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#D4E8E0',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 5,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#1E4A4A',
-    letterSpacing: 2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  nomeAziendaBadge: {
-    backgroundColor: '#1E5A5A',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignItems: 'center',
-    // @ts-ignore - web shadow
-    boxShadow: '3px 4px 8px rgba(10, 32, 32, 0.4)',
-  },
-  nomeAziendaText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  bellOuter: {
+  container: { flex: 1, backgroundColor: '#D8EDE8' },
+  scroll: { padding: 16, paddingBottom: 100 },
+  
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  title: { fontSize: 28, fontWeight: '800', color: '#1A4A4A', letterSpacing: 1 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aziendaBadge: { backgroundColor: '#2A6A6A', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' },
+  aziendaText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  bellCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#2A6A6A', justifyContent: 'center', alignItems: 'center' },
+  bellDot: { position: 'absolute', top: 6, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E55' },
+  
+  // Subheader
+  subRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12 },
+  subText: { fontSize: 16, fontWeight: '600', color: '#1A4A4A' },
+  piazzaBadge: { backgroundColor: '#2A6A6A', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  piazzaText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
+  
+  // Toggle
+  toggleRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  toggleWrap: { flex: 1 },
+  toggleBtn: { backgroundColor: '#E8DCC8', borderRadius: 30, paddingVertical: 14, alignItems: 'center',
     // @ts-ignore
-    boxShadow: '3px 4px 8px rgba(10, 32, 32, 0.4)',
-  },
-  bellGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  subheader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  subheaderText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E4A4A',
-  },
-  inPiazzaBadge: {
-    backgroundColor: '#40C4AA',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    boxShadow: '4px 4px 10px rgba(180,160,140,0.5), -3px -3px 8px rgba(255,255,255,0.8)' },
+  toggleActive: { backgroundColor: '#1A5A5A',
     // @ts-ignore
-    boxShadow: '2px 3px 4px rgba(26, 106, 90, 0.3)',
-  },
-  assenteBadge: {
-    backgroundColor: '#D46A6A',
-  },
-  inPiazzaText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  // Switch buttons
-  switchRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  switchBtnWrapper: {
-    flex: 1,
-  },
-  switchBtnActive: {
-    borderRadius: 25,
-    paddingVertical: 12,
-    alignItems: 'center',
+    boxShadow: '4px 4px 12px rgba(20,60,60,0.6), -2px -2px 6px rgba(50,90,90,0.3)' },
+  toggleText: { fontSize: 15, fontWeight: '700', color: '#5A4A3A' },
+  toggleTextActive: { color: '#FFF' },
+  
+  // Weather spheres - BLUE 3D
+  meteoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14, paddingHorizontal: 4 },
+  meteoSphere: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#B8D8E8', justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
     // @ts-ignore
-    boxShadow: '4px 5px 10px rgba(10, 32, 32, 0.45)',
-  },
-  switchBtnInactive: {
-    backgroundColor: '#E8DCC8',
-    borderRadius: 25,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D4C4A8',
-    overflow: 'hidden',
+    boxShadow: '4px 5px 12px rgba(80,120,140,0.5), -4px -4px 10px rgba(255,255,255,0.7)' },
+  meteoSphereActive: { backgroundColor: '#4A9AB0',
     // @ts-ignore
-    boxShadow: 'inset 0px 3px 6px rgba(0,0,0,0.15)',
-  },
-  switchBtnInnerShadow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 8,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-  },
-  switchTextActive: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  switchTextInactive: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#6A5A4A',
-  },
-  // Weather icons
-  meteoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    paddingHorizontal: 5,
-  },
-  meteoOuter: {
+    boxShadow: '4px 5px 12px rgba(40,80,100,0.6), -2px -2px 6px rgba(100,160,180,0.4)' },
+  meteoShine: { position: 'absolute', top: 4, left: 8, right: 8, height: 16, backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: 12 },
+  
+  // Section title
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: '#5A7A7A', textAlign: 'center', marginBottom: 10, letterSpacing: 2 },
+  
+  // Collaboratori pills - CREAM colored
+  collabRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14 },
+  collabPill: { backgroundColor: '#E8DCC8', borderRadius: 25, paddingHorizontal: 22, paddingVertical: 12,
     // @ts-ignore
-    boxShadow: '4px 5px 10px rgba(10, 58, 58, 0.4)',
-  },
-  meteoOuterActive: {
+    boxShadow: '4px 4px 10px rgba(180,160,140,0.5), -3px -3px 8px rgba(255,255,255,0.8)' },
+  collabPillActive: { backgroundColor: '#1A5A5A',
     // @ts-ignore
-    boxShadow: '4px 5px 12px rgba(10, 32, 32, 0.55)',
-  },
-  meteoGradient: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  meteoHighlight: {
-    position: 'absolute',
-    top: 4,
-    left: 8,
-    right: 8,
-    height: 12,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 10,
-  },
-  // Section label
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#4A6A6A',
-    textAlign: 'center',
-    marginBottom: 8,
-    letterSpacing: 1.5,
-  },
-  // Collaboratori chips
-  collabRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 10,
-    flexWrap: 'wrap',
-  },
-  chipOuter: {
+    boxShadow: '3px 4px 10px rgba(20,60,60,0.5)' },
+  collabText: { fontSize: 12, fontWeight: '700', color: '#4A3A2A' },
+  collabTextActive: { color: '#FFF' },
+  
+  // Data grid
+  dataGrid: { gap: 10, marginBottom: 16 },
+  dataRow: { flexDirection: 'row', gap: 10 },
+  dataCard: { flex: 1, backgroundColor: '#FAFCFA', borderRadius: 16, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     // @ts-ignore
-    boxShadow: '4px 5px 8px rgba(138, 122, 106, 0.4)',
-  },
-  chipOuterActive: {
-    // @ts-ignore
-    boxShadow: '4px 5px 10px rgba(10, 32, 32, 0.5)',
-  },
-  chipInner: {
-    backgroundColor: '#E8DCC8',
-    borderRadius: 25,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#F5EEE0',
-    borderBottomColor: '#C5B5A0',
-    borderRightColor: '#C5B5A0',
-  },
-  chipInnerActive: {
-    backgroundColor: '#1E5A5A',
-    borderColor: '#2A6A6A',
-    borderBottomColor: '#153838',
-    borderRightColor: '#153838',
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#5A4A3A',
-  },
-  chipTextActive: {
-    color: '#FFFFFF',
-  },
-  // Data cards
-  dataGrid: {
-    gap: 8,
-    marginBottom: 10,
-  },
-  dataRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dataCardOuter: {
-    flex: 1,
-    position: 'relative',
-  },
-  dataCardShadow: {
-    position: 'absolute',
-    top: 5,
-    left: 5,
-    right: -5,
-    bottom: -5,
-    backgroundColor: '#8ABAB0',
-    borderRadius: 12,
-  },
-  dataCardInner: {
-    backgroundColor: '#FAFFF8',
-    borderRadius: 12,
-    padding: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8F4F0',
-    borderBottomColor: '#B5CCC4',
-    borderRightColor: '#B5CCC4',
-    // @ts-ignore
-    boxShadow: '3px 4px 0px #8ABAB0',
-  },
-  dataLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#1E4A4A',
-  },
-  dataInput: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#1E4A4A',
-    textAlign: 'right',
-    minWidth: 70,
-  },
-  dataValue: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#1E4A4A',
-  },
-  // Grafico
-  graficoOuter: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  graficoShadow: {
-    position: 'absolute',
-    top: 5,
-    left: 5,
-    right: -5,
-    bottom: -5,
-    backgroundColor: '#8ABAB0',
-    borderRadius: 15,
-  },
-  graficoCard: {
-    backgroundColor: '#FAFFF8',
-    borderRadius: 15,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8F4F0',
-    borderBottomColor: '#B5CCC4',
-    borderRightColor: '#B5CCC4',
-    // @ts-ignore
-    boxShadow: '4px 5px 0px #8ABAB0',
-  },
-  graficoLeft: {
-    flex: 1,
-    height: 40,
-    justifyContent: 'center',
-  },
-  miniChartLine: {
-    gap: 3,
-  },
-  chartWave: {
-    height: 3,
-    width: 50,
-    borderRadius: 2,
-  },
-  graficoCenter: {
-    flex: 2,
-    alignItems: 'center',
-  },
-  graficoTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#1E4A4A',
-    marginBottom: 2,
-  },
-  graficoIconWrapper: {
-    marginVertical: 2,
-  },
-  graficoSubtext: {
-    fontSize: 8,
-    color: '#7A9A9A',
-  },
-  graficoBars: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
-    gap: 4,
-    height: 50,
-  },
-  bar: {
-    width: 10,
-    borderRadius: 3,
-  },
-  // Salva button
-  salvaOuter: {
-    position: 'relative',
-  },
-  salvaShadow: {
-    position: 'absolute',
-    top: 5,
-    left: 5,
-    right: -5,
-    bottom: -5,
-    backgroundColor: '#0A3030',
-    borderRadius: 25,
-  },
-  salvaGradient: {
-    borderRadius: 25,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    // @ts-ignore
-    boxShadow: '4px 5px 0px #0A3030',
-  },
-  salvaBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
+    boxShadow: '4px 5px 12px rgba(150,180,170,0.4), -3px -3px 8px rgba(255,255,255,0.9)' },
+  dataLabel: { fontSize: 12, fontWeight: '600', color: '#3A5A5A' },
+  dataLabelBold: { fontSize: 14, fontWeight: '800', color: '#1A4A4A' },
+  dataInput: { fontSize: 14, fontWeight: '700', color: '#1A4A4A', textAlign: 'right', minWidth: 80 },
+  dataValue: { fontSize: 14, fontWeight: '700', color: '#1A4A4A' },
+  dataValueBold: { fontSize: 16, fontWeight: '800' },
+  
 });

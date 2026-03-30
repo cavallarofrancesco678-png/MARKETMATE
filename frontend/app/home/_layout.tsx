@@ -11,7 +11,7 @@ export default function TabLayout() {
         <Ionicons
           name={name as any}
           size={22}
-          color={focused ? Colors.white : Colors.tealLight}
+          color={focused ? '#F0D080' : 'rgba(200,220,210,0.7)'}
         />
       </View>
       <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
@@ -62,38 +62,44 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.teal,
+    backgroundColor: '#1A3A3A',
     borderTopWidth: 0,
-    height: 70,
-    paddingTop: 8,
+    height: 78,
+    paddingTop: 6,
     paddingBottom: 8,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    // @ts-ignore
+    boxShadow: '0px -4px 16px rgba(0,0,0,0.3)',
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(40,80,80,0.6)',
+    // @ts-ignore
+    boxShadow: '2px 3px 8px rgba(0,0,0,0.4), -1px -1px 4px rgba(60,100,100,0.3)',
   },
   iconContainerActive: {
-    backgroundColor: Colors.tealLight,
+    backgroundColor: 'rgba(60,120,110,0.8)',
+    // @ts-ignore
+    boxShadow: '0px 0px 12px rgba(240,208,128,0.4), 2px 3px 8px rgba(0,0,0,0.4)',
   },
   tabLabel: {
     fontSize: 8,
     fontWeight: '600',
-    color: Colors.tealLight,
+    color: 'rgba(200,220,210,0.5)',
     letterSpacing: 0.3,
   },
   tabLabelActive: {
-    color: Colors.white,
-    fontWeight: 'bold',
+    color: '#F0D080',
+    fontWeight: '800',
   },
 });
