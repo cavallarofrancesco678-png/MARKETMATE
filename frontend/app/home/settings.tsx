@@ -1,743 +1,916 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
-  Alert,
-  Switch,
   Modal,
+  Switch,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppStore, Collaboratore, Fornitore, SpesaAnnua } from '../../src/store/appStore';
-import { NeuBox, NeuInset } from '../../src/components/NeuBox';
-import { Colors } from '../../src/theme/colors';
+import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
 
-const COLORI_TEMA = [
-  '#C5A059', // Gold
-  '#E57373', // Red
-  '#81C784', // Green
-  '#64B5F6', // Blue
-  '#BA68C8', // Purple
-  '#FFB74D', // Orange
-];
-
-export default function SettingsScreen() {
-  const {
-    nomeAttivita,
-    nomeTitolare,
-    targetMensile,
-    isAlimentare,
-    themeColor,
-    collaboratori,
-    fornitori,
-    agenda,
-    speseAnnue,
-    setConfig,
-    addCollaboratore,
-    removeCollaboratore,
-    addFornitore,
-    removeFornitore,
-    updateAgenda,
-    addSpesaAnnua,
-    removeSpesaAnnua,
-    resetAll,
-  } = useAppStore();
-
-  const activeColor = themeColor || Colors.primary;
-
-  // Local state for editing
-  const [localNomeAttivita, setLocalNomeAttivita] = useState(nomeAttivita);
-  const [localNomeTitolare, setLocalNomeTitolare] = useState(nomeTitolare);
-  const [localTarget, setLocalTarget] = useState(targetMensile.toString());
-  const [localIsAlimentare, setLocalIsAlimentare] = useState(isAlimentare);
-
-  // Modal states
-  const [showCollabModal, setShowCollabModal] = useState(false);
-  const [showFornitoreModal, setShowFornitoreModal] = useState(false);
-  const [showSpesaModal, setShowSpesaModal] = useState(false);
-  const [showMercatoModal, setShowMercatoModal] = useState(false);
-  const [selectedMercatoIndex, setSelectedMercatoIndex] = useState(0);
-
-  // New item states
-  const [newCollabNome, setNewCollabNome] = useState('');
-  const [newCollabCosto, setNewCollabCosto] = useState('');
-  const [newFornitoreNome, setNewFornitoreNome] = useState('');
-  const [newSpesaVoce, setNewSpesaVoce] = useState('');
-  const [newSpesaImporto, setNewSpesaImporto] = useState('');
-
-  // Mercato edit state
-  const [editMercato, setEditMercato] = useState('');
-  const [editKm, setEditKm] = useState('');
-  const [editPlatGG, setEditPlatGG] = useState('');
-  const [editPlatAnnuo, setEditPlatAnnuo] = useState('');
-  const [editLavorativo, setEditLavorativo] = useState(false);
-
+/* ─── REUSABLE INPUT MODAL ─── */
+const InputModal = ({
+  visible,
+  title,
+  hints,
+  onSave,
+  onClose,
+  keyboardTypes,
+}: {
+  visible: boolean;
+  title: string;
+  hints: string[];
+  onSave: (values: string[]) => void;
+  onClose: () => void;
+  keyboardTypes?: string[];
+}) => {
+  const [values, setValues] = useState<string[]>(hints.map(() => ''));
   const handleSave = () => {
-    setConfig({
-      nomeAttivita: localNomeAttivita,
-      nomeTitolare: localNomeTitolare,
-      targetMensile: parseFloat(localTarget.replace(',', '.')) || 3000,
-      isAlimentare: localIsAlimentare,
-    });
-    Alert.alert('Salvato!', 'Impostazioni salvate con successo');
+    if (values.every((v) => v.trim() !== '')) {
+      onSave(values);
+      setValues(hints.map(() => ''));
+      onClose();
+    }
   };
-
-  const handleAddCollab = () => {
-    if (!newCollabNome.trim()) return;
-    addCollaboratore({
-      nome: newCollabNome,
-      costo: parseFloat(newCollabCosto.replace(',', '.')) || 0,
-    });
-    setNewCollabNome('');
-    setNewCollabCosto('');
-    setShowCollabModal(false);
-  };
-
-  const handleAddFornitore = () => {
-    if (!newFornitoreNome.trim()) return;
-    addFornitore({
-      nome: newFornitoreNome,
-      prodotti: [],
-    });
-    setNewFornitoreNome('');
-    setShowFornitoreModal(false);
-  };
-
-  const handleAddSpesa = () => {
-    if (!newSpesaVoce.trim()) return;
-    addSpesaAnnua({
-      voce: newSpesaVoce,
-      importo: parseFloat(newSpesaImporto.replace(',', '.')) || 0,
-    });
-    setNewSpesaVoce('');
-    setNewSpesaImporto('');
-    setShowSpesaModal(false);
-  };
-
-  const openMercatoEdit = (index: number) => {
-    const m = agenda[index];
-    setSelectedMercatoIndex(index);
-    setEditMercato(m.mercato);
-    setEditKm(m.km.toString());
-    setEditPlatGG(m.p_giornaliero.toString());
-    setEditPlatAnnuo(m.p_annuo.toString());
-    setEditLavorativo(m.lavorativo);
-    setShowMercatoModal(true);
-  };
-
-  const handleSaveMercato = () => {
-    const updated = [...agenda];
-    updated[selectedMercatoIndex] = {
-      ...updated[selectedMercatoIndex],
-      mercato: editMercato,
-      km: parseFloat(editKm.replace(',', '.')) || 0,
-      p_giornaliero: parseFloat(editPlatGG.replace(',', '.')) || 0,
-      p_annuo: parseFloat(editPlatAnnuo.replace(',', '.')) || 0,
-      lavorativo: editLavorativo,
-    };
-    updateAgenda(updated);
-    setShowMercatoModal(false);
-  };
-
-  const handleReset = () => {
-    Alert.alert(
-      'Reset App',
-      'Sei sicuro di voler cancellare tutti i dati?',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        { text: 'Reset', style: 'destructive', onPress: resetAll },
-      ]
-    );
-  };
-
-  const totaleAnnuo = speseAnnue.reduce((sum, s) => sum + s.importo, 0) +
-    agenda.reduce((sum, m) => sum + m.p_annuo, 0);
-
-  const SectionTitle = ({ title }: { title: string }) => (
-    <Text style={styles.sectionTitle}>{title}</Text>
-  );
-
-  const InputItem = ({ label, value, onChangeText, icon }: {
-    label: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    icon: string;
-  }) => (
-    <View style={styles.inputItem}>
-      <View style={styles.inputLabel}>
-        <Ionicons name={icon as any} size={20} color={activeColor} />
-        <Text style={styles.inputLabelText}>{label}</Text>
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={ms.overlay}>
+        <View style={ms.modal}>
+          <Text style={ms.modalTitle}>{title}</Text>
+          {hints.map((h, i) => (
+            <TextInput
+              key={i}
+              style={ms.modalInput}
+              placeholder={h}
+              placeholderTextColor="#A0A090"
+              value={values[i]}
+              onChangeText={(t) => {
+                const nv = [...values];
+                nv[i] = t;
+                setValues(nv);
+              }}
+              keyboardType={
+                (keyboardTypes?.[i] === 'numeric' ? 'numeric' : 'default') as any
+              }
+              autoFocus={i === 0}
+            />
+          ))}
+          <View style={ms.modalBtns}>
+            <TouchableOpacity onPress={onClose} style={ms.modalCancel}>
+              <Text style={ms.modalCancelTxt}>ANNULLA</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleSave} style={ms.modalSave}>
+              <Text style={ms.modalSaveTxt}>SALVA</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-      <NeuInset>
-        <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={onChangeText}
-          onBlur={handleSave}
-        />
-      </NeuInset>
-    </View>
+    </Modal>
   );
+};
+
+/* ─── SETTINGS PAGE ─── */
+export default function SettingsPage() {
+  const store = useAppStore();
+
+  // Local state for dialogs
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    hints: string[];
+    keyboardTypes?: string[];
+    onSave: (values: string[]) => void;
+  }>({ visible: false, title: '', hints: [], onSave: () => {} });
+
+  // Expanded state for agenda days
+  const [expandedDay, setExpandedDay] = useState<number | null>(null);
+  // Expanded state for fornitori
+  const [expandedForn, setExpandedForn] = useState<number | null>(null);
+
+  const showDialog1 = useCallback(
+    (title: string, hint: string, onSave: (v: string) => void) => {
+      setModalConfig({
+        visible: true,
+        title,
+        hints: [hint],
+        onSave: (vals) => onSave(vals[0]),
+      });
+    },
+    []
+  );
+
+  const showDialog2 = useCallback(
+    (
+      title: string,
+      h1: string,
+      h2: string,
+      onSave: (v1: string, v2: string) => void,
+      keyboardTypes?: string[]
+    ) => {
+      setModalConfig({
+        visible: true,
+        title,
+        hints: [h1, h2],
+        keyboardTypes,
+        onSave: (vals) => onSave(vals[0], vals[1]),
+      });
+    },
+    []
+  );
+
+  const totalePlatAnnui = store.agenda.reduce(
+    (s, m) => s + m.p_annuo,
+    0
+  );
+  const totaleSpeseAnnue =
+    store.speseAnnue.reduce((s, x) => s + x.importo, 0) + totalePlatAnnui;
+
+  const lingue = ['Italiano', 'English', 'Español', 'Français', 'Deutsch'];
+
+  const updateMercato = (idx: number, field: string, value: any) => {
+    const updated = [...store.agenda];
+    updated[idx] = { ...updated[idx], [field]: value };
+    // Auto-calc: if p_annuo changes, update p_giornaliero
+    if (field === 'p_annuo') {
+      updated[idx].p_giornaliero = Math.round(value / 48);
+    }
+    if (field === 'p_giornaliero') {
+      updated[idx].p_annuo = Math.round(value * 48);
+    }
+    store.updateAgenda(updated);
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.pageTitle}>SETTING PRO</Text>
+    <ScrollView style={s.root} contentContainerStyle={s.content}>
+      <Text style={s.title}>IMPOSTAZIONI</Text>
 
-        {/* 1. IDENTITÀ */}
-        <SectionTitle title="1. IDENTITÀ" />
-        <NeuBox style={styles.section}>
-          <InputItem
-            label="Azienda"
-            value={localNomeAttivita}
-            onChangeText={setLocalNomeAttivita}
-            icon="storefront"
-          />
-          <InputItem
-            label="Titolare"
-            value={localNomeTitolare}
-            onChangeText={setLocalNomeTitolare}
-            icon="person"
-          />
-        </NeuBox>
+      {/* ─── 1. LINGUA ─── */}
+      <Text style={s.secTitle}>1. LINGUA</Text>
+      <View style={s.card}>
+        <View style={s.langRow}>
+          {lingue.map((l) => (
+            <TouchableOpacity
+              key={l}
+              onPress={() => store.setConfig({ lingua: l })}
+              style={[s.langBtn, store.lingua === l && s.langBtnOn]}
+            >
+              <Text
+                style={[
+                  s.langBtnTxt,
+                  store.lingua === l && { color: '#FFF' },
+                ]}
+              >
+                {l}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
-        {/* 2. OBIETTIVI */}
-        <SectionTitle title="2. OBIETTIVI" />
-        <NeuBox style={styles.section}>
-          <InputItem
-            label="Target Mensile €"
-            value={localTarget}
-            onChangeText={setLocalTarget}
-            icon="trending-up"
-          />
-        </NeuBox>
-
-        {/* 3. SETTORE */}
-        <SectionTitle title="3. SETTORE" />
-        <NeuBox style={styles.section}>
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>
-              {localIsAlimentare ? 'ALIMENTARE' : 'NON ALIMENTARE'}
-            </Text>
-            <Switch
-              value={localIsAlimentare}
-              onValueChange={(v) => {
-                setLocalIsAlimentare(v);
-                setConfig({ isAlimentare: v });
-              }}
-              trackColor={{ false: Colors.grey, true: activeColor }}
-              thumbColor={Colors.white}
-            />
+      {/* ─── 2. IDENTITÀ ─── */}
+      <Text style={s.secTitle}>2. IDENTITÀ</Text>
+      <View style={s.card}>
+        <TouchableOpacity
+          style={s.itemRow}
+          onPress={() =>
+            showDialog1('Modifica Azienda', 'Nome Azienda', (v) =>
+              store.setConfig({ nomeAttivita: v })
+            )
+          }
+        >
+          <Ionicons name="storefront" size={20} color="#1E7F85" />
+          <View style={s.itemInfo}>
+            <Text style={s.itemLabel}>Azienda</Text>
+            <Text style={s.itemVal}>{store.nomeAttivita}</Text>
           </View>
-        </NeuBox>
-
-        {/* 4. SQUADRA */}
-        <SectionTitle title="4. SQUADRA COLLABORATORI" />
-        {collaboratori.map((c) => (
-          <NeuBox key={c.nome} style={styles.listItem}>
-            <View style={styles.listItemContent}>
-              <Ionicons name="person" size={20} color={activeColor} />
-              <Text style={styles.listItemText}>{c.nome}</Text>
-              <Text style={styles.listItemValue}>€{c.costo}/gg</Text>
-            </View>
-            <TouchableOpacity onPress={() => removeCollaboratore(c.nome)}>
-              <Ionicons name="trash" size={20} color={Colors.rosso} />
-            </TouchableOpacity>
-          </NeuBox>
-        ))}
-        <TouchableOpacity onPress={() => setShowCollabModal(true)}>
-          <NeuBox style={styles.addButton}>
-            <Ionicons name="person-add" size={20} color={activeColor} />
-            <Text style={[styles.addButtonText, { color: activeColor }]}>
-              Nuovo Collaboratore
-            </Text>
-          </NeuBox>
+          <Ionicons name="create-outline" size={18} color="#7A9090" />
         </TouchableOpacity>
+        <View style={s.divider} />
+        <TouchableOpacity
+          style={s.itemRow}
+          onPress={() =>
+            showDialog1('Modifica Titolare', 'Nome Titolare', (v) =>
+              store.setConfig({ nomeTitolare: v })
+            )
+          }
+        >
+          <Ionicons name="person" size={20} color="#1E7F85" />
+          <View style={s.itemInfo}>
+            <Text style={s.itemLabel}>Titolare</Text>
+            <Text style={s.itemVal}>
+              {store.nomeTitolare || '---'}
+            </Text>
+          </View>
+          <Ionicons name="create-outline" size={18} color="#7A9090" />
+        </TouchableOpacity>
+      </View>
 
-        {/* 5. AGENDA */}
-        <SectionTitle title="5. AGENDA MERCATI" />
-        {agenda.map((m, i) => (
-          <TouchableOpacity key={m.giorno} onPress={() => openMercatoEdit(i)}>
-            <NeuBox style={styles.mercatoItem}>
-              <View style={styles.mercatoHeader}>
-                <Text style={[styles.mercatoGiorno, m.lavorativo && { color: activeColor }]}>
-                  {m.giorno}
-                </Text>
+      {/* ─── 3. OBIETTIVI ─── */}
+      <Text style={s.secTitle}>3. OBIETTIVI</Text>
+      <View style={s.card}>
+        <TouchableOpacity
+          style={s.itemRow}
+          onPress={() =>
+            showDialog1(
+              'Target Mensile',
+              'Importo €',
+              (v) =>
+                store.setConfig({
+                  targetMensile: parseFloat(v.replace(',', '.')) || 0,
+                })
+            )
+          }
+        >
+          <Ionicons name="trending-up" size={20} color="#1E7F85" />
+          <View style={s.itemInfo}>
+            <Text style={s.itemLabel}>Target Mensile</Text>
+            <Text style={s.itemVal}>€{store.targetMensile}</Text>
+          </View>
+          <Ionicons name="create-outline" size={18} color="#7A9090" />
+        </TouchableOpacity>
+      </View>
+
+      {/* ─── 4. SETTORE ─── */}
+      <Text style={s.secTitle}>4. SETTORE</Text>
+      <View style={s.card}>
+        <View style={s.switchRow}>
+          <Text style={s.switchLabel}>
+            {store.isAlimentare ? 'ALIMENTARE' : 'NON ALIMENTARE'}
+          </Text>
+          <Switch
+            value={store.isAlimentare}
+            onValueChange={(v) => store.setConfig({ isAlimentare: v })}
+            trackColor={{ false: '#C0D0C8', true: '#1E7F85' }}
+            thumbColor="#FFF"
+          />
+        </View>
+      </View>
+
+      {/* ─── 5. SQUADRA COLLABORATORI ─── */}
+      <Text style={s.secTitle}>5. SQUADRA COLLABORATORI</Text>
+      {store.collaboratori.map((c, i) => (
+        <View key={i} style={s.card}>
+          <View style={s.itemRow}>
+            <Ionicons name="person-circle" size={22} color="#1E7F85" />
+            <View style={s.itemInfo}>
+              <Text style={s.itemVal}>{c.nome}</Text>
+              <Text style={[s.itemLabel, { color: '#1E7F85' }]}>
+                Costo GG: €{c.costo}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() =>
+                showDialog2(
+                  'Modifica Staff',
+                  'Nome',
+                  'Costo €',
+                  (n, cost) => {
+                    const updated = [...store.collaboratori];
+                    updated[i] = {
+                      nome: n,
+                      costo: parseFloat(cost.replace(',', '.')) || 0,
+                    };
+                    store.setConfig({ collaboratori: updated });
+                  },
+                  ['default', 'numeric']
+                )
+              }
+            >
+              <Ionicons name="create-outline" size={18} color="#7A9090" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => store.removeCollaboratore(c.nome)}
+              style={{ marginLeft: 8 }}
+            >
+              <Ionicons name="trash-outline" size={18} color="#D46A6A" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ))}
+      <TouchableOpacity
+        style={s.addBtn}
+        onPress={() =>
+          showDialog2(
+            'Nuovo Collaboratore',
+            'Nome',
+            'Costo GG €',
+            (n, c) =>
+              store.addCollaboratore({
+                nome: n,
+                costo: parseFloat(c.replace(',', '.')) || 0,
+              }),
+            ['default', 'numeric']
+          )
+        }
+      >
+        <Ionicons name="person-add" size={18} color="#1E7F85" />
+        <Text style={s.addBtnTxt}>Nuovo Collaboratore</Text>
+      </TouchableOpacity>
+
+      {/* ─── 6. AGENDA MERCATI ─── */}
+      <Text style={s.secTitle}>6. AGENDA MERCATI</Text>
+      {store.agenda.map((m, idx) => {
+        const isOpen = expandedDay === idx;
+        return (
+          <View key={idx} style={s.card}>
+            <TouchableOpacity
+              style={s.agendaHeader}
+              onPress={() => setExpandedDay(isOpen ? null : idx)}
+            >
+              <TouchableOpacity
+                onPress={() => updateMercato(idx, 'lavorativo', !m.lavorativo)}
+                style={[s.checkbox, m.lavorativo && s.checkboxOn]}
+              >
                 {m.lavorativo && (
-                  <Ionicons name="checkmark-circle" size={16} color={Colors.verde} />
+                  <Ionicons name="checkmark" size={14} color="#FFF" />
                 )}
-              </View>
-              <Text style={styles.mercatoNome}>{m.mercato || 'Non impostato'}</Text>
-              {m.mercato && (
-                <Text style={styles.mercatoDetails}>
-                  {m.km} km | Plat: €{m.p_giornaliero}/gg
-                </Text>
-              )}
-            </NeuBox>
-          </TouchableOpacity>
-        ))}
-
-        {/* 6. FORNITORI */}
-        <SectionTitle title="6. FORNITORI" />
-        {fornitori.map((f) => (
-          <NeuBox key={f.nome} style={styles.listItem}>
-            <View style={styles.listItemContent}>
-              <Ionicons name="car" size={20} color={activeColor} />
-              <Text style={styles.listItemText}>{f.nome}</Text>
-            </View>
-            <TouchableOpacity onPress={() => removeFornitore(f.nome)}>
-              <Ionicons name="trash" size={20} color={Colors.rosso} />
-            </TouchableOpacity>
-          </NeuBox>
-        ))}
-        <TouchableOpacity onPress={() => setShowFornitoreModal(true)}>
-          <NeuBox style={styles.addButton}>
-            <Ionicons name="add-circle" size={20} color={activeColor} />
-            <Text style={[styles.addButtonText, { color: activeColor }]}>
-              Nuovo Fornitore
-            </Text>
-          </NeuBox>
-        </TouchableOpacity>
-
-        {/* 7. SPESE ANNUALI */}
-        <SectionTitle title="7. SPESE ANNUALI" />
-        <NeuBox style={styles.section}>
-          {speseAnnue.map((s) => (
-            <View key={s.voce} style={styles.spesaRow}>
-              <Text style={styles.spesaVoce}>{s.voce}</Text>
-              <Text style={styles.spesaImporto}>€{s.importo}</Text>
-              <TouchableOpacity onPress={() => removeSpesaAnnua(s.voce)}>
-                <Ionicons name="close-circle" size={20} color={Colors.rosso} />
               </TouchableOpacity>
+              <Text style={s.agendaDay}>{m.giorno}</Text>
+              <Text style={s.agendaMarket}>
+                {m.mercato || '---'}
+              </Text>
+              <Ionicons
+                name={isOpen ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color="#1E7F85"
+              />
+            </TouchableOpacity>
+            {isOpen && (
+              <View style={s.agendaBody}>
+                <View style={s.divider} />
+                <TouchableOpacity
+                  style={s.agendaItem}
+                  onPress={() =>
+                    showDialog1('Mercato', 'Nome Mercato', (v) =>
+                      updateMercato(idx, 'mercato', v)
+                    )
+                  }
+                >
+                  <Text style={s.itemLabel}>Mercato</Text>
+                  <Text style={s.agendaVal}>
+                    {m.mercato || '---'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.agendaItem}
+                  onPress={() =>
+                    showDialog1('KM A/R', 'Chilometri', (v) =>
+                      updateMercato(
+                        idx,
+                        'km',
+                        parseFloat(v.replace(',', '.')) || 0
+                      )
+                    )
+                  }
+                >
+                  <Text style={s.itemLabel}>KM A/R</Text>
+                  <Text style={s.agendaVal}>
+                    {m.km || '---'}
+                  </Text>
+                </TouchableOpacity>
+                <View style={s.switchRow}>
+                  <Text style={s.itemLabel}>Tipo Plateatico</Text>
+                  <Switch
+                    value={m.is_plat_annuo}
+                    onValueChange={(v) =>
+                      updateMercato(idx, 'is_plat_annuo', v)
+                    }
+                    trackColor={{ false: '#C0D0C8', true: '#1E7F85' }}
+                    thumbColor="#FFF"
+                  />
+                  <Text style={[s.itemLabel, { color: '#1E7F85', fontWeight: '800' }]}>
+                    {m.is_plat_annuo ? 'Annuale' : 'Giornaliero'}
+                  </Text>
+                </View>
+                {m.is_plat_annuo ? (
+                  <TouchableOpacity
+                    style={s.agendaItem}
+                    onPress={() =>
+                      showDialog1('Plateatico Annuo', 'Importo €', (v) =>
+                        updateMercato(
+                          idx,
+                          'p_annuo',
+                          parseFloat(v.replace(',', '.')) || 0
+                        )
+                      )
+                    }
+                  >
+                    <Text style={s.itemLabel}>Plat. Annuo €</Text>
+                    <Text style={s.agendaVal}>{m.p_annuo}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={s.agendaItem}
+                    onPress={() =>
+                      showDialog1(
+                        'Plateatico Giornaliero',
+                        'Importo €',
+                        (v) =>
+                          updateMercato(
+                            idx,
+                            'p_giornaliero',
+                            parseFloat(v.replace(',', '.')) || 0
+                          )
+                      )
+                    }
+                  >
+                    <Text style={s.itemLabel}>Plat. Giornaliero €</Text>
+                    <Text style={s.agendaVal}>{m.p_giornaliero}</Text>
+                  </TouchableOpacity>
+                )}
+                <Text style={s.agendaHint}>
+                  {m.is_plat_annuo
+                    ? `Incidenza GG: €${m.p_giornaliero}`
+                    : `Totale Annuo: €${m.p_annuo}`}
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+
+      {/* ─── 7. FORNITORI ─── */}
+      <Text style={s.secTitle}>
+        {store.isAlimentare ? '7. FORNITORI E PRODOTTI' : '7. FORNITORI'}
+      </Text>
+      {store.fornitori.map((f, fi) => {
+        const isOpen = expandedForn === fi;
+        return (
+          <View key={fi} style={s.card}>
+            <TouchableOpacity
+              style={s.agendaHeader}
+              onPress={() => setExpandedForn(isOpen ? null : fi)}
+            >
+              <Ionicons
+                name="cube-outline"
+                size={20}
+                color="#1E7F85"
+              />
+              <Text style={[s.agendaDay, { flex: 1 }]}>{f.nome}</Text>
+              <TouchableOpacity
+                onPress={() => store.removeFornitore(f.nome)}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={18}
+                  color="#D46A6A"
+                />
+              </TouchableOpacity>
+              {store.isAlimentare && (
+                <Ionicons
+                  name={isOpen ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#1E7F85"
+                  style={{ marginLeft: 8 }}
+                />
+              )}
+            </TouchableOpacity>
+            {store.isAlimentare && isOpen && (
+              <View style={s.agendaBody}>
+                <View style={s.divider} />
+                {f.prodotti.map((p, pi) => (
+                  <View key={pi} style={s.prodRow}>
+                    <Text style={s.itemVal}>{p.nome}</Text>
+                    <Text style={[s.itemLabel, { color: '#1E7F85' }]}>
+                      €{p.prezzo}/kg
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const updF = [...store.fornitori];
+                        updF[fi] = {
+                          ...updF[fi],
+                          prodotti: updF[fi].prodotti.filter(
+                            (_, idx) => idx !== pi
+                          ),
+                        };
+                        store.setConfig({ fornitori: updF });
+                      }}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={16}
+                        color="#D46A6A"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={s.addBtnSmall}
+                  onPress={() =>
+                    showDialog2(
+                      'Nuovo Prodotto',
+                      'Nome',
+                      'Prezzo KG',
+                      (n, v) => {
+                        const updF = [...store.fornitori];
+                        updF[fi] = {
+                          ...updF[fi],
+                          prodotti: [
+                            ...updF[fi].prodotti,
+                            {
+                              nome: n,
+                              prezzo:
+                                parseFloat(v.replace(',', '.')) || 0,
+                            },
+                          ],
+                        };
+                        store.setConfig({ fornitori: updF });
+                      },
+                      ['default', 'numeric']
+                    )
+                  }
+                >
+                  <Ionicons name="add" size={16} color="#1E7F85" />
+                  <Text style={s.addBtnSmallTxt}>Nuovo Prodotto</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );
+      })}
+      <TouchableOpacity
+        style={s.addBtn}
+        onPress={() =>
+          showDialog1('Nome Fornitore', 'Nome', (v) =>
+            store.addFornitore({ nome: v, prodotti: [] })
+          )
+        }
+      >
+        <Ionicons name="cube" size={18} color="#1E7F85" />
+        <Text style={s.addBtnTxt}>Nuovo Fornitore</Text>
+      </TouchableOpacity>
+
+      {/* ─── 8. SPESE ANNUALI ─── */}
+      <Text style={s.secTitle}>8. SPESE ANNUALI</Text>
+      <View style={s.card}>
+        {store.speseAnnue.length === 0 &&
+          totalePlatAnnui === 0 && (
+            <Text style={s.emptyTxt}>
+              Nessun costo inserito
+            </Text>
+          )}
+        {store.speseAnnue.map((sp, i) => (
+          <View key={i} style={s.spesaRow}>
+            <Text style={s.spesaNome}>{sp.voce}</Text>
+            <Text style={s.spesaVal}>€{sp.importo}</Text>
+            <TouchableOpacity
+              onPress={() => store.removeSpesaAnnua(sp.voce)}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={16}
+                color="#D46A6A"
+              />
+            </TouchableOpacity>
+          </View>
+        ))}
+        {store.agenda
+          .filter((m) => m.p_annuo > 0)
+          .map((m, i) => (
+            <View key={`p-${i}`} style={s.spesaRow}>
+              <Text style={[s.spesaNome, { color: '#7A9090' }]}>
+                Plat. Annuale {m.mercato}
+              </Text>
+              <Text style={[s.spesaVal, { color: '#7A9090' }]}>
+                €{m.p_annuo}
+              </Text>
+              <View style={{ width: 24 }} />
             </View>
           ))}
-          <View style={styles.totaleRow}>
-            <Text style={styles.totaleLabel}>TOTALE ANNUALE:</Text>
-            <Text style={styles.totaleValue}>€ {totaleAnnuo.toFixed(0)}</Text>
-          </View>
-        </NeuBox>
-        <TouchableOpacity onPress={() => setShowSpesaModal(true)}>
-          <NeuBox style={styles.addButton}>
-            <Ionicons name="card" size={20} color={activeColor} />
-            <Text style={[styles.addButtonText, { color: activeColor }]}>
-              Aggiungi Spesa
-            </Text>
-          </NeuBox>
-        </TouchableOpacity>
-
-        {/* 8. TEMA COLORE */}
-        <SectionTitle title="8. TEMA COLORE" />
-        <NeuBox style={styles.section}>
-          <View style={styles.colorsRow}>
-            {COLORI_TEMA.map((c) => (
-              <TouchableOpacity
-                key={c}
-                onPress={() => setConfig({ themeColor: c })}
-              >
-                <View
-                  style={[
-                    styles.colorCircle,
-                    { backgroundColor: c },
-                    themeColor === c && styles.colorSelected,
-                  ]}
-                >
-                  {themeColor === c && (
-                    <Ionicons name="checkmark" size={20} color={Colors.white} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </NeuBox>
-
-        {/* Reset */}
-        <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
-          <Text style={styles.resetText}>RESET COMPLETO APP</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* MODALS */}
-      {/* Collaboratore Modal */}
-      <Modal visible={showCollabModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <NeuBox style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nuovo Collaboratore</Text>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Nome"
-                value={newCollabNome}
-                onChangeText={setNewCollabNome}
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Costo GG €"
-                value={newCollabCosto}
-                onChangeText={setNewCollabCosto}
-                keyboardType="numeric"
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setShowCollabModal(false)}>
-                <Text style={styles.modalCancel}>Annulla</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleAddCollab}>
-                <Text style={[styles.modalConfirm, { color: activeColor }]}>Aggiungi</Text>
-              </TouchableOpacity>
+        {(store.speseAnnue.length > 0 || totalePlatAnnui > 0) && (
+          <>
+            <View style={s.divider} />
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>TOTALE ANNUALE:</Text>
+              <Text style={s.totalVal}>€{totaleSpeseAnnue}</Text>
             </View>
-          </NeuBox>
-        </View>
-      </Modal>
+          </>
+        )}
+      </View>
+      <TouchableOpacity
+        style={s.addBtn}
+        onPress={() =>
+          showDialog2(
+            'Spesa Annuale',
+            'Voce',
+            'Importo €',
+            (n, v) =>
+              store.addSpesaAnnua({
+                voce: n,
+                importo: parseFloat(v.replace(',', '.')) || 0,
+              }),
+            ['default', 'numeric']
+          )
+        }
+      >
+        <Ionicons name="card" size={18} color="#1E7F85" />
+        <Text style={s.addBtnTxt}>Aggiungi Spesa</Text>
+      </TouchableOpacity>
 
-      {/* Fornitore Modal */}
-      <Modal visible={showFornitoreModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <NeuBox style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nuovo Fornitore</Text>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Nome Fornitore"
-                value={newFornitoreNome}
-                onChangeText={setNewFornitoreNome}
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setShowFornitoreModal(false)}>
-                <Text style={styles.modalCancel}>Annulla</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleAddFornitore}>
-                <Text style={[styles.modalConfirm, { color: activeColor }]}>Aggiungi</Text>
-              </TouchableOpacity>
-            </View>
-          </NeuBox>
-        </View>
-      </Modal>
+      {/* ─── SALVA TUTTO ─── */}
+      <TouchableOpacity
+        style={s.saveAll}
+        onPress={() =>
+          Alert.alert('Salvato!', 'Tutte le impostazioni sono state salvate.')
+        }
+      >
+        <Ionicons name="save" size={18} color="#FFF" />
+        <Text style={s.saveAllTxt}>SALVA TUTTO</Text>
+      </TouchableOpacity>
 
-      {/* Spesa Modal */}
-      <Modal visible={showSpesaModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <NeuBox style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nuova Spesa Annuale</Text>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Voce (es: Assicurazione)"
-                value={newSpesaVoce}
-                onChangeText={setNewSpesaVoce}
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Importo €"
-                value={newSpesaImporto}
-                onChangeText={setNewSpesaImporto}
-                keyboardType="numeric"
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setShowSpesaModal(false)}>
-                <Text style={styles.modalCancel}>Annulla</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleAddSpesa}>
-                <Text style={[styles.modalConfirm, { color: activeColor }]}>Aggiungi</Text>
-              </TouchableOpacity>
-            </View>
-          </NeuBox>
-        </View>
-      </Modal>
+      <View style={{ height: 40 }} />
 
-      {/* Mercato Edit Modal */}
-      <Modal visible={showMercatoModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <NeuBox style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {agenda[selectedMercatoIndex]?.giorno}
-            </Text>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Nome Mercato"
-                value={editMercato}
-                onChangeText={setEditMercato}
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="KM A/R"
-                value={editKm}
-                onChangeText={setEditKm}
-                keyboardType="numeric"
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Plateatico Giornaliero €"
-                value={editPlatGG}
-                onChangeText={setEditPlatGG}
-                keyboardType="numeric"
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Plateatico Annuale €"
-                value={editPlatAnnuo}
-                onChangeText={setEditPlatAnnuo}
-                keyboardType="numeric"
-                style={styles.modalInputText}
-              />
-            </NeuInset>
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Giorno Lavorativo</Text>
-              <Switch
-                value={editLavorativo}
-                onValueChange={setEditLavorativo}
-                trackColor={{ false: Colors.grey, true: activeColor }}
-                thumbColor={Colors.white}
-              />
-            </View>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setShowMercatoModal(false)}>
-                <Text style={styles.modalCancel}>Annulla</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSaveMercato}>
-                <Text style={[styles.modalConfirm, { color: activeColor }]}>Salva</Text>
-              </TouchableOpacity>
-            </View>
-          </NeuBox>
-        </View>
-      </Modal>
-    </SafeAreaView>
+      {/* ─── Input Modal ─── */}
+      <InputModal
+        visible={modalConfig.visible}
+        title={modalConfig.title}
+        hints={modalConfig.hints}
+        keyboardTypes={modalConfig.keyboardTypes}
+        onSave={modalConfig.onSave}
+        onClose={() =>
+          setModalConfig((p) => ({ ...p, visible: false }))
+        }
+      />
+    </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 50,
-  },
-  pageTitle: {
+/* ─── STYLES ─── */
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#D8EDE5' },
+  content: { paddingHorizontal: 16, paddingTop: 50, paddingBottom: 30 },
+
+  title: {
     fontSize: 22,
     fontWeight: '900',
-    color: Colors.marrone,
+    color: '#1A3535',
     textAlign: 'center',
-    marginVertical: 20,
-    letterSpacing: 1.2,
+    letterSpacing: 2,
+    marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: Colors.grey,
-    marginTop: 20,
-    marginBottom: 10,
+
+  secTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#5A7575',
+    marginTop: 16,
+    marginBottom: 8,
+    marginLeft: 4,
   },
-  section: {
-    marginBottom: 10,
+
+  card: {
+    backgroundColor: '#EDE8DA',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+    // @ts-ignore
+    boxShadow:
+      '4px 4px 10px rgba(160,150,130,0.45), -3px -3px 8px rgba(255,255,250,0.9)',
   },
-  inputItem: {
-    marginBottom: 15,
+
+  divider: {
+    height: 1,
+    backgroundColor: '#D0C8B8',
+    marginVertical: 10,
   },
-  inputLabel: {
+
+  /* Item rows */
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 12,
+    paddingVertical: 4,
   },
-  inputLabelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.marrone,
-  },
-  input: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    padding: 5,
-  },
+  itemInfo: { flex: 1 },
+  itemLabel: { fontSize: 11, color: '#7A9090', fontWeight: '600' },
+  itemVal: { fontSize: 14, fontWeight: '700', color: '#1A3535' },
+
+  /* Switch */
   switchRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 5,
+    justifyContent: 'space-between',
+    paddingVertical: 4,
   },
-  switchLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-  },
-  listItem: {
+  switchLabel: { fontSize: 14, fontWeight: '700', color: '#1A3535' },
+
+  /* Language */
+  langRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
   },
-  listItemContent: {
+  langBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#E0DBC8',
+    // @ts-ignore
+    boxShadow:
+      '2px 2px 6px rgba(155,145,125,0.4), -2px -2px 5px rgba(255,255,250,0.8)',
+  },
+  langBtnOn: {
+    backgroundColor: '#1E7F85',
+    // @ts-ignore
+    boxShadow:
+      '3px 3px 8px rgba(15,60,65,0.45), -2px -2px 5px rgba(45,120,125,0.3)',
+  },
+  langBtnTxt: { fontSize: 12, fontWeight: '700', color: '#4A3A2A' },
+
+  /* Agenda */
+  agendaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  listItemText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.marrone,
-  },
-  listItemValue: {
+  agendaDay: { fontSize: 13, fontWeight: '700', color: '#1A3535' },
+  agendaMarket: {
+    flex: 1,
     fontSize: 12,
-    color: Colors.grey,
+    color: '#7A9090',
+    textAlign: 'right',
+    marginRight: 8,
   },
-  addButton: {
+  agendaBody: { paddingTop: 4 },
+  agendaItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  agendaVal: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E7F85',
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  agendaHint: {
+    fontSize: 11,
+    color: '#7A9090',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+
+  /* Checkbox */
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#1E7F85',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxOn: { backgroundColor: '#1E7F85' },
+
+  /* Prodotti */
+  prodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    gap: 10,
+  },
+
+  /* Add button */
+  addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    paddingVertical: 12,
+    marginBottom: 4,
   },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  addBtnTxt: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E7F85',
   },
-  mercatoItem: {
-    marginBottom: 10,
-  },
-  mercatoHeader: {
+  addBtnSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#1E7F85',
+    borderRadius: 8,
   },
-  mercatoGiorno: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: Colors.grey,
+  addBtnSmallTxt: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E7F85',
   },
-  mercatoNome: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-  },
-  mercatoDetails: {
-    fontSize: 12,
-    color: Colors.grey,
-  },
+
+  /* Spese */
   spesaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    paddingVertical: 6,
   },
-  spesaVoce: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.marrone,
+  spesaNome: { flex: 1, fontSize: 13, color: '#1A3535' },
+  spesaVal: { fontSize: 14, fontWeight: '700', color: '#1A3535', marginRight: 10 },
+  emptyTxt: {
+    fontSize: 12,
+    color: '#7A9090',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
-  spesaImporto: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    marginRight: 10,
-  },
-  totaleRow: {
+  totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: Colors.shadowDark,
-    paddingTop: 10,
-    marginTop: 10,
+    alignItems: 'center',
   },
-  totaleLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-  },
-  totaleValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: Colors.rosso,
-  },
-  colorsRow: {
+  totalLabel: { fontSize: 13, fontWeight: '800', color: '#1A3535' },
+  totalVal: { fontSize: 18, fontWeight: '900', color: '#D46A6A' },
+
+  /* Save All */
+  saveAll: {
+    backgroundColor: '#1A3535',
+    borderRadius: 18,
+    paddingVertical: 16,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  colorCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 10,
+    marginTop: 24,
+    // @ts-ignore
+    boxShadow:
+      '4px 4px 12px rgba(0,0,0,0.3), -2px -2px 6px rgba(50,80,80,0.2)',
   },
-  colorSelected: {
-    borderWidth: 3,
-    borderColor: Colors.white,
+  saveAllTxt: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
-  resetButton: {
-    marginTop: 30,
-    padding: 15,
-    alignItems: 'center',
-  },
-  resetText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.rosso,
-  },
-  // Modal styles
-  modalOverlay: {
+});
+
+/* ─── MODAL STYLES ─── */
+const ms = StyleSheet.create({
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  modalContent: {
+  modal: {
     width: '100%',
-    maxWidth: 350,
+    maxWidth: 340,
+    backgroundColor: '#F0EDE5',
+    borderRadius: 20,
+    padding: 24,
+    // @ts-ignore
+    boxShadow: '0px 8px 30px rgba(0,0,0,0.25)',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.marrone,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1A3535',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   modalInput: {
-    marginBottom: 15,
+    backgroundColor: '#E0DBC8',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A3535',
+    marginBottom: 12,
   },
-  modalInputText: {
-    fontSize: 16,
-    color: Colors.marrone,
-    padding: 5,
-  },
-  modalButtons: {
+  modalBtns: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
+    gap: 10,
+    marginTop: 8,
   },
   modalCancel: {
-    fontSize: 16,
-    color: Colors.grey,
-    fontWeight: '600',
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#E0DBC8',
+    alignItems: 'center',
   },
-  modalConfirm: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  modalCancelTxt: { fontSize: 12, fontWeight: '700', color: '#7A9090' },
+  modalSave: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#1E7F85',
+    alignItems: 'center',
   },
+  modalSaveTxt: { fontSize: 12, fontWeight: '800', color: '#FFF' },
 });

@@ -458,8 +458,8 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#D8EDE5',
     paddingHorizontal: 14,
-    paddingTop: 44,
-    paddingBottom: 12,
+    paddingTop: 40,
+    paddingBottom: 16,
   },
 
   /* Header */
@@ -469,7 +469,7 @@ const s = StyleSheet.create({
     color: '#1A4040',
     letterSpacing: 1.5,
     textAlign: 'center',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   badgesAbsolute: {
     position: 'absolute',
@@ -511,7 +511,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 5,
   },
   dateTxt: {
     fontSize: 14,
@@ -523,7 +523,7 @@ const s = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 5,
     alignItems: 'center',
   },
   toggle: {
@@ -554,7 +554,7 @@ const s = StyleSheet.create({
   meteoRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 8,
+    marginBottom: 4,
     paddingHorizontal: 4,
   },
   meteo: {
@@ -581,7 +581,7 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: '#5A7575',
     textAlign: 'center',
-    marginBottom: 5,
+    marginBottom: 2,
     letterSpacing: 2,
   },
 
@@ -590,7 +590,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 14,
-    marginBottom: 8,
+    marginBottom: 5,
   },
   collab: {
     backgroundColor: '#E0DBC8',
@@ -638,15 +638,15 @@ const s = StyleSheet.create({
   cardValBold: { fontSize: 14, fontWeight: '800' },
 
   /* Storico */
-  storicoWrap: { marginBottom: 10 },
+  storicoWrap: { marginBottom: 4 },
   storico: {
     backgroundColor: '#EDE8DA',
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     // @ts-ignore
     boxShadow:
       '4px 5px 12px rgba(160,150,130,0.45), -3px -3px 8px rgba(255,255,250,0.9)',
@@ -699,7 +699,7 @@ const s = StyleSheet.create({
   salva: {
     backgroundColor: '#1E7F85',
     borderRadius: 16,
-    paddingVertical: 14,
+    paddingVertical: 11,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
