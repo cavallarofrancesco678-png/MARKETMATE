@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore, Giornata } from '../../src/store/appStore';
 import { Colors } from '../../src/theme/colors';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
@@ -16,7 +17,6 @@ import { getGiornoIndex } from '../../src/utils/dateUtils';
 const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
-// 5 Weather icons - metallic style
 const METEO_OPTIONS = [
   { icon: 'sunny-outline', label: 'SOLE' },
   { icon: 'partly-sunny', label: 'VARIABILE' },
@@ -43,7 +43,6 @@ export default function HomeScreen() {
   const [meteo, setMeteo] = useState('SOLE');
   const [presenzaSquadra, setPresenzaSquadra] = useState<Record<string, boolean>>({});
 
-  // Form fields
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');
   const [pos, setPos] = useState('');
@@ -62,7 +61,6 @@ export default function HomeScreen() {
     setPresenzaSquadra(presence);
   }, [collaboratori]);
 
-  // Calculate spese fisse
   const getSpeseFisse = () => {
     const ggLavorativi = agenda.filter((m) => m.lavorativo).length || 6;
     const totSpeseAnnue = speseAnnue.reduce((sum, s) => sum + s.importo, 0);
@@ -94,6 +92,49 @@ export default function HomeScreen() {
     salvaGiornata(giornata);
   };
 
+  // 3D Weather Icon with glass effect
+  const WeatherIcon = ({ icon, isActive, onPress }: { icon: string; isActive: boolean; onPress: () => void }) => (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.meteoOuter, isActive && styles.meteoOuterActive]}>
+        <LinearGradient
+          colors={isActive ? ['#4A9A9A', '#1E5A5A', '#153838'] : ['#E8F4F0', '#C5DDD4', '#9ABFB5']}
+          style={styles.meteoGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.meteoHighlight} />
+          <Ionicons 
+            name={icon as any} 
+            size={26} 
+            color={isActive ? '#FFFFFF' : '#1E5A5A'} 
+          />
+        </LinearGradient>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // 3D Embossed Chip
+  const CollabChip = ({ name, isActive, onPress }: { name: string; isActive: boolean; onPress: () => void }) => (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <View style={[styles.chipOuter, isActive && styles.chipOuterActive]}>
+        <View style={[styles.chipInner, isActive && styles.chipInnerActive]}>
+          <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{name}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // 3D Data Card with shadow
+  const DataCard = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <View style={styles.dataCardOuter}>
+      <View style={styles.dataCardShadow} />
+      <View style={styles.dataCardInner}>
+        <Text style={styles.dataLabel}>{label}</Text>
+        {children}
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -103,16 +144,21 @@ export default function HomeScreen() {
           <Text style={styles.title}>MARKETMATE</Text>
           <View style={styles.headerRight}>
             <View style={styles.nomeAziendaBadge}>
-              <Text style={styles.nomeAziendaText}>{nomeAttivita || 'Nome'}</Text>
+              <Text style={styles.nomeAziendaText}>Nome</Text>
               <Text style={styles.nomeAziendaText}>Azienda</Text>
             </View>
-            <TouchableOpacity style={styles.bellBtn}>
-              <Ionicons name="notifications" size={24} color={Colors.white} />
-            </TouchableOpacity>
+            <View style={styles.bellOuter}>
+              <LinearGradient
+                colors={['#2A6A6A', '#1E4A4A', '#153838']}
+                style={styles.bellGradient}
+              >
+                <Ionicons name="notifications" size={22} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
           </View>
         </View>
 
-        {/* SUBHEADER: Data + Mercato + IN PIAZZA */}
+        {/* SUBHEADER */}
         <View style={styles.subheader}>
           <Text style={styles.subheaderText}>{giorno} {data} - {mercatoNome}</Text>
           <TouchableOpacity 
@@ -123,34 +169,44 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* MERCATO / FIERA */}
+        {/* MERCATO / FIERA with 3D effect */}
         <View style={styles.switchRow}>
-          <TouchableOpacity
-            style={[styles.switchBtn, !isFiera && styles.switchBtnActive]}
-            onPress={() => setIsFiera(false)}
-          >
-            <Text style={[styles.switchText, !isFiera && styles.switchTextActive]}>Mercato</Text>
+          <TouchableOpacity style={styles.switchBtnWrapper} onPress={() => setIsFiera(false)} activeOpacity={0.8}>
+            {!isFiera ? (
+              <LinearGradient colors={['#2A6A6A', '#1E4A4A', '#153838']} style={styles.switchBtnActive}>
+                <Text style={styles.switchTextActive}>Mercato</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.switchBtnInactive}>
+                <View style={styles.switchBtnInnerShadow} />
+                <Text style={styles.switchTextInactive}>Mercato</Text>
+              </View>
+            )}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.switchBtn, isFiera && styles.switchBtnActive]}
-            onPress={() => setIsFiera(true)}
-          >
-            <Text style={[styles.switchText, isFiera && styles.switchTextActive]}>Fiera</Text>
+          
+          <TouchableOpacity style={styles.switchBtnWrapper} onPress={() => setIsFiera(true)} activeOpacity={0.8}>
+            {isFiera ? (
+              <LinearGradient colors={['#2A6A6A', '#1E4A4A', '#153838']} style={styles.switchBtnActive}>
+                <Text style={styles.switchTextActive}>Fiera</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.switchBtnInactive}>
+                <View style={styles.switchBtnInnerShadow} />
+                <Text style={styles.switchTextInactive}>Fiera</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* WEATHER ICONS */}
+        {/* WEATHER ICONS with 3D glass effect */}
         <View style={styles.meteoRow}>
           {METEO_OPTIONS.map((m) => (
-            <TouchableOpacity key={m.label} onPress={() => setMeteo(m.label)}>
-              <View style={[styles.meteoCircle, meteo === m.label && styles.meteoActive]}>
-                <Ionicons 
-                  name={m.icon as any} 
-                  size={28} 
-                  color={meteo === m.label ? Colors.white : Colors.teal} 
-                />
-              </View>
-            </TouchableOpacity>
+            <WeatherIcon 
+              key={m.label} 
+              icon={m.icon} 
+              isActive={meteo === m.label} 
+              onPress={() => setMeteo(m.label)} 
+            />
           ))}
         </View>
 
@@ -158,144 +214,140 @@ export default function HomeScreen() {
         <Text style={styles.sectionLabel}>COLLABORATORI</Text>
         <View style={styles.collabRow}>
           {collaboratori.length > 0 ? collaboratori.map((c) => (
-            <TouchableOpacity
+            <CollabChip
               key={c.nome}
-              style={[styles.collabChip, presenzaSquadra[c.nome] && styles.collabChipActive]}
+              name={c.nome.toUpperCase()}
+              isActive={presenzaSquadra[c.nome]}
               onPress={() => setPresenzaSquadra(prev => ({ ...prev, [c.nome]: !prev[c.nome] }))}
-            >
-              <Text style={[styles.collabText, presenzaSquadra[c.nome] && styles.collabTextActive]}>
-                {c.nome.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
+            />
           )) : (
             <>
-              <View style={styles.collabChip}><Text style={styles.collabText}>DAVIDE</Text></View>
-              <View style={styles.collabChip}><Text style={styles.collabText}>ANTONIO</Text></View>
-              <View style={styles.collabChip}><Text style={styles.collabText}>NICOLÒ</Text></View>
+              <CollabChip name="DAVIDE" isActive={false} onPress={() => {}} />
+              <CollabChip name="ANTONIO" isActive={false} onPress={() => {}} />
+              <CollabChip name="NICOLÒ" isActive={false} onPress={() => {}} />
             </>
           )}
         </View>
 
-        {/* DATA GRID 4x2 */}
+        {/* DATA GRID with 3D shadows */}
         <View style={styles.dataGrid}>
-          {/* Row 1: LORDO | UTILE */}
           <View style={styles.dataRow}>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>LORDO</Text>
+            <DataCard label="LORDO">
               <TextInput
                 style={styles.dataInput}
                 placeholder="€0,00"
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor="#9ABFB5"
                 keyboardType="numeric"
                 value={lordo}
                 onChangeText={setLordo}
               />
-            </View>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>UTILE</Text>
-              <Text style={[styles.dataValue, { color: utile >= 0 ? Colors.verde : Colors.rosso }]}>
+            </DataCard>
+            <DataCard label="UTILE">
+              <Text style={[styles.dataValue, { color: utile >= 0 ? '#4A9A6A' : '#D46A6A' }]}>
                 €{utile.toFixed(2)}
               </Text>
-            </View>
+            </DataCard>
           </View>
 
-          {/* Row 2: CONTANTI | POS */}
           <View style={styles.dataRow}>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>CONTANTI</Text>
+            <DataCard label="CONTANTI">
               <TextInput
                 style={styles.dataInput}
                 placeholder="€0,00"
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor="#9ABFB5"
                 keyboardType="numeric"
                 value={contanti}
                 onChangeText={setContanti}
               />
-            </View>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>POS</Text>
+            </DataCard>
+            <DataCard label="POS">
               <TextInput
                 style={styles.dataInput}
                 placeholder="€0,00"
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor="#9ABFB5"
                 keyboardType="numeric"
                 value={pos}
                 onChangeText={setPos}
               />
-            </View>
+            </DataCard>
           </View>
 
-          {/* Row 3: SPESE EXTRA | SPESE FISSE */}
           <View style={styles.dataRow}>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>SPESE EXTRA</Text>
+            <DataCard label="SPESE EXTRA">
               <TextInput
                 style={styles.dataInput}
                 placeholder="€0,00"
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor="#9ABFB5"
                 keyboardType="numeric"
                 value={speseExtra}
                 onChangeText={setSpeseExtra}
               />
-            </View>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>SPESE FISSE</Text>
+            </DataCard>
+            <DataCard label="SPESE FISSE">
               <Text style={styles.dataValue}>€{speseFisse.toFixed(2)}</Text>
-            </View>
+            </DataCard>
           </View>
 
-          {/* Row 4: INVENDUTO | CHIEDI */}
           <View style={styles.dataRow}>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>INVENDUTO</Text>
+            <DataCard label="INVENDUTO">
               <TextInput
                 style={styles.dataInput}
                 placeholder="€0,00"
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor="#9ABFB5"
                 keyboardType="numeric"
                 value={invenduto}
                 onChangeText={setInvenduto}
               />
-            </View>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>CHIEDI</Text>
+            </DataCard>
+            <DataCard label="CHIEDI">
               <TextInput
                 style={styles.dataInput}
                 placeholder="€0,00"
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor="#9ABFB5"
                 keyboardType="numeric"
                 value={chiedi}
                 onChangeText={setChiedi}
               />
-            </View>
+            </DataCard>
           </View>
         </View>
 
-        {/* GRAFICO Section */}
-        <View style={styles.graficoCard}>
-          <View style={styles.graficoLeft}>
-            <View style={styles.miniChart}>
-              <View style={[styles.chartLine, { height: 20 }]} />
-              <View style={[styles.chartLine, { height: 30, backgroundColor: Colors.arancio }]} />
+        {/* GRAFICO with shadow */}
+        <View style={styles.graficoOuter}>
+          <View style={styles.graficoShadow} />
+          <View style={styles.graficoCard}>
+            <View style={styles.graficoLeft}>
+              <View style={styles.miniChartLine}>
+                <View style={[styles.chartWave, { backgroundColor: '#5ABABA' }]} />
+                <View style={[styles.chartWave, { backgroundColor: '#E8A060', marginTop: 5 }]} />
+              </View>
             </View>
-          </View>
-          <View style={styles.graficoCenter}>
-            <Text style={styles.graficoTitle}>GRAFICO</Text>
-            <Ionicons name="settings-outline" size={24} color={Colors.teal} />
-            <Text style={styles.graficoSubtext}>Clicca per configurare statistiche</Text>
-          </View>
-          <View style={styles.graficoBars}>
-            <View style={[styles.bar, { height: 25, backgroundColor: Colors.inPiazza }]} />
-            <View style={[styles.bar, { height: 35, backgroundColor: Colors.arancio }]} />
-            <View style={[styles.bar, { height: 45, backgroundColor: Colors.teal }]} />
-            <View style={[styles.bar, { height: 30, backgroundColor: Colors.arancio }]} />
+            <View style={styles.graficoCenter}>
+              <Text style={styles.graficoTitle}>GRAFICO</Text>
+              <View style={styles.graficoIconWrapper}>
+                <Ionicons name="settings-outline" size={24} color="#5ABABA" />
+              </View>
+              <Text style={styles.graficoSubtext}>Clicca per configurare statistiche</Text>
+            </View>
+            <View style={styles.graficoBars}>
+              <View style={[styles.bar, { height: 20, backgroundColor: '#5ABABA' }]} />
+              <View style={[styles.bar, { height: 30, backgroundColor: '#E8A060' }]} />
+              <View style={[styles.bar, { height: 45, backgroundColor: '#1E5A5A' }]} />
+              <View style={[styles.bar, { height: 35, backgroundColor: '#E8A060' }]} />
+            </View>
           </View>
         </View>
 
         {/* SALVA Button */}
-        <TouchableOpacity style={styles.salvaBtn} onPress={handleSalva}>
-          <Ionicons name="save" size={20} color={Colors.white} />
-          <Text style={styles.salvaBtnText}>SALVA GIORNATA</Text>
+        <TouchableOpacity style={styles.salvaOuter} onPress={handleSalva} activeOpacity={0.8}>
+          <View style={styles.salvaShadow} />
+          <LinearGradient
+            colors={['#2A6A6A', '#1E4A4A', '#153838']}
+            style={styles.salvaGradient}
+          >
+            <Ionicons name="save" size={18} color="#FFFFFF" />
+            <Text style={styles.salvaBtnText}>SALVA GIORNATA</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
       </ScrollView>
@@ -306,7 +358,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: '#D4E8E0',
   },
   scroll: {
     flex: 1,
@@ -319,214 +371,308 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 5,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
-    color: Colors.teal,
+    color: '#1E4A4A',
     letterSpacing: 2,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   nomeAziendaBadge: {
-    backgroundColor: Colors.teal,
+    backgroundColor: '#1E5A5A',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 6,
     alignItems: 'center',
+    // @ts-ignore - web shadow
+    boxShadow: '3px 4px 8px rgba(10, 32, 32, 0.4)',
   },
   nomeAziendaText: {
-    color: Colors.white,
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',
   },
-  bellBtn: {
-    backgroundColor: Colors.teal,
+  bellOuter: {
+    // @ts-ignore
+    boxShadow: '3px 4px 8px rgba(10, 32, 32, 0.4)',
+  },
+  bellGradient: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   subheader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   subheaderText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: Colors.textDark,
+    color: '#1E4A4A',
   },
   inPiazzaBadge: {
-    backgroundColor: Colors.inPiazza,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#40C4AA',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    // @ts-ignore
+    boxShadow: '2px 3px 4px rgba(26, 106, 90, 0.3)',
   },
   assenteBadge: {
-    backgroundColor: Colors.rosso,
+    backgroundColor: '#D46A6A',
   },
   inPiazzaText: {
-    color: Colors.white,
-    fontSize: 10,
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: 'bold',
   },
+  // Switch buttons
   switchRow: {
     flexDirection: 'row',
     gap: 10,
     marginBottom: 12,
   },
-  switchBtn: {
+  switchBtnWrapper: {
     flex: 1,
-    backgroundColor: Colors.beige,
-    borderRadius: 20,
-    paddingVertical: 12,
-    alignItems: 'center',
   },
   switchBtnActive: {
-    backgroundColor: Colors.teal,
+    borderRadius: 25,
+    paddingVertical: 12,
+    alignItems: 'center',
+    // @ts-ignore
+    boxShadow: '4px 5px 10px rgba(10, 32, 32, 0.45)',
   },
-  switchText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.textDark,
+  switchBtnInactive: {
+    backgroundColor: '#E8DCC8',
+    borderRadius: 25,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D4C4A8',
+    overflow: 'hidden',
+    // @ts-ignore
+    boxShadow: 'inset 0px 3px 6px rgba(0,0,0,0.15)',
+  },
+  switchBtnInnerShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
   switchTextActive: {
-    color: Colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
+  switchTextInactive: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#6A5A4A',
+  },
+  // Weather icons
   meteoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
     paddingHorizontal: 5,
   },
-  meteoCircle: {
+  meteoOuter: {
+    // @ts-ignore
+    boxShadow: '4px 5px 10px rgba(10, 58, 58, 0.4)',
+  },
+  meteoOuterActive: {
+    // @ts-ignore
+    boxShadow: '4px 5px 12px rgba(10, 32, 32, 0.55)',
+  },
+  meteoGradient: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: Colors.bgLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.teal,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  meteoActive: {
-    backgroundColor: Colors.teal,
-    borderColor: Colors.tealDark,
+  meteoHighlight: {
+    position: 'absolute',
+    top: 4,
+    left: 8,
+    right: 8,
+    height: 12,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 10,
   },
+  // Section label
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
-    color: Colors.textMedium,
+    color: '#4A6A6A',
     textAlign: 'center',
     marginBottom: 8,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
+  // Collaboratori chips
   collabRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
     flexWrap: 'wrap',
   },
-  collabChip: {
-    backgroundColor: Colors.beige,
-    borderRadius: 20,
+  chipOuter: {
+    // @ts-ignore
+    boxShadow: '4px 5px 8px rgba(138, 122, 106, 0.4)',
+  },
+  chipOuterActive: {
+    // @ts-ignore
+    boxShadow: '4px 5px 10px rgba(10, 32, 32, 0.5)',
+  },
+  chipInner: {
+    backgroundColor: '#E8DCC8',
+    borderRadius: 25,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: Colors.beigeDark,
+    borderColor: '#F5EEE0',
+    borderBottomColor: '#C5B5A0',
+    borderRightColor: '#C5B5A0',
   },
-  collabChipActive: {
-    backgroundColor: Colors.teal,
-    borderColor: Colors.tealDark,
+  chipInnerActive: {
+    backgroundColor: '#1E5A5A',
+    borderColor: '#2A6A6A',
+    borderBottomColor: '#153838',
+    borderRightColor: '#153838',
   },
-  collabText: {
-    fontSize: 12,
+  chipText: {
+    fontSize: 11,
     fontWeight: 'bold',
-    color: Colors.textDark,
+    color: '#5A4A3A',
   },
-  collabTextActive: {
-    color: Colors.white,
+  chipTextActive: {
+    color: '#FFFFFF',
   },
+  // Data cards
   dataGrid: {
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   dataRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  dataCard: {
+  dataCardOuter: {
     flex: 1,
-    backgroundColor: Colors.bgCard,
+    position: 'relative',
+  },
+  dataCardShadow: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    right: -5,
+    bottom: -5,
+    backgroundColor: '#8ABAB0',
+    borderRadius: 12,
+  },
+  dataCardInner: {
+    backgroundColor: '#FAFFF8',
     borderRadius: 12,
     padding: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.bgDark,
+    borderColor: '#E8F4F0',
+    borderBottomColor: '#B5CCC4',
+    borderRightColor: '#B5CCC4',
+    // @ts-ignore
+    boxShadow: '3px 4px 0px #8ABAB0',
   },
   dataLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
-    color: Colors.textDark,
+    color: '#1E4A4A',
   },
   dataInput: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: Colors.textDark,
+    color: '#1E4A4A',
     textAlign: 'right',
-    minWidth: 80,
+    minWidth: 70,
   },
   dataValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: Colors.textDark,
+    color: '#1E4A4A',
+  },
+  // Grafico
+  graficoOuter: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  graficoShadow: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    right: -5,
+    bottom: -5,
+    backgroundColor: '#8ABAB0',
+    borderRadius: 15,
   },
   graficoCard: {
-    backgroundColor: Colors.bgCard,
+    backgroundColor: '#FAFFF8',
     borderRadius: 15,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.bgDark,
+    borderColor: '#E8F4F0',
+    borderBottomColor: '#B5CCC4',
+    borderRightColor: '#B5CCC4',
+    // @ts-ignore
+    boxShadow: '4px 5px 0px #8ABAB0',
   },
   graficoLeft: {
     flex: 1,
-  },
-  miniChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
     height: 40,
+    justifyContent: 'center',
   },
-  chartLine: {
-    width: 20,
-    backgroundColor: Colors.inPiazza,
-    borderRadius: 3,
+  miniChartLine: {
+    gap: 3,
+  },
+  chartWave: {
+    height: 3,
+    width: 50,
+    borderRadius: 2,
   },
   graficoCenter: {
     flex: 2,
     alignItems: 'center',
   },
   graficoTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: Colors.textDark,
-    marginBottom: 4,
+    color: '#1E4A4A',
+    marginBottom: 2,
+  },
+  graficoIconWrapper: {
+    marginVertical: 2,
   },
   graficoSubtext: {
-    fontSize: 9,
-    color: Colors.textLight,
-    marginTop: 4,
+    fontSize: 8,
+    color: '#7A9A9A',
   },
   graficoBars: {
     flex: 1,
@@ -537,26 +683,35 @@ const styles = StyleSheet.create({
     height: 50,
   },
   bar: {
-    width: 12,
+    width: 10,
     borderRadius: 3,
   },
-  salvaBtn: {
-    backgroundColor: Colors.teal,
+  // Salva button
+  salvaOuter: {
+    position: 'relative',
+  },
+  salvaShadow: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    right: -5,
+    bottom: -5,
+    backgroundColor: '#0A3030',
+    borderRadius: 25,
+  },
+  salvaGradient: {
     borderRadius: 25,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: Colors.tealDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    // @ts-ignore
+    boxShadow: '4px 5px 0px #0A3030',
   },
   salvaBtnText: {
-    color: Colors.white,
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
