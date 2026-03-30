@@ -8,8 +8,8 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path, Circle, Line } from 'react-native-svg';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
 import { CalendarModal } from '../../src/components/CalendarModal';
@@ -39,100 +39,13 @@ const MESI = [
   'Dicembre',
 ];
 
-/* ─── WEATHER SVG ICONS ─── */
-const IconSole = ({ c }: { c: string }) => (
-  <Svg width="28" height="28" viewBox="0 0 28 28">
-    <Circle cx="14" cy="14" r="5" stroke={c} strokeWidth="2" fill="none" />
-    <Line x1="14" y1="2" x2="14" y2="6" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <Line x1="14" y1="22" x2="14" y2="26" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <Line x1="2" y1="14" x2="6" y2="14" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <Line x1="22" y1="14" x2="26" y2="14" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <Line x1="5.4" y1="5.4" x2="8.2" y2="8.2" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <Line x1="19.8" y1="19.8" x2="22.6" y2="22.6" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <Line x1="5.4" y1="22.6" x2="8.2" y2="19.8" stroke={c} strokeWidth="2" strokeLinecap="round" />
-    <Line x1="19.8" y1="8.2" x2="22.6" y2="5.4" stroke={c} strokeWidth="2" strokeLinecap="round" />
-  </Svg>
-);
-const IconParziale = ({ c }: { c: string }) => (
-  <Svg width="28" height="28" viewBox="0 0 28 28">
-    <Circle cx="11" cy="9" r="4" stroke={c} strokeWidth="1.8" fill="none" />
-    <Line x1="11" y1="1.5" x2="11" y2="3.5" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-    <Line x1="4" y1="5" x2="5.5" y2="6.5" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-    <Line x1="3" y1="9" x2="5" y2="9" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-    <Path
-      d="M8 15a5 5 0 0 1 9.8-1.2A3.5 3.5 0 0 1 21 17.5 3.5 3.5 0 0 1 17.5 21H8.5A4 4 0 0 1 8 15z"
-      stroke={c}
-      strokeWidth="1.8"
-      fill="none"
-    />
-  </Svg>
-);
-const IconPioggia = ({ c }: { c: string }) => (
-  <Svg width="28" height="28" viewBox="0 0 28 28">
-    <Path
-      d="M7 13a5 5 0 0 1 9.8-1.2A3.5 3.5 0 0 1 20 15.5 3.5 3.5 0 0 1 16.5 19H7.5A4 4 0 0 1 7 13z"
-      stroke={c}
-      strokeWidth="1.8"
-      fill="none"
-    />
-    <Line x1="10" y1="21" x2="9" y2="24" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-    <Line x1="14" y1="21" x2="13" y2="24" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-    <Line x1="18" y1="21" x2="17" y2="24" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-  </Svg>
-);
-const IconTemporale = ({ c }: { c: string }) => (
-  <Svg width="28" height="28" viewBox="0 0 28 28">
-    <Path
-      d="M7 11a5 5 0 0 1 9.8-1.2A3.5 3.5 0 0 1 20 13.5 3.5 3.5 0 0 1 16.5 17H7.5A4 4 0 0 1 7 11z"
-      stroke={c}
-      strokeWidth="1.8"
-      fill="none"
-    />
-    <Path
-      d="M14 18l-2 4h4l-2 4"
-      stroke={c}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </Svg>
-);
-const IconVento = ({ c }: { c: string }) => (
-  <Svg width="28" height="28" viewBox="0 0 28 28">
-    <Path
-      d="M4 9h11a3 3 0 1 0-2.1-5.1"
-      stroke={c}
-      strokeWidth="2"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M3 15h15a3.5 3.5 0 1 1-2.5 6"
-      stroke={c}
-      strokeWidth="2"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M6 21h7a2.5 2.5 0 1 0-1.8-4.2"
-      stroke={c}
-      strokeWidth="2"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-const WEATHER = [
-  { Ico: IconSole, label: 'SOLE' },
-  { Ico: IconParziale, label: 'VAR' },
-  { Ico: IconPioggia, label: 'PIOGGIA' },
-  { Ico: IconTemporale, label: 'TEMP' },
-  { Ico: IconVento, label: 'VENTO' },
+/* ─── WEATHER ICONS (MaterialCommunityIcons) ─── */
+const WEATHER_ICONS: Array<{ icon: string; label: string }> = [
+  { icon: 'weather-sunny', label: 'SOLE' },
+  { icon: 'weather-partly-cloudy', label: 'VAR' },
+  { icon: 'weather-rainy', label: 'PIOGGIA' },
+  { icon: 'weather-lightning', label: 'TEMP' },
+  { icon: 'weather-windy', label: 'VENTO' },
 ];
 
 /* ─── Mini charts ─── */
@@ -225,7 +138,7 @@ export default function HomeScreen() {
     const c = parseFloat(val.replace(',', '.')) || 0;
     if (lordoNum > 0) {
       const diff = lordoNum - c;
-      setPos(diff > 0 ? diff.toFixed(2) : '0');
+      setPos(diff > 0 ? Math.round(diff).toString() : '0');
     }
   };
   const handlePos = (val: string) => {
@@ -233,7 +146,7 @@ export default function HomeScreen() {
     const p = parseFloat(val.replace(',', '.')) || 0;
     if (lordoNum > 0) {
       const diff = lordoNum - p;
-      setContanti(diff > 0 ? diff.toFixed(2) : '0');
+      setContanti(diff > 0 ? Math.round(diff).toString() : '0');
     }
   };
 
@@ -321,7 +234,7 @@ export default function HomeScreen() {
 
       {/* ── WEATHER ── */}
       <View style={s.meteoRow}>
-        {WEATHER.map((w, i) => {
+        {WEATHER_ICONS.map((w, i) => {
           const sel = meteo === w.label;
           return (
             <TouchableOpacity
@@ -330,7 +243,7 @@ export default function HomeScreen() {
               activeOpacity={0.7}
             >
               <View style={[s.meteo, sel && s.meteoOn]}>
-                <w.Ico c={sel ? '#FFF' : '#2A4A5A'} />
+                <MaterialCommunityIcons name={w.icon as any} size={26} color={sel ? '#FFF' : '#2A4A5A'} />
               </View>
             </TouchableOpacity>
           );
@@ -383,7 +296,7 @@ export default function HomeScreen() {
                 { color: utile >= 0 ? '#2A7A5A' : '#D44' },
               ]}
             >
-              €{utile.toFixed(2)}
+              €{Math.round(utile)}
             </Text>
           </View>
         </View>
@@ -430,10 +343,10 @@ export default function HomeScreen() {
           </View>
           <View style={s.card}>
             <Text style={s.cardLbl}>SPESE FISSE</Text>
-            <Text style={s.cardVal}>€{speseFisse.toFixed(2)}</Text>
+            <Text style={s.cardVal}>€{Math.round(speseFisse)}</Text>
           </View>
         </View>
-        {/* ROW 4: INVENDUTO | CHIEDI */}
+        {/* ROW 4: INVENDUTO | BUONGIORNO */}
         <View style={s.gridRow}>
           <View style={s.card}>
             <Text style={s.cardLbl}>INVENDUTO</Text>
@@ -448,14 +361,14 @@ export default function HomeScreen() {
             />
           </View>
           <TouchableOpacity
-            style={s.card}
+            style={[s.card, { backgroundColor: '#1E7F85' }]}
             activeOpacity={0.7}
             onPress={() =>
-              Alert.alert('AI', 'Funzionalità AI in arrivo...')
+              Alert.alert('Buongiorno!', 'Connessione AI in arrivo...')
             }
           >
-            <Text style={s.cardLbl}>CHIEDI</Text>
-            <Text style={s.cardVal}>€0,00</Text>
+            <Ionicons name="globe-outline" size={16} color="#FFF" />
+            <Text style={[s.cardBold, { color: '#FFF' }]}>BUONGIORNO</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -545,7 +458,8 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#D8EDE5',
     paddingHorizontal: 14,
-    paddingTop: 48,
+    paddingTop: 44,
+    paddingBottom: 12,
   },
 
   /* Header */
@@ -609,7 +523,7 @@ const s = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 10,
+    marginBottom: 8,
     alignItems: 'center',
   },
   toggle: {
@@ -676,7 +590,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 14,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   collab: {
     backgroundColor: '#E0DBC8',
