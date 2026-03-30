@@ -1,52 +1,46 @@
-// Warm color palette - "Il Panivendolo" style
+// MarketMate Color Palette - Mint Green & Teal Design
 export const Colors = {
-  // Backgrounds - Warm beige/cream tones
-  bg: '#FAF0E6',           // Main background - warm cream
-  bgWelcome: '#F5E6D3',    // Welcome screen - lighter beige
-  bgDark: '#EDE0D4',       // Darker cream for insets
-  bgCard: '#FFF8F0',       // Card background - off-white warm
+  // Backgrounds - Mint green tones
+  bg: '#D4E8E0',              // Main background - mint green
+  bgLight: '#E5F2ED',         // Lighter mint
+  bgCard: '#F5FAF8',          // Card background - almost white with mint tint
+  bgDark: '#C5DDD4',          // Darker mint for insets
   
-  // Primary colors - Warm browns
-  marrone: '#4A3728',      // Dark brown for text
-  marroneChiaro: '#6B4F3A', // Medium brown
-  primary: '#C5A059',      // Gold/amber accent (keeping your original)
+  // Primary - Dark Teal
+  teal: '#1E4A4A',            // Dark teal for buttons, accents
+  tealLight: '#2A6060',       // Lighter teal
+  tealDark: '#153838',        // Darker teal for gradients
   
-  // Accent colors - Warm tones
-  arancio: '#D2691E',      // Chocolate orange
-  arancioChiaro: '#E8A56C', // Light orange/peach
-  terracotta: '#A0522D',   // Sienna/terracotta
-  caramello: '#C68642',    // Caramel
+  // Secondary - Beige/Cream
+  beige: '#E8DCC8',           // Beige for secondary buttons
+  beigeLight: '#F2EBE0',      // Light beige
+  beigeDark: '#D4C4A8',       // Dark beige
   
-  // Status colors - Warmer versions
-  rosso: '#CD5C5C',        // Indian red (warmer)
-  verde: '#8FBC8F',        // Dark sea green (warmer)
+  // Text colors
+  textDark: '#1E3A3A',        // Dark text
+  textMedium: '#4A6A6A',      // Medium text
+  textLight: '#7A9A9A',       // Light/placeholder text
   
-  // Neutrals
+  // Status colors
+  rosso: '#D46A6A',           // Soft red
+  verde: '#5AAA6A',           // Soft green
+  arancio: '#E8A060',         // Soft orange
+  
+  // UI colors
   white: '#FFFFFF',
-  cream: '#FFFDD0',
-  grey: '#9E8B7D',         // Warm grey
-  lightGrey: '#E8DED4',    // Light warm grey
+  inPiazza: '#40C4AA',        // Teal badge for "in piazza"
   
-  // Shadows - Warmer tones
-  shadowLight: '#FFFFFF',
-  shadowDark: '#D4C4B0',   // Warm shadow
-  
-  // Gradients (for reference)
-  gradientStart: '#D2691E',
-  gradientEnd: '#8B4513',
+  // Shadows
+  shadow: '#8ABAB0',          // Mint shadow
 };
 
 export const Fonts = {
   titolo: {
     fontWeight: '900' as const,
-    letterSpacing: 1.2,
+    letterSpacing: 1.5,
   },
-  dati: {
-    fontWeight: '500' as const,
-    letterSpacing: 0.1,
-  },
-  elegante: {
-    fontWeight: '500' as const,
+  label: {
+    fontWeight: '700' as const,
     letterSpacing: 0.5,
   },
 };
