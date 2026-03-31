@@ -126,30 +126,31 @@ export default function HomeScreen() {
   const WEATHER_H = Math.max(WEATHER_SIZE + 6, 5 * vh);
   const COLLAB_H = 4.5 * vh;
   const SALVA_H = 5 * vh;
-  const STORICO_H = 13 * vh;
 
   // 9 uniform gaps between 10 vertical blocks
   const TOTAL_GAPS = 9 * GAP;
-
-  // Grid rows fill remaining space
-  const fixedH = HEADER_H + TOGGLE_H + WEATHER_H + COLLAB_H + SALVA_H + STORICO_H + TOTAL_GAPS;
-  const gridTotalH = contentH - fixedH;
   const gridInternalGaps = 3 * GAP;
-  const gridRowsH = gridTotalH - gridInternalGaps;
-  // LORDO/UTILE = 1.2× weight, other 3 rows = 1.0× → 4.2 units
-  const baseRowH = gridRowsH / 4.2;
-  const lordoRowH = baseRowH * 1.2;
-  const normalRowH = baseRowH;
+
+  // Available space for grid rows + storico
+  const fixedH = HEADER_H + TOGGLE_H + WEATHER_H + COLLAB_H + SALVA_H + TOTAL_GAPS + gridInternalGaps;
+  const availableH = contentH - fixedH;
+  // Weight units: LORDO=1.2, 3×normal=0.8 each, STORICO=2.0 → total 5.6
+  const unit = availableH / 5.6;
+  const lordoRowH = unit * 1.2;
+  const normalRowH = unit * 0.8;
+  const STORICO_H = unit * 2.0;
 
   return (
     <View style={s.root}>
       {/* ═══ HEADER ═══ */}
       <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end' }]}>
         <Text style={s.marketName}>{mercatoNome.toUpperCase()}</Text>
-        <View style={s.badgesAbsolute}>
+        <View style={s.badgeLeft}>
           <View style={s.badge}>
             <Text style={s.badgeTxt}>{(nomeAttivita || 'LA MIA AZIENDA').toUpperCase()}</Text>
           </View>
+        </View>
+        <View style={s.bellRight}>
           <View style={s.bell}>
             <Ionicons name="notifications" size={20} color="#FFF" />
             <View style={s.bellDot} />
@@ -347,13 +348,10 @@ const s = StyleSheet.create({
     letterSpacing: 1.5,
     textAlign: 'center',
   },
-  badgesAbsolute: {
+  badgeLeft: {
     position: 'absolute',
     top: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    left: 0,
   },
   badge: {
     backgroundColor: '#1E7F85',
@@ -364,6 +362,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeTxt: { color: '#FFF', fontSize: 10, fontWeight: '700' },
+  bellRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+  },
   bell: {
     width: 36,
     height: 36,
