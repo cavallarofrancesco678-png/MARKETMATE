@@ -61,6 +61,9 @@ export default function HomeScreen() {
   const [showInvendutoModal, setShowInvendutoModal] = useState(false);
   const [invendutoQty, setInvendutoQty] = useState<Record<string, string>>({});
   const [chartMode, setChartMode] = useState<'mese' | 'anno' | 'confronto'>('anno');
+  const [fieraLuogo, setFieraLuogo] = useState('');
+  const [fieraKm, setFieraKm] = useState('');
+  const [fieraPlat, setFieraPlat] = useState('');
 
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');

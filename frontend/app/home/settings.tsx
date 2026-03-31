@@ -29,21 +29,26 @@ const InputModal = ({
   onClose: () => void;
   keyboardTypes?: string[];
 }) => {
-  const [values, setValues] = useState<string[]>(hints.map(() => ''));
+  const [values, setValues] = useState<string[]>([]);
+  const [openCount, setOpenCount] = useState(0);
 
-  // Reset values when modal opens or hints change
+  // Reset values EVERY time modal opens
   React.useEffect(() => {
-    if (visible) setValues(hints.map(() => ''));
-  }, [visible, hints.length]);
+    if (visible) {
+      setValues(hints.map(() => ''));
+      setOpenCount((c) => c + 1);
+    }
+  }, [visible]);
 
   const handleSave = () => {
-    if (values.length >= hints.length && values.every((v) => v.trim() !== '')) {
-      onSave(values);
-      setValues(hints.map(() => ''));
-      onClose();
-    } else {
-      Alert.alert('Attenzione', 'Compila tutti i campi');
+    // Only first field (name) is required; numeric fields default to 0
+    if (!values[0] || values[0].trim() === '') {
+      Alert.alert('Attenzione', 'Inserisci almeno il nome');
+      return;
     }
+    const filled = hints.map((_, i) => values[i] || '');
+    onSave(filled);
+    onClose();
   };
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -100,6 +105,9 @@ export default function SettingsPage() {
   // Expanded state for fornitori
   const [expandedForn, setExpandedForn] = useState<number | null>(null);
 
+  // Expanded state for spese annuali
+  const [expandedSpese, setExpandedSpese] = useState(false);
+
   const openModal = useCallback(
     (title: string, hints: string[], onSave: (values: string[]) => void, keyboardTypes?: string[]) => {
       setModalConfig({ visible: true, title, hints, keyboardTypes, onSave });
@@ -126,10 +134,9 @@ export default function SettingsPage() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content}>
-      <Text style={s.title}>IMPOSTAZIONI</Text>
+      <Text style={s.title}>Impostazioni</Text>
 
       {/* ─── LINGUA ─── */}
-      <Text style={s.secTitle}>LINGUA</Text>
       <View style={s.card}>
         <View style={s.langRow}>
           {lingue.map((l) => (
@@ -145,7 +152,6 @@ export default function SettingsPage() {
       </View>
 
       {/* ─── IDENTITÀ ─── */}
-      <Text style={s.secTitle}>IDENTITÀ</Text>
       <View style={s.card}>
         <TouchableOpacity
           style={s.itemRow}
@@ -173,7 +179,6 @@ export default function SettingsPage() {
       </View>
 
       {/* ─── SETTORE ─── */}
-      <Text style={s.secTitle}>SETTORE</Text>
       <View style={s.card}>
         <View style={s.switchRow}>
           <Text style={s.switchLabel}>{store.isAlimentare ? 'ALIMENTARE' : 'NON ALIMENTARE'}</Text>
@@ -187,7 +192,6 @@ export default function SettingsPage() {
       </View>
 
       {/* ─── SQUADRA COLLABORATORI ─── */}
-      <Text style={s.secTitle}>SQUADRA COLLABORATORI</Text>
       {store.collaboratori.map((c, i) => (
         <View key={i} style={s.card}>
           <View style={s.itemRow}>
@@ -235,7 +239,6 @@ export default function SettingsPage() {
       </TouchableOpacity>
 
       {/* ─── AGENDA MERCATI ─── */}
-      <Text style={s.secTitle}>AGENDA MERCATI</Text>
       {store.agenda.map((m, idx) => {
         const isOpen = expandedDay === idx;
         return (
@@ -299,7 +302,6 @@ export default function SettingsPage() {
       })}
 
       {/* ─── FORNITORI ─── */}
-      <Text style={s.secTitle}>FORNITORI E PRODOTTI</Text>
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (
@@ -357,48 +359,49 @@ export default function SettingsPage() {
         <Text style={s.addBtnTxt}>Nuovo Fornitore</Text>
       </TouchableOpacity>
 
-      {/* ─── SPESE ANNUALI ─── */}
-      <Text style={s.secTitle}>SPESE ANNUALI</Text>
+      {/* ─── SPESE ANNUALI (collapsible) ─── */}
       <View style={s.card}>
-        {store.speseAnnue.length === 0 && totalePlatAnnui === 0 && (
-          <Text style={s.emptyTxt}>Nessun costo inserito</Text>
-        )}
-        {store.speseAnnue.map((sp, i) => (
-          <View key={i} style={s.spesaRow}>
-            <Text style={s.spesaNome}>{sp.voce}</Text>
-            <Text style={s.spesaVal}>€{sp.importo}</Text>
-            <TouchableOpacity onPress={() => store.removeSpesaAnnua(sp.voce)}>
-              <Ionicons name="trash-outline" size={16} color="#D46A6A" />
+        <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedSpese(!expandedSpese)}>
+          <Ionicons name="card" size={20} color="#1E7F85" />
+          <Text style={[s.agendaDay, { flex: 1 }]}>SPESE ANNUALI</Text>
+          <Text style={[s.itemLabel, { color: '#D46A6A', fontWeight: '800' }]}>€{totaleSpeseAnnue}</Text>
+          <Ionicons name={expandedSpese ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" style={{ marginLeft: 8 }} />
+        </TouchableOpacity>
+        {expandedSpese && (
+          <View style={s.agendaBody}>
+            <View style={s.divider} />
+            {store.speseAnnue.length === 0 && totalePlatAnnui === 0 && (
+              <Text style={s.emptyTxt}>Nessun costo inserito</Text>
+            )}
+            {store.speseAnnue.map((sp, i) => (
+              <View key={i} style={s.spesaRow}>
+                <Text style={s.spesaNome}>{sp.voce}</Text>
+                <Text style={s.spesaVal}>€{sp.importo}</Text>
+                <TouchableOpacity onPress={() => store.removeSpesaAnnua(sp.voce)}>
+                  <Ionicons name="trash-outline" size={16} color="#D46A6A" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {store.agenda.filter((m) => m.p_annuo > 0).map((m, i) => (
+              <View key={`p-${i}`} style={s.spesaRow}>
+                <Text style={[s.spesaNome, { color: '#7A9090' }]}>Plat. {m.mercato}</Text>
+                <Text style={[s.spesaVal, { color: '#7A9090' }]}>€{m.p_annuo}</Text>
+                <View style={{ width: 24 }} />
+              </View>
+            ))}
+            <TouchableOpacity
+              style={[s.addBtnSmall, { marginTop: 10 }]}
+              onPress={() => openModal('Spesa Annuale', ['Voce', 'Importo €'], (vals) =>
+                store.addSpesaAnnua({ voce: vals[0], importo: parseFloat((vals[1] || '0').replace(',', '.')) || 0 }),
+                ['default', 'numeric']
+              )}
+            >
+              <Ionicons name="add" size={16} color="#1E7F85" />
+              <Text style={s.addBtnSmallTxt}>Aggiungi Spesa</Text>
             </TouchableOpacity>
           </View>
-        ))}
-        {store.agenda.filter((m) => m.p_annuo > 0).map((m, i) => (
-          <View key={`p-${i}`} style={s.spesaRow}>
-            <Text style={[s.spesaNome, { color: '#7A9090' }]}>Plat. {m.mercato}</Text>
-            <Text style={[s.spesaVal, { color: '#7A9090' }]}>€{m.p_annuo}</Text>
-            <View style={{ width: 24 }} />
-          </View>
-        ))}
-        {(store.speseAnnue.length > 0 || totalePlatAnnui > 0) && (
-          <>
-            <View style={s.divider} />
-            <View style={s.totalRow}>
-              <Text style={s.totalLabel}>TOTALE ANNUALE:</Text>
-              <Text style={s.totalVal}>€{totaleSpeseAnnue}</Text>
-            </View>
-          </>
         )}
       </View>
-      <TouchableOpacity
-        style={s.addBtn}
-        onPress={() => openModal('Spesa Annuale', ['Voce', 'Importo €'], (vals) =>
-          store.addSpesaAnnua({ voce: vals[0], importo: parseFloat(vals[1].replace(',', '.')) || 0 }),
-          ['default', 'numeric']
-        )}
-      >
-        <Ionicons name="card" size={18} color="#1E7F85" />
-        <Text style={s.addBtnTxt}>Aggiungi Spesa</Text>
-      </TouchableOpacity>
 
       {/* ─── SALVA TUTTO ─── */}
       <TouchableOpacity style={s.saveAll} onPress={() => Alert.alert('Salvato!', 'Tutte le impostazioni sono state salvate.')}>
@@ -424,15 +427,15 @@ export default function SettingsPage() {
 /* ─── STYLES ─── */
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#D8EDE5' },
-  content: { paddingHorizontal: 16, paddingTop: 50, paddingBottom: 30 },
+  content: { paddingHorizontal: 16, paddingTop: 50, paddingBottom: 30, gap: 10 },
 
   title: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#1A3535',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#7A9090',
     textAlign: 'center',
-    letterSpacing: 2,
-    marginBottom: 20,
+    letterSpacing: 1,
+    marginBottom: 6,
   },
 
   secTitle: {
@@ -448,7 +451,6 @@ const s = StyleSheet.create({
     backgroundColor: '#EDE8DA',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 8,
     // @ts-ignore
     boxShadow:
       '4px 4px 10px rgba(160,150,130,0.45), -3px -3px 8px rgba(255,255,250,0.9)',
