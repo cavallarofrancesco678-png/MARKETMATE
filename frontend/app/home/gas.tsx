@@ -5,410 +5,254 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Alert,
-  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Carburante } from '../../src/store/appStore';
-import { NeuBox, NeuInset } from '../../src/components/NeuBox';
 import { CalendarModal } from '../../src/components/CalendarModal';
-import { Colors } from '../../src/theme/colors';
-import { formattaDataBreve } from '../../src/utils/dateUtils';
+
+type FiltroGas = 'SETT.' | 'MESE' | 'ANNO';
+
+const LABELS: Record<FiltroGas, string[]> = {
+  'SETT.': ['L', 'M', 'M', 'G', 'V', 'S', 'D'],
+  'MESE': ['S1', 'S2', 'S3', 'S4'],
+  'ANNO': ['G', 'F', 'M', 'A', 'M', 'G', 'L', 'A', 'S', 'O', 'N', 'D'],
+};
 
 export default function GasScreen() {
-  const {
-    themeColor,
-    storicoCarburante,
-    storicoGiornate,
-    addCarburante,
-    removeCarburante,
-  } = useAppStore();
+  const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante } = useAppStore();
 
-  const activeColor = themeColor || Colors.primary;
-
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [filtro, setFiltro] = useState<FiltroGas>('SETT.');
+  const [euroText, setEuroText] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
-  const [newDate, setNewDate] = useState(new Date());
-  const [newEuro, setNewEuro] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Calculate stats
-  const totaleCarburante = storicoCarburante.reduce((sum, c) => sum + c.euro, 0);
-  const totaleKm = storicoGiornate.reduce((sum, g) => sum + (g.km || 0), 0);
-  const costoMedioKm = totaleKm > 0 ? totaleCarburante / totaleKm : 0;
-  const numRifornimenti = storicoCarburante.length;
+  /* ── Stats ── */
+  const totaleCarb = storicoCarburante.reduce((s, c) => s + c.euro, 0);
+  const totaleKm = storicoGiornate.reduce((s, g) => s + (g.km || 0), 0);
+  const costoKm = totaleKm > 0 ? totaleCarb / totaleKm : 0;
 
-  const handleAddRifornimento = () => {
-    const euro = parseFloat(newEuro.replace(',', '.'));
-    if (!euro || euro <= 0) {
-      Alert.alert('Errore', 'Inserisci un importo valido');
-      return;
-    }
-
-    addCarburante({
-      data: newDate,
-      euro,
-    });
-
-    setNewEuro('');
-    setShowAddModal(false);
-    Alert.alert('Salvato!', 'Rifornimento registrato con successo');
+  /* ── Save ── */
+  const handleSalva = () => {
+    const euro = parseFloat(euroText.replace(',', '.'));
+    if (!euro || euro <= 0) { Alert.alert('Errore', 'Inserisci un importo valido'); return; }
+    addCarburante({ data: selectedDate, euro });
+    setEuroText('');
+    Alert.alert('Salvato!', 'Rifornimento registrato');
   };
 
+  /* ── Delete ── */
   const handleDelete = (item: Carburante) => {
-    Alert.alert(
-      'Elimina',
-      'Sei sicuro di voler eliminare questo rifornimento?',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Elimina',
-          style: 'destructive',
-          onPress: () => removeCarburante(item.data),
-        },
-      ]
-    );
+    Alert.alert('Elimina', 'Eliminare questo rifornimento?', [
+      { text: 'Annulla', style: 'cancel' },
+      { text: 'Elimina', style: 'destructive', onPress: () => removeCarburante(item.data) },
+    ]);
   };
 
-  // Sort by date descending
-  const sortedCarburante = [...storicoCarburante].sort(
-    (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
-  );
+  /* ── Chart data per filtro ── */
+  const calcChartData = (): number[] => {
+    if (filtro === 'SETT.') {
+      const d = Array(7).fill(0);
+      storicoCarburante.forEach((c) => { d[new Date(c.data).getDay() === 0 ? 6 : new Date(c.data).getDay() - 1] += c.euro; });
+      return d;
+    } else if (filtro === 'MESE') {
+      const d = Array(4).fill(0);
+      storicoCarburante.forEach((c) => { d[Math.min(Math.floor((new Date(c.data).getDate() - 1) / 8), 3)] += c.euro; });
+      return d;
+    } else {
+      const d = Array(12).fill(0);
+      storicoCarburante.forEach((c) => { d[new Date(c.data).getMonth()] += c.euro; });
+      return d;
+    }
+  };
+
+  const chartData = calcChartData();
+  const chartLabels = LABELS[filtro];
+  const maxVal = Math.max(...chartData, 1);
+
+  /* ── History sorted ── */
+  const cronologia = [...storicoCarburante].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
+  const mesi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.pageTitle}>CARBURANTE</Text>
+    <View style={s.root}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={s.pageTitle}>GESTIONE CARBURANTE</Text>
 
-        {/* Stats Cards */}
-        <View style={styles.statsRow}>
-          <NeuBox style={styles.statCard}>
-            <Ionicons name="speedometer" size={24} color={activeColor} />
-            <Text style={[styles.statValue, { color: activeColor }]}>
-              €{costoMedioKm.toFixed(2)}
+        {/* Input rifornimento */}
+        <View style={s.card}>
+          <Text style={s.sectionTitle}>SEGNA RIFORNIMENTO</Text>
+          <TouchableOpacity onPress={() => setShowCalendar(true)} style={s.dateBtn}>
+            <Ionicons name="calendar" size={18} color="#1E7F85" />
+            <Text style={s.dateTxt}>
+              {selectedDate.getDate()} {mesi[selectedDate.getMonth()]} {selectedDate.getFullYear()}
             </Text>
-            <Text style={styles.statLabel}>COSTO/KM</Text>
-          </NeuBox>
-          <NeuBox style={styles.statCard}>
-            <Ionicons name="car" size={24} color={Colors.arancio} />
-            <Text style={[styles.statValue, { color: Colors.arancio }]}>
-              {totaleKm.toFixed(0)}
-            </Text>
-            <Text style={styles.statLabel}>KM TOTALI</Text>
-          </NeuBox>
+          </TouchableOpacity>
+          <View style={s.inputWrap}>
+            <TextInput
+              style={s.bigInput}
+              placeholder="0.00"
+              placeholderTextColor="#C0B5A5"
+              keyboardType="numeric"
+              value={euroText}
+              onChangeText={setEuroText}
+              textAlign="center"
+              selectTextOnFocus
+            />
+            <Text style={s.eurSign}>€</Text>
+          </View>
+          <TouchableOpacity onPress={handleSalva} style={s.saveBtn} activeOpacity={0.8}>
+            <Ionicons name="save-outline" size={16} color="#FFF" />
+            <Text style={s.saveTxt}>SALVA RIFORNIMENTO</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Total Summary */}
-        <NeuBox style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <View>
-              <Text style={styles.summaryLabel}>TOTALE SPESO</Text>
-              <Text style={[styles.summaryValue, { color: activeColor }]}>
-                €{totaleCarburante.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.summaryRight}>
-              <Text style={styles.summaryCount}>{numRifornimenti}</Text>
-              <Text style={styles.summaryLabel}>rifornimenti</Text>
-            </View>
+        {/* KPI */}
+        <View style={s.kpiRow}>
+          <View style={s.kpiCard}>
+            <Text style={s.kpiLabel}>COSTO/KM</Text>
+            <Text style={[s.kpiValue, { color: '#1E7F85' }]}>€{costoKm.toFixed(2)}</Text>
           </View>
-        </NeuBox>
+          <View style={s.kpiCard}>
+            <Text style={s.kpiLabel}>TOTALE SPESO</Text>
+            <Text style={[s.kpiValue, { color: '#E8A060' }]}>€{totaleCarb.toFixed(0)}</Text>
+          </View>
+          <View style={s.kpiCard}>
+            <Text style={s.kpiLabel}>KM TOTALI</Text>
+            <Text style={[s.kpiValue, { color: '#5A7575' }]}>{totaleKm.toFixed(0)}</Text>
+          </View>
+        </View>
 
-        {/* Add Button */}
-        <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <NeuBox style={styles.addButton}>
-            <Ionicons name="add-circle" size={24} color={activeColor} />
-            <Text style={[styles.addButtonText, { color: activeColor }]}>
-              NUOVO RIFORNIMENTO
-            </Text>
-          </NeuBox>
-        </TouchableOpacity>
+        {/* Filtro periodo */}
+        <View style={s.filterRow}>
+          {(['SETT.', 'MESE', 'ANNO'] as FiltroGas[]).map((f) => {
+            const on = filtro === f;
+            return (
+              <TouchableOpacity key={f} style={[s.filterBtn, on && s.filterOn]} onPress={() => setFiltro(f)}>
+                <Text style={[s.filterTxt, on && { color: '#FFF' }]}>{f}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-        {/* History */}
-        <Text style={styles.sectionTitle}>STORICO RIFORNIMENTI</Text>
-        {sortedCarburante.length === 0 ? (
-          <NeuBox style={styles.emptyCard}>
-            <Ionicons name="car-outline" size={40} color={Colors.grey} />
-            <Text style={styles.emptyText}>Nessun rifornimento registrato</Text>
-            <Text style={styles.emptySubtext}>
-              Aggiungi il tuo primo rifornimento
-            </Text>
-          </NeuBox>
+        {/* Grafico a barre */}
+        <View style={s.card}>
+          <Text style={s.sectionTitle}>TREND: {filtro}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 140, paddingTop: 10 }}>
+            {chartData.map((val, i) => {
+              const h = maxVal > 0 ? (val / maxVal) * 100 : 5;
+              const barW = chartData.length > 10 ? 18 : 28;
+              return (
+                <View key={i} style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 8, fontWeight: '700', color: '#5A7575', marginBottom: 3 }}>€{val.toFixed(0)}</Text>
+                  <View style={{ height: 100, justifyContent: 'flex-end' }}>
+                    <View style={{ width: barW, height: `${Math.max(h, 5)}%`, backgroundColor: '#1E7F85', borderRadius: 4, minHeight: 5 }} />
+                  </View>
+                  <Text style={{ fontSize: 9, color: '#7A9090', marginTop: 4 }}>{chartLabels[i]}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Cronologia */}
+        <Text style={s.sectionTitleOut}>CRONOLOGIA</Text>
+        {cronologia.length === 0 ? (
+          <View style={s.card}>
+            <Text style={[s.kpiLabel, { textAlign: 'center', paddingVertical: 20 }]}>Nessun rifornimento inserito</Text>
+          </View>
         ) : (
-          sortedCarburante.map((item, index) => (
-            <NeuBox key={index} style={styles.historyItem}>
-              <View style={styles.historyLeft}>
-                <Ionicons name="calendar" size={20} color={activeColor} />
-                <View style={styles.historyInfo}>
-                  <Text style={styles.historyDate}>
-                    {formattaDataBreve(new Date(item.data))}
-                  </Text>
+          cronologia.map((item, i) => {
+            const d = new Date(item.data);
+            return (
+              <View key={i} style={s.historyCard}>
+                <View>
+                  <Text style={s.historyDate}>{d.getDate()}/{d.getMonth() + 1}/{d.getFullYear()}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Text style={s.historyEuro}>€{item.euro.toFixed(2)}</Text>
+                  <TouchableOpacity onPress={() => handleDelete(item)}>
+                    <Ionicons name="trash" size={20} color="#D46A6A" />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={styles.historyRight}>
-                <Text style={[styles.historyEuro, { color: activeColor }]}>
-                  €{item.euro.toFixed(2)}
-                </Text>
-                <TouchableOpacity onPress={() => handleDelete(item)}>
-                  <Ionicons name="trash" size={20} color={Colors.rosso} />
-                </TouchableOpacity>
-              </View>
-            </NeuBox>
-          ))
+            );
+          })
         )}
+
+        <View style={{ height: 30 }} />
       </ScrollView>
-
-      {/* Add Modal */}
-      <Modal visible={showAddModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <NeuBox style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nuovo Rifornimento</Text>
-
-            <TouchableOpacity onPress={() => setShowCalendar(true)}>
-              <NeuInset style={styles.dateButton}>
-                <Ionicons name="calendar" size={20} color={activeColor} />
-                <Text style={styles.dateText}>
-                  {formattaDataBreve(newDate)}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color={Colors.grey} />
-              </NeuInset>
-            </TouchableOpacity>
-
-            <NeuInset style={styles.modalInput}>
-              <TextInput
-                placeholder="Importo €"
-                placeholderTextColor={Colors.grey}
-                value={newEuro}
-                onChangeText={setNewEuro}
-                keyboardType="numeric"
-                style={styles.inputText}
-              />
-            </NeuInset>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowAddModal(false);
-                  setNewEuro('');
-                }}
-              >
-                <Text style={styles.modalCancel}>Annulla</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: activeColor }]}
-                onPress={handleAddRifornimento}
-              >
-                <Text style={styles.saveButtonText}>SALVA</Text>
-              </TouchableOpacity>
-            </View>
-          </NeuBox>
-        </View>
-      </Modal>
 
       <CalendarModal
         visible={showCalendar}
         onClose={() => setShowCalendar(false)}
-        onSelect={(date) => {
-          setNewDate(date);
-          setShowCalendar(false);
-        }}
-        initialDate={newDate}
-        themeColor={activeColor}
-        title="Data Rifornimento"
+        onSelect={(date) => { setSelectedDate(date); setShowCalendar(false); }}
+        initialDate={selectedDate}
+        themeColor="#1E7F85"
+        title="DATA RIFORNIMENTO"
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#D8EDE5' },
+  scroll: { padding: 20, paddingTop: 50, paddingBottom: 40 },
+  pageTitle: { fontSize: 24, fontWeight: '900', color: '#1A4040', textAlign: 'center', letterSpacing: 1.5, marginBottom: 20 },
+
+  card: {
+    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 16, marginBottom: 14,
+    // @ts-ignore
+    boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
   },
-  flex: {
-    flex: 1,
+
+  sectionTitle: { fontSize: 10, fontWeight: '800', color: '#5A7575', letterSpacing: 1.5, marginBottom: 12, textAlign: 'center' },
+  sectionTitleOut: { fontSize: 10, fontWeight: '800', color: '#5A7575', letterSpacing: 1.5, marginBottom: 12 },
+
+  dateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 },
+  dateTxt: { fontSize: 14, fontWeight: '700', color: '#1A3535' },
+
+  inputWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  bigInput: { fontSize: 32, fontWeight: '900', color: '#1E7F85', minWidth: 120, textAlign: 'center', padding: 0 },
+  eurSign: { fontSize: 24, fontWeight: '700', color: '#1E7F85', marginLeft: 4 },
+
+  saveBtn: {
+    backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
+    // @ts-ignore
+    boxShadow: '6px 6px 16px rgba(15,55,60,0.55), -4px -4px 12px rgba(45,120,125,0.35)',
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 50,
+  saveTxt: { color: '#FFF', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+
+  kpiRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  kpiCard: {
+    flex: 1, backgroundColor: '#EDE8DA', borderRadius: 14, padding: 12, alignItems: 'center',
+    // @ts-ignore
+    boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
   },
-  pageTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: Colors.marrone,
-    textAlign: 'center',
-    marginVertical: 20,
-    letterSpacing: 1.2,
+  kpiLabel: { fontSize: 9, fontWeight: '700', color: '#5A7575', letterSpacing: 0.5, marginBottom: 4 },
+  kpiValue: { fontSize: 18, fontWeight: '900' },
+
+  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  filterBtn: {
+    flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, paddingVertical: 10, alignItems: 'center',
+    // @ts-ignore
+    boxShadow: '4px 4px 10px rgba(155,145,125,0.45), -3px -3px 8px rgba(255,255,250,0.85)',
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 15,
-    marginBottom: 20,
+  filterOn: {
+    backgroundColor: '#1E7F85',
+    // @ts-ignore
+    boxShadow: '4px 4px 10px rgba(15,55,60,0.5), -3px -3px 8px rgba(45,120,125,0.35)',
   },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
+  filterTxt: { fontSize: 11, fontWeight: '800', color: '#4A3A2A' },
+
+  historyCard: {
+    backgroundColor: '#EDE8DA', borderRadius: 12, padding: 14, marginBottom: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    // @ts-ignore
+    boxShadow: '4px 4px 10px rgba(160,150,130,0.4), -3px -3px 8px rgba(255,255,250,0.9)',
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '900',
-    marginTop: 10,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: Colors.grey,
-    marginTop: 5,
-  },
-  summaryCard: {
-    marginBottom: 20,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: Colors.grey,
-  },
-  summaryValue: {
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  summaryRight: {
-    alignItems: 'center',
-  },
-  summaryCount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 20,
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: Colors.grey,
-    marginBottom: 15,
-  },
-  emptyCard: {
-    alignItems: 'center',
-    paddingVertical: 30,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    marginTop: 15,
-  },
-  emptySubtext: {
-    fontSize: 12,
-    color: Colors.grey,
-    marginTop: 5,
-  },
-  historyItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  historyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  historyInfo: {
-    gap: 2,
-  },
-  historyDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.marrone,
-  },
-  historyRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-  },
-  historyEuro: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 350,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 15,
-  },
-  dateText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.marrone,
-  },
-  modalInput: {
-    marginBottom: 20,
-  },
-  inputText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    padding: 5,
-    textAlign: 'center',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalCancel: {
-    fontSize: 16,
-    color: Colors.grey,
-    fontWeight: '600',
-  },
-  saveButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  saveButtonText: {
-    color: Colors.white,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
+  historyDate: { fontSize: 14, fontWeight: '600', color: '#1A3535' },
+  historyEuro: { fontSize: 18, fontWeight: '800', color: '#1E7F85' },
 });

@@ -27,8 +27,6 @@ export const NeuBox: React.FC<NeuBoxProps> = ({
           backgroundColor: pressed ? Colors.bgDark : (color || Colors.bgCard),
           borderRadius,
           padding,
-          borderWidth: pressed ? 0 : 1,
-          borderColor: pressed ? 'transparent' : Colors.lightGrey,
         },
         pressed ? styles.pressedShadow : styles.normalShadow,
         style,
@@ -90,25 +88,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
   },
   normalShadow: {
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 2, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    // @ts-ignore
+    boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
   },
   pressedShadow: {
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 1, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    // @ts-ignore
+    boxShadow: 'inset 3px 3px 8px rgba(10,40,45,0.35), inset -3px -3px 7px rgba(45,120,125,0.25)',
   },
   inset: {
     backgroundColor: Colors.bg,
     borderRadius: 15,
     padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.lightGrey,
+    // @ts-ignore
+    boxShadow: 'inset 2px 2px 6px rgba(130,150,140,0.3), inset -2px -2px 5px rgba(255,255,250,0.5)',
   },
   warmButton: {
     borderRadius: 25,
