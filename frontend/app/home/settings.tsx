@@ -30,11 +30,19 @@ const InputModal = ({
   keyboardTypes?: string[];
 }) => {
   const [values, setValues] = useState<string[]>(hints.map(() => ''));
+
+  // Reset values when modal opens or hints change
+  React.useEffect(() => {
+    if (visible) setValues(hints.map(() => ''));
+  }, [visible, hints.length]);
+
   const handleSave = () => {
-    if (values.every((v) => v.trim() !== '')) {
+    if (values.length >= hints.length && values.every((v) => v.trim() !== '')) {
       onSave(values);
       setValues(hints.map(() => ''));
       onClose();
+    } else {
+      Alert.alert('Attenzione', 'Compila tutti i campi');
     }
   };
   return (

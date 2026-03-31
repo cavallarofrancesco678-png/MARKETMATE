@@ -47,7 +47,7 @@ const MiniBar = () => (
 );
 
 export default function HomeScreen() {
-  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori } = useAppStore();
+  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto } = useAppStore();
   const store = useAppStore();
   const { height: screenH } = useWindowDimensions();
   const [dataCorrente, setDataCorrente] = useState(new Date());
@@ -57,6 +57,9 @@ export default function HomeScreen() {
   const [presenze, setPresenze] = useState<Record<string, boolean>>({});
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSpeseFisseModal, setShowSpeseFisseModal] = useState(false);
+  const [showBellModal, setShowBellModal] = useState(false);
+  const [showInvendutoModal, setShowInvendutoModal] = useState(false);
+  const [invendutoQty, setInvendutoQty] = useState<Record<string, string>>({});
   const [chartMode, setChartMode] = useState<'mese' | 'anno' | 'confronto'>('anno');
 
   const [lordo, setLordo] = useState('');
@@ -75,6 +78,38 @@ export default function HomeScreen() {
     collaboratori.forEach((c) => { p[c.nome] = false; });
     setPresenze(p);
   }, [collaboratori]);
+
+  /* ── Appunti di oggi per notifiche campanello ── */
+  const appuntiOggi = useMemo(() => {
+    const oggi = dataCorrente.toDateString();
+    return (appuntiAgenda || []).filter((a) => new Date(a.data).toDateString() === oggi);
+  }, [appuntiAgenda, dataCorrente]);
+
+  /* ── All products from all fornitori ── */
+  const tuttiProdotti = useMemo(() => {
+    const prods: { fornitore: string; nome: string; prezzo: number }[] = [];
+    (fornitori || []).forEach((f) => {
+      f.prodotti.forEach((p) => {
+        prods.push({ fornitore: f.nome, nome: p.nome, prezzo: p.prezzo });
+      });
+    });
+    return prods;
+  }, [fornitori]);
+
+  /* ── Invenduto calculated from product quantities ── */
+  const invendutoCalcolato = useMemo(() => {
+    let tot = 0;
+    tuttiProdotti.forEach((p) => {
+      const qty = parseFloat((invendutoQty[`${p.fornitore}_${p.nome}`] || '0').replace(',', '.')) || 0;
+      tot += qty * p.prezzo;
+    });
+    return tot;
+  }, [tuttiProdotti, invendutoQty]);
+
+  const confermaInvenduto = () => {
+    setInvenduto(Math.round(invendutoCalcolato).toString());
+    setShowInvendutoModal(false);
+  };
 
   /* ── Build itemized spese fisse list ── */
   const speseFisseItems = useMemo(() => {
@@ -121,8 +156,14 @@ export default function HomeScreen() {
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
   const speseExtraNum = parseFloat(speseExtra.replace(',', '.')) || 0;
   const invendutoNum = parseFloat(invenduto.replace(',', '.')) || 0;
-  const utile = lordoNum - speseFisse - speseExtraNum - invendutoNum;
-  const collabNames = collaboratori.length > 0 ? collaboratori.map((c) => c.nome) : ['DAVIDE', 'ANTONIO', 'NICOLÒ'];
+
+  // Costo collaboratori attivi (presenti oggi)
+  const costoCollabAttivi = collaboratori
+    .filter((c) => presenze[c.nome])
+    .reduce((s, c) => s + (c.costo || 0), 0);
+
+  const utile = lordoNum - speseFisse - speseExtraNum - invendutoNum - costoCollabAttivi;
+  const collabNames = collaboratori.length > 0 ? collaboratori.map((c) => c.nome) : [];
 
   const handleContanti = (val: string) => {
     setContanti(val);
@@ -192,10 +233,16 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={s.bellRight}>
-          <View style={s.bell}>
-            <Ionicons name="notifications" size={20} color="#FFF" />
-            <View style={s.bellDot} />
-          </View>
+          <TouchableOpacity onPress={() => setShowBellModal(true)} activeOpacity={0.7}>
+            <View style={s.bell}>
+              <Ionicons name="notifications" size={20} color="#FFF" />
+              {appuntiOggi.length > 0 && (
+                <View style={s.bellBadge}>
+                  <Text style={s.bellBadgeTxt}>{appuntiOggi.length}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
           <View style={s.dateRow}>
@@ -311,10 +358,10 @@ export default function HomeScreen() {
 
       {/* ═══ ROW 4: INVENDUTO / BUONGIORNO ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
-        <View style={[s.card, { height: normalRowH }]}>
+        <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowInvendutoModal(true)}>
           <Text style={s.cardLbl}>INVENDUTO</Text>
-          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={invenduto} onChangeText={setInvenduto} selectTextOnFocus />
-        </View>
+          <Text style={s.cardVal}>{invendutoNum > 0 ? `€${invendutoNum}` : '0'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => Alert.alert('Buongiorno!', 'Connessione AI in arrivo...')}>
           <Ionicons name="globe-outline" size={16} color="#FFF" />
           <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>BUONGIORNO</Text>
@@ -355,6 +402,103 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>SALVA GIORNATA</Text>
       </TouchableOpacity>
+
+      {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
+      <Modal visible={showBellModal} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <Text style={s.modalTitle}>APPUNTI DI OGGI</Text>
+            <Text style={s.modalSub}>{giorno} {data}</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {appuntiOggi.length === 0 ? (
+                <Text style={s.modalEmpty}>Nessun appunto per oggi</Text>
+              ) : (
+                appuntiOggi.map((a, i) => (
+                  <View key={i} style={s.modalRow}>
+                    <Ionicons name="document-text" size={18} color="#1E7F85" />
+                    <Text style={[s.modalLabel, { flex: 1 }]}>{a.testo}</Text>
+                    <TouchableOpacity onPress={() => { removeAppunto(a.data, a.testo); }}>
+                      <Ionicons name="close-circle" size={22} color="#D46A6A" />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            <TouchableOpacity style={s.modalClose} onPress={() => setShowBellModal(false)}>
+              <Text style={s.modalCloseTxt}>CHIUDI</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ═══ MODALE INVENDUTO / PRODOTTI ═══ */}
+      <Modal visible={showInvendutoModal} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <Text style={s.modalTitle}>CALCOLO INVENDUTO</Text>
+            <Text style={s.modalSub}>Inserisci la quantità invenduta per prodotto</Text>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {tuttiProdotti.length === 0 ? (
+                <View>
+                  <Text style={s.modalEmpty}>Nessun prodotto registrato. Vai in Impostazioni → Fornitori per aggiungere i prodotti.</Text>
+                  <View style={s.modalDivider} />
+                  <Text style={[s.modalSub, { marginBottom: 8 }]}>Oppure inserisci manualmente:</Text>
+                  <TextInput
+                    style={s.manualInput}
+                    placeholder="Importo €"
+                    placeholderTextColor="#A0B5A8"
+                    keyboardType="numeric"
+                    value={invenduto}
+                    onChangeText={setInvenduto}
+                    textAlign="center"
+                  />
+                </View>
+              ) : (
+                tuttiProdotti.map((p, i) => {
+                  const key = `${p.fornitore}_${p.nome}`;
+                  const qty = parseFloat((invendutoQty[key] || '0').replace(',', '.')) || 0;
+                  const subtot = qty * p.prezzo;
+                  return (
+                    <View key={i} style={s.invProdRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.invProdName}>{p.nome}</Text>
+                        <Text style={s.invProdInfo}>{p.fornitore} · €{p.prezzo}/kg</Text>
+                      </View>
+                      <TextInput
+                        style={s.invQtyInput}
+                        placeholder="0"
+                        placeholderTextColor="#C0B5A5"
+                        keyboardType="numeric"
+                        value={invendutoQty[key] || ''}
+                        onChangeText={(t) => setInvendutoQty((prev) => ({ ...prev, [key]: t }))}
+                        textAlign="center"
+                      />
+                      <Text style={s.invSubtot}>€{Math.round(subtot)}</Text>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+            {tuttiProdotti.length > 0 && (
+              <>
+                <View style={s.modalDivider} />
+                <View style={s.modalTotalRow}>
+                  <Text style={s.modalTotalLabel}>TOTALE INVENDUTO</Text>
+                  <Text style={s.modalTotalVal}>€{Math.round(invendutoCalcolato)}</Text>
+                </View>
+              </>
+            )}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={[s.modalClose, { flex: 1, backgroundColor: '#B0A898' }]} onPress={() => setShowInvendutoModal(false)}>
+                <Text style={s.modalCloseTxt}>ANNULLA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.modalClose, { flex: 1 }]} onPress={confermaInvenduto}>
+                <Text style={s.modalCloseTxt}>CONFERMA</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ═══ MODALE SPESE FISSE ═══ */}
       <Modal visible={showSpeseFisseModal} transparent animationType="fade">
@@ -455,15 +599,19 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bellDot: {
+  bellBadge: {
     position: 'absolute',
-    top: 3,
-    right: 5,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#E44',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
   },
+  bellBadgeTxt: { color: '#FFF', fontSize: 10, fontWeight: '900' },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -665,4 +813,12 @@ const s = StyleSheet.create({
     boxShadow: '4px 4px 10px rgba(15,55,60,0.5), -3px -3px 8px rgba(45,120,125,0.35)',
   },
   modalCloseTxt: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+
+  /* Invenduto Modal */
+  invProdRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 10, borderBottomWidth: 1, borderBottomColor: '#D8EDE5' },
+  invProdName: { fontSize: 14, fontWeight: '700', color: '#1A3535' },
+  invProdInfo: { fontSize: 10, color: '#7A9090' },
+  invQtyInput: { width: 55, fontSize: 16, fontWeight: '800', color: '#1E7F85', borderWidth: 1.5, borderColor: '#1E7F85', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 4 },
+  invSubtot: { width: 55, fontSize: 14, fontWeight: '800', color: '#1A3535', textAlign: 'right' },
+  manualInput: { fontSize: 24, fontWeight: '900', color: '#1E7F85', borderWidth: 1.5, borderColor: '#1E7F85', borderRadius: 10, paddingVertical: 10, marginTop: 8 },
 });
