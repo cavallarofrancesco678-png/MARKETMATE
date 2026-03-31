@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface Collaboratore {
   nome: string;
   costo: number;
+  costoAnnuo: number;
 }
 
 export interface Prodotto {
@@ -24,6 +25,7 @@ export interface MercatoAgenda {
   p_annuo: number;
   is_plat_annuo: boolean;
   lavorativo: boolean;
+  mediaScontrino: number;
 }
 
 export interface SpesaAnnua {
@@ -67,6 +69,8 @@ interface AppState {
   emailRecupero: string;
   themeColor: string;
   targetMensile: number;
+  settore: string;
+  speseFisseDisabilitate: string[];
   
   // Data
   collaboratori: Collaboratore[];
@@ -97,13 +101,13 @@ interface AppState {
 }
 
 const defaultAgenda: MercatoAgenda[] = [
-  { giorno: 'LUNEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false },
-  { giorno: 'MARTEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false },
-  { giorno: 'MERCOLEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false },
-  { giorno: 'GIOVEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false },
-  { giorno: 'VENERDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false },
-  { giorno: 'SABATO', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false },
-  { giorno: 'DOMENICA', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false },
+  { giorno: 'LUNEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false, mediaScontrino: 0 },
+  { giorno: 'MARTEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false, mediaScontrino: 0 },
+  { giorno: 'MERCOLEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false, mediaScontrino: 0 },
+  { giorno: 'GIOVEDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false, mediaScontrino: 0 },
+  { giorno: 'VENERDÌ', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false, mediaScontrino: 0 },
+  { giorno: 'SABATO', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false, mediaScontrino: 0 },
+  { giorno: 'DOMENICA', mercato: '', km: 0, p_giornaliero: 0, p_annuo: 0, is_plat_annuo: true, lavorativo: false, mediaScontrino: 0 },
 ];
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -117,6 +121,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   emailRecupero: '',
   themeColor: '#D2691E',
   targetMensile: 3000,
+  settore: 'Alimentare',
+  speseFisseDisabilitate: [],
   
   collaboratori: [],
   fornitori: [],
@@ -235,6 +241,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         emailRecupero: state.emailRecupero,
         themeColor: state.themeColor,
         targetMensile: state.targetMensile,
+        settore: state.settore,
+        speseFisseDisabilitate: state.speseFisseDisabilitate,
         collaboratori: state.collaboratori,
         fornitori: state.fornitori,
         agenda: state.agenda,
@@ -260,6 +268,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       emailRecupero: '',
       themeColor: '#D2691E',
       targetMensile: 3000,
+      settore: 'Alimentare',
+      speseFisseDisabilitate: [],
       collaboratori: [],
       fornitori: [],
       agenda: defaultAgenda,

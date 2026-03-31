@@ -92,50 +92,21 @@ export default function SettingsPage() {
   // Expanded state for fornitori
   const [expandedForn, setExpandedForn] = useState<number | null>(null);
 
-  const showDialog1 = useCallback(
-    (title: string, hint: string, onSave: (v: string) => void) => {
-      setModalConfig({
-        visible: true,
-        title,
-        hints: [hint],
-        onSave: (vals) => onSave(vals[0]),
-      });
+  const openModal = useCallback(
+    (title: string, hints: string[], onSave: (values: string[]) => void, keyboardTypes?: string[]) => {
+      setModalConfig({ visible: true, title, hints, keyboardTypes, onSave });
     },
     []
   );
 
-  const showDialog2 = useCallback(
-    (
-      title: string,
-      h1: string,
-      h2: string,
-      onSave: (v1: string, v2: string) => void,
-      keyboardTypes?: string[]
-    ) => {
-      setModalConfig({
-        visible: true,
-        title,
-        hints: [h1, h2],
-        keyboardTypes,
-        onSave: (vals) => onSave(vals[0], vals[1]),
-      });
-    },
-    []
-  );
+  const totalePlatAnnui = store.agenda.reduce((s, m) => s + m.p_annuo, 0);
+  const totaleSpeseAnnue = store.speseAnnue.reduce((s, x) => s + x.importo, 0) + totalePlatAnnui;
 
-  const totalePlatAnnui = store.agenda.reduce(
-    (s, m) => s + m.p_annuo,
-    0
-  );
-  const totaleSpeseAnnue =
-    store.speseAnnue.reduce((s, x) => s + x.importo, 0) + totalePlatAnnui;
-
-  const lingue = ['Italiano', 'English', 'Español', 'Français', 'Deutsch'];
+  const lingue = ['Italiano', 'Français', 'English', 'Español', 'Deutsch', 'Português'];
 
   const updateMercato = (idx: number, field: string, value: any) => {
     const updated = [...store.agenda];
     updated[idx] = { ...updated[idx], [field]: value };
-    // Auto-calc: if p_annuo changes, update p_giornaliero
     if (field === 'p_annuo') {
       updated[idx].p_giornaliero = Math.round(value / 48);
     }
@@ -149,8 +120,8 @@ export default function SettingsPage() {
     <ScrollView style={s.root} contentContainerStyle={s.content}>
       <Text style={s.title}>IMPOSTAZIONI</Text>
 
-      {/* ─── 1. LINGUA ─── */}
-      <Text style={s.secTitle}>1. LINGUA</Text>
+      {/* ─── LINGUA ─── */}
+      <Text style={s.secTitle}>LINGUA</Text>
       <View style={s.card}>
         <View style={s.langRow}>
           {lingue.map((l) => (
@@ -159,29 +130,18 @@ export default function SettingsPage() {
               onPress={() => store.setConfig({ lingua: l })}
               style={[s.langBtn, store.lingua === l && s.langBtnOn]}
             >
-              <Text
-                style={[
-                  s.langBtnTxt,
-                  store.lingua === l && { color: '#FFF' },
-                ]}
-              >
-                {l}
-              </Text>
+              <Text style={[s.langBtnTxt, store.lingua === l && { color: '#FFF' }]}>{l}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      {/* ─── 2. IDENTITÀ ─── */}
-      <Text style={s.secTitle}>2. IDENTITÀ</Text>
+      {/* ─── IDENTITÀ ─── */}
+      <Text style={s.secTitle}>IDENTITÀ</Text>
       <View style={s.card}>
         <TouchableOpacity
           style={s.itemRow}
-          onPress={() =>
-            showDialog1('Modifica Azienda', 'Nome Azienda', (v) =>
-              store.setConfig({ nomeAttivita: v })
-            )
-          }
+          onPress={() => openModal('Modifica Azienda', ['Nome Azienda'], (v) => store.setConfig({ nomeAttivita: v[0] }))}
         >
           <Ionicons name="storefront" size={20} color="#1E7F85" />
           <View style={s.itemInfo}>
@@ -193,55 +153,22 @@ export default function SettingsPage() {
         <View style={s.divider} />
         <TouchableOpacity
           style={s.itemRow}
-          onPress={() =>
-            showDialog1('Modifica Titolare', 'Nome Titolare', (v) =>
-              store.setConfig({ nomeTitolare: v })
-            )
-          }
+          onPress={() => openModal('Modifica Titolare', ['Nome Titolare'], (v) => store.setConfig({ nomeTitolare: v[0] }))}
         >
           <Ionicons name="person" size={20} color="#1E7F85" />
           <View style={s.itemInfo}>
             <Text style={s.itemLabel}>Titolare</Text>
-            <Text style={s.itemVal}>
-              {store.nomeTitolare || '---'}
-            </Text>
+            <Text style={s.itemVal}>{store.nomeTitolare || '---'}</Text>
           </View>
           <Ionicons name="create-outline" size={18} color="#7A9090" />
         </TouchableOpacity>
       </View>
 
-      {/* ─── 3. OBIETTIVI ─── */}
-      <Text style={s.secTitle}>3. OBIETTIVI</Text>
-      <View style={s.card}>
-        <TouchableOpacity
-          style={s.itemRow}
-          onPress={() =>
-            showDialog1(
-              'Target Mensile',
-              'Importo €',
-              (v) =>
-                store.setConfig({
-                  targetMensile: parseFloat(v.replace(',', '.')) || 0,
-                })
-            )
-          }
-        >
-          <Ionicons name="trending-up" size={20} color="#1E7F85" />
-          <View style={s.itemInfo}>
-            <Text style={s.itemLabel}>Target Mensile</Text>
-            <Text style={s.itemVal}>€{store.targetMensile}</Text>
-          </View>
-          <Ionicons name="create-outline" size={18} color="#7A9090" />
-        </TouchableOpacity>
-      </View>
-
-      {/* ─── 4. SETTORE ─── */}
-      <Text style={s.secTitle}>4. SETTORE</Text>
+      {/* ─── SETTORE ─── */}
+      <Text style={s.secTitle}>SETTORE</Text>
       <View style={s.card}>
         <View style={s.switchRow}>
-          <Text style={s.switchLabel}>
-            {store.isAlimentare ? 'ALIMENTARE' : 'NON ALIMENTARE'}
-          </Text>
+          <Text style={s.switchLabel}>{store.isAlimentare ? 'ALIMENTARE' : 'NON ALIMENTARE'}</Text>
           <Switch
             value={store.isAlimentare}
             onValueChange={(v) => store.setConfig({ isAlimentare: v })}
@@ -251,8 +178,8 @@ export default function SettingsPage() {
         </View>
       </View>
 
-      {/* ─── 5. SQUADRA COLLABORATORI ─── */}
-      <Text style={s.secTitle}>5. SQUADRA COLLABORATORI</Text>
+      {/* ─── SQUADRA COLLABORATORI ─── */}
+      <Text style={s.secTitle}>SQUADRA COLLABORATORI</Text>
       {store.collaboratori.map((c, i) => (
         <View key={i} style={s.card}>
           <View style={s.itemRow}>
@@ -260,33 +187,25 @@ export default function SettingsPage() {
             <View style={s.itemInfo}>
               <Text style={s.itemVal}>{c.nome}</Text>
               <Text style={[s.itemLabel, { color: '#1E7F85' }]}>
-                Costo GG: €{c.costo}
+                GG: €{c.costo} · Anno: €{c.costoAnnuo || 0}
               </Text>
             </View>
             <TouchableOpacity
               onPress={() =>
-                showDialog2(
-                  'Modifica Staff',
-                  'Nome',
-                  'Costo €',
-                  (n, cost) => {
-                    const updated = [...store.collaboratori];
-                    updated[i] = {
-                      nome: n,
-                      costo: parseFloat(cost.replace(',', '.')) || 0,
-                    };
-                    store.setConfig({ collaboratori: updated });
-                  },
-                  ['default', 'numeric']
-                )
+                openModal('Modifica Staff', ['Nome', 'Costo GG €', 'Costo Annuo €'], (vals) => {
+                  const updated = [...store.collaboratori];
+                  updated[i] = {
+                    nome: vals[0],
+                    costo: parseFloat(vals[1].replace(',', '.')) || 0,
+                    costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0,
+                  };
+                  store.setConfig({ collaboratori: updated });
+                }, ['default', 'numeric', 'numeric'])
               }
             >
               <Ionicons name="create-outline" size={18} color="#7A9090" />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => store.removeCollaboratore(c.nome)}
-              style={{ marginLeft: 8 }}
-            >
+            <TouchableOpacity onPress={() => store.removeCollaboratore(c.nome)} style={{ marginLeft: 8 }}>
               <Ionicons name="trash-outline" size={18} color="#D46A6A" />
             </TouchableOpacity>
           </View>
@@ -295,91 +214,55 @@ export default function SettingsPage() {
       <TouchableOpacity
         style={s.addBtn}
         onPress={() =>
-          showDialog2(
-            'Nuovo Collaboratore',
-            'Nome',
-            'Costo GG €',
-            (n, c) =>
-              store.addCollaboratore({
-                nome: n,
-                costo: parseFloat(c.replace(',', '.')) || 0,
-              }),
-            ['default', 'numeric']
-          )
+          openModal('Nuovo Collaboratore', ['Nome', 'Costo GG €', 'Costo Annuo €'], (vals) =>
+            store.addCollaboratore({
+              nome: vals[0],
+              costo: parseFloat(vals[1].replace(',', '.')) || 0,
+              costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0,
+            }), ['default', 'numeric', 'numeric'])
         }
       >
         <Ionicons name="person-add" size={18} color="#1E7F85" />
         <Text style={s.addBtnTxt}>Nuovo Collaboratore</Text>
       </TouchableOpacity>
 
-      {/* ─── 6. AGENDA MERCATI ─── */}
-      <Text style={s.secTitle}>6. AGENDA MERCATI</Text>
+      {/* ─── AGENDA MERCATI ─── */}
+      <Text style={s.secTitle}>AGENDA MERCATI</Text>
       {store.agenda.map((m, idx) => {
         const isOpen = expandedDay === idx;
         return (
           <View key={idx} style={s.card}>
-            <TouchableOpacity
-              style={s.agendaHeader}
-              onPress={() => setExpandedDay(isOpen ? null : idx)}
-            >
+            <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedDay(isOpen ? null : idx)}>
               <TouchableOpacity
                 onPress={() => updateMercato(idx, 'lavorativo', !m.lavorativo)}
                 style={[s.checkbox, m.lavorativo && s.checkboxOn]}
               >
-                {m.lavorativo && (
-                  <Ionicons name="checkmark" size={14} color="#FFF" />
-                )}
+                {m.lavorativo && <Ionicons name="checkmark" size={14} color="#FFF" />}
               </TouchableOpacity>
               <Text style={s.agendaDay}>{m.giorno}</Text>
-              <Text style={s.agendaMarket}>
-                {m.mercato || '---'}
-              </Text>
-              <Ionicons
-                name={isOpen ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color="#1E7F85"
-              />
+              <Text style={s.agendaMarket}>{m.mercato || '---'}</Text>
+              <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
             </TouchableOpacity>
             {isOpen && (
               <View style={s.agendaBody}>
                 <View style={s.divider} />
-                <TouchableOpacity
-                  style={s.agendaItem}
-                  onPress={() =>
-                    showDialog1('Mercato', 'Nome Mercato', (v) =>
-                      updateMercato(idx, 'mercato', v)
-                    )
-                  }
-                >
+                <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Mercato', ['Nome Mercato'], (v) => updateMercato(idx, 'mercato', v[0]))}>
                   <Text style={s.itemLabel}>Mercato</Text>
-                  <Text style={s.agendaVal}>
-                    {m.mercato || '---'}
-                  </Text>
+                  <Text style={s.agendaVal}>{m.mercato || '---'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.agendaItem}
-                  onPress={() =>
-                    showDialog1('KM A/R', 'Chilometri', (v) =>
-                      updateMercato(
-                        idx,
-                        'km',
-                        parseFloat(v.replace(',', '.')) || 0
-                      )
-                    )
-                  }
-                >
+                <TouchableOpacity style={s.agendaItem} onPress={() => openModal('KM A/R', ['Chilometri'], (v) => updateMercato(idx, 'km', parseFloat(v[0].replace(',', '.')) || 0))}>
                   <Text style={s.itemLabel}>KM A/R</Text>
-                  <Text style={s.agendaVal}>
-                    {m.km || '---'}
-                  </Text>
+                  <Text style={s.agendaVal}>{m.km || '---'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Media Scontrino', ['Importo €'], (v) => updateMercato(idx, 'mediaScontrino', parseFloat(v[0].replace(',', '.')) || 0))}>
+                  <Text style={s.itemLabel}>Media Scontrino</Text>
+                  <Text style={s.agendaVal}>{m.mediaScontrino ? `€${m.mediaScontrino}` : '---'}</Text>
                 </TouchableOpacity>
                 <View style={s.switchRow}>
                   <Text style={s.itemLabel}>Tipo Plateatico</Text>
                   <Switch
                     value={m.is_plat_annuo}
-                    onValueChange={(v) =>
-                      updateMercato(idx, 'is_plat_annuo', v)
-                    }
+                    onValueChange={(v) => updateMercato(idx, 'is_plat_annuo', v)}
                     trackColor={{ false: '#C0D0C8', true: '#1E7F85' }}
                     thumbColor="#FFF"
                   />
@@ -388,45 +271,18 @@ export default function SettingsPage() {
                   </Text>
                 </View>
                 {m.is_plat_annuo ? (
-                  <TouchableOpacity
-                    style={s.agendaItem}
-                    onPress={() =>
-                      showDialog1('Plateatico Annuo', 'Importo €', (v) =>
-                        updateMercato(
-                          idx,
-                          'p_annuo',
-                          parseFloat(v.replace(',', '.')) || 0
-                        )
-                      )
-                    }
-                  >
+                  <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Plateatico Annuo', ['Importo €'], (v) => updateMercato(idx, 'p_annuo', parseFloat(v[0].replace(',', '.')) || 0))}>
                     <Text style={s.itemLabel}>Plat. Annuo €</Text>
                     <Text style={s.agendaVal}>{m.p_annuo}</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity
-                    style={s.agendaItem}
-                    onPress={() =>
-                      showDialog1(
-                        'Plateatico Giornaliero',
-                        'Importo €',
-                        (v) =>
-                          updateMercato(
-                            idx,
-                            'p_giornaliero',
-                            parseFloat(v.replace(',', '.')) || 0
-                          )
-                      )
-                    }
-                  >
+                  <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Plateatico Giornaliero', ['Importo €'], (v) => updateMercato(idx, 'p_giornaliero', parseFloat(v[0].replace(',', '.')) || 0))}>
                     <Text style={s.itemLabel}>Plat. Giornaliero €</Text>
                     <Text style={s.agendaVal}>{m.p_giornaliero}</Text>
                   </TouchableOpacity>
                 )}
                 <Text style={s.agendaHint}>
-                  {m.is_plat_annuo
-                    ? `Incidenza GG: €${m.p_giornaliero}`
-                    : `Totale Annuo: €${m.p_annuo}`}
+                  {m.is_plat_annuo ? `Incidenza GG: €${m.p_giornaliero}` : `Totale Annuo: €${m.p_annuo}`}
                 </Text>
               </View>
             )}
@@ -434,95 +290,47 @@ export default function SettingsPage() {
         );
       })}
 
-      {/* ─── 7. FORNITORI ─── */}
-      <Text style={s.secTitle}>
-        {store.isAlimentare ? '7. FORNITORI E PRODOTTI' : '7. FORNITORI'}
-      </Text>
+      {/* ─── FORNITORI ─── */}
+      <Text style={s.secTitle}>FORNITORI E PRODOTTI</Text>
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (
           <View key={fi} style={s.card}>
-            <TouchableOpacity
-              style={s.agendaHeader}
-              onPress={() => setExpandedForn(isOpen ? null : fi)}
-            >
-              <Ionicons
-                name="cube-outline"
-                size={20}
-                color="#1E7F85"
-              />
+            <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedForn(isOpen ? null : fi)}>
+              <Ionicons name="cube-outline" size={20} color="#1E7F85" />
               <Text style={[s.agendaDay, { flex: 1 }]}>{f.nome}</Text>
-              <TouchableOpacity
-                onPress={() => store.removeFornitore(f.nome)}
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={18}
-                  color="#D46A6A"
-                />
+              <TouchableOpacity onPress={() => store.removeFornitore(f.nome)}>
+                <Ionicons name="trash-outline" size={18} color="#D46A6A" />
               </TouchableOpacity>
-              {store.isAlimentare && (
-                <Ionicons
-                  name={isOpen ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color="#1E7F85"
-                  style={{ marginLeft: 8 }}
-                />
-              )}
+              <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" style={{ marginLeft: 8 }} />
             </TouchableOpacity>
-            {store.isAlimentare && isOpen && (
+            {isOpen && (
               <View style={s.agendaBody}>
                 <View style={s.divider} />
                 {f.prodotti.map((p, pi) => (
                   <View key={pi} style={s.prodRow}>
                     <Text style={s.itemVal}>{p.nome}</Text>
-                    <Text style={[s.itemLabel, { color: '#1E7F85' }]}>
-                      €{p.prezzo}/kg
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => {
-                        const updF = [...store.fornitori];
-                        updF[fi] = {
-                          ...updF[fi],
-                          prodotti: updF[fi].prodotti.filter(
-                            (_, idx) => idx !== pi
-                          ),
-                        };
-                        store.setConfig({ fornitori: updF });
-                      }}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={16}
-                        color="#D46A6A"
-                      />
+                    <Text style={[s.itemLabel, { color: '#1E7F85' }]}>€{p.prezzo}/kg</Text>
+                    <TouchableOpacity onPress={() => {
+                      const updF = [...store.fornitori];
+                      updF[fi] = { ...updF[fi], prodotti: updF[fi].prodotti.filter((_, idx) => idx !== pi) };
+                      store.setConfig({ fornitori: updF });
+                    }}>
+                      <Ionicons name="trash-outline" size={16} color="#D46A6A" />
                     </TouchableOpacity>
                   </View>
                 ))}
                 <TouchableOpacity
                   style={s.addBtnSmall}
                   onPress={() =>
-                    showDialog2(
-                      'Nuovo Prodotto',
-                      'Nome',
-                      'Prezzo KG',
-                      (n, v) => {
-                        const updF = [...store.fornitori];
-                        updF[fi] = {
-                          ...updF[fi],
-                          prodotti: [
-                            ...updF[fi].prodotti,
-                            {
-                              nome: n,
-                              prezzo:
-                                parseFloat(v.replace(',', '.')) || 0,
-                            },
-                          ],
-                        };
-                        store.setConfig({ fornitori: updF });
-                      },
-                      ['default', 'numeric']
-                    )
+                    openModal('Nuovo Prodotto', ['Nome Prodotto', 'Prezzo KG €'], (vals) => {
+                      const updF = [...store.fornitori];
+                      updF[fi] = {
+                        ...updF[fi],
+                        prodotti: [...updF[fi].prodotti, { nome: vals[0], prezzo: parseFloat(vals[1].replace(',', '.')) || 0 }],
+                      };
+                      store.setConfig({ fornitori: updF });
+                    }, ['default', 'numeric'])
                   }
                 >
                   <Ionicons name="add" size={16} color="#1E7F85" />
@@ -535,53 +343,34 @@ export default function SettingsPage() {
       })}
       <TouchableOpacity
         style={s.addBtn}
-        onPress={() =>
-          showDialog1('Nome Fornitore', 'Nome', (v) =>
-            store.addFornitore({ nome: v, prodotti: [] })
-          )
-        }
+        onPress={() => openModal('Nome Fornitore', ['Nome'], (v) => store.addFornitore({ nome: v[0], prodotti: [] }))}
       >
         <Ionicons name="cube" size={18} color="#1E7F85" />
         <Text style={s.addBtnTxt}>Nuovo Fornitore</Text>
       </TouchableOpacity>
 
-      {/* ─── 8. SPESE ANNUALI ─── */}
-      <Text style={s.secTitle}>8. SPESE ANNUALI</Text>
+      {/* ─── SPESE ANNUALI ─── */}
+      <Text style={s.secTitle}>SPESE ANNUALI</Text>
       <View style={s.card}>
-        {store.speseAnnue.length === 0 &&
-          totalePlatAnnui === 0 && (
-            <Text style={s.emptyTxt}>
-              Nessun costo inserito
-            </Text>
-          )}
+        {store.speseAnnue.length === 0 && totalePlatAnnui === 0 && (
+          <Text style={s.emptyTxt}>Nessun costo inserito</Text>
+        )}
         {store.speseAnnue.map((sp, i) => (
           <View key={i} style={s.spesaRow}>
             <Text style={s.spesaNome}>{sp.voce}</Text>
             <Text style={s.spesaVal}>€{sp.importo}</Text>
-            <TouchableOpacity
-              onPress={() => store.removeSpesaAnnua(sp.voce)}
-            >
-              <Ionicons
-                name="trash-outline"
-                size={16}
-                color="#D46A6A"
-              />
+            <TouchableOpacity onPress={() => store.removeSpesaAnnua(sp.voce)}>
+              <Ionicons name="trash-outline" size={16} color="#D46A6A" />
             </TouchableOpacity>
           </View>
         ))}
-        {store.agenda
-          .filter((m) => m.p_annuo > 0)
-          .map((m, i) => (
-            <View key={`p-${i}`} style={s.spesaRow}>
-              <Text style={[s.spesaNome, { color: '#7A9090' }]}>
-                Plat. Annuale {m.mercato}
-              </Text>
-              <Text style={[s.spesaVal, { color: '#7A9090' }]}>
-                €{m.p_annuo}
-              </Text>
-              <View style={{ width: 24 }} />
-            </View>
-          ))}
+        {store.agenda.filter((m) => m.p_annuo > 0).map((m, i) => (
+          <View key={`p-${i}`} style={s.spesaRow}>
+            <Text style={[s.spesaNome, { color: '#7A9090' }]}>Plat. {m.mercato}</Text>
+            <Text style={[s.spesaVal, { color: '#7A9090' }]}>€{m.p_annuo}</Text>
+            <View style={{ width: 24 }} />
+          </View>
+        ))}
         {(store.speseAnnue.length > 0 || totalePlatAnnui > 0) && (
           <>
             <View style={s.divider} />
@@ -594,31 +383,17 @@ export default function SettingsPage() {
       </View>
       <TouchableOpacity
         style={s.addBtn}
-        onPress={() =>
-          showDialog2(
-            'Spesa Annuale',
-            'Voce',
-            'Importo €',
-            (n, v) =>
-              store.addSpesaAnnua({
-                voce: n,
-                importo: parseFloat(v.replace(',', '.')) || 0,
-              }),
-            ['default', 'numeric']
-          )
-        }
+        onPress={() => openModal('Spesa Annuale', ['Voce', 'Importo €'], (vals) =>
+          store.addSpesaAnnua({ voce: vals[0], importo: parseFloat(vals[1].replace(',', '.')) || 0 }),
+          ['default', 'numeric']
+        )}
       >
         <Ionicons name="card" size={18} color="#1E7F85" />
         <Text style={s.addBtnTxt}>Aggiungi Spesa</Text>
       </TouchableOpacity>
 
       {/* ─── SALVA TUTTO ─── */}
-      <TouchableOpacity
-        style={s.saveAll}
-        onPress={() =>
-          Alert.alert('Salvato!', 'Tutte le impostazioni sono state salvate.')
-        }
-      >
+      <TouchableOpacity style={s.saveAll} onPress={() => Alert.alert('Salvato!', 'Tutte le impostazioni sono state salvate.')}>
         <Ionicons name="save" size={18} color="#FFF" />
         <Text style={s.saveAllTxt}>SALVA TUTTO</Text>
       </TouchableOpacity>
@@ -632,9 +407,7 @@ export default function SettingsPage() {
         hints={modalConfig.hints}
         keyboardTypes={modalConfig.keyboardTypes}
         onSave={modalConfig.onSave}
-        onClose={() =>
-          setModalConfig((p) => ({ ...p, visible: false }))
-        }
+        onClose={() => setModalConfig((p) => ({ ...p, visible: false }))}
       />
     </ScrollView>
   );

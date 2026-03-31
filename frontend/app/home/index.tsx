@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   StyleSheet,
   Alert,
   useWindowDimensions,
+  Modal,
+  ScrollView,
+  Switch,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
@@ -44,7 +47,8 @@ const MiniBar = () => (
 );
 
 export default function HomeScreen() {
-  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata } = useAppStore();
+  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori } = useAppStore();
+  const store = useAppStore();
   const { height: screenH } = useWindowDimensions();
   const [dataCorrente, setDataCorrente] = useState(new Date());
   const [isFiera, setIsFiera] = useState(false);
@@ -52,6 +56,7 @@ export default function HomeScreen() {
   const [meteo, setMeteo] = useState('SOLE');
   const [presenze, setPresenze] = useState<Record<string, boolean>>({});
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showSpeseFisseModal, setShowSpeseFisseModal] = useState(false);
   const [chartMode, setChartMode] = useState<'mese' | 'anno' | 'confronto'>('anno');
 
   const [lordo, setLordo] = useState('');
@@ -71,11 +76,47 @@ export default function HomeScreen() {
     setPresenze(p);
   }, [collaboratori]);
 
-  const speseFisse = (() => {
+  /* ── Build itemized spese fisse list ── */
+  const speseFisseItems = useMemo(() => {
     const gg = agenda.filter((m) => m.lavorativo).length || 6;
-    const tot = speseAnnue.reduce((s, x) => s + x.importo, 0) + agenda.reduce((s, m) => s + m.p_annuo, 0);
-    return tot / (48 * gg);
-  })();
+    const items: { id: string; label: string; importoGG: number }[] = [];
+
+    // Annual expenses → divided by working days (48 weeks × workdays/week)
+    speseAnnue.forEach((sp) => {
+      items.push({ id: `sp_${sp.voce}`, label: sp.voce, importoGG: sp.importo / (48 * gg) });
+    });
+
+    // Plateatico for ALL markets → each divided only by ITS own days (48 weeks)
+    agenda.forEach((m) => {
+      if (m.p_annuo > 0) {
+        items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: m.p_annuo / 48 });
+      } else if (m.p_giornaliero > 0 && !m.is_plat_annuo) {
+        items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: m.p_giornaliero });
+      }
+    });
+
+    return items;
+  }, [speseAnnue, agenda]);
+
+  // Filter: only show today's plateatico + all general spese
+  const speseFisseOggi = useMemo(() => {
+    const mercatoGiornoId = `plat_${mercatoOggi?.giorno}`;
+    return speseFisseItems.filter((it) => {
+      // Show all non-plateatico items + only today's plateatico
+      if (it.id.startsWith('plat_')) return it.id === mercatoGiornoId;
+      return true;
+    });
+  }, [speseFisseItems, mercatoOggi]);
+
+  const speseFisse = speseFisseOggi
+    .filter((it) => !(speseFisseDisabilitate || []).includes(it.id))
+    .reduce((s, it) => s + it.importoGG, 0);
+
+  const toggleSpesaFissa = (id: string) => {
+    const disabled = speseFisseDisabilitate || [];
+    const newList = disabled.includes(id) ? disabled.filter((x) => x !== id) : [...disabled, id];
+    store.setConfig({ speseFisseDisabilitate: newList });
+  };
 
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
   const speseExtraNum = parseFloat(speseExtra.replace(',', '.')) || 0;
@@ -254,16 +295,16 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ ROW 3: SPESE EXTRA / SPESE FISSE ═══ */}
+      {/* ═══ ROW 3: SPESE EXTRA / SPESE FISSE (cliccabile) ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <View style={[s.card, { height: normalRowH }]}>
           <Text style={s.cardLbl}>SPESE EXTRA</Text>
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={speseExtra} onChangeText={setSpeseExtra} selectTextOnFocus />
         </View>
-        <View style={[s.card, { height: normalRowH }]}>
+        <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseFisseModal(true)}>
           <Text style={s.cardLbl}>SPESE FISSE</Text>
           <Text style={s.cardVal}>€{Math.round(speseFisse)}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: GAP }} />
@@ -314,6 +355,45 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>SALVA GIORNATA</Text>
       </TouchableOpacity>
+
+      {/* ═══ MODALE SPESE FISSE ═══ */}
+      <Modal visible={showSpeseFisseModal} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <Text style={s.modalTitle}>SPESE FISSE GIORNALIERE</Text>
+            <Text style={s.modalSub}>Disabilita le voci da escludere dal calcolo UTILE</Text>
+            <ScrollView style={{ maxHeight: 340 }}>
+              {speseFisseOggi.length === 0 ? (
+                <Text style={s.modalEmpty}>Nessuna spesa fissa configurata. Vai in Impostazioni.</Text>
+              ) : (
+                speseFisseOggi.map((it) => {
+                  const disabled = (speseFisseDisabilitate || []).includes(it.id);
+                  return (
+                    <View key={it.id} style={s.modalRow}>
+                      <Switch
+                        value={!disabled}
+                        onValueChange={() => toggleSpesaFissa(it.id)}
+                        trackColor={{ false: '#C0D0C8', true: '#1E7F85' }}
+                        thumbColor="#FFF"
+                      />
+                      <Text style={[s.modalLabel, disabled && { color: '#B0B0A5', textDecorationLine: 'line-through' }]}>{it.label}</Text>
+                      <Text style={[s.modalVal, disabled && { color: '#B0B0A5' }]}>€{Math.round(it.importoGG)}</Text>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+            <View style={s.modalDivider} />
+            <View style={s.modalTotalRow}>
+              <Text style={s.modalTotalLabel}>TOTALE ATTIVO</Text>
+              <Text style={s.modalTotalVal}>€{Math.round(speseFisse)}</Text>
+            </View>
+            <TouchableOpacity style={s.modalClose} onPress={() => setShowSpeseFisseModal(false)}>
+              <Text style={s.modalCloseTxt}>CHIUDI</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Calendar Modal */}
       <CalendarModal
@@ -548,4 +628,41 @@ const s = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
+
+  /* Modal Spese Fisse */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#EDE8DA',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 360,
+    // @ts-ignore
+    boxShadow: '8px 8px 20px rgba(0,0,0,0.3)',
+  },
+  modalTitle: { fontSize: 14, fontWeight: '900', color: '#1A3535', textAlign: 'center', marginBottom: 4 },
+  modalSub: { fontSize: 10, color: '#7A9090', textAlign: 'center', marginBottom: 16 },
+  modalEmpty: { fontSize: 13, color: '#7A9090', textAlign: 'center', paddingVertical: 20, fontStyle: 'italic' },
+  modalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },
+  modalLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1A3535' },
+  modalVal: { fontSize: 14, fontWeight: '800', color: '#1E7F85' },
+  modalDivider: { height: 1, backgroundColor: '#C5DDD4', marginVertical: 12 },
+  modalTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTotalLabel: { fontSize: 12, fontWeight: '800', color: '#5A7575', letterSpacing: 1 },
+  modalTotalVal: { fontSize: 20, fontWeight: '900', color: '#1E7F85' },
+  modalClose: {
+    backgroundColor: '#1E7F85',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    // @ts-ignore
+    boxShadow: '4px 4px 10px rgba(15,55,60,0.5), -3px -3px 8px rgba(45,120,125,0.35)',
+  },
+  modalCloseTxt: { color: '#FFF', fontSize: 12, fontWeight: '800' },
 });
