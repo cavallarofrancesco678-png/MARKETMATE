@@ -108,26 +108,50 @@ export default function HomeScreen() {
     Alert.alert('Salvato!', 'Giornata salvata con successo.');
   };
 
-  /* ─── VH Proportional Layout ─── */
+  /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
   const TAB_BAR = 80;
   const contentH = screenH - TAB_BAR;
   const vh = contentH / 100;
 
-  const wSize = Math.min(8 * vh * 0.7, 46); // weather icon size fits in 8vh
-  const gridRowH = (30 * vh - 3 * 15) / 4;  // 4 rows, 3 gaps of 15px
+  // ★ STANDARD GAP — extracted from grid, used as universal spacer
+  const GAP = Math.round(1.5 * vh);
+
+  // Weather icons sized to match tab bar ovals (48×42 in _layout.tsx)
+  const WEATHER_SIZE = 44;
+  const WEATHER_ICON = 22;
+
+  // Fixed section heights
+  const HEADER_H = 9 * vh;
+  const TOGGLE_H = 5 * vh;
+  const WEATHER_H = Math.max(WEATHER_SIZE + 6, 5 * vh);
+  const COLLAB_H = 4.5 * vh;
+  const SALVA_H = 5 * vh;
+  const STORICO_H = 13 * vh;
+
+  // 9 uniform gaps between 10 vertical blocks
+  const TOTAL_GAPS = 9 * GAP;
+
+  // Grid rows fill remaining space
+  const fixedH = HEADER_H + TOGGLE_H + WEATHER_H + COLLAB_H + SALVA_H + STORICO_H + TOTAL_GAPS;
+  const gridTotalH = contentH - fixedH;
+  const gridInternalGaps = 3 * GAP;
+  const gridRowsH = gridTotalH - gridInternalGaps;
+  // LORDO/UTILE = 1.2× weight, other 3 rows = 1.0× → 4.2 units
+  const baseRowH = gridRowsH / 4.2;
+  const lordoRowH = baseRowH * 1.2;
+  const normalRowH = baseRowH;
 
   return (
     <View style={s.root}>
-      {/* ═══ HEADER — 10vh ═══ */}
-      <View style={[s.section, { height: 10 * vh, justifyContent: 'flex-end' }]}>
+      {/* ═══ HEADER ═══ */}
+      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end' }]}>
         <Text style={s.marketName}>{mercatoNome.toUpperCase()}</Text>
         <View style={s.badgesAbsolute}>
           <View style={s.badge}>
-            <Text style={s.badgeTxt}>Nome</Text>
-            <Text style={s.badgeTxt}>Azienda</Text>
+            <Text style={s.badgeTxt}>{(nomeAttivita || 'LA MIA AZIENDA').toUpperCase()}</Text>
           </View>
           <View style={s.bell}>
-            <Ionicons name="notifications" size={13} color="#FFF" />
+            <Ionicons name="notifications" size={20} color="#FFF" />
             <View style={s.bellDot} />
           </View>
         </View>
@@ -139,11 +163,10 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* margin 2vh */}
-      <View style={{ height: 2 * vh }} />
+      <View style={{ height: GAP }} />
 
-      {/* ═══ TOGGLE — 8vh ═══ */}
-      <View style={[s.section, { height: 8 * vh, justifyContent: 'center' }]}>
+      {/* ═══ TOGGLE ═══ */}
+      <View style={[s.section, { height: TOGGLE_H, justifyContent: 'center' }]}>
         <View style={s.toggleRow}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsFiera(false)}>
             <View style={[s.toggle, !isFiera && s.toggleOn]}>
@@ -163,18 +186,17 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* margin 3vh */}
-      <View style={{ height: 3 * vh }} />
+      <View style={{ height: GAP }} />
 
-      {/* ═══ WEATHER — 8vh ═══ */}
-      <View style={[s.section, { height: 8 * vh, justifyContent: 'center' }]}>
+      {/* ═══ WEATHER (icone = dimensione tab bar) ═══ */}
+      <View style={[s.section, { height: WEATHER_H, justifyContent: 'center' }]}>
         <View style={s.meteoRow}>
           {WEATHER_ICONS.map((w, i) => {
             const sel = meteo === w.label;
             return (
               <TouchableOpacity key={i} onPress={() => setMeteo(w.label)} activeOpacity={0.7}>
-                <View style={[s.meteo, { width: wSize, height: wSize, borderRadius: wSize / 2 }, sel && s.meteoOn]}>
-                  <MaterialCommunityIcons name={w.icon as any} size={wSize * 0.5} color={sel ? '#FFF' : '#2A4A5A'} />
+                <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2 }, sel && s.meteoOn]}>
+                  <MaterialCommunityIcons name={w.icon as any} size={WEATHER_ICON} color={sel ? '#FFF' : '#2A4A5A'} />
                 </View>
               </TouchableOpacity>
             );
@@ -182,11 +204,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* margin 3vh */}
-      <View style={{ height: 3 * vh }} />
+      <View style={{ height: GAP }} />
 
-      {/* ═══ COLLABORATORI — 7vh ═══ */}
-      <View style={[s.section, { height: 7 * vh, justifyContent: 'center' }]}>
+      {/* ═══ COLLABORATORI (subito sotto meteo, stesso GAP) ═══ */}
+      <View style={[s.section, { height: COLLAB_H, justifyContent: 'center' }]}>
         <Text style={s.secLabel}>COLLABORATORI</Text>
         <View style={s.collabRow}>
           {collabNames.map((n, i) => {
@@ -202,59 +223,67 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* margin 4vh — DISTACCO dal centro */}
-      <View style={{ height: 4 * vh }} />
+      <View style={{ height: GAP }} />
 
-      {/* ═══ GRIGLIA DATI — 30vh ═══ */}
-      <View style={[s.section, { height: 30 * vh, justifyContent: 'space-between' }]}>
-        <View style={s.gridRow}>
-          <View style={[s.card, { height: gridRowH }]}>
-            <Text style={s.cardBold}>LORDO</Text>
-            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={setLordo} selectTextOnFocus />
-          </View>
-          <View style={[s.card, { height: gridRowH }]}>
-            <Text style={s.cardBold}>UTILE</Text>
-            <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>€{Math.round(utile)}</Text>
-          </View>
+      {/* ═══ ROW 1: LORDO / UTILE (+20% altezza) ═══ */}
+      <View style={[s.gridRow, { gap: GAP }]}>
+        <View style={[s.card, { height: lordoRowH }]}>
+          <Text style={s.cardBold}>LORDO</Text>
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={setLordo} selectTextOnFocus />
         </View>
-        <View style={s.gridRow}>
-          <View style={[s.card, { height: gridRowH }]}>
-            <Text style={s.cardLbl}>CONTANTI</Text>
-            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={contanti} onChangeText={handleContanti} selectTextOnFocus />
-          </View>
-          <View style={[s.card, { height: gridRowH }]}>
-            <Text style={s.cardLbl}>POSS</Text>
-            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={pos} onChangeText={handlePos} selectTextOnFocus />
-          </View>
-        </View>
-        <View style={s.gridRow}>
-          <View style={[s.card, { height: gridRowH }]}>
-            <Text style={s.cardLbl}>SPESE EXTRA</Text>
-            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={speseExtra} onChangeText={setSpeseExtra} selectTextOnFocus />
-          </View>
-          <View style={[s.card, { height: gridRowH }]}>
-            <Text style={s.cardLbl}>SPESE FISSE</Text>
-            <Text style={s.cardVal}>€{Math.round(speseFisse)}</Text>
-          </View>
-        </View>
-        <View style={s.gridRow}>
-          <View style={[s.card, { height: gridRowH }]}>
-            <Text style={s.cardLbl}>INVENDUTO</Text>
-            <TextInput style={s.cardInp} placeholder="0.00" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={invenduto} onChangeText={setInvenduto} selectTextOnFocus />
-          </View>
-          <TouchableOpacity style={[s.card, { height: gridRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => Alert.alert('Buongiorno!', 'Connessione AI in arrivo...')}>
-            <Ionicons name="globe-outline" size={14} color="#FFF" />
-            <Text style={[s.cardBold, { color: '#FFF', fontSize: 11 }]}>BUONGIORNO</Text>
-          </TouchableOpacity>
+        <View style={[s.card, { height: lordoRowH }]}>
+          <Text style={s.cardBold}>UTILE</Text>
+          <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>€{Math.round(utile)}</Text>
         </View>
       </View>
 
-      {/* margin 3vh */}
-      <View style={{ height: 3 * vh }} />
+      <View style={{ height: GAP }} />
 
-      {/* ═══ GRAFICO AMPLIATO — 15vh ═══ */}
-      <View style={[s.section, { height: 15 * vh }]}>
-        <TouchableOpacity activeOpacity={0.85} style={[s.storico, { flex: 1, marginBottom: 5 }]}>
+      {/* ═══ ROW 2: CONTANTI / POS ═══ */}
+      <View style={[s.gridRow, { gap: GAP }]}>
+        <View style={[s.card, { height: normalRowH }]}>
+          <Text style={s.cardLbl}>CONTANTI</Text>
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={contanti} onChangeText={handleContanti} selectTextOnFocus />
+        </View>
+        <View style={[s.card, { height: normalRowH }]}>
+          <Text style={s.cardLbl}>POSS</Text>
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={pos} onChangeText={handlePos} selectTextOnFocus />
+        </View>
+      </View>
+
+      <View style={{ height: GAP }} />
+
+      {/* ═══ ROW 3: SPESE EXTRA / SPESE FISSE ═══ */}
+      <View style={[s.gridRow, { gap: GAP }]}>
+        <View style={[s.card, { height: normalRowH }]}>
+          <Text style={s.cardLbl}>SPESE EXTRA</Text>
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={speseExtra} onChangeText={setSpeseExtra} selectTextOnFocus />
+        </View>
+        <View style={[s.card, { height: normalRowH }]}>
+          <Text style={s.cardLbl}>SPESE FISSE</Text>
+          <Text style={s.cardVal}>€{Math.round(speseFisse)}</Text>
+        </View>
+      </View>
+
+      <View style={{ height: GAP }} />
+
+      {/* ═══ ROW 4: INVENDUTO / BUONGIORNO ═══ */}
+      <View style={[s.gridRow, { gap: GAP }]}>
+        <View style={[s.card, { height: normalRowH }]}>
+          <Text style={s.cardLbl}>INVENDUTO</Text>
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={invenduto} onChangeText={setInvenduto} selectTextOnFocus />
+        </View>
+        <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => Alert.alert('Buongiorno!', 'Connessione AI in arrivo...')}>
+          <Ionicons name="globe-outline" size={16} color="#FFF" />
+          <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>BUONGIORNO</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ height: GAP }} />
+
+      {/* ═══ STORICO MERCATO (tra griglia e Salva, stesso GAP) ═══ */}
+      <View style={[s.section, { height: STORICO_H }]}>
+        <TouchableOpacity activeOpacity={0.85} style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4) }]}>
           <View style={s.storicoL}><MiniLine /></View>
           <View style={s.storicoC}>
             <Text style={s.storicoT}>STORICO MERCATO</Text>
@@ -277,9 +306,11 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ═══ SALVA GIORNATA (between chart and navbar) ═══ */}
-      <TouchableOpacity onPress={handleSalva} activeOpacity={0.8} style={s.salva}>
-        <Ionicons name="save-outline" size={14} color="#FFF" />
+      <View style={{ height: GAP }} />
+
+      {/* ═══ SALVA GIORNATA ═══ */}
+      <TouchableOpacity onPress={handleSalva} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
+        <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>SALVA GIORNATA</Text>
       </TouchableOpacity>
 
@@ -310,7 +341,7 @@ const s = StyleSheet.create({
 
   /* Header */
   marketName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
     color: '#1A4040',
     letterSpacing: 1.5,
@@ -322,31 +353,32 @@ const s = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   badge: {
     backgroundColor: '#1E7F85',
     borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  badgeTxt: { color: '#FFF', fontSize: 7, fontWeight: '700' },
+  badgeTxt: { color: '#FFF', fontSize: 10, fontWeight: '700' },
   bell: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#1E7F85',
     justifyContent: 'center',
     alignItems: 'center',
   },
   bellDot: {
     position: 'absolute',
-    top: 2,
-    right: 4,
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    top: 3,
+    right: 5,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#E44',
   },
   dateRow: {
@@ -356,7 +388,7 @@ const s = StyleSheet.create({
     gap: 7,
     marginTop: 2,
   },
-  dateTxt: { fontSize: 12, fontWeight: '700', color: '#2A5050' },
+  dateTxt: { fontSize: 13, fontWeight: '700', color: '#2A5050' },
 
   /* Toggle */
   toggleRow: {
@@ -377,14 +409,14 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 13, fontWeight: '700', color: '#4A3A2A' },
+  toggleTxt: { fontSize: 14, fontWeight: '700', color: '#4A3A2A' },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
     borderRadius: 8,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
-  piazzaTxt: { color: '#FFF', fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
+  piazzaTxt: { color: '#FFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
 
   /* Weather */
   meteoRow: {
@@ -406,11 +438,11 @@ const s = StyleSheet.create({
 
   /* Collaboratori */
   secLabel: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '700',
     color: '#5A7575',
     textAlign: 'center',
-    marginBottom: 5,
+    marginBottom: 4,
     letterSpacing: 2,
   },
   collabRow: {
@@ -431,33 +463,33 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: 'inset 3px 3px 7px rgba(10,40,45,0.4), inset -3px -3px 6px rgba(45,120,125,0.3)',
   },
-  collabTxt: { fontSize: 11, fontWeight: '700', color: '#4A3A2A' },
+  collabTxt: { fontSize: 12, fontWeight: '700', color: '#4A3A2A' },
 
   /* Grid */
-  gridRow: { flexDirection: 'row', gap: 15 },
+  gridRow: { flexDirection: 'row' },
   card: {
     flex: 1,
     backgroundColor: '#EDE8DA',
     borderRadius: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
   },
-  cardLbl: { fontSize: 10, fontWeight: '600', color: '#4A4A40' },
-  cardBold: { fontSize: 12, fontWeight: '800', color: '#1A3535' },
+  cardLbl: { fontSize: 12, fontWeight: '600', color: '#4A4A40' },
+  cardBold: { fontSize: 14, fontWeight: '800', color: '#1A3535' },
   cardInp: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1A3535',
     textAlign: 'right',
     minWidth: 55,
     padding: 0,
   },
-  cardVal: { fontSize: 12, fontWeight: '700', color: '#1A3535' },
-  cardValBold: { fontSize: 13, fontWeight: '800' },
+  cardVal: { fontSize: 14, fontWeight: '700', color: '#1A3535' },
+  cardValBold: { fontSize: 17, fontWeight: '800' },
 
   /* Storico */
   storico: {
@@ -472,10 +504,10 @@ const s = StyleSheet.create({
   storicoL: { flex: 0.8, alignItems: 'center' },
   storicoC: { flex: 1.4, alignItems: 'center' },
   storicoR: { flex: 0.8, alignItems: 'center' },
-  storicoT: { fontSize: 13, fontWeight: '800', color: '#1A3535' },
-  storicoDay: { fontSize: 8, fontWeight: '600', color: '#5A7575' },
-  storicoVal: { fontSize: 15, fontWeight: '900', color: '#1A3535' },
-  storicoSub: { fontSize: 7, fontWeight: '600', color: '#7A9090', marginTop: 1 },
+  storicoT: { fontSize: 14, fontWeight: '800', color: '#1A3535' },
+  storicoDay: { fontSize: 9, fontWeight: '600', color: '#5A7575' },
+  storicoVal: { fontSize: 16, fontWeight: '900', color: '#1A3535' },
+  storicoSub: { fontSize: 8, fontWeight: '600', color: '#7A9090', marginTop: 1 },
 
   /* Filters */
   filterRow: { flexDirection: 'row', gap: 8 },
@@ -493,26 +525,23 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.5), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  filterTxt: { fontSize: 8, fontWeight: '800', color: '#4A3A2A', textAlign: 'center' },
-  filterSub: { fontSize: 5, fontWeight: '600', color: '#7A6A5A', textAlign: 'center' },
+  filterTxt: { fontSize: 9, fontWeight: '800', color: '#4A3A2A', textAlign: 'center' },
+  filterSub: { fontSize: 6, fontWeight: '600', color: '#7A6A5A', textAlign: 'center' },
 
   /* Salva */
   salva: {
     backgroundColor: '#1E7F85',
     borderRadius: 14,
-    paddingVertical: 10,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 7,
-    marginTop: 6,
-    marginBottom: 4,
+    gap: 8,
     // @ts-ignore
     boxShadow: '6px 6px 16px rgba(15,55,60,0.55), -4px -4px 12px rgba(45,120,125,0.35)',
   },
   salvaTxt: {
     color: '#FFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 1,
   },
