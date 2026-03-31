@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { generateAllMockData } from '../utils/mockData';
 
 export interface Collaboratore {
   nome: string;
@@ -95,6 +96,7 @@ interface AppState {
   removeCarburante: (data: Date) => void;
   addAppunto: (a: Appunto) => void;
   removeAppunto: (data: Date, testo: string) => void;
+  seedMockData: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
   resetAll: () => void;
@@ -216,6 +218,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
   
+  seedMockData: () => {
+    const mock = generateAllMockData();
+    set((state) => ({ ...state, ...mock }));
+    get().saveToStorage();
+  },
+
   loadFromStorage: async () => {
     try {
       const data = await AsyncStorage.getItem('marketmate_data');
