@@ -313,8 +313,8 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#D8EDE5',
     paddingHorizontal: 14,
-    paddingTop: 42,
-    paddingBottom: 8,
+    paddingTop: 34,
+    paddingBottom: 4,
     justifyContent: 'space-between',
   },
 
@@ -384,12 +384,12 @@ const s = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(155,145,125,0.5), -3px -3px 8px rgba(255,255,250,0.85)',
+    boxShadow: '6px 6px 14px rgba(155,145,125,0.55), -5px -5px 12px rgba(255,255,250,0.9)',
   },
   toggleOn: {
     backgroundColor: '#1E7F85',
     // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(15,60,65,0.55), -2px -2px 5px rgba(45,120,125,0.3)',
+    boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
   toggleTxt: { fontSize: 13, fontWeight: '700', color: '#4A3A2A' },
   piazzaBtn: {
@@ -411,12 +411,12 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(60,95,115,0.5), -3px -3px 8px rgba(195,220,238,0.7)',
+    boxShadow: '7px 7px 16px rgba(55,85,105,0.55), -6px -6px 14px rgba(200,230,245,0.85)',
   },
   meteoOn: {
     backgroundColor: '#5A8EA0',
     // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(30,55,65,0.55), -2px -2px 6px rgba(80,140,160,0.4)',
+    boxShadow: 'inset 3px 3px 8px rgba(30,50,65,0.45), inset -3px -3px 7px rgba(80,140,160,0.35)',
   },
 
   /* Section label */
@@ -441,12 +441,12 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 7,
     // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(155,145,125,0.5), -3px -3px 8px rgba(255,255,250,0.85)',
+    boxShadow: '6px 6px 14px rgba(155,145,125,0.55), -5px -5px 12px rgba(255,255,250,0.9)',
   },
   collabOn: {
     backgroundColor: '#1E7F85',
     // @ts-ignore
-    boxShadow: '4px 4px 8px rgba(15,60,65,0.45)',
+    boxShadow: 'inset 3px 3px 7px rgba(10,40,45,0.4), inset -3px -3px 6px rgba(45,120,125,0.3)',
   },
   collabTxt: { fontSize: 11, fontWeight: '700', color: '#4A3A2A' },
 
@@ -462,7 +462,7 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(160,150,130,0.45), -3px -3px 8px rgba(255,255,250,0.9)',
+    boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
   },
   cardLbl: { fontSize: 10, fontWeight: '600', color: '#4A4A40' },
   cardBold: { fontSize: 12, fontWeight: '800', color: '#1A3535' },
@@ -506,12 +506,12 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     alignItems: 'center',
     // @ts-ignore
-    boxShadow: '3px 3px 7px rgba(155,145,125,0.4), -2px -2px 6px rgba(255,255,250,0.8)',
+    boxShadow: '6px 6px 14px rgba(155,145,125,0.45), -5px -5px 12px rgba(255,255,250,0.85)',
   },
   filterOn: {
     backgroundColor: '#1E7F85',
     // @ts-ignore
-    boxShadow: '3px 3px 8px rgba(15,60,65,0.45), -2px -2px 5px rgba(45,120,125,0.3)',
+    boxShadow: '6px 6px 14px rgba(15,55,60,0.5), -4px -4px 10px rgba(45,120,125,0.35)',
   },
   filterTxt: { fontSize: 8, fontWeight: '800', color: '#4A3A2A', textAlign: 'center' },
   filterSub: { fontSize: 5, fontWeight: '600', color: '#7A6A5A', textAlign: 'center' },
@@ -526,7 +526,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     // @ts-ignore
-    boxShadow: '4px 4px 12px rgba(15,60,65,0.5), -2px -2px 6px rgba(45,120,125,0.3)',
+    boxShadow: '6px 6px 16px rgba(15,55,60,0.55), -4px -4px 12px rgba(45,120,125,0.35)',
   },
   salvaTxt: {
     color: '#FFF',

@@ -114,21 +114,21 @@ const st = StyleSheet.create({
     gap: 3,
   },
   oval: {
-    width: 46,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(26,58,58,0.8)',
+    backgroundColor: 'rgba(20,50,50,0.7)',
     // @ts-ignore
     boxShadow:
-      'inset 1px 1px 4px rgba(0,0,0,0.35), 2px 2px 6px rgba(0,0,0,0.2)',
+      '5px 5px 12px rgba(0,0,0,0.4), -4px -4px 10px rgba(40,70,70,0.35), inset 1px 1px 3px rgba(0,0,0,0.25)',
   },
   ovalActive: {
-    backgroundColor: 'rgba(30,127,133,0.9)',
+    backgroundColor: 'rgba(30,127,133,0.95)',
     // @ts-ignore
     boxShadow:
-      '0px 0px 14px rgba(30,127,133,0.5), 0px 2px 8px rgba(0,0,0,0.3)',
+      '0px 0px 18px rgba(30,127,133,0.6), 5px 5px 14px rgba(0,0,0,0.35), -3px -3px 10px rgba(40,80,85,0.3)',
   },
   label: {
     fontSize: 7,
