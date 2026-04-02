@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Carburante } from '../../src/store/appStore';
 import { CalendarModal } from '../../src/components/CalendarModal';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../src/i18n';
 
 type FiltroGas = 'SETT.' | 'MESE' | 'ANNO';
 
@@ -21,7 +23,8 @@ const LABELS: Record<FiltroGas, string[]> = {
 };
 
 export default function GasScreen() {
-  const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante } = useAppStore();
+  const { storicoCarburante, storicoGiornate, agenda, addCarburante, removeCarburante } = useAppStore();
+  const { t } = useTranslation();
 
   const [filtro, setFiltro] = useState<FiltroGas>('SETT.');
   const [euroText, setEuroText] = useState('');
@@ -32,6 +35,32 @@ export default function GasScreen() {
   const totaleCarb = storicoCarburante.reduce((s, c) => s + c.euro, 0);
   const totaleKm = storicoGiornate.reduce((s, g) => s + (g.km || 0), 0);
   const costoKm = totaleKm > 0 ? totaleCarb / totaleKm : 0;
+
+  /* ── Costo carburante per mercato ── */
+  const costoPerMercato = useMemo(() => {
+    if (totaleKm === 0 || totaleCarb === 0) return [];
+    const costPerKm = totaleCarb / totaleKm;
+    
+    // Group giornate by mercato and sum km
+    const mercatoKm: Record<string, { km: number; giorni: number }> = {};
+    storicoGiornate.forEach((g) => {
+      const nome = g.mercato || 'Altro';
+      if (!mercatoKm[nome]) mercatoKm[nome] = { km: 0, giorni: 0 };
+      mercatoKm[nome].km += g.km || 0;
+      mercatoKm[nome].giorni += 1;
+    });
+
+    return Object.entries(mercatoKm)
+      .map(([nome, data]) => ({
+        nome,
+        kmTotali: data.km,
+        costoTotale: Math.round(data.km * costPerKm),
+        costoMedio: data.giorni > 0 ? Math.round((data.km * costPerKm) / data.giorni) : 0,
+        giorni: data.giorni,
+      }))
+      .filter((m) => m.kmTotali > 0)
+      .sort((a, b) => b.costoTotale - a.costoTotale);
+  }, [storicoGiornate, totaleCarb, totaleKm]);
 
   /* ── Save ── */
   const handleSalva = () => {
@@ -79,11 +108,11 @@ export default function GasScreen() {
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={s.pageTitle}>GESTIONE CARBURANTE</Text>
+        <Text style={s.pageTitle}>{t('gas.title')}</Text>
 
         {/* Input rifornimento */}
         <View style={s.card}>
-          <Text style={s.sectionTitle}>SEGNA RIFORNIMENTO</Text>
+          <Text style={s.sectionTitle}>{t('gas.addRefuel')}</Text>
           <TouchableOpacity onPress={() => setShowCalendar(true)} style={s.dateBtn}>
             <Ionicons name="calendar" size={18} color="#1E7F85" />
             <Text style={s.dateTxt}>
@@ -105,22 +134,22 @@ export default function GasScreen() {
           </View>
           <TouchableOpacity onPress={handleSalva} style={s.saveBtn} activeOpacity={0.8}>
             <Ionicons name="save-outline" size={16} color="#FFF" />
-            <Text style={s.saveTxt}>SALVA RIFORNIMENTO</Text>
+            <Text style={s.saveTxt}>{t('gas.saveRefuel')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* KPI */}
         <View style={s.kpiRow}>
           <View style={s.kpiCard}>
-            <Text style={s.kpiLabel}>COSTO/KM</Text>
+            <Text style={s.kpiLabel}>{t('gas.costPerKm')}</Text>
             <Text style={[s.kpiValue, { color: '#1E7F85' }]}>€{costoKm.toFixed(2)}</Text>
           </View>
           <View style={s.kpiCard}>
-            <Text style={s.kpiLabel}>TOTALE SPESO</Text>
+            <Text style={s.kpiLabel}>{t('gas.totalSpent')}</Text>
             <Text style={[s.kpiValue, { color: '#E8A060' }]}>€{totaleCarb.toFixed(0)}</Text>
           </View>
           <View style={s.kpiCard}>
-            <Text style={s.kpiLabel}>KM TOTALI</Text>
+            <Text style={s.kpiLabel}>{t('gas.totalKm')}</Text>
             <Text style={[s.kpiValue, { color: '#5A7575' }]}>{totaleKm.toFixed(0)}</Text>
           </View>
         </View>
@@ -157,11 +186,29 @@ export default function GasScreen() {
           </View>
         </View>
 
+        {/* Costo carburante per mercato */}
+        {costoPerMercato.length > 0 && (
+          <>
+            <Text style={s.sectionTitleOut}>{t('gas.costPerMarket')}</Text>
+            <View style={s.card}>
+              {costoPerMercato.map((m, i) => (
+                <View key={i} style={[s.mercatoRow, i < costoPerMercato.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#D8EDE5' }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.mercatoName}>{m.nome}</Text>
+                    <Text style={s.mercatoInfo}>{m.kmTotali} km · {m.giorni} gg · media €{m.costoMedio}/gg</Text>
+                  </View>
+                  <Text style={s.mercatoEuro}>€{m.costoTotale}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
         {/* Cronologia */}
-        <Text style={s.sectionTitleOut}>CRONOLOGIA</Text>
+        <Text style={s.sectionTitleOut}>{t('gas.history')}</Text>
         {cronologia.length === 0 ? (
           <View style={s.card}>
-            <Text style={[s.kpiLabel, { textAlign: 'center', paddingVertical: 20 }]}>Nessun rifornimento inserito</Text>
+            <Text style={[s.kpiLabel, { textAlign: 'center', paddingVertical: 20 }]}>{t('gas.noRefuels')}</Text>
           </View>
         ) : (
           cronologia.map((item, i) => {
@@ -255,4 +302,9 @@ const s = StyleSheet.create({
   },
   historyDate: { fontSize: 14, fontWeight: '600', color: '#1A3535' },
   historyEuro: { fontSize: 18, fontWeight: '800', color: '#1E7F85' },
+
+  mercatoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
+  mercatoName: { fontSize: 14, fontWeight: '800', color: '#1A3535' },
+  mercatoInfo: { fontSize: 10, fontWeight: '600', color: '#7A9090', marginTop: 2 },
+  mercatoEuro: { fontSize: 18, fontWeight: '900', color: '#E8A060' },
 });

@@ -3,6 +3,8 @@ import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Rect } from 'react-native-svg';
+import { useTranslation } from 'react-i18next';
+import '../../src/i18n';
 
 // Custom Fuel Pump SVG
 const FuelPumpIcon = ({ color, size }: { color: string; size: number }) => (
@@ -16,6 +18,8 @@ const FuelPumpIcon = ({ color, size }: { color: string; size: number }) => (
 );
 
 export default function TabLayout() {
+  const { t } = useTranslation();
+
   const TabIcon = ({
     name,
     focused,
@@ -55,7 +59,7 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} label="HOME" />
+            <TabIcon name="home" focused={focused} label={t('tabs.home')} />
           ),
         }}
       />
@@ -63,7 +67,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="settings" focused={focused} label="SETTING" />
+            <TabIcon name="settings" focused={focused} label={t('tabs.settings')} />
           ),
         }}
       />
@@ -71,7 +75,7 @@ export default function TabLayout() {
         name="stats"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="bar-chart" focused={focused} label="STATISTICHE" />
+            <TabIcon name="bar-chart" focused={focused} label={t('tabs.stats')} />
           ),
         }}
       />
@@ -79,7 +83,7 @@ export default function TabLayout() {
         name="gas"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon custom focused={focused} label="CARBURANTE" />
+            <TabIcon custom focused={focused} label={t('tabs.gas')} />
           ),
         }}
       />
@@ -87,7 +91,7 @@ export default function TabLayout() {
         name="agenda"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="calendar" focused={focused} label="AGENDA" />
+            <TabIcon name="calendar" focused={focused} label={t('tabs.agenda')} />
           ),
         }}
       />

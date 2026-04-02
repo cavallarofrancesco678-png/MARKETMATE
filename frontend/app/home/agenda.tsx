@@ -12,6 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Appunto } from '../../src/store/appStore';
 import { CalendarModal } from '../../src/components/CalendarModal';
+import { useTranslation } from 'react-i18next';
+import { getDayNames, getMonthNames } from '../../src/i18n';
 
 const GIORNI_SETTIMANA = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
@@ -25,6 +27,9 @@ const isTomorrow = (d: Date) => { const t = new Date(); t.setDate(t.getDate() + 
 
 export default function AgendaScreen() {
   const { agenda, appuntiAgenda, addAppunto, removeAppunto } = useAppStore();
+  const { t } = useTranslation();
+  const dayNames = getDayNames();
+  const monthNames = getMonthNames();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
@@ -74,7 +79,7 @@ export default function AgendaScreen() {
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={s.pageTitle}>DIARIO E APPUNTAMENTI</Text>
+        <Text style={s.pageTitle}>{t('agenda.title')}</Text>
 
         {/* Date navigator */}
         <View style={s.card}>
@@ -99,11 +104,11 @@ export default function AgendaScreen() {
           </View>
 
           {/* Diario giornata */}
-          <Text style={[s.sectionTitle, { marginTop: 14 }]}>APPUNTI DELLA GIORNATA</Text>
+          <Text style={[s.sectionTitle, { marginTop: 14 }]}>{t('agenda.dayNotes')}</Text>
           <View style={s.inset}>
             <TextInput
               style={s.diarioInput}
-              placeholder="Com'è andata oggi? Scrivi qui i tuoi appunti..."
+              placeholder={t('agenda.dayNotesPlaceholder')}
               placeholderTextColor="#A0B5A8"
               value={diarioText}
               onChangeText={setDiarioText}
@@ -115,7 +120,7 @@ export default function AgendaScreen() {
           {/* Appunti del giorno selezionato */}
           {appuntiOggi.length > 0 && (
             <View style={{ marginTop: 14 }}>
-              <Text style={s.sectionTitle}>ORDINI DEL GIORNO</Text>
+              <Text style={s.sectionTitle}>{t('agenda.dayOrders')}</Text>
               {appuntiOggi.map((a, i) => (
                 <View key={i} style={s.appuntoRow}>
                   <Ionicons name="document-text" size={16} color="#1E7F85" />
@@ -130,7 +135,7 @@ export default function AgendaScreen() {
         </View>
 
         {/* Aggiungi appunto */}
-        <Text style={s.sectionTitleOut}>AGGIUNGI ORDINE / APPUNTAMENTO</Text>
+        <Text style={s.sectionTitleOut}>{t('agenda.addOrder')}</Text>
         <View style={s.card}>
           <View style={s.inset}>
             <TextInput
@@ -185,19 +190,44 @@ export default function AgendaScreen() {
           })
         )}
 
-        {/* Settimana tipo */}
-        <Text style={s.sectionTitleOut}>SETTIMANA TIPO</Text>
-        <View style={s.card}>
-          {agenda.map((m, i) => (
-            <View key={i} style={s.weekRow}>
-              <Text style={[s.weekDay, m.lavorativo && { color: '#1E7F85', fontWeight: '800' }]}>
-                {m.giorno}
-              </Text>
-              <Text style={s.weekMarket}>{m.lavorativo ? m.mercato || 'Mercato' : '-'}</Text>
-              {m.lavorativo && <Ionicons name="checkmark-circle" size={16} color="#5AAA6A" />}
-            </View>
-          ))}
-        </View>
+        {/* Tutte le annotazioni salvate */}
+        <Text style={s.sectionTitleOut}>{t('agenda.allNotes')}</Text>
+        {appuntiAgenda.length === 0 ? (
+          <View style={s.card}>
+            <Text style={[s.labelSm, { textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' }]}>
+              {t('agenda.noNotes')}
+            </Text>
+          </View>
+        ) : (
+          [...appuntiAgenda]
+            .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+            .map((a, i) => {
+              const d = new Date(a.data);
+              const isPast = d < new Date(new Date().setHours(0, 0, 0, 0));
+              return (
+                <View key={i} style={s.upcomingCard}>
+                  <View style={[s.dateBadge, { backgroundColor: isPast ? '#999' : isToday(d) ? '#1E7F85' : isTomorrow(d) ? '#E8A060' : '#D46A6A' }]}>
+                    <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
+                    <Text style={s.dateBadgeMonth}>{MESI_BREVI[d.getMonth()].toUpperCase()}</Text>
+                  </View>
+                  {isToday(d) && (
+                    <View style={[s.labelBadge, { backgroundColor: '#1E7F85' }]}>
+                      <Text style={s.labelBadgeTxt}>OGGI</Text>
+                    </View>
+                  )}
+                  {isTomorrow(d) && (
+                    <View style={[s.labelBadge, { backgroundColor: '#E8A060' }]}>
+                      <Text style={s.labelBadgeTxt}>DOMANI</Text>
+                    </View>
+                  )}
+                  <Text style={[s.upcomingTxt, isPast && { color: '#999', textDecorationLine: 'line-through' }]}>{a.testo}</Text>
+                  <TouchableOpacity onPress={() => handleElimina(a)}>
+                    <Ionicons name="trash-outline" size={20} color="#D46A6A" />
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+        )}
 
         <View style={{ height: 30 }} />
       </ScrollView>

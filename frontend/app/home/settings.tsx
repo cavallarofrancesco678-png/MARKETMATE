@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
+import { useTranslation } from 'react-i18next';
+import { LANGUAGES, changeLanguage } from '../../src/i18n';
 
 /* ─── REUSABLE INPUT MODAL ─── */
 const InputModal = ({
@@ -90,6 +92,7 @@ const InputModal = ({
 /* ─── SETTINGS PAGE ─── */
 export default function SettingsPage() {
   const store = useAppStore();
+  const { t, i18n } = useTranslation();
 
   // Local state for dialogs
   const [modalConfig, setModalConfig] = useState<{
@@ -115,6 +118,11 @@ export default function SettingsPage() {
     []
   );
 
+  const handleLanguageChange = async (langCode: string) => {
+    store.setConfig({ lingua: LANGUAGES.find(l => l.code === langCode)?.label || 'Italiano' });
+    await changeLanguage(langCode);
+  };
+
   const totalePlatAnnui = store.agenda.reduce((s, m) => s + m.p_annuo, 0);
   const totaleSpeseAnnue = store.speseAnnue.reduce((s, x) => s + x.importo, 0) + totalePlatAnnui;
 
@@ -134,21 +142,26 @@ export default function SettingsPage() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content}>
-      <Text style={s.title}>Impostazioni</Text>
+      <Text style={s.title}>{t('settings.title')}</Text>
 
       {/* ─── LINGUA ─── */}
       <View style={s.card}>
+        <Text style={[s.itemLabel, { marginBottom: 10, textAlign: 'center', fontSize: 12 }]}>{t('settings.language')}</Text>
         <View style={s.langRow}>
-          {lingue.map((l) => (
+          {LANGUAGES.map((l) => (
             <TouchableOpacity
-              key={l}
-              onPress={() => store.setConfig({ lingua: l })}
-              style={[s.langBtn, store.lingua === l && s.langBtnOn]}
+              key={l.code}
+              onPress={() => handleLanguageChange(l.code)}
+              style={[s.langBtn, i18n.language === l.code && s.langBtnOn]}
             >
-              <Text style={[s.langBtnTxt, store.lingua === l && { color: '#FFF' }]}>{l}</Text>
+              <Text style={[s.langBtnTxt, i18n.language === l.code && { color: '#FFF' }]}>{l.flag} {l.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
+        {/* Country-specific info */}
+        <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 10, fontStyle: 'italic' }}>
+          {t('countries.marketRegulations')}
+        </Text>
       </View>
 
       {/* ─── IDENTITÀ ─── */}
