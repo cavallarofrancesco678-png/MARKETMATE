@@ -30,7 +30,7 @@ const WEATHER_ICONS: Array<{ icon: string; labelKey: string }> = [
   { icon: 'weather-partly-cloudy', labelKey: 'home.cloud' },
   { icon: 'weather-rainy', labelKey: 'home.rain' },
   { icon: 'weather-lightning', labelKey: 'home.snow' },
-  { icon: 'weather-windy', labelKey: 'home.cloud' },
+  { icon: 'weather-windy', labelKey: 'home.wind' },
 ];
 
 /* ─── Mini charts ─── */

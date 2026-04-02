@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
 import { useTranslation } from 'react-i18next';
-import { LANGUAGES, changeLanguage } from '../../src/i18n';
+import { LANGUAGES, changeLanguage, getDayNames } from '../../src/i18n';
 
 /* ─── REUSABLE INPUT MODAL ─── */
 const InputModal = ({
@@ -123,6 +123,14 @@ export default function SettingsPage() {
     await changeLanguage(langCode);
   };
 
+  const dayNames = getDayNames();
+  // Map stored Italian day names to translated ones
+  const IT_DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+  const translateDay = (giorno: string) => {
+    const idx = IT_DAYS.indexOf(giorno);
+    return idx >= 0 ? dayNames[idx] : giorno;
+  };
+
   const totalePlatAnnui = store.agenda.reduce((s, m) => s + m.p_annuo, 0);
   const totaleSpeseAnnue = store.speseAnnue.reduce((s, x) => s + x.importo, 0) + totalePlatAnnui;
 
@@ -194,7 +202,7 @@ export default function SettingsPage() {
       {/* ─── SETTORE ─── */}
       <View style={s.card}>
         <View style={s.switchRow}>
-          <Text style={s.switchLabel}>{store.isAlimentare ? 'ALIMENTARE' : 'NON ALIMENTARE'}</Text>
+          <Text style={s.switchLabel}>{store.isAlimentare ? t('settings.food') : t('settings.nonFood')}</Text>
           <Switch
             value={store.isAlimentare}
             onValueChange={(v) => store.setConfig({ isAlimentare: v })}
@@ -263,7 +271,7 @@ export default function SettingsPage() {
               >
                 {m.lavorativo && <Ionicons name="checkmark" size={14} color="#FFF" />}
               </TouchableOpacity>
-              <Text style={s.agendaDay}>{m.giorno}</Text>
+              <Text style={s.agendaDay}>{translateDay(m.giorno)}</Text>
               <Text style={s.agendaMarket}>{m.mercato || '---'}</Text>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
             </TouchableOpacity>
@@ -274,16 +282,16 @@ export default function SettingsPage() {
                   <Text style={s.itemLabel}>{t('settings.marketName')}</Text>
                   <Text style={s.agendaVal}>{m.mercato || '---'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.agendaItem} onPress={() => openModal('KM A/R', ['Chilometri'], (v) => updateMercato(idx, 'km', parseFloat(v[0].replace(',', '.')) || 0))}>
-                  <Text style={s.itemLabel}>KM A/R</Text>
+                <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.kmRoundTrip'), [t('settings.km')], (v) => updateMercato(idx, 'km', parseFloat(v[0].replace(',', '.')) || 0))}>
+                  <Text style={s.itemLabel}>{t('settings.kmRoundTrip')}</Text>
                   <Text style={s.agendaVal}>{m.km || '---'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Media Scontrino', ['Importo €'], (v) => updateMercato(idx, 'mediaScontrino', parseFloat(v[0].replace(',', '.')) || 0))}>
-                  <Text style={s.itemLabel}>Media Scontrino</Text>
+                <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.avgReceipt'), [`${t('settings.amount')}`], (v) => updateMercato(idx, 'mediaScontrino', parseFloat(v[0].replace(',', '.')) || 0))}>
+                  <Text style={s.itemLabel}>{t('settings.avgReceipt')}</Text>
                   <Text style={s.agendaVal}>{m.mediaScontrino ? `€${m.mediaScontrino}` : '---'}</Text>
                 </TouchableOpacity>
                 <View style={s.switchRow}>
-                  <Text style={s.itemLabel}>Tipo Plateatico</Text>
+                  <Text style={s.itemLabel}>{t('settings.standFeeType')}</Text>
                   <Switch
                     value={m.is_plat_annuo}
                     onValueChange={(v) => updateMercato(idx, 'is_plat_annuo', v)}
@@ -291,22 +299,22 @@ export default function SettingsPage() {
                     thumbColor="#FFF"
                   />
                   <Text style={[s.itemLabel, { color: '#1E7F85', fontWeight: '800' }]}>
-                    {m.is_plat_annuo ? 'Annuale' : 'Giornaliero'}
+                    {m.is_plat_annuo ? t('settings.annualFee') : t('settings.dailyFee')}
                   </Text>
                 </View>
                 {m.is_plat_annuo ? (
-                  <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Plateatico Annuo', ['Importo €'], (v) => updateMercato(idx, 'p_annuo', parseFloat(v[0].replace(',', '.')) || 0))}>
-                    <Text style={s.itemLabel}>Plat. Annuo €</Text>
+                  <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.annualStandFeeShort'), [`${t('settings.amount')}`], (v) => updateMercato(idx, 'p_annuo', parseFloat(v[0].replace(',', '.')) || 0))}>
+                    <Text style={s.itemLabel}>{t('settings.annualStandFeeShort')} €</Text>
                     <Text style={s.agendaVal}>{m.p_annuo}</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Plateatico Giornaliero', ['Importo €'], (v) => updateMercato(idx, 'p_giornaliero', parseFloat(v[0].replace(',', '.')) || 0))}>
-                    <Text style={s.itemLabel}>Plat. Giornaliero €</Text>
+                  <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.dailyStandFeeShort'), [`${t('settings.amount')}`], (v) => updateMercato(idx, 'p_giornaliero', parseFloat(v[0].replace(',', '.')) || 0))}>
+                    <Text style={s.itemLabel}>{t('settings.dailyStandFeeShort')} €</Text>
                     <Text style={s.agendaVal}>{m.p_giornaliero}</Text>
                   </TouchableOpacity>
                 )}
                 <Text style={s.agendaHint}>
-                  {m.is_plat_annuo ? `Incidenza GG: €${m.p_giornaliero}` : `Totale Annuo: €${m.p_annuo}`}
+                  {m.is_plat_annuo ? `${t('settings.dailyImpact')}: €${m.p_giornaliero}` : `${t('settings.annualTotal')}: €${m.p_annuo}`}
                 </Text>
               </View>
             )}
@@ -357,19 +365,7 @@ export default function SettingsPage() {
                   }
                 >
                   <Ionicons name="add" size={16} color="#1E7F85" />
-                  <Text style={s.addBtnSmallTxt}>{t('settings.addExpense')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        );
-      })}
-      <TouchableOpacity
-        style={s.addBtn}
-        onPress={() => openModal(t('settings.suppliers'), [t('settings.name')], (v) => store.addFornitore({ nome: v[0], prodotti: [] }))}
-      >
-        <Ionicons name="cube" size={18} color="#1E7F85" />
-        <Text style={s.addBtnTxt}>{t('settings.addSupplier')}</Text>
+                  <Text style={s.addBtnSmallTxt}>{t('settings.addProduct')}</Text>
       </TouchableOpacity>
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}

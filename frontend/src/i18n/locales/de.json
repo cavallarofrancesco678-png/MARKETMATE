@@ -52,7 +52,8 @@
     "snow": "SCHNEE",
     "notifications": "Benachrichtigungen",
     "noNotifications": "Keine Termine für heute.",
-    "todayAppointments": "Heutige Termine"
+    "todayAppointments": "Heutige Termine",
+    "wind": "WIND"
   },
   "settings": {
     "title": "EINSTELLUNGEN",
@@ -82,7 +83,20 @@
     "loadDemo": "DEMO-DATEN LADEN",
     "demoLoaded": "Demo-Daten geladen!",
     "saveSettings": "EINSTELLUNGEN SPEICHERN",
-    "settingsSaved": "Einstellungen erfolgreich gespeichert!"
+    "settingsSaved": "Einstellungen erfolgreich gespeichert!",
+    "food": "LEBENSMITTEL",
+    "nonFood": "NICHT-LEBENSMITTEL",
+    "kmRoundTrip": "KM HIN/RÜCK",
+    "avgReceipt": "Durchschn. Bon",
+    "standFeeType": "Gebührenart",
+    "annualFee": "Jährlich",
+    "dailyFee": "Täglich",
+    "annualStandFeeShort": "Jahresgebühr",
+    "dailyStandFeeShort": "Tagesgebühr",
+    "dailyImpact": "Tagesanteil",
+    "annualTotal": "Jahresgesamt",
+    "product": "Produkt",
+    "addProduct": "Produkt hinzufügen"
   },
   "stats": {
     "title": "STATISTIKEN",

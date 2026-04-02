@@ -52,7 +52,8 @@
     "snow": "SNOW",
     "notifications": "Notifications",
     "noNotifications": "No appointments for today.",
-    "todayAppointments": "Today's appointments"
+    "todayAppointments": "Today's appointments",
+    "wind": "WIND"
   },
   "settings": {
     "title": "SETTINGS",
@@ -82,7 +83,20 @@
     "loadDemo": "LOAD DEMO DATA",
     "demoLoaded": "Demo data loaded!",
     "saveSettings": "SAVE SETTINGS",
-    "settingsSaved": "Settings saved successfully!"
+    "settingsSaved": "Settings saved successfully!",
+    "food": "FOOD",
+    "nonFood": "NON-FOOD",
+    "kmRoundTrip": "KM ROUND TRIP",
+    "avgReceipt": "Avg Receipt",
+    "standFeeType": "Stand Fee Type",
+    "annualFee": "Annual",
+    "dailyFee": "Daily",
+    "annualStandFeeShort": "Annual Fee",
+    "dailyStandFeeShort": "Daily Fee",
+    "dailyImpact": "Daily Impact",
+    "annualTotal": "Annual Total",
+    "product": "Product",
+    "addProduct": "Add Product"
   },
   "stats": {
     "title": "STATISTICS",
