@@ -16,6 +16,10 @@ import Svg, { Path } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
 import { CalendarModal } from '../../src/components/CalendarModal';
+import { FieraModal } from '../../src/components/FieraModal';
+import { UtileModal } from '../../src/components/UtileModal';
+import { SpeseExtraModal } from '../../src/components/SpeseExtraModal';
+import { BuongiornoModal } from '../../src/components/BuongiornoModal';
 
 const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
@@ -64,6 +68,13 @@ export default function HomeScreen() {
   const [fieraLuogo, setFieraLuogo] = useState('');
   const [fieraKm, setFieraKm] = useState('');
   const [fieraPlat, setFieraPlat] = useState('');
+  const [showFieraModal, setShowFieraModal] = useState(false);
+  const [showUtileModal, setShowUtileModal] = useState(false);
+  const [showSpeseExtraModal, setShowSpeseExtraModal] = useState(false);
+  const [excludeSpeseExtra, setExcludeSpeseExtra] = useState(false);
+  const [excludeInvenduto, setExcludeInvenduto] = useState(false);
+  const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
+  const [showBuongiorno, setShowBuongiorno] = useState(false);
 
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');
@@ -110,7 +121,7 @@ export default function HomeScreen() {
   }, [tuttiProdotti, invendutoQty]);
 
   const confermaInvenduto = () => {
-    setInvenduto(Math.round(invendutoCalcolato).toString());
+    setInvenduto(parseFloat(invendutoCalcolato.toFixed(2)).toString());
     setShowInvendutoModal(false);
   };
 
@@ -156,16 +167,56 @@ export default function HomeScreen() {
     store.setConfig({ speseFisseDisabilitate: newList });
   };
 
+  /* ── Spese Extra fornitori totale ── */
+  const speseExtraFornTotale = useMemo(() => {
+    let tot = 0;
+    Object.values(speseExtraFornitore).forEach((v) => {
+      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+      if (v.periodo === 'settimanale') tot += imp / 6;
+      else if (v.periodo === 'mensile') tot += imp / 26;
+      else tot += imp; // giornaliero
+    });
+    return tot;
+  }, [speseExtraFornitore]);
+
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
   const speseExtraNum = parseFloat(speseExtra.replace(',', '.')) || 0;
-  const invendutoNum = parseFloat(invenduto.replace(',', '.')) || 0;
+  const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraNum + speseExtraFornTotale;
+  const invendutoNum = excludeInvenduto ? 0 : (parseFloat(invenduto.replace(',', '.')) || 0);
 
   // Costo collaboratori attivi (presenti oggi)
   const costoCollabAttivi = collaboratori
     .filter((c) => presenze[c.nome])
     .reduce((s, c) => s + (c.costo || 0), 0);
 
-  const utile = lordoNum - speseFisse - speseExtraNum - invendutoNum - costoCollabAttivi;
+  const utile = lordoNum - speseFisse - speseExtraTotNum - invendutoNum - costoCollabAttivi;
+  /* ── Storico mercato dati reali ── */
+  const storicoMercato = useMemo(() => {
+    const gg = store.storicoGiornate || [];
+    const now = dataCorrente;
+    const mNome = mercatoNome.toLowerCase();
+    const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome);
+
+    const meseData = filtered.filter((g) => {
+      const d = new Date(g.data);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const annoData = filtered.filter((g) => new Date(g.data).getFullYear() === now.getFullYear());
+    const annoPrecData = filtered.filter((g) => new Date(g.data).getFullYear() === now.getFullYear() - 1);
+
+    const calcTot = (arr: typeof gg) => arr.reduce((s, g) => s + (g.lordo || 0), 0);
+    const calcMedia = (arr: typeof gg) => arr.length > 0 ? calcTot(arr) / arr.length : 0;
+
+    const meseTot = calcTot(meseData);
+    const annoTot = calcTot(annoData);
+    const annoPrecTot = calcTot(annoPrecData);
+    const pct = annoPrecTot > 0 ? Math.round(((annoTot - annoPrecTot) / annoPrecTot) * 100) : 0;
+
+    if (chartMode === 'mese') return { totale: meseTot, media: calcMedia(meseData), giorni: meseData.length, pct: 0, label: 'questo mese' };
+    if (chartMode === 'confronto') return { totale: annoTot, media: calcMedia(annoData), giorni: annoData.length, pct, label: 'vs anno prec.' };
+    return { totale: annoTot, media: calcMedia(annoData), giorni: annoData.length, pct: 0, label: '12 mesi' };
+  }, [store.storicoGiornate, mercatoNome, chartMode, dataCorrente]);
+
   const collabNames = collaboratori.length > 0 ? collaboratori.map((c) => c.nome) : [];
 
   const handleContanti = (val: string) => {
@@ -265,7 +316,7 @@ export default function HomeScreen() {
               <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>Mercato</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsFiera(true)}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
               <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]}>Fiera</Text>
             </View>
@@ -323,10 +374,10 @@ export default function HomeScreen() {
           <Text style={s.cardBold}>LORDO</Text>
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={setLordo} selectTextOnFocus />
         </View>
-        <View style={[s.card, { height: lordoRowH }]}>
+        <TouchableOpacity style={[s.card, { height: lordoRowH }]} activeOpacity={0.7} onPress={() => setShowUtileModal(true)}>
           <Text style={s.cardBold}>UTILE</Text>
-          <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>€{Math.round(utile)}</Text>
-        </View>
+          <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>{'\u20AC'}{utile.toFixed(2)}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: GAP }} />
@@ -345,12 +396,12 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ ROW 3: SPESE EXTRA / SPESE FISSE (cliccabile) ═══ */}
+      {/* ═══ ROW 3: SPESE EXTRA (cliccabile → fornitori) / SPESE FISSE ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
-        <View style={[s.card, { height: normalRowH }]}>
+        <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseExtraModal(true)}>
           <Text style={s.cardLbl}>SPESE EXTRA</Text>
-          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={speseExtra} onChangeText={setSpeseExtra} selectTextOnFocus />
-        </View>
+          <Text style={s.cardVal}>{'\u20AC'}{(speseExtraNum + speseExtraFornTotale).toFixed(2)}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseFisseModal(true)}>
           <Text style={s.cardLbl}>SPESE FISSE</Text>
           <Text style={s.cardVal}>€{Math.round(speseFisse)}</Text>
@@ -365,7 +416,7 @@ export default function HomeScreen() {
           <Text style={s.cardLbl}>INVENDUTO</Text>
           <Text style={s.cardVal}>{invendutoNum > 0 ? `€${invendutoNum}` : '0'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => Alert.alert('Buongiorno!', 'Connessione AI in arrivo...')}>
+        <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
           <Ionicons name="globe-outline" size={16} color="#FFF" />
           <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>BUONGIORNO</Text>
         </TouchableOpacity>
@@ -373,15 +424,15 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ STORICO MERCATO (tra griglia e Salva, stesso GAP) ═══ */}
+      {/* ═══ STORICO MERCATO (dati reali) ═══ */}
       <View style={[s.section, { height: STORICO_H }]}>
         <TouchableOpacity activeOpacity={0.85} style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4) }]}>
           <View style={s.storicoL}><MiniLine /></View>
           <View style={s.storicoC}>
             <Text style={s.storicoT}>STORICO MERCATO</Text>
-            <Text style={s.storicoDay}>del {giorno}</Text>
-            <Text style={s.storicoVal}>€44.130 <Text style={{ color: '#2AA090', fontSize: 10 }}>(+14%)</Text></Text>
-            <Text style={s.storicoSub}>Media scontrino: €18.50</Text>
+            <Text style={s.storicoDay}>del {giorno} · {storicoMercato.giorni} gg</Text>
+            <Text style={s.storicoVal}>{'\u20AC'}{storicoMercato.totale.toFixed(0)} {storicoMercato.pct !== 0 && <Text style={{ color: storicoMercato.pct >= 0 ? '#2AA090' : '#D44', fontSize: 10 }}>({storicoMercato.pct > 0 ? '+' : ''}{storicoMercato.pct}%)</Text>}</Text>
+            <Text style={s.storicoSub}>Media: {'\u20AC'}{storicoMercato.media.toFixed(0)}/gg</Text>
           </View>
           <View style={s.storicoR}><MiniBar /></View>
         </TouchableOpacity>
@@ -476,7 +527,7 @@ export default function HomeScreen() {
                         onChangeText={(t) => setInvendutoQty((prev) => ({ ...prev, [key]: t }))}
                         textAlign="center"
                       />
-                      <Text style={s.invSubtot}>€{Math.round(subtot)}</Text>
+                      <Text style={s.invSubtot}>{'\u20AC'}{subtot.toFixed(2)}</Text>
                     </View>
                   );
                 })
@@ -487,7 +538,7 @@ export default function HomeScreen() {
                 <View style={s.modalDivider} />
                 <View style={s.modalTotalRow}>
                   <Text style={s.modalTotalLabel}>TOTALE INVENDUTO</Text>
-                  <Text style={s.modalTotalVal}>€{Math.round(invendutoCalcolato)}</Text>
+                  <Text style={s.modalTotalVal}>{'\u20AC'}{invendutoCalcolato.toFixed(2)}</Text>
                 </View>
               </>
             )}
@@ -550,6 +601,82 @@ export default function HomeScreen() {
         initialDate={dataCorrente}
         themeColor="#1E7F85"
         title="SELEZIONA DATA"
+      />
+
+      {/* Fiera Modal */}
+      <FieraModal
+        visible={showFieraModal}
+        onClose={() => setShowFieraModal(false)}
+        luogo={fieraLuogo}
+        setLuogo={setFieraLuogo}
+        km={fieraKm}
+        setKm={setFieraKm}
+        plateatico={fieraPlat}
+        setPlateatico={setFieraPlat}
+      />
+
+      {/* UTILE Breakdown Modal */}
+      <UtileModal
+        visible={showUtileModal}
+        onClose={() => setShowUtileModal(false)}
+        speseFisse={speseFisse}
+        speseFisseItems={speseAnnue}
+        speseFisseDisabilitate={speseFisseDisabilitate}
+        toggleSpesaFissa={(voce) => setSpeseFisseDisabilitate((prev) => ({ ...prev, [voce]: !prev[voce] }))}
+        collabCosts={collaboratori.map((c) => ({ nome: c.nome, costo: c.costo || 0, attivo: !!presenze[c.nome] }))}
+        toggleCollab={(nome) => setPresenze((prev) => ({ ...prev, [nome]: !prev[nome] }))}
+        speseExtra={speseExtraNum + speseExtraFornTotale}
+        excludeSpeseExtra={excludeSpeseExtra}
+        toggleExcludeSpeseExtra={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
+        invenduto={parseFloat(invenduto.replace(',', '.')) || 0}
+        excludeInvenduto={excludeInvenduto}
+        toggleExcludeInvenduto={() => setExcludeInvenduto(!excludeInvenduto)}
+        utile={utile}
+        lordo={lordoNum}
+      />
+
+      {/* Spese Extra Fornitori Modal */}
+      <SpeseExtraModal
+        visible={showSpeseExtraModal}
+        onClose={() => setShowSpeseExtraModal(false)}
+        fornitori={fornitori}
+        speseExtra={speseExtra}
+        setSpeseExtra={setSpeseExtra}
+        speseExtraFornitore={speseExtraFornitore}
+        setSpeseExtraFornitore={setSpeseExtraFornitore}
+      />
+
+      {/* Buongiorno AI Modal */}
+      <BuongiornoModal
+        visible={showBuongiorno}
+        onClose={() => setShowBuongiorno(false)}
+        storeData={{
+          nomeAttivita: store.nomeAttivita || 'La mia attivita',
+          nomeTitolare: store.nomeTitolare || 'Titolare',
+          meteoOggi: meteo,
+          mercatoOggi: mercatoNome,
+          settimanaPrec: (() => {
+            const now = dataCorrente;
+            const weekAgo = new Date(now);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const prev = (store.storicoGiornate || []).filter((g) => {
+              const d = new Date(g.data);
+              return d >= weekAgo && d < now;
+            });
+            return {
+              lordo: prev.reduce((s, g) => s + (g.lordo || 0), 0),
+              netto: prev.reduce((s, g) => s + (g.netto || 0), 0),
+              giorni: prev.length,
+            };
+          })(),
+          ultimoCarburante: store.storicoCarburante?.length > 0
+            ? { data: new Date(store.storicoCarburante[store.storicoCarburante.length - 1].data).toLocaleDateString('it-IT'), euro: store.storicoCarburante[store.storicoCarburante.length - 1].euro }
+            : null,
+          kmOggi: mercatoOggi?.km || 0,
+          collaboratori: collaboratori.map((c) => c.nome),
+          fornitori: fornitori.map((f) => f.nome),
+          speseAnnue: speseAnnue.map((sp) => ({ voce: sp.voce, importo: sp.importo })),
+        }}
       />
     </View>
   );
