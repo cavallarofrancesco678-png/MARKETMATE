@@ -207,7 +207,10 @@ export default function HomeScreen() {
   // Spese fisse totali = spese fisse annuali + plateatico fiera (se attivo)
   const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
 
-  const utile = lordoNum - speseFisseTotali - speseExtraTotNum - invendutoNum - costoCollabAttivi;
+  // Costo carburante giornaliero basato su km mercato
+  const costoCarburanteGiorno = (mercatoOggi?.km || 0) * (store.costoKm || 0);
+
+  const utile = lordoNum - speseFisseTotali - speseExtraTotNum - invendutoNum - costoCollabAttivi - costoCarburanteGiorno;
   /* ── Storico mercato dati reali ── */
   const storicoMercato = useMemo(() => {
     const gg = store.storicoGiornate || [];
@@ -419,7 +422,7 @@ export default function HomeScreen() {
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={contanti} onChangeText={handleContanti} selectTextOnFocus />
         </View>
         <View style={[s.card, { height: normalRowH }]}>
-          <Text style={s.cardLbl}>POSS</Text>
+          <Text style={s.cardLbl}>{t('home.pos')}</Text>
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={pos} onChangeText={handlePos} selectTextOnFocus />
         </View>
       </View>
@@ -670,6 +673,7 @@ export default function HomeScreen() {
         toggleExcludeInvenduto={() => setExcludeInvenduto(!excludeInvenduto)}
         utile={utile}
         lordo={lordoNum}
+        costoCarburante={costoCarburanteGiorno}
       />
 
       {/* Spese Extra Fornitori Modal */}
@@ -713,6 +717,8 @@ export default function HomeScreen() {
           collaboratori: collaboratori.map((c) => c.nome),
           fornitori: fornitori.map((f) => f.nome),
           speseAnnue: speseAnnue.map((sp) => ({ voce: sp.voce, importo: sp.importo })),
+          partenzaDa: store.partenzaDa || '',
+          costoKm: store.costoKm || 0,
         }}
       />
     </View>

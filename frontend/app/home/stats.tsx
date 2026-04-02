@@ -14,6 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { MeteoStatsModal } from '../../src/components/MeteoStatsModal';
+import { useTranslation } from 'react-i18next';
+import { getDayNames, getMonthNames, getShortDayNames } from '../../src/i18n';
 import type { Giornata } from '../../src/store/appStore';
 
 const { width: screenW } = Dimensions.get('window');
@@ -108,7 +110,7 @@ const InteractiveLineChart = ({ labels, lines, height = 140 }: {
   );
 };
 
-/* ═══ Donut Chart SVG ═══ */
+/* ═══ Donut Chart SVG with Percentages ═══ */
 const DonutChart = ({ items, size = 70 }: { items: { label: string; value: number; color: string }[]; size?: number }) => {
   const center = size / 2;
   const radius = size / 2 - 6;
@@ -125,8 +127,22 @@ const DonutChart = ({ items, size = 70 }: { items: { label: string; value: numbe
     const x2 = center + radius * Math.cos(endAngle);
     const y2 = center + radius * Math.sin(endAngle);
     const path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
+    const midAngle = startAngle + angle / 2;
+    const pct = Math.round((item.value / total) * 100);
+    const labelR = radius + 1;
+    const labelX = center + labelR * Math.cos(midAngle);
+    const labelY = center + labelR * Math.sin(midAngle);
     startAngle = endAngle;
-    return <Path key={idx} d={path} stroke={item.color} strokeWidth={strokeW} fill="none" strokeLinecap="butt" />;
+    return (
+      <React.Fragment key={idx}>
+        <Path d={path} stroke={item.color} strokeWidth={strokeW} fill="none" strokeLinecap="butt" />
+        {pct >= 5 && (
+          <SvgText x={labelX} y={labelY + 3} fill="#FFF" fontSize={7} fontWeight="bold" textAnchor="middle">
+            {pct}%
+          </SvgText>
+        )}
+      </React.Fragment>
+    );
   });
 
   return <Svg width={size} height={size}>{arcs}</Svg>;
@@ -140,11 +156,30 @@ export default function StatsScreen() {
   const { storicoGiornate, speseAnnue, collaboratori, fornitori, seedMockData } = store;
   const { height: screenH } = useWindowDimensions();
   const GAP = Math.round(1.5 * ((screenH - 80) / 100));
+  const { t } = useTranslation();
 
   const [filtroTempo, setFiltroTempo] = useState<FilterTempo>('Sett.');
   const [filtroTipo, setFiltroTipo] = useState<FilterTipo>('TUTTO');
   const [showMeteo, setShowMeteo] = useState(false);
   const [showFiere, setShowFiere] = useState(false);
+
+  const tempoLabel = (key: string) => {
+    const map: Record<string, string> = {
+      'Pers.': t('stats.personal'), 'Ieri': t('stats.yesterday'), 'Oggi': t('common.today'),
+      'Sett.': t('stats.week'), 'Mese': t('stats.month'), 'Anno': t('stats.year'),
+    };
+    return map[key] || key;
+  };
+
+  const tipoLabel = (key: string) => {
+    const shortDays = getShortDayNames();
+    const dayKeys = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
+    const dayIdx = dayKeys.indexOf(key);
+    if (dayIdx >= 0) return shortDays[dayIdx];
+    if (key === 'TUTTO') return t('stats.all');
+    if (key === 'FIERE') return t('stats.fairs');
+    return key;
+  };
 
   useEffect(() => {
     if (storicoGiornate.length === 0) {
@@ -184,10 +219,13 @@ export default function StatsScreen() {
   const giorniLav = filteredData.length;
 
   const chartLabels = useMemo(() => {
-    if (filtroTempo === 'Anno') return ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
+    const monthNames = getMonthNames();
+    const shortMonths = monthNames.map(m => m.substring(0, 3).toUpperCase());
+    const shortDays = getShortDayNames();
+    if (filtroTempo === 'Anno') return shortMonths;
     if (filtroTempo === 'Mese') return ['S1', 'S2', 'S3', 'S4'];
-    return ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
-  }, [filtroTempo]);
+    return shortDays;
+  }, [filtroTempo, t]);
 
   const groupData = (data: Giornata[], field: (g: Giornata) => number): number[] => {
     if (filtroTempo === 'Anno') {
@@ -299,13 +337,14 @@ export default function StatsScreen() {
   }, [filteredByTime]);
   const totFiere = arrSum(fiereDays.map((g) => g.lordo || 0));
 
-  const renderFilterBar = (options: string[], selected: string, onSelect: (v: any) => void, mini = false) => (
+  const renderFilterBar = (options: string[], selected: string, onSelect: (v: any) => void, mini = false, labelFn?: (key: string) => string) => (
     <View style={[st.filterRow, { gap: mini ? 4 : 6 }]}>
       {options.map((opt) => {
         const on = selected === opt;
+        const displayLabel = labelFn ? labelFn(opt) : opt;
         return (
           <TouchableOpacity key={opt} style={[st.filterBtn, on && st.filterOn, mini && { paddingVertical: 7 }]} onPress={() => onSelect(opt)}>
-            <Text style={[st.filterTxt, on && { color: '#FFF' }, mini && { fontSize: 7 }]}>{opt}</Text>
+            <Text style={[st.filterTxt, on && { color: '#FFF' }, mini && { fontSize: 7 }]}>{displayLabel}</Text>
           </TouchableOpacity>
         );
       })}
@@ -348,11 +387,14 @@ export default function StatsScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 16 }}>
           <DonutChart items={items} />
           <View style={{ flex: 1 }}>
-            {items.map((it, i) => (
-              <Text key={i} style={{ fontSize: 10, fontWeight: '700', color: it.color, marginBottom: 3 }}>
-                {it.label}: {'\u20AC'}{it.value}
-              </Text>
-            ))}
+            {items.map((it, i) => {
+              const pct = Math.round((it.value / total) * 100);
+              return (
+                <Text key={i} style={{ fontSize: 10, fontWeight: '700', color: it.color, marginBottom: 3 }}>
+                  {it.label}: {'\u20AC'}{it.value} ({pct}%)
+                </Text>
+              );
+            })}
           </View>
         </View>
       </View>
@@ -362,49 +404,49 @@ export default function StatsScreen() {
   return (
     <View style={st.root}>
       <ScrollView contentContainerStyle={[st.scroll, { gap: GAP }]} showsVerticalScrollIndicator={false}>
-        <Text style={st.pageTitle}>ANALISI GESTIONALE</Text>
+        <Text style={st.pageTitle}>{t('stats.analysis')}</Text>
 
-        {renderFilterBar(['Pers.', 'Ieri', 'Oggi', 'Sett.', 'Mese', 'Anno'], filtroTempo, setFiltroTempo)}
-        {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true)}
+        {renderFilterBar(['Pers.', 'Ieri', 'Oggi', 'Sett.', 'Mese', 'Anno'], filtroTempo, setFiltroTempo, false, tempoLabel)}
+        {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true, tipoLabel)}
 
         <View style={{ gap: GAP }}>
           <View style={st.kpiRow}>
             <View style={st.kpiCard}>
-              <Text style={st.kpiLabel}>LORDO</Text>
+              <Text style={st.kpiLabel}>{t('stats.gross').toUpperCase()}</Text>
               <Text style={[st.kpiValue, { color: PALETTE[0] }]}>{'\u20AC'}{totLordo.toFixed(0)}</Text>
             </View>
             <View style={st.kpiCard}>
-              <Text style={st.kpiLabel}>NETTO</Text>
+              <Text style={st.kpiLabel}>{t('stats.net').toUpperCase()}</Text>
               <Text style={[st.kpiValue, { color: totNetto >= 0 ? PALETTE[1] : '#D46A6A' }]}>{'\u20AC'}{totNetto.toFixed(0)}</Text>
             </View>
           </View>
           <View style={st.kpiRow}>
             <View style={st.kpiCard}>
-              <Text style={st.kpiLabel}>CASH</Text>
+              <Text style={st.kpiLabel}>{t('home.cash')}</Text>
               <Text style={[st.kpiValue, { color: PALETTE[5] }]}>{'\u20AC'}{totCash.toFixed(0)}</Text>
             </View>
             <View style={st.kpiCard}>
-              <Text style={st.kpiLabel}>POS</Text>
+              <Text style={st.kpiLabel}>{t('home.pos')}</Text>
               <Text style={[st.kpiValue, { color: PALETTE[2] }]}>{'\u20AC'}{totPos.toFixed(0)}</Text>
             </View>
           </View>
         </View>
 
-        {renderChartBox('ECONOMICO', economicoLines)}
-        {renderChartBox('INCASSI', incassiLines)}
-        {renderChartBox('INVENDUTO', invendutoLines)}
-        {renderChartBox('COLLABORATORI', collabLines)}
-        {renderChartBox('FORNITORI', fornitoriLines)}
+        {renderChartBox(t('stats.economic'), economicoLines)}
+        {renderChartBox(t('stats.income'), incassiLines)}
+        {renderChartBox(t('stats.unsold'), invendutoLines)}
+        {renderChartBox(t('stats.collaborators'), collabLines)}
+        {renderChartBox(t('stats.suppliers'), fornitoriLines)}
 
-        {renderDonutBox('SPESE FISSE', speseFisseItems)}
-        {renderDonutBox('SPESE STRAORDINARIE', speseExtraItems)}
+        {renderDonutBox(t('stats.fixedExpenses'), speseFisseItems)}
+        {renderDonutBox(t('stats.extraExpenses'), speseExtraItems)}
 
         <View style={[st.card, { marginBottom: GAP }]}>
           <TouchableOpacity onPress={() => setShowFiere(!showFiere)} activeOpacity={0.7}>
             <View style={st.chartHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="star" size={16} color="#D4AF37" />
-                <Text style={st.sectionLabel}>STORICO FIERE</Text>
+                <Text style={st.sectionLabel}>{t('stats.fairHistory')}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={st.sectionTotal}>TOT: {'\u20AC'}{totFiere.toFixed(0)}</Text>
@@ -415,16 +457,16 @@ export default function StatsScreen() {
           {showFiere && (
             <View style={{ marginTop: 8 }}>
               {fiereDays.length === 0 ? (
-                <Text style={st.emptyText}>Nessuna fiera registrata</Text>
+                <Text style={st.emptyText}>{t('stats.noFairs')}</Text>
               ) : (
                 fiereDays.map((f, i) => {
                   const d = new Date(f.data);
-                  const GG = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato'];
-                  const MM = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+                  const GG = getDayNames();
+                  const MM = getMonthNames();
                   return (
                     <View key={i} style={st.fieraRow}>
                       <Text style={st.fieraText} numberOfLines={1}>
-                        {GG[d.getDay()]} {d.getDate()} {MM[d.getMonth()]} - {f.mercato}
+                        {GG[d.getDay() === 0 ? 6 : d.getDay() - 1]} {d.getDate()} {MM[d.getMonth()]} - {f.mercato}
                       </Text>
                       <Text style={st.fieraValue}>{'\u20AC'}{f.lordo.toFixed(0)}</Text>
                     </View>
@@ -436,7 +478,7 @@ export default function StatsScreen() {
         </View>
 
         <View style={[st.card, { marginBottom: GAP }]}>
-          <Text style={st.sectionLabel}>STATISTICA METEO</Text>
+          <Text style={st.sectionLabel}>{t('stats.weatherLabel')}</Text>
           <View style={st.meteoRow}>
             {METEO_ICONS.map((w) => (
               <View key={w.label} style={st.meteoItem}>
@@ -453,7 +495,7 @@ export default function StatsScreen() {
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="weather-partly-cloudy" size={18} color="#FFF" />
-          <Text style={st.meteoBtnTxt}>METEO DETTAGLIATO</Text>
+          <Text style={st.meteoBtnTxt}>{t('stats.detailedWeather')}</Text>
           <Ionicons name="arrow-forward" size={16} color="#FFF" />
         </TouchableOpacity>
 
@@ -469,17 +511,17 @@ export default function StatsScreen() {
             style={st.pdfBtn}
           >
             <Ionicons name="document-text" size={18} color="#FFF" />
-            <Text style={st.pdfBtnTxt}>REPORT PDF COMPLETO</Text>
+            <Text style={st.pdfBtnTxt}>{t('stats.pdfReport')}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         <View style={[st.card, { marginBottom: GAP }]}>
-          <Text style={st.sectionLabel}>RIEPILOGO</Text>
+          <Text style={st.sectionLabel}>{t('stats.summary')}</Text>
           {[
-            ['Giorni lavorati', `${giorniLav}`],
-            ['Media giornaliera', `\u20AC${giorniLav > 0 ? (totLordo / giorniLav).toFixed(0) : '0'}`],
-            ['Km totali', `${arrSum(filteredData.map((g) => g.km || 0)).toFixed(0)} km`],
-            ['Costo collaboratori', `\u20AC${arrSum(filteredData.map((g) => {
+            [t('stats.workingDays'), `${giorniLav}`],
+            [t('stats.dailyAverage'), `\u20AC${giorniLav > 0 ? (totLordo / giorniLav).toFixed(0) : '0'}`],
+            [t('stats.totalKm'), `${arrSum(filteredData.map((g) => g.km || 0)).toFixed(0)} km`],
+            [t('stats.staffCost'), `\u20AC${arrSum(filteredData.map((g) => {
               if (!g.dettaglio_staff) return 0;
               return Object.values(g.dettaglio_staff).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
             })).toFixed(0)}`],

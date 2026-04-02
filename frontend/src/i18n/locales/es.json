@@ -53,7 +53,9 @@
     "notifications": "Notificaciones",
     "noNotifications": "No hay citas para hoy.",
     "todayAppointments": "Citas de hoy",
-    "wind": "VIENTO"
+    "wind": "VIENTO",
+    "profitDetail": "DETALLE BENEFICIO",
+    "deductions": "Deducciones"
   },
   "settings": {
     "title": "AJUSTES",
@@ -71,11 +73,11 @@
     "name": "Nombre",
     "dailyCost": "Coste diario",
     "suppliers": "PROVEEDORES",
-    "addSupplier": "Añadir proveedor",
+    "addSupplier": "Añadir Proveedor",
     "fixedExpenses": "GASTOS FIJOS ANUALES",
     "addExpense": "Añadir gasto",
     "expenseName": "Nombre del gasto",
-    "amount": "Importe (€)",
+    "amount": "Importe €",
     "annualStandFee": "TASA DE PUESTO ANUAL",
     "standFeeDesc": "Introduce la tasa anual del puesto. Se dividirá automáticamente por los días de mercado.",
     "resetData": "BORRAR DATOS",
@@ -96,7 +98,16 @@
     "dailyImpact": "Impacto Diario",
     "annualTotal": "Total Anual",
     "product": "Producto",
-    "addProduct": "Añadir Producto"
+    "addProduct": "Añadir Producto",
+    "newProduct": "Nuevo Producto",
+    "productName": "Nombre Producto",
+    "pricePerKg": "Precio por KG",
+    "noExpenses": "Sin gastos añadidos",
+    "attention": "Atención",
+    "enterName": "Introduce al menos un nombre",
+    "departure": "Salida desde",
+    "annualExpense": "Gasto Anual",
+    "expenseItem": "Concepto"
   },
   "stats": {
     "title": "ESTADÍSTICAS",
@@ -115,7 +126,23 @@
     "net": "Neto",
     "average": "Media",
     "best": "Mejor",
-    "worst": "Peor"
+    "worst": "Peor",
+    "analysis": "ANÁLISIS DE GESTIÓN",
+    "all": "TODO",
+    "fairs": "FERIAS",
+    "summary": "RESUMEN",
+    "workingDays": "Días trabajados",
+    "dailyAverage": "Media diaria",
+    "totalKm": "Km totales",
+    "staffCost": "Coste personal",
+    "noFairs": "Sin ferias registradas",
+    "pdfReport": "INFORME PDF COMPLETO",
+    "detailedWeather": "CLIMA DETALLADO",
+    "personal": "Pers.",
+    "yesterday": "Ayer",
+    "fairHistory": "HISTORIAL FERIAS",
+    "weatherLabel": "ESTADÍSTICA CLIMA",
+    "fuelCost": "Coste combustible"
   },
   "gas": {
     "title": "GESTIÓN COMBUSTIBLE",
@@ -167,7 +194,10 @@
     "expenseAmount": "Importe",
     "dailyTotal": "Total diario",
     "goodMorningAI": "BUENOS DÍAS IA",
-    "typeMessage": "Escribe un mensaje..."
+    "typeMessage": "Escribe un mensaje...",
+    "thinking": "Pensando...",
+    "askSomething": "Pregunta algo...",
+    "close": "CERRAR"
   },
   "days": {
     "monday": "Lunes",

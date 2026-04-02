@@ -69,6 +69,7 @@ interface AppState {
   pin: string;
   emailRecupero: string;
   themeColor: string;
+  partenzaDa: string;
   targetMensile: number;
   settore: string;
   speseFisseDisabilitate: string[];
@@ -122,6 +123,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pin: '',
   emailRecupero: '',
   themeColor: '#D2691E',
+  partenzaDa: '',
   targetMensile: 3000,
   settore: 'Alimentare',
   speseFisseDisabilitate: [],
@@ -251,6 +253,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         targetMensile: state.targetMensile,
         settore: state.settore,
         speseFisseDisabilitate: state.speseFisseDisabilitate,
+        partenzaDa: state.partenzaDa,
         collaboratori: state.collaboratori,
         fornitori: state.fornitori,
         agenda: state.agenda,
@@ -278,6 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       targetMensile: 3000,
       settore: 'Alimentare',
       speseFisseDisabilitate: [],
+      partenzaDa: '',
       collaboratori: [],
       fornitori: [],
       agenda: defaultAgenda,

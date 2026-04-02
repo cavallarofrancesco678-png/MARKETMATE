@@ -53,7 +53,9 @@
     "notifications": "Notifications",
     "noNotifications": "Aucun rendez-vous pour aujourd'hui.",
     "todayAppointments": "Rendez-vous du jour",
-    "wind": "VENT"
+    "wind": "VENT",
+    "profitDetail": "DÉTAIL BÉNÉFICE",
+    "deductions": "Déductions"
   },
   "settings": {
     "title": "PARAMÈTRES",
@@ -71,11 +73,11 @@
     "name": "Nom",
     "dailyCost": "Coût journalier",
     "suppliers": "FOURNISSEURS",
-    "addSupplier": "Ajouter un fournisseur",
+    "addSupplier": "Ajouter Fournisseur",
     "fixedExpenses": "CHARGES FIXES ANNUELLES",
     "addExpense": "Ajouter une charge",
     "expenseName": "Nom de la charge",
-    "amount": "Montant (€)",
+    "amount": "Montant €",
     "annualStandFee": "DROIT DE PLACE ANNUEL",
     "standFeeDesc": "Entrez le droit de place annuel. Il sera automatiquement divisé par les jours de marché.",
     "resetData": "RÉINITIALISER LES DONNÉES",
@@ -96,7 +98,16 @@
     "dailyImpact": "Impact Journalier",
     "annualTotal": "Total Annuel",
     "product": "Produit",
-    "addProduct": "Ajouter Produit"
+    "addProduct": "Ajouter Produit",
+    "newProduct": "Nouveau Produit",
+    "productName": "Nom du Produit",
+    "pricePerKg": "Prix au KG",
+    "noExpenses": "Aucune charge ajoutée",
+    "attention": "Attention",
+    "enterName": "Entrez au moins un nom",
+    "departure": "Départ de",
+    "annualExpense": "Charge Annuelle",
+    "expenseItem": "Poste"
   },
   "stats": {
     "title": "STATISTIQUES",
@@ -115,7 +126,23 @@
     "net": "Net",
     "average": "Moyenne",
     "best": "Meilleur",
-    "worst": "Pire"
+    "worst": "Pire",
+    "analysis": "ANALYSE DE GESTION",
+    "all": "TOUT",
+    "fairs": "FOIRES",
+    "summary": "RÉSUMÉ",
+    "workingDays": "Jours travaillés",
+    "dailyAverage": "Moyenne journalière",
+    "totalKm": "Km totaux",
+    "staffCost": "Coût collaborateurs",
+    "noFairs": "Aucune foire enregistrée",
+    "pdfReport": "RAPPORT PDF COMPLET",
+    "detailedWeather": "MÉTÉO DÉTAILLÉE",
+    "personal": "Pers.",
+    "yesterday": "Hier",
+    "fairHistory": "HISTORIQUE FOIRES",
+    "weatherLabel": "STATISTIQUE MÉTÉO",
+    "fuelCost": "Coût carburant"
   },
   "gas": {
     "title": "GESTION CARBURANT",
@@ -167,7 +194,10 @@
     "expenseAmount": "Montant",
     "dailyTotal": "Total journalier",
     "goodMorningAI": "BONJOUR IA",
-    "typeMessage": "Écrivez un message..."
+    "typeMessage": "Écrivez un message...",
+    "thinking": "Je réfléchis...",
+    "askSomething": "Posez une question...",
+    "close": "FERMER"
   },
   "days": {
     "monday": "Lundi",

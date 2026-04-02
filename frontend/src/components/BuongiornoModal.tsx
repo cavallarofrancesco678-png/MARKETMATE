@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { useTranslation } from 'react-i18next';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -31,6 +32,8 @@ interface StoreData {
   collaboratori: string[];
   fornitori: string[];
   speseAnnue: { voce: string; importo: number }[];
+  partenzaDa: string;
+  costoKm: number;
 }
 
 interface Props {
@@ -51,6 +54,7 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   const scrollRef = useRef<ScrollView>(null);
   const recognitionRef = useRef<any>(null);
   const sessionId = useRef(`session_${Date.now()}`);
+  const { t } = useTranslation();
 
   const contextStr = useMemo(() => {
     const s = storeData;
@@ -69,6 +73,8 @@ Titolare: ${s.nomeTitolare}
 Mercato oggi: ${s.mercatoOggi}
 Meteo oggi: ${s.meteoOggi}
 Km oggi: ${s.kmOggi}
+Partenza da: ${s.partenzaDa || 'Non specificata'}
+Costo/km: €${s.costoKm.toFixed(3)}
 Collaboratori: ${collabs}
 Fornitori: ${forns}
 Spese annuali: ${spese}
@@ -167,11 +173,11 @@ Carburante: ${carb}`;
           <View style={st.header}>
             <TouchableOpacity onPress={handleClose} style={st.closeBtn}>
               <Ionicons name="close" size={20} color="#FFF" />
-              <Text style={st.closeTxt}>CHIUDI</Text>
+              <Text style={st.closeTxt}>{t('modals.close')}</Text>
             </TouchableOpacity>
             <View style={st.headerCenter}>
               <MaterialCommunityIcons name="robot-happy" size={22} color="#D4AF37" />
-              <Text style={st.headerTitle}>BUONGIORNO AI</Text>
+              <Text style={st.headerTitle}>{t('modals.goodMorningAI')}</Text>
             </View>
             <View style={{ width: 80 }} />
           </View>
@@ -203,7 +209,7 @@ Carburante: ${carb}`;
                 </View>
                 <View style={st.aiBubble}>
                   <ActivityIndicator size="small" color="#1E7F85" />
-                  <Text style={st.thinkingTxt}>Sto pensando...</Text>
+                  <Text style={st.thinkingTxt}>{t('modals.thinking')}</Text>
                 </View>
               </View>
             )}
@@ -220,7 +226,7 @@ Carburante: ${carb}`;
             </TouchableOpacity>
             <TextInput
               style={st.textInput}
-              placeholder="Chiedi qualcosa..."
+              placeholder={t('modals.askSomething')}
               placeholderTextColor="#B0B0A0"
               value={input}
               onChangeText={setInput}

@@ -53,7 +53,9 @@
     "notifications": "Notificações",
     "noNotifications": "Nenhum compromisso para hoje.",
     "todayAppointments": "Compromissos de hoje",
-    "wind": "VENTO"
+    "wind": "VENTO",
+    "profitDetail": "DETALHE LUCRO",
+    "deductions": "Deduções"
   },
   "settings": {
     "title": "DEFINIÇÕES",
@@ -71,11 +73,11 @@
     "name": "Nome",
     "dailyCost": "Custo diário",
     "suppliers": "FORNECEDORES",
-    "addSupplier": "Adicionar fornecedor",
+    "addSupplier": "Adicionar Fornecedor",
     "fixedExpenses": "CUSTOS FIXOS ANUAIS",
     "addExpense": "Adicionar custo",
     "expenseName": "Nome do custo",
-    "amount": "Valor (€)",
+    "amount": "Montante €",
     "annualStandFee": "TAXA DE BANCA ANUAL",
     "standFeeDesc": "Introduza a taxa anual da banca. Será automaticamente dividida pelos dias de mercado.",
     "resetData": "APAGAR DADOS",
@@ -96,7 +98,16 @@
     "dailyImpact": "Impacto Diário",
     "annualTotal": "Total Anual",
     "product": "Produto",
-    "addProduct": "Adicionar Produto"
+    "addProduct": "Adicionar Produto",
+    "newProduct": "Novo Produto",
+    "productName": "Nome Produto",
+    "pricePerKg": "Preço por KG",
+    "noExpenses": "Sem custos adicionados",
+    "attention": "Atenção",
+    "enterName": "Introduza pelo menos um nome",
+    "departure": "Partida de",
+    "annualExpense": "Despesa Anual",
+    "expenseItem": "Rubrica"
   },
   "stats": {
     "title": "ESTATÍSTICAS",
@@ -115,7 +126,23 @@
     "net": "Líquido",
     "average": "Média",
     "best": "Melhor",
-    "worst": "Pior"
+    "worst": "Pior",
+    "analysis": "ANÁLISE DE GESTÃO",
+    "all": "TUDO",
+    "fairs": "FEIRAS",
+    "summary": "RESUMO",
+    "workingDays": "Dias trabalhados",
+    "dailyAverage": "Média diária",
+    "totalKm": "Km totais",
+    "staffCost": "Custo pessoal",
+    "noFairs": "Sem feiras registadas",
+    "pdfReport": "RELATÓRIO PDF COMPLETO",
+    "detailedWeather": "TEMPO DETALHADO",
+    "personal": "Pers.",
+    "yesterday": "Ontem",
+    "fairHistory": "HISTÓRICO FEIRAS",
+    "weatherLabel": "ESTATÍSTICA TEMPO",
+    "fuelCost": "Custo combustível"
   },
   "gas": {
     "title": "GESTÃO COMBUSTÍVEL",
@@ -167,7 +194,10 @@
     "expenseAmount": "Valor",
     "dailyTotal": "Total diário",
     "goodMorningAI": "BOM DIA IA",
-    "typeMessage": "Escreva uma mensagem..."
+    "typeMessage": "Escreva uma mensagem...",
+    "thinking": "A pensar...",
+    "askSomething": "Pergunte algo...",
+    "close": "FECHAR"
   },
   "days": {
     "monday": "Segunda-feira",

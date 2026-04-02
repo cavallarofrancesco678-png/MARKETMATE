@@ -42,10 +42,12 @@ const InputModal = ({
     }
   }, [visible]);
 
+  const { t: tModal } = useTranslation();
+
   const handleSave = () => {
     // Only first field (name) is required; numeric fields default to 0
     if (!values[0] || values[0].trim() === '') {
-      Alert.alert('Attenzione', 'Inserisci almeno il nome');
+      Alert.alert(tModal('settings.attention'), tModal('settings.enterName'));
       return;
     }
     const filled = hints.map((_, i) => values[i] || '');
@@ -64,9 +66,9 @@ const InputModal = ({
               placeholder={h}
               placeholderTextColor="#A0A090"
               value={values[i]}
-              onChangeText={(t) => {
+              onChangeText={(txt) => {
                 const nv = [...values];
-                nv[i] = t;
+                nv[i] = txt;
                 setValues(nv);
               }}
               keyboardType={
@@ -77,10 +79,10 @@ const InputModal = ({
           ))}
           <View style={ms.modalBtns}>
             <TouchableOpacity onPress={onClose} style={ms.modalCancel}>
-              <Text style={ms.modalCancelTxt}>ANNULLA</Text>
+              <Text style={ms.modalCancelTxt}>{tModal('common.cancel').toUpperCase()}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSave} style={ms.modalSave}>
-              <Text style={ms.modalSaveTxt}>SALVA</Text>
+              <Text style={ms.modalSaveTxt}>{tModal('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -123,12 +125,16 @@ export default function SettingsPage() {
     await changeLanguage(langCode);
   };
 
-  const dayNames = getDayNames();
-  // Map stored Italian day names to translated ones
-  const IT_DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+  // Map stored Italian day names to translated ones (stored as UPPERCASE with accents)
+  const IT_DAYS_UPPER = ['LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO', 'DOMENICA'];
+  const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const translateDay = (giorno: string) => {
-    const idx = IT_DAYS.indexOf(giorno);
-    return idx >= 0 ? dayNames[idx] : giorno;
+    const upper = giorno.toUpperCase();
+    const idx = IT_DAYS_UPPER.indexOf(upper);
+    if (idx >= 0) {
+      return t(`days.${DAY_KEYS[idx]}`).toUpperCase();
+    }
+    return giorno;
   };
 
   const totalePlatAnnui = store.agenda.reduce((s, m) => s + m.p_annuo, 0);
@@ -271,7 +277,7 @@ export default function SettingsPage() {
               >
                 {m.lavorativo && <Ionicons name="checkmark" size={14} color="#FFF" />}
               </TouchableOpacity>
-              <Text style={s.agendaDay}>{translateDay(m.giorno)}</Text>
+              <Text style={s.agendaDay}>{t(`days.${['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][idx]}`).toUpperCase()}</Text>
               <Text style={s.agendaMarket}>{m.mercato || '---'}</Text>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
             </TouchableOpacity>
@@ -354,7 +360,7 @@ export default function SettingsPage() {
                 <TouchableOpacity
                   style={s.addBtnSmall}
                   onPress={() =>
-                    openModal('Nuovo Prodotto', ['Nome Prodotto', 'Prezzo KG €'], (vals) => {
+                    openModal(t('settings.newProduct'), [t('settings.productName'), `${t('settings.pricePerKg')} €`], (vals) => {
                       const updF = [...store.fornitori];
                       updF[fi] = {
                         ...updF[fi],
@@ -366,7 +372,37 @@ export default function SettingsPage() {
                 >
                   <Ionicons name="add" size={16} color="#1E7F85" />
                   <Text style={s.addBtnSmallTxt}>{t('settings.addProduct')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );
+      })}
+      <TouchableOpacity
+        style={s.addBtn}
+        onPress={() =>
+          openModal(t('settings.addSupplier'), [t('settings.name')], (vals) =>
+            store.addFornitore({ nome: vals[0], prodotti: [] }))
+        }
+      >
+        <Ionicons name="cube-outline" size={18} color="#1E7F85" />
+        <Text style={s.addBtnTxt}>{t('settings.addSupplier')}</Text>
       </TouchableOpacity>
+
+      {/* ─── PARTENZA DA ─── */}
+      <View style={s.card}>
+        <TouchableOpacity
+          style={s.itemRow}
+          onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => store.setConfig({ partenzaDa: v[0] }))}
+        >
+          <Ionicons name="navigate" size={20} color="#1E7F85" />
+          <View style={s.itemInfo}>
+            <Text style={s.itemLabel}>{t('settings.departure')}</Text>
+            <Text style={s.itemVal}>{store.partenzaDa || '---'}</Text>
+          </View>
+          <Ionicons name="create-outline" size={18} color="#7A9090" />
+        </TouchableOpacity>
+      </View>
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
       <View style={s.card}>
@@ -380,7 +416,7 @@ export default function SettingsPage() {
           <View style={s.agendaBody}>
             <View style={s.divider} />
             {store.speseAnnue.length === 0 && totalePlatAnnui === 0 && (
-              <Text style={s.emptyTxt}>Nessun costo inserito</Text>
+              <Text style={s.emptyTxt}>{t('settings.noExpenses')}</Text>
             )}
             {store.speseAnnue.map((sp, i) => (
               <View key={i} style={s.spesaRow}>
@@ -400,7 +436,7 @@ export default function SettingsPage() {
             ))}
             <TouchableOpacity
               style={[s.addBtnSmall, { marginTop: 10 }]}
-              onPress={() => openModal('Spesa Annuale', ['Voce', 'Importo €'], (vals) =>
+              onPress={() => openModal(t('settings.annualExpense'), [t('settings.expenseItem'), `${t('settings.amount')}`], (vals) =>
                 store.addSpesaAnnua({ voce: vals[0], importo: parseFloat((vals[1] || '0').replace(',', '.')) || 0 }),
                 ['default', 'numeric']
               )}

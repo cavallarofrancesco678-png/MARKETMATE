@@ -9,6 +9,7 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 interface SpesaItem {
   nome: string;
@@ -34,6 +35,7 @@ interface Props {
   toggleExcludeInvenduto: () => void;
   utile: number;
   lordo: number;
+  costoCarburante?: number;
 }
 
 export const UtileModal: React.FC<Props> = ({
@@ -41,11 +43,14 @@ export const UtileModal: React.FC<Props> = ({
   toggleSpesaFissa, collabCosts, toggleCollab, speseExtra,
   excludeSpeseExtra, toggleExcludeSpeseExtra, invenduto,
   excludeInvenduto, toggleExcludeInvenduto, utile, lordo,
+  costoCarburante = 0,
 }) => {
+  const { t } = useTranslation();
   const totDeduzioni = speseFisse +
     collabCosts.filter((c) => c.attivo).reduce((s, c) => s + c.costo, 0) +
     (excludeSpeseExtra ? 0 : speseExtra) +
-    (excludeInvenduto ? 0 : invenduto);
+    (excludeInvenduto ? 0 : invenduto) +
+    costoCarburante;
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -53,7 +58,7 @@ export const UtileModal: React.FC<Props> = ({
         <View style={st.container}>
           <View style={st.handle} />
           <View style={st.headerRow}>
-            <Text style={st.title}>DETTAGLIO UTILE</Text>
+            <Text style={st.title}>{t('home.profitDetail')}</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close-circle" size={28} color="#5A7575" />
             </TouchableOpacity>
@@ -62,12 +67,12 @@ export const UtileModal: React.FC<Props> = ({
           {/* Summary */}
           <View style={st.summaryRow}>
             <View style={st.summaryItem}>
-              <Text style={st.summaryLabel}>LORDO</Text>
+              <Text style={st.summaryLabel}>{t('home.gross').toUpperCase()}</Text>
               <Text style={st.summaryGreen}>{'\u20AC'}{lordo.toFixed(2)}</Text>
             </View>
             <Text style={st.summaryMinus}>-</Text>
             <View style={st.summaryItem}>
-              <Text style={st.summaryLabel}>DEDUZIONI</Text>
+              <Text style={st.summaryLabel}>{t('home.deductions').toUpperCase()}</Text>
               <Text style={st.summaryRed}>{'\u20AC'}{totDeduzioni.toFixed(2)}</Text>
             </View>
             <Text style={st.summaryEquals}>=</Text>
@@ -149,6 +154,20 @@ export const UtileModal: React.FC<Props> = ({
                 thumbColor={!excludeInvenduto ? '#1E7F85' : '#999'}
               />
             </View>
+
+            {/* Carburante */}
+            {costoCarburante > 0 && (
+              <>
+                <Text style={st.sectionTitle}>{t('stats.fuelCost').toUpperCase()}</Text>
+                <View style={st.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.rowLabel}>{t('stats.fuelCost')}</Text>
+                    <Text style={st.rowVal}>{'\u20AC'}{costoCarburante.toFixed(2)}</Text>
+                  </View>
+                  <Ionicons name="car-outline" size={20} color="#E8A060" />
+                </View>
+              </>
+            )}
 
             <View style={{ height: 30 }} />
           </ScrollView>

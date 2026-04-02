@@ -53,7 +53,9 @@
     "notifications": "Notifications",
     "noNotifications": "No appointments for today.",
     "todayAppointments": "Today's appointments",
-    "wind": "WIND"
+    "wind": "WIND",
+    "profitDetail": "PROFIT DETAIL",
+    "deductions": "Deductions"
   },
   "settings": {
     "title": "SETTINGS",
@@ -71,11 +73,11 @@
     "name": "Name",
     "dailyCost": "Daily cost",
     "suppliers": "SUPPLIERS",
-    "addSupplier": "Add supplier",
+    "addSupplier": "Add Supplier",
     "fixedExpenses": "ANNUAL FIXED EXPENSES",
     "addExpense": "Add expense",
     "expenseName": "Expense name",
-    "amount": "Amount (€)",
+    "amount": "Amount €",
     "annualStandFee": "ANNUAL STAND FEE",
     "standFeeDesc": "Enter annual stand fee. It will be automatically divided by market days.",
     "resetData": "RESET DATA",
@@ -96,7 +98,16 @@
     "dailyImpact": "Daily Impact",
     "annualTotal": "Annual Total",
     "product": "Product",
-    "addProduct": "Add Product"
+    "addProduct": "Add Product",
+    "newProduct": "New Product",
+    "productName": "Product Name",
+    "pricePerKg": "Price per KG",
+    "noExpenses": "No expenses added",
+    "attention": "Attention",
+    "enterName": "Enter at least a name",
+    "departure": "Departure from",
+    "annualExpense": "Annual Expense",
+    "expenseItem": "Item"
   },
   "stats": {
     "title": "STATISTICS",
@@ -115,7 +126,23 @@
     "net": "Net",
     "average": "Average",
     "best": "Best",
-    "worst": "Worst"
+    "worst": "Worst",
+    "analysis": "MANAGEMENT ANALYSIS",
+    "all": "ALL",
+    "fairs": "FAIRS",
+    "summary": "SUMMARY",
+    "workingDays": "Working days",
+    "dailyAverage": "Daily average",
+    "totalKm": "Total km",
+    "staffCost": "Staff cost",
+    "noFairs": "No fairs recorded",
+    "pdfReport": "FULL PDF REPORT",
+    "detailedWeather": "DETAILED WEATHER",
+    "personal": "Custom",
+    "yesterday": "Yesterday",
+    "fairHistory": "FAIR HISTORY",
+    "weatherLabel": "WEATHER STATISTICS",
+    "fuelCost": "Fuel cost"
   },
   "gas": {
     "title": "FUEL MANAGEMENT",
@@ -167,7 +194,10 @@
     "expenseAmount": "Amount",
     "dailyTotal": "Daily total",
     "goodMorningAI": "GOOD MORNING AI",
-    "typeMessage": "Type a message..."
+    "typeMessage": "Type a message...",
+    "thinking": "Thinking...",
+    "askSomething": "Ask something...",
+    "close": "CLOSE"
   },
   "days": {
     "monday": "Monday",

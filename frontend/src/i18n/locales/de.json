@@ -53,7 +53,9 @@
     "notifications": "Benachrichtigungen",
     "noNotifications": "Keine Termine für heute.",
     "todayAppointments": "Heutige Termine",
-    "wind": "WIND"
+    "wind": "WIND",
+    "profitDetail": "GEWINNDETAILS",
+    "deductions": "Abzüge"
   },
   "settings": {
     "title": "EINSTELLUNGEN",
@@ -75,7 +77,7 @@
     "fixedExpenses": "JÄHRLICHE FIXKOSTEN",
     "addExpense": "Kosten hinzufügen",
     "expenseName": "Kostenbezeichnung",
-    "amount": "Betrag (€)",
+    "amount": "Betrag €",
     "annualStandFee": "JÄHRLICHE STANDGEBÜHR",
     "standFeeDesc": "Geben Sie die jährliche Standgebühr ein. Sie wird automatisch auf die Markttage aufgeteilt.",
     "resetData": "DATEN ZURÜCKSETZEN",
@@ -96,7 +98,16 @@
     "dailyImpact": "Tagesanteil",
     "annualTotal": "Jahresgesamt",
     "product": "Produkt",
-    "addProduct": "Produkt hinzufügen"
+    "addProduct": "Produkt hinzufügen",
+    "newProduct": "Neues Produkt",
+    "productName": "Produktname",
+    "pricePerKg": "Preis pro KG",
+    "noExpenses": "Keine Kosten eingetragen",
+    "attention": "Achtung",
+    "enterName": "Geben Sie mindestens einen Namen ein",
+    "departure": "Abfahrt von",
+    "annualExpense": "Jährliche Kosten",
+    "expenseItem": "Position"
   },
   "stats": {
     "title": "STATISTIKEN",
@@ -115,7 +126,23 @@
     "net": "Netto",
     "average": "Durchschnitt",
     "best": "Beste",
-    "worst": "Schlechteste"
+    "worst": "Schlechteste",
+    "analysis": "GESCHÄFTSANALYSE",
+    "all": "ALLES",
+    "fairs": "MESSEN",
+    "summary": "ZUSAMMENFASSUNG",
+    "workingDays": "Arbeitstage",
+    "dailyAverage": "Tagesdurchschnitt",
+    "totalKm": "Gesamt km",
+    "staffCost": "Mitarbeiterkosten",
+    "noFairs": "Keine Messen registriert",
+    "pdfReport": "VOLLSTÄNDIGER PDF-BERICHT",
+    "detailedWeather": "DETAILLIERTES WETTER",
+    "personal": "Pers.",
+    "yesterday": "Gestern",
+    "fairHistory": "MESSEHISTORIE",
+    "weatherLabel": "WETTERSTATISTIK",
+    "fuelCost": "Kraftstoffkosten"
   },
   "gas": {
     "title": "KRAFTSTOFFVERWALTUNG",
@@ -167,7 +194,10 @@
     "expenseAmount": "Betrag",
     "dailyTotal": "Tagesgesamt",
     "goodMorningAI": "GUTEN MORGEN KI",
-    "typeMessage": "Nachricht schreiben..."
+    "typeMessage": "Nachricht schreiben...",
+    "thinking": "Ich denke nach...",
+    "askSomething": "Fragen Sie etwas...",
+    "close": "SCHLIESSEN"
   },
   "days": {
     "monday": "Montag",

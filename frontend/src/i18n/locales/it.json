@@ -53,7 +53,9 @@
     "notifications": "Notifiche",
     "noNotifications": "Nessun appuntamento per oggi.",
     "todayAppointments": "Appuntamenti di oggi",
-    "wind": "VENTO"
+    "wind": "VENTO",
+    "profitDetail": "DETTAGLIO UTILE",
+    "deductions": "Deduzioni"
   },
   "settings": {
     "title": "IMPOSTAZIONI",
@@ -71,11 +73,11 @@
     "name": "Nome",
     "dailyCost": "Costo giornaliero",
     "suppliers": "FORNITORI",
-    "addSupplier": "Aggiungi fornitore",
+    "addSupplier": "Aggiungi Fornitore",
     "fixedExpenses": "SPESE FISSE ANNUE",
     "addExpense": "Aggiungi spesa",
     "expenseName": "Nome spesa",
-    "amount": "Importo (€)",
+    "amount": "Importo €",
     "annualStandFee": "PLATEATICO ANNUALE",
     "standFeeDesc": "Inserisci il plateatico annuale. Verrà diviso automaticamente per i giorni di mercato.",
     "resetData": "RESET DATI",
@@ -96,7 +98,16 @@
     "dailyImpact": "Incidenza GG",
     "annualTotal": "Totale Annuo",
     "product": "Prodotto",
-    "addProduct": "Aggiungi Prodotto"
+    "addProduct": "Aggiungi Prodotto",
+    "newProduct": "Nuovo Prodotto",
+    "productName": "Nome Prodotto",
+    "pricePerKg": "Prezzo KG",
+    "noExpenses": "Nessun costo inserito",
+    "attention": "Attenzione",
+    "enterName": "Inserisci almeno il nome",
+    "departure": "Partenza da",
+    "annualExpense": "Spesa Annuale",
+    "expenseItem": "Voce"
   },
   "stats": {
     "title": "STATISTICHE",
@@ -115,7 +126,23 @@
     "net": "Netto",
     "average": "Media",
     "best": "Migliore",
-    "worst": "Peggiore"
+    "worst": "Peggiore",
+    "analysis": "ANALISI GESTIONALE",
+    "all": "TUTTO",
+    "fairs": "FIERE",
+    "summary": "RIEPILOGO",
+    "workingDays": "Giorni lavorati",
+    "dailyAverage": "Media giornaliera",
+    "totalKm": "Km totali",
+    "staffCost": "Costo collaboratori",
+    "noFairs": "Nessuna fiera registrata",
+    "pdfReport": "REPORT PDF COMPLETO",
+    "detailedWeather": "METEO DETTAGLIATO",
+    "personal": "Pers.",
+    "yesterday": "Ieri",
+    "fairHistory": "STORICO FIERE",
+    "weatherLabel": "STATISTICA METEO",
+    "fuelCost": "Costo carburante"
   },
   "gas": {
     "title": "GESTIONE CARBURANTE",
@@ -167,7 +194,10 @@
     "expenseAmount": "Importo",
     "dailyTotal": "Totale giornaliero",
     "goodMorningAI": "BUONGIORNO AI",
-    "typeMessage": "Scrivi un messaggio..."
+    "typeMessage": "Scrivi un messaggio...",
+    "thinking": "Sto pensando...",
+    "askSomething": "Chiedi qualcosa...",
+    "close": "CHIUDI"
   },
   "days": {
     "monday": "Lunedì",
