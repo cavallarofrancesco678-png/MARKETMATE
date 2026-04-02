@@ -237,33 +237,27 @@ export default function StatsScreen() {
   }, [filteredData, filtroTempo]);
 
   const collabLines = useMemo(() => {
-    const names = new Set<string>();
-    filteredData.forEach((g) => {
-      if (g.dettaglio_staff) Object.keys(g.dettaglio_staff).forEach((k) => names.add(k));
-    });
-    return Array.from(names).map((name, i) => ({
-      label: name,
+    // Use only collaborator names from Settings
+    return collaboratori.map((c, i) => ({
+      label: c.nome,
       color: PALETTE[(i + 3) % PALETTE.length],
       data: groupData(filteredData, (g) => {
-        const val = g.dettaglio_staff?.[name];
+        const val = g.dettaglio_staff?.[c.nome];
         if (typeof val === 'number') return val;
-        if (typeof val === 'boolean') return val ? (collaboratori.find((c) => c.nome === name)?.costo || 0) : 0;
+        if (typeof val === 'boolean') return val ? (c.costo || 0) : 0;
         return 0;
       }),
     }));
   }, [filteredData, filtroTempo, collaboratori]);
 
   const fornitoriLines = useMemo(() => {
-    const names = new Set<string>();
-    filteredData.forEach((g) => {
-      if (g.dettaglio_fornitori) Object.keys(g.dettaglio_fornitori).forEach((k) => names.add(k));
-    });
-    return Array.from(names).map((name, i) => ({
-      label: name,
+    // Use only fornitore names from Settings
+    return fornitori.map((f, i) => ({
+      label: f.nome,
       color: PALETTE[(i + 1) % PALETTE.length],
-      data: groupData(filteredData, (g) => (g.dettaglio_fornitori?.[name] || 0)),
+      data: groupData(filteredData, (g) => (g.dettaglio_fornitori?.[f.nome] || 0)),
     }));
-  }, [filteredData, filtroTempo]);
+  }, [filteredData, filtroTempo, fornitori]);
 
   const speseFisseItems = useMemo(() => {
     const fattore = filtroTempo === 'Oggi' || filtroTempo === 'Ieri' ? 1 / 365

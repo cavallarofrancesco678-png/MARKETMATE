@@ -245,6 +245,17 @@ export default function HomeScreen() {
   };
 
   const handleSalva = () => {
+    // Build dettaglio_fornitori from speseExtraFornitore
+    const dettaglioForn: Record<string, number> = {};
+    Object.entries(speseExtraFornitore).forEach(([nome, v]) => {
+      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+      if (imp > 0) {
+        if (v.periodo === 'settimanale') dettaglioForn[nome] = imp / 6;
+        else if (v.periodo === 'mensile') dettaglioForn[nome] = imp / 26;
+        else dettaglioForn[nome] = imp;
+      }
+    });
+
     salvaGiornata({
       data: dataCorrente, mercato: mercatoNome, meteo,
       km: mercatoOggi?.km || 0, lordo: lordoNum, netto: utile,
@@ -253,7 +264,7 @@ export default function HomeScreen() {
       spese_extra: speseExtraTotNum,
       dettaglio_staff: presenze,
       dettaglio_invenduto: { totale: invendutoNum },
-      dettaglio_fornitori: {},
+      dettaglio_fornitori: dettaglioForn,
     } as any);
     Alert.alert('Salvato!', 'Giornata salvata con successo.');
   };
