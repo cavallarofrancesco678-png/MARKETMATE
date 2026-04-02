@@ -20,16 +20,17 @@ import { FieraModal } from '../../src/components/FieraModal';
 import { UtileModal } from '../../src/components/UtileModal';
 import { SpeseExtraModal } from '../../src/components/SpeseExtraModal';
 import { BuongiornoModal } from '../../src/components/BuongiornoModal';
+import { useTranslation } from 'react-i18next';
+import { getDayNames, getMonthNames } from '../../src/i18n';
 
-const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+// Day/Month names now come from i18n via getDayNames/getMonthNames
 
-const WEATHER_ICONS: Array<{ icon: string; label: string }> = [
-  { icon: 'weather-sunny', label: 'SOLE' },
-  { icon: 'weather-partly-cloudy', label: 'VAR' },
-  { icon: 'weather-rainy', label: 'PIOGGIA' },
-  { icon: 'weather-lightning', label: 'TEMP' },
-  { icon: 'weather-windy', label: 'VENTO' },
+const WEATHER_ICONS: Array<{ icon: string; labelKey: string }> = [
+  { icon: 'weather-sunny', labelKey: 'home.sun' },
+  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud' },
+  { icon: 'weather-rainy', labelKey: 'home.rain' },
+  { icon: 'weather-lightning', labelKey: 'home.snow' },
+  { icon: 'weather-windy', labelKey: 'home.cloud' },
 ];
 
 /* ─── Mini charts ─── */
@@ -53,6 +54,9 @@ const MiniBar = () => (
 export default function HomeScreen() {
   const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto } = useAppStore();
   const store = useAppStore();
+  const { t } = useTranslation();
+  const dayNames = getDayNames();
+  const monthNames = getMonthNames();
   const { height: screenH } = useWindowDimensions();
   const [dataCorrente, setDataCorrente] = useState(new Date());
   const [isFiera, setIsFiera] = useState(false);
@@ -84,8 +88,8 @@ export default function HomeScreen() {
 
   const mercatoOggi = agenda[getGiornoIndex(dataCorrente)];
   const mercatoNome = isFiera ? 'Fiera' : mercatoOggi?.mercato || 'Magenta';
-  const giorno = GIORNI[dataCorrente.getDay()];
-  const data = `${dataCorrente.getDate()} ${MESI[dataCorrente.getMonth()]}`;
+  const giorno = dayNames[(dataCorrente.getDay() + 6) % 7]; // dayNames is Mon-Sun, getDay() is Sun=0
+  const data = `${dataCorrente.getDate()} ${monthNames[dataCorrente.getMonth()]}`;
 
   useEffect(() => {
     const p: Record<string, boolean> = {};
@@ -266,7 +270,7 @@ export default function HomeScreen() {
       dettaglio_invenduto: { totale: invendutoNum },
       dettaglio_fornitori: dettaglioForn,
     } as any);
-    Alert.alert('Salvato!', 'Giornata salvata con successo.');
+    Alert.alert(t('common.saved'), t('home.daySaved'));
   };
 
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
@@ -360,9 +364,10 @@ export default function HomeScreen() {
       <View style={[s.section, { height: WEATHER_H, justifyContent: 'center' }]}>
         <View style={s.meteoRow}>
           {WEATHER_ICONS.map((w, i) => {
-            const sel = meteo === w.label;
+            const wLabel = t(w.labelKey);
+            const sel = meteo === wLabel;
             return (
-              <TouchableOpacity key={i} onPress={() => setMeteo(w.label)} activeOpacity={0.7}>
+              <TouchableOpacity key={i} onPress={() => setMeteo(wLabel)} activeOpacity={0.7}>
                 <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2 }, sel && s.meteoOn]}>
                   <MaterialCommunityIcons name={w.icon as any} size={WEATHER_ICON} color={sel ? '#FFF' : w.color} />
                 </View>
@@ -376,7 +381,7 @@ export default function HomeScreen() {
 
       {/* ═══ COLLABORATORI (subito sotto meteo, stesso GAP) ═══ */}
       <View style={[s.section, { height: COLLAB_H, justifyContent: 'center' }]}>
-        <Text style={s.secLabel}>COLLABORATORI</Text>
+        <Text style={s.secLabel}>{t('home.collaborators')}</Text>
         <View style={s.collabRow}>
           {collabNames.map((n, i) => {
             const on = presenze[n];
@@ -396,11 +401,11 @@ export default function HomeScreen() {
       {/* ═══ ROW 1: LORDO / UTILE (+20% altezza) ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <View style={[s.card, { height: lordoRowH }]}>
-          <Text style={s.cardBold}>LORDO</Text>
+          <Text style={s.cardBold}>{t('home.gross')}</Text>
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={setLordo} selectTextOnFocus />
         </View>
         <TouchableOpacity style={[s.card, { height: lordoRowH }]} activeOpacity={0.7} onPress={() => setShowUtileModal(true)}>
-          <Text style={s.cardBold}>UTILE</Text>
+          <Text style={s.cardBold}>{t('home.profit')}</Text>
           <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>{'\u20AC'}{utile.toFixed(2)}</Text>
         </TouchableOpacity>
       </View>
@@ -410,7 +415,7 @@ export default function HomeScreen() {
       {/* ═══ ROW 2: CONTANTI / POS ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <View style={[s.card, { height: normalRowH }]}>
-          <Text style={s.cardLbl}>CONTANTI</Text>
+          <Text style={s.cardLbl}>{t('home.cash')}</Text>
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={contanti} onChangeText={handleContanti} selectTextOnFocus />
         </View>
         <View style={[s.card, { height: normalRowH }]}>
@@ -424,11 +429,11 @@ export default function HomeScreen() {
       {/* ═══ ROW 3: SPESE EXTRA (cliccabile → fornitori) / SPESE FISSE ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseExtraModal(true)}>
-          <Text style={s.cardLbl}>SPESE EXTRA</Text>
+          <Text style={s.cardLbl}>{t('home.extraExpenses')}</Text>
           <Text style={s.cardVal}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(2)}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseFisseModal(true)}>
-          <Text style={s.cardLbl}>SPESE FISSE</Text>
+          <Text style={s.cardLbl}>{t('home.fixedExpenses')}</Text>
           <Text style={s.cardVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
         </TouchableOpacity>
       </View>
@@ -438,7 +443,7 @@ export default function HomeScreen() {
       {/* ═══ ROW 4: INVENDUTO / BUONGIORNO ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowInvendutoModal(true)}>
-          <Text style={s.cardLbl}>INVENDUTO</Text>
+          <Text style={s.cardLbl}>{t('home.unsold')}</Text>
           <Text style={s.cardVal}>{invendutoNum > 0 ? `€${invendutoNum}` : '0'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
@@ -479,7 +484,7 @@ export default function HomeScreen() {
       {/* ═══ SALVA GIORNATA ═══ */}
       <TouchableOpacity onPress={handleSalva} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
         <Ionicons name="save-outline" size={16} color="#FFF" />
-        <Text style={s.salvaTxt}>SALVA GIORNATA</Text>
+        <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
@@ -490,7 +495,7 @@ export default function HomeScreen() {
             <Text style={s.modalSub}>{giorno} {data}</Text>
             <ScrollView style={{ maxHeight: 300 }}>
               {appuntiOggi.length === 0 ? (
-                <Text style={s.modalEmpty}>Nessun appunto per oggi</Text>
+                <Text style={s.modalEmpty}>{t('home.noNotifications')}</Text>
               ) : (
                 appuntiOggi.map((a, i) => (
                   <View key={i} style={s.modalRow}>

@@ -168,11 +168,11 @@ export default function SettingsPage() {
       <View style={s.card}>
         <TouchableOpacity
           style={s.itemRow}
-          onPress={() => openModal('Modifica Azienda', ['Nome Azienda'], (v) => store.setConfig({ nomeAttivita: v[0] }))}
+          onPress={() => openModal(t('settings.businessName'), [t('settings.businessName')], (v) => store.setConfig({ nomeAttivita: v[0] }))}
         >
           <Ionicons name="storefront" size={20} color="#1E7F85" />
           <View style={s.itemInfo}>
-            <Text style={s.itemLabel}>Azienda</Text>
+            <Text style={s.itemLabel}>{t('settings.businessName')}</Text>
             <Text style={s.itemVal}>{store.nomeAttivita}</Text>
           </View>
           <Ionicons name="create-outline" size={18} color="#7A9090" />
@@ -180,11 +180,11 @@ export default function SettingsPage() {
         <View style={s.divider} />
         <TouchableOpacity
           style={s.itemRow}
-          onPress={() => openModal('Modifica Titolare', ['Nome Titolare'], (v) => store.setConfig({ nomeTitolare: v[0] }))}
+          onPress={() => openModal(t('settings.ownerName'), [t('settings.ownerName')], (v) => store.setConfig({ nomeTitolare: v[0] }))}
         >
           <Ionicons name="person" size={20} color="#1E7F85" />
           <View style={s.itemInfo}>
-            <Text style={s.itemLabel}>Titolare</Text>
+            <Text style={s.itemLabel}>{t('settings.ownerName')}</Text>
             <Text style={s.itemVal}>{store.nomeTitolare || '---'}</Text>
           </View>
           <Ionicons name="create-outline" size={18} color="#7A9090" />
@@ -212,12 +212,12 @@ export default function SettingsPage() {
             <View style={s.itemInfo}>
               <Text style={s.itemVal}>{c.nome}</Text>
               <Text style={[s.itemLabel, { color: '#1E7F85' }]}>
-                GG: €{c.costo} · Anno: €{c.costoAnnuo || 0}
+                GG: €{c.costo} · {t('common.annual')}: €{c.costoAnnuo || 0}
               </Text>
             </View>
             <TouchableOpacity
               onPress={() =>
-                openModal('Modifica Staff', ['Nome', 'Costo GG €', 'Costo Annuo €'], (vals) => {
+                openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
                   const updated = [...store.collaboratori];
                   updated[i] = {
                     nome: vals[0],
@@ -239,7 +239,7 @@ export default function SettingsPage() {
       <TouchableOpacity
         style={s.addBtn}
         onPress={() =>
-          openModal('Nuovo Collaboratore', ['Nome', 'Costo GG €', 'Costo Annuo €'], (vals) =>
+          openModal(t('settings.addCollaborator'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) =>
             store.addCollaboratore({
               nome: vals[0],
               costo: parseFloat(vals[1].replace(',', '.')) || 0,
@@ -248,7 +248,7 @@ export default function SettingsPage() {
         }
       >
         <Ionicons name="person-add" size={18} color="#1E7F85" />
-        <Text style={s.addBtnTxt}>Nuovo Collaboratore</Text>
+        <Text style={s.addBtnTxt}>{t('settings.addCollaborator')}</Text>
       </TouchableOpacity>
 
       {/* ─── AGENDA MERCATI ─── */}
@@ -270,8 +270,8 @@ export default function SettingsPage() {
             {isOpen && (
               <View style={s.agendaBody}>
                 <View style={s.divider} />
-                <TouchableOpacity style={s.agendaItem} onPress={() => openModal('Mercato', ['Nome Mercato'], (v) => updateMercato(idx, 'mercato', v[0]))}>
-                  <Text style={s.itemLabel}>Mercato</Text>
+                <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.marketName'), [t('settings.marketName')], (v) => updateMercato(idx, 'mercato', v[0]))}>
+                  <Text style={s.itemLabel}>{t('settings.marketName')}</Text>
                   <Text style={s.agendaVal}>{m.mercato || '---'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.agendaItem} onPress={() => openModal('KM A/R', ['Chilometri'], (v) => updateMercato(idx, 'km', parseFloat(v[0].replace(',', '.')) || 0))}>
@@ -357,7 +357,7 @@ export default function SettingsPage() {
                   }
                 >
                   <Ionicons name="add" size={16} color="#1E7F85" />
-                  <Text style={s.addBtnSmallTxt}>Nuovo Prodotto</Text>
+                  <Text style={s.addBtnSmallTxt}>{t('settings.addExpense')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -366,17 +366,17 @@ export default function SettingsPage() {
       })}
       <TouchableOpacity
         style={s.addBtn}
-        onPress={() => openModal('Nome Fornitore', ['Nome'], (v) => store.addFornitore({ nome: v[0], prodotti: [] }))}
+        onPress={() => openModal(t('settings.suppliers'), [t('settings.name')], (v) => store.addFornitore({ nome: v[0], prodotti: [] }))}
       >
         <Ionicons name="cube" size={18} color="#1E7F85" />
-        <Text style={s.addBtnTxt}>Nuovo Fornitore</Text>
+        <Text style={s.addBtnTxt}>{t('settings.addSupplier')}</Text>
       </TouchableOpacity>
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
       <View style={s.card}>
         <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedSpese(!expandedSpese)}>
           <Ionicons name="card" size={20} color="#1E7F85" />
-          <Text style={[s.agendaDay, { flex: 1 }]}>SPESE ANNUALI</Text>
+          <Text style={[s.agendaDay, { flex: 1 }]}>{t('settings.fixedExpenses')}</Text>
           <Text style={[s.itemLabel, { color: '#D46A6A', fontWeight: '800' }]}>€{totaleSpeseAnnue}</Text>
           <Ionicons name={expandedSpese ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
@@ -410,16 +410,16 @@ export default function SettingsPage() {
               )}
             >
               <Ionicons name="add" size={16} color="#1E7F85" />
-              <Text style={s.addBtnSmallTxt}>Aggiungi Spesa</Text>
+              <Text style={s.addBtnSmallTxt}>{t('settings.addExpense')}</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
 
       {/* ─── SALVA TUTTO ─── */}
-      <TouchableOpacity style={s.saveAll} onPress={() => Alert.alert('Salvato!', 'Tutte le impostazioni sono state salvate.')}>
+      <TouchableOpacity style={s.saveAll} onPress={() => Alert.alert(t('common.saved'), t('settings.settingsSaved'))}>
         <Ionicons name="save" size={18} color="#FFF" />
-        <Text style={s.saveAllTxt}>SALVA TUTTO</Text>
+        <Text style={s.saveAllTxt}>{t('settings.saveSettings')}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
