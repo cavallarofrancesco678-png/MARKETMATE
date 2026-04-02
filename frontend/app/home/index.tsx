@@ -312,7 +312,7 @@ export default function HomeScreen() {
         <Text style={s.marketName}>{mercatoNome.toUpperCase()}</Text>
         <View style={s.badgeLeft}>
           <View style={s.badge}>
-            <Text style={s.badgeTxt}>{(nomeAttivita || 'LA MIA AZIENDA').toUpperCase()}</Text>
+            <Text style={s.badgeTxt}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
           </View>
         </View>
         <View style={s.bellRight}>
@@ -342,7 +342,7 @@ export default function HomeScreen() {
         <View style={s.toggleRow}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsFiera(false)}>
             <View style={[s.toggle, !isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>Mercato</Text>
+              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>{t('home.market')}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
@@ -352,7 +352,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
             <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#D55' }]}>
-              <Text style={s.piazzaTxt}>{isInPiazza ? 'IN PIAZZA' : 'ASSENTE'}</Text>
+              <Text style={s.piazzaTxt}>{isInPiazza ? t('home.market') : '---'}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -448,7 +448,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
           <Ionicons name="globe-outline" size={16} color="#FFF" />
-          <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>BUONGIORNO</Text>
+          <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>{t('home.goodMorning').toUpperCase()}</Text>
         </TouchableOpacity>
       </View>
 
@@ -459,15 +459,15 @@ export default function HomeScreen() {
         <TouchableOpacity activeOpacity={0.85} style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4) }]}>
           <View style={s.storicoL}><MiniLine /></View>
           <View style={s.storicoC}>
-            <Text style={s.storicoT}>STORICO MERCATO</Text>
+            <Text style={s.storicoT}>{t('stats.income').toUpperCase()}</Text>
             <Text style={s.storicoDay}>del {giorno} · {storicoMercato.giorni} gg</Text>
             <Text style={s.storicoVal}>{'\u20AC'}{storicoMercato.totale.toFixed(0)} {storicoMercato.pct !== 0 && <Text style={{ color: storicoMercato.pct >= 0 ? '#2AA090' : '#D44', fontSize: 10 }}>({storicoMercato.pct > 0 ? '+' : ''}{storicoMercato.pct}%)</Text>}</Text>
-            <Text style={s.storicoSub}>Media: {'\u20AC'}{storicoMercato.media.toFixed(0)}/gg</Text>
+            <Text style={s.storicoSub}>{t('stats.average')}: {'\u20AC'}{storicoMercato.media.toFixed(0)}/gg</Text>
           </View>
           <View style={s.storicoR}><MiniBar /></View>
         </TouchableOpacity>
         <View style={s.filterRow}>
-          {([['mese', 'MESE'], ['anno', 'ANNO', '(12 Mesi)'], ['confronto', 'CONFRONTO', 'Anno Prec.']] as const).map(([k, l, sub]) => {
+          {([['mese', t('stats.month')], ['anno', t('stats.year'), '(12)'], ['confronto', t('stats.average'), '']] as [string, string, string?][]).map(([k, l, sub]) => {
             const on = chartMode === k;
             return (
               <TouchableOpacity key={k} style={[s.filterBtn, on && s.filterOn]} onPress={() => setChartMode(k as any)}>
@@ -491,7 +491,7 @@ export default function HomeScreen() {
       <Modal visible={showBellModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>APPUNTI DI OGGI</Text>
+            <Text style={s.modalTitle}>{t('home.todayAppointments')}</Text>
             <Text style={s.modalSub}>{giorno} {data}</Text>
             <ScrollView style={{ maxHeight: 300 }}>
               {appuntiOggi.length === 0 ? (
@@ -509,7 +509,7 @@ export default function HomeScreen() {
               )}
             </ScrollView>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowBellModal(false)}>
-              <Text style={s.modalCloseTxt}>CHIUDI</Text>
+              <Text style={s.modalCloseTxt}>{t('common.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -519,7 +519,7 @@ export default function HomeScreen() {
       <Modal visible={showInvendutoModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>CALCOLO INVENDUTO</Text>
+            <Text style={s.modalTitle}>{t('home.unsold')}</Text>
             <Text style={s.modalSub}>Inserisci la quantità invenduta per prodotto</Text>
             <ScrollView style={{ maxHeight: 320 }}>
               {tuttiProdotti.length === 0 ? (
@@ -624,7 +624,7 @@ export default function HomeScreen() {
               <Text style={s.modalTotalVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
             </View>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowSpeseFisseModal(false)}>
-              <Text style={s.modalCloseTxt}>CHIUDI</Text>
+              <Text style={s.modalCloseTxt}>{t('common.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

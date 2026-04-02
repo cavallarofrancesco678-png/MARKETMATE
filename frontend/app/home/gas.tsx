@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Carburante } from '../../src/store/appStore';
@@ -65,18 +66,27 @@ export default function GasScreen() {
   /* ── Save ── */
   const handleSalva = () => {
     const euro = parseFloat(euroText.replace(',', '.'));
-    if (!euro || euro <= 0) { Alert.alert('Errore', 'Inserisci un importo valido'); return; }
+    if (!euro || euro <= 0) {
+      if (Platform.OS === 'web') window.alert(t('gas.invalidAmount'));
+      else Alert.alert(t('common.error'), t('gas.invalidAmount'));
+      return;
+    }
     addCarburante({ data: selectedDate, euro });
     setEuroText('');
-    Alert.alert('Salvato!', 'Rifornimento registrato');
+    if (Platform.OS === 'web') window.alert(t('gas.refuelSaved'));
+    else Alert.alert(t('common.saved'), t('gas.refuelSaved'));
   };
 
   /* ── Delete ── */
   const handleDelete = (item: Carburante) => {
-    Alert.alert('Elimina', 'Eliminare questo rifornimento?', [
-      { text: 'Annulla', style: 'cancel' },
-      { text: 'Elimina', style: 'destructive', onPress: () => removeCarburante(item.data) },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('gas.deleteRefuel'))) removeCarburante(item.data);
+    } else {
+      Alert.alert(t('common.delete'), t('gas.deleteRefuel'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: () => removeCarburante(item.data) },
+      ]);
+    }
   };
 
   /* ── Chart data per filtro ── */
@@ -238,7 +248,7 @@ export default function GasScreen() {
         onSelect={(date) => { setSelectedDate(date); setShowCalendar(false); }}
         initialDate={selectedDate}
         themeColor="#1E7F85"
-        title="DATA RIFORNIMENTO"
+        title={t('gas.refuelDate')}
       />
     </View>
   );

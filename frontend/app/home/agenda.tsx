@@ -7,20 +7,14 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Appunto } from '../../src/store/appStore';
 import { CalendarModal } from '../../src/components/CalendarModal';
 import { useTranslation } from 'react-i18next';
-import { getDayNames, getMonthNames } from '../../src/i18n';
+import { getMonthNames, getShortDayNames } from '../../src/i18n';
 
-const GIORNI_SETTIMANA = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
-const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-const GIORNI_ITA = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const MESI_BREVI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-
-const formattaData = (d: Date) => `${GIORNI_ITA[(d.getDay() + 6) % 7]} ${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()}`;
 const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 const isToday = (d: Date) => isSameDay(d, new Date());
 const isTomorrow = (d: Date) => { const t = new Date(); t.setDate(t.getDate() + 1); return isSameDay(d, t); };
@@ -28,8 +22,8 @@ const isTomorrow = (d: Date) => { const t = new Date(); t.setDate(t.getDate() + 
 export default function AgendaScreen() {
   const { agenda, appuntiAgenda, addAppunto, removeAppunto } = useAppStore();
   const { t } = useTranslation();
-  const dayNames = getDayNames();
   const monthNames = getMonthNames();
+  const shortDayNames = getShortDayNames();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
@@ -37,6 +31,15 @@ export default function AgendaScreen() {
   const [appuntoText, setAppuntoText] = useState('');
   const [appuntoDate, setAppuntoDate] = useState(new Date());
   const [showAppuntoCalendar, setShowAppuntoCalendar] = useState(false);
+
+  /* ── Translated date formatter ── */
+  const formattaData = (d: Date) => {
+    const dayIdx = (d.getDay() + 6) % 7; // 0=Mon ... 6=Sun
+    return `${shortDayNames[dayIdx]} ${d.getDate()} ${monthNames[d.getMonth()]}`;
+  };
+
+  /* ── Short month for badge ── */
+  const shortMonth = (d: Date) => monthNames[d.getMonth()].substring(0, 3).toUpperCase();
 
   /* ── Navigate date ── */
   const cambiaData = (dir: number) => {
@@ -49,7 +52,7 @@ export default function AgendaScreen() {
   const dayIdx = selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1;
   const mercatoGiorno = dayIdx < agenda.length && agenda[dayIdx].lavorativo && agenda[dayIdx].mercato
     ? agenda[dayIdx].mercato
-    : 'Nessun mercato in programma';
+    : t('agenda.noMarketPlanned');
 
   /* ── Appunti for date ── */
   const appuntiOggi = appuntiAgenda.filter((a) => isSameDay(new Date(a.data), selectedDate));
@@ -60,20 +63,37 @@ export default function AgendaScreen() {
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
     .slice(0, 10);
 
-  /* ── Save appunto ── */
+  /* ── Save appunto (works on web and native) ── */
   const handleSalvaAppunto = () => {
-    if (!appuntoText.trim()) { Alert.alert('Errore', 'Inserisci un testo'); return; }
-    addAppunto({ data: appuntoDate, testo: appuntoText });
+    if (!appuntoText.trim()) {
+      if (Platform.OS === 'web') {
+        window.alert(t('agenda.enterText'));
+      } else {
+        Alert.alert(t('common.error'), t('agenda.enterText'));
+      }
+      return;
+    }
+    addAppunto({ data: appuntoDate, testo: appuntoText.trim() });
     setAppuntoText('');
-    Alert.alert('Salvato!', 'Appunto aggiunto');
+    if (Platform.OS === 'web') {
+      window.alert(t('agenda.noteSaved'));
+    } else {
+      Alert.alert(t('common.saved'), t('agenda.noteSaved'));
+    }
   };
 
-  /* ── Delete appunto ── */
+  /* ── Delete appunto (works on web and native) ── */
   const handleElimina = (a: Appunto) => {
-    Alert.alert('Elimina', 'Eliminare questo appunto?', [
-      { text: 'Annulla', style: 'cancel' },
-      { text: 'Elimina', style: 'destructive', onPress: () => removeAppunto(a.data, a.testo) },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('agenda.deleteNote'))) {
+        removeAppunto(a.data, a.testo);
+      }
+    } else {
+      Alert.alert(t('common.delete'), t('agenda.deleteNote'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: () => removeAppunto(a.data, a.testo) },
+      ]);
+    }
   };
 
   return (
@@ -99,7 +119,7 @@ export default function AgendaScreen() {
 
           {/* Sede mercato */}
           <View style={s.sedeRow}>
-            <Text style={s.labelSm}>Sede:</Text>
+            <Text style={s.labelSm}>{t('agenda.location')}:</Text>
             <Text style={s.sedeValue}>{mercatoGiorno}</Text>
           </View>
 
@@ -126,7 +146,7 @@ export default function AgendaScreen() {
                   <Ionicons name="document-text" size={16} color="#1E7F85" />
                   <Text style={s.appuntoTxt}>{a.testo}</Text>
                   <TouchableOpacity onPress={() => handleElimina(a)}>
-                    <Ionicons name="checkmark-circle" size={20} color="#5AAA6A" />
+                    <Ionicons name="trash-outline" size={18} color="#D46A6A" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -140,7 +160,7 @@ export default function AgendaScreen() {
           <View style={s.inset}>
             <TextInput
               style={s.appuntoInput}
-              placeholder="Es: Portare 3kg pane alla signora Maria"
+              placeholder={t('agenda.orderPlaceholder')}
               placeholderTextColor="#A0B5A8"
               value={appuntoText}
               onChangeText={setAppuntoText}
@@ -148,33 +168,32 @@ export default function AgendaScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             <TouchableOpacity style={s.datePick} onPress={() => setShowAppuntoCalendar(true)}>
-              <Text style={s.datePickTxt}>PER IL: {formattaData(appuntoDate)}</Text>
+              <Text style={s.datePickTxt}>{t('agenda.forDate')}: {formattaData(appuntoDate)}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.saveBtn} onPress={handleSalvaAppunto}>
-              <Text style={s.saveTxt}>SALVA</Text>
+              <Text style={s.saveTxt}>{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Prossimi impegni */}
-        <Text style={s.sectionTitleOut}>PROSSIMI IMPEGNI SALVATI</Text>
+        <Text style={s.sectionTitleOut}>{t('agenda.upcoming')}</Text>
         {prossimi.length === 0 ? (
           <View style={s.card}>
             <Text style={[s.labelSm, { textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' }]}>
-              Nessun ordine o appuntamento in programma.
+              {t('agenda.noAppointments')}
             </Text>
           </View>
         ) : (
           prossimi.map((a, i) => {
             const d = new Date(a.data);
-            const label = isToday(d) ? 'OGGI' : isTomorrow(d) ? 'DOMANI' : null;
-            const isScaduto = d < new Date(new Date().setHours(0, 0, 0, 0));
+            const label = isToday(d) ? t('common.today') : isTomorrow(d) ? t('common.tomorrow') : null;
 
             return (
               <View key={i} style={s.upcomingCard}>
-                <View style={[s.dateBadge, { backgroundColor: isScaduto ? '#999' : '#D46A6A' }]}>
+                <View style={[s.dateBadge, { backgroundColor: '#D46A6A' }]}>
                   <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
-                  <Text style={s.dateBadgeMonth}>{MESI_BREVI[d.getMonth()].toUpperCase()}</Text>
+                  <Text style={s.dateBadgeMonth}>{shortMonth(d)}</Text>
                 </View>
                 {label && (
                   <View style={[s.labelBadge, { backgroundColor: '#1E7F85' }]}>
@@ -183,7 +202,7 @@ export default function AgendaScreen() {
                 )}
                 <Text style={s.upcomingTxt}>{a.testo}</Text>
                 <TouchableOpacity onPress={() => handleElimina(a)}>
-                  <Ionicons name="checkmark-circle" size={22} color="#5AAA6A" />
+                  <Ionicons name="trash-outline" size={20} color="#D46A6A" />
                 </TouchableOpacity>
               </View>
             );
@@ -208,16 +227,16 @@ export default function AgendaScreen() {
                 <View key={i} style={s.upcomingCard}>
                   <View style={[s.dateBadge, { backgroundColor: isPast ? '#999' : isToday(d) ? '#1E7F85' : isTomorrow(d) ? '#E8A060' : '#D46A6A' }]}>
                     <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
-                    <Text style={s.dateBadgeMonth}>{MESI_BREVI[d.getMonth()].toUpperCase()}</Text>
+                    <Text style={s.dateBadgeMonth}>{shortMonth(d)}</Text>
                   </View>
                   {isToday(d) && (
                     <View style={[s.labelBadge, { backgroundColor: '#1E7F85' }]}>
-                      <Text style={s.labelBadgeTxt}>OGGI</Text>
+                      <Text style={s.labelBadgeTxt}>{t('common.today')}</Text>
                     </View>
                   )}
                   {isTomorrow(d) && (
                     <View style={[s.labelBadge, { backgroundColor: '#E8A060' }]}>
-                      <Text style={s.labelBadgeTxt}>DOMANI</Text>
+                      <Text style={s.labelBadgeTxt}>{t('common.tomorrow')}</Text>
                     </View>
                   )}
                   <Text style={[s.upcomingTxt, isPast && { color: '#999', textDecorationLine: 'line-through' }]}>{a.testo}</Text>
@@ -238,7 +257,7 @@ export default function AgendaScreen() {
         onSelect={(date) => { setSelectedDate(date); setShowCalendar(false); }}
         initialDate={selectedDate}
         themeColor="#1E7F85"
-        title="VAI ALLA DATA"
+        title={t('agenda.goToDate')}
       />
 
       <CalendarModal
@@ -247,7 +266,7 @@ export default function AgendaScreen() {
         onSelect={(date) => { setAppuntoDate(date); setShowAppuntoCalendar(false); }}
         initialDate={appuntoDate}
         themeColor="#1E7F85"
-        title="DATA APPUNTAMENTO"
+        title={t('agenda.appointmentDate')}
       />
     </View>
   );
@@ -311,8 +330,4 @@ const s = StyleSheet.create({
   labelBadge: { borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3 },
   labelBadgeTxt: { fontSize: 9, fontWeight: '800', color: '#FFF' },
   upcomingTxt: { flex: 1, fontSize: 14, color: '#1A3535' },
-
-  weekRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#D8EDE5' },
-  weekDay: { width: 90, fontSize: 12, color: '#7A9090' },
-  weekMarket: { flex: 1, fontSize: 14, color: '#1A3535' },
 });
