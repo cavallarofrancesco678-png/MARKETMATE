@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 import it from './locales/it.json';
 import en from './locales/en.json';
@@ -37,15 +37,23 @@ i18n.use(initReactI18next).init({
   compatibilityJSON: 'v4',
 });
 
-// Load saved language
-AsyncStorage.getItem(LANGUAGE_KEY).then((savedLng) => {
-  if (savedLng && resources[savedLng as keyof typeof resources]) {
-    i18n.changeLanguage(savedLng);
-  }
-});
+// Load saved language (safely - only in client context)
+if (Platform.OS !== 'web' || typeof window !== 'undefined') {
+  try {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    AsyncStorage.getItem(LANGUAGE_KEY).then((savedLng: string | null) => {
+      if (savedLng && resources[savedLng as keyof typeof resources]) {
+        i18n.changeLanguage(savedLng);
+      }
+    }).catch(() => {});
+  } catch (e) {}
+}
 
 export const changeLanguage = async (lng: string) => {
-  await AsyncStorage.setItem(LANGUAGE_KEY, lng);
+  try {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    await AsyncStorage.setItem(LANGUAGE_KEY, lng);
+  } catch (e) {}
   await i18n.changeLanguage(lng);
 };
 
