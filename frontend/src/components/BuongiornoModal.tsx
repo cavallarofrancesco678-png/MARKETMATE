@@ -79,7 +79,7 @@ Carburante: ${carb}`;
   // Auto-send welcome message on open
   useEffect(() => {
     if (visible && messages.length === 0) {
-      sendMessage('Buongiorno! Dammi un riepilogo della mia giornata: che tempo fa, quanto ho incassato la settimana scorsa, se devo fare benzina, e qualsiasi consiglio utile.');
+      sendMessage('Buongiorno! Dammi un riepilogo della mia giornata usando questo formato:\n\n1) METEO: Che tempo fa oggi\n2) INCASSI: Quanto ho incassato la settimana scorsa in questo mercato\n3) BENZINA: Se devo fare benzina in base ai miei km\n4) CONSIGLIO: Un breve consiglio per oggi\n\nSii conciso e usa i punti numerati. Poi chiedimi se ho domande.');
     }
   }, [visible]);
 
@@ -165,14 +165,15 @@ Carburante: ${carb}`;
         <View style={st.container}>
           {/* Header */}
           <View style={st.header}>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="arrow-back" size={24} color="#1A3535" />
+            <TouchableOpacity onPress={handleClose} style={st.closeBtn}>
+              <Ionicons name="close" size={20} color="#FFF" />
+              <Text style={st.closeTxt}>CHIUDI</Text>
             </TouchableOpacity>
             <View style={st.headerCenter}>
               <MaterialCommunityIcons name="robot-happy" size={22} color="#D4AF37" />
               <Text style={st.headerTitle}>BUONGIORNO AI</Text>
             </View>
-            <View style={{ width: 24 }} />
+            <View style={{ width: 80 }} />
           </View>
 
           {/* Messages */}
@@ -254,6 +255,12 @@ const st = StyleSheet.create({
   },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 16, fontWeight: '900', color: '#1A4040', letterSpacing: 1 },
+  closeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#D46A6A', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  closeTxt: { color: '#FFF', fontSize: 11, fontWeight: '800' },
 
   chatArea: { flex: 1, padding: 16 },
 

@@ -179,6 +179,9 @@ export default function HomeScreen() {
     return tot;
   }, [speseExtraFornitore]);
 
+  /* ── Plateatico Fiera → aggiungere a spese fisse ── */
+  const fieraPlatNum = parseFloat((fieraPlat || '0').replace(',', '.')) || 0;
+
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
   const speseExtraNum = parseFloat(speseExtra.replace(',', '.')) || 0;
   const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraNum + speseExtraFornTotale;
@@ -189,7 +192,10 @@ export default function HomeScreen() {
     .filter((c) => presenze[c.nome])
     .reduce((s, c) => s + (c.costo || 0), 0);
 
-  const utile = lordoNum - speseFisse - speseExtraTotNum - invendutoNum - costoCollabAttivi;
+  // Spese fisse totali = spese fisse annuali + plateatico fiera (se attivo)
+  const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
+
+  const utile = lordoNum - speseFisseTotali - speseExtraTotNum - invendutoNum - costoCollabAttivi;
   /* ── Storico mercato dati reali ── */
   const storicoMercato = useMemo(() => {
     const gg = store.storicoGiornate || [];
@@ -339,7 +345,7 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity key={i} onPress={() => setMeteo(w.label)} activeOpacity={0.7}>
                 <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2 }, sel && s.meteoOn]}>
-                  <MaterialCommunityIcons name={w.icon as any} size={WEATHER_ICON} color={sel ? '#FFF' : '#2A4A5A'} />
+                  <MaterialCommunityIcons name={w.icon as any} size={WEATHER_ICON} color={sel ? '#FFF' : w.color} />
                 </View>
               </TouchableOpacity>
             );
@@ -404,7 +410,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseFisseModal(true)}>
           <Text style={s.cardLbl}>SPESE FISSE</Text>
-          <Text style={s.cardVal}>€{Math.round(speseFisse)}</Text>
+          <Text style={s.cardVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
         </TouchableOpacity>
       </View>
 
@@ -581,10 +587,17 @@ export default function HomeScreen() {
                 })
               )}
             </ScrollView>
+            {isFiera && fieraPlatNum > 0 && (
+              <View style={[s.modalRow, { backgroundColor: '#E8DCC8', marginBottom: 8 }]}>
+                <Ionicons name="star" size={16} color="#D4AF37" />
+                <Text style={s.modalLabel}>Plateatico Fiera</Text>
+                <Text style={s.modalVal}>{'\u20AC'}{fieraPlatNum.toFixed(2)}</Text>
+              </View>
+            )}
             <View style={s.modalDivider} />
             <View style={s.modalTotalRow}>
               <Text style={s.modalTotalLabel}>TOTALE ATTIVO</Text>
-              <Text style={s.modalTotalVal}>€{Math.round(speseFisse)}</Text>
+              <Text style={s.modalTotalVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
             </View>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowSpeseFisseModal(false)}>
               <Text style={s.modalCloseTxt}>CHIUDI</Text>
