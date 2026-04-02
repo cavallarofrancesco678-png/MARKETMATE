@@ -79,7 +79,7 @@ Carburante: ${carb}`;
   // Auto-send welcome message on open
   useEffect(() => {
     if (visible && messages.length === 0) {
-      sendMessage('Buongiorno! Dammi un riepilogo della mia giornata usando questo formato:\n\n1) METEO: Che tempo fa oggi\n2) INCASSI: Quanto ho incassato la settimana scorsa in questo mercato\n3) BENZINA: Se devo fare benzina in base ai miei km\n4) CONSIGLIO: Un breve consiglio per oggi\n\nSii conciso e usa i punti numerati. Poi chiedimi se ho domande.');
+      sendMessage('Buongiorno! Come si presenta la giornata di oggi?');
     }
   }, [visible]);
 

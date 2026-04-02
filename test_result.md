@@ -101,3 +101,65 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "MarketMate - App per ambulanti con design Neumorphic. Implementare Spese Extra generiche e migliorare il prompt AI Buongiorno."
+
+backend:
+  - task: "AI Chat endpoint /api/ai/chat - Buongiorno structured prompt"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Updated system prompt to enforce structured response format (Meteo, Incasso, Carburante, Consiglio). The endpoint receives message, context and session_id."
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED SUCCESSFULLY: Both GET /api/ and POST /api/ai/chat endpoints working perfectly. AI chat returns structured response with all required sections (METEO, INCASSO, CARBURANTE, CONSIGLIO) in Italian. Response format matches requirements exactly. Session handling working correctly."
+
+frontend:
+  - task: "SpeseExtraModal - Generic expenses (voci generiche)"
+    implemented: true
+    working: "NA"
+    file: "src/components/SpeseExtraModal.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Implemented SpeseExtraModal with vociGeneriche array. Users can add custom expenses, toggle on/off, set amounts, and delete. Integrated with Home index.tsx to calculate total and subtract from Utile."
+
+  - task: "BuongiornoModal - AI chat frontend"
+    implemented: true
+    working: "NA"
+    file: "src/components/BuongiornoModal.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Updated auto-message to be cleaner. Now sends 'Buongiorno! Come si presenta la giornata di oggi?' instead of long instructions. Backend system prompt handles formatting."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "AI Chat endpoint /api/ai/chat - Buongiorno structured prompt"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+    - message: "Please test the POST /api/ai/chat endpoint. Send a POST request with body: {\"message\": \"Buongiorno!\", \"context\": \"Attivita: MarketMate\\nTitolare: Marco\\nMercato oggi: Magenta\\nMeteo oggi: SOLE\\nKm oggi: 30\\nCollaboratori: Luca, Anna\\nFornitori: Rossi SRL\\nSpese annuali: Assicurazione: 1200/anno\\nSettimana precedente: Lordo: 3500, Netto: 2100, 5 giorni lavorati\\nCarburante: Ultimo rifornimento: 01/04/2026, 85\", \"session_id\": \"test_session_1\"}. The response should contain structured sections about weather, income, fuel, and a daily tip."
+    - agent: "testing"
+    - message: "✅ BACKEND TESTING COMPLETE: All backend APIs tested successfully. GET /api/ returns correct Hello World message. POST /api/ai/chat works perfectly with structured Italian response containing all required sections (METEO, INCASSO, CARBURANTE, CONSIGLIO). AI integration with Emergent LLM is working correctly. Backend is ready for production use."

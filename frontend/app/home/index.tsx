@@ -75,11 +75,11 @@ export default function HomeScreen() {
   const [excludeInvenduto, setExcludeInvenduto] = useState(false);
   const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
+  const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
 
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');
   const [pos, setPos] = useState('');
-  const [speseExtra, setSpeseExtra] = useState('');
   const [invenduto, setInvenduto] = useState('');
 
   const mercatoOggi = agenda[getGiornoIndex(dataCorrente)];
@@ -179,12 +179,20 @@ export default function HomeScreen() {
     return tot;
   }, [speseExtraFornitore]);
 
+  /* ── Spese Extra generiche totale ── */
+  const speseExtraGenTotale = useMemo(() => {
+    let tot = 0;
+    vociGeneriche.forEach((v) => {
+      if (v.attivo) tot += parseFloat((v.importo || '0').replace(',', '.')) || 0;
+    });
+    return tot;
+  }, [vociGeneriche]);
+
   /* ── Plateatico Fiera → aggiungere a spese fisse ── */
   const fieraPlatNum = parseFloat((fieraPlat || '0').replace(',', '.')) || 0;
 
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
-  const speseExtraNum = parseFloat(speseExtra.replace(',', '.')) || 0;
-  const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraNum + speseExtraFornTotale;
+  const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraFornTotale + speseExtraGenTotale;
   const invendutoNum = excludeInvenduto ? 0 : (parseFloat(invenduto.replace(',', '.')) || 0);
 
   // Costo collaboratori attivi (presenti oggi)
@@ -242,7 +250,7 @@ export default function HomeScreen() {
       km: mercatoOggi?.km || 0, lordo: lordoNum, netto: utile,
       contanti: parseFloat(contanti.replace(',', '.')) || 0,
       pos: parseFloat(pos.replace(',', '.')) || 0,
-      spese_extra: speseExtraNum,
+      spese_extra: speseExtraTotNum,
       dettaglio_staff: presenze,
       dettaglio_invenduto: { totale: invendutoNum },
       dettaglio_fornitori: {},
@@ -406,7 +414,7 @@ export default function HomeScreen() {
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseExtraModal(true)}>
           <Text style={s.cardLbl}>SPESE EXTRA</Text>
-          <Text style={s.cardVal}>{'\u20AC'}{(speseExtraNum + speseExtraFornTotale).toFixed(2)}</Text>
+          <Text style={s.cardVal}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(2)}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseFisseModal(true)}>
           <Text style={s.cardLbl}>SPESE FISSE</Text>
@@ -638,7 +646,7 @@ export default function HomeScreen() {
         toggleSpesaFissa={(voce) => setSpeseFisseDisabilitate((prev) => ({ ...prev, [voce]: !prev[voce] }))}
         collabCosts={collaboratori.map((c) => ({ nome: c.nome, costo: c.costo || 0, attivo: !!presenze[c.nome] }))}
         toggleCollab={(nome) => setPresenze((prev) => ({ ...prev, [nome]: !prev[nome] }))}
-        speseExtra={speseExtraNum + speseExtraFornTotale}
+        speseExtra={speseExtraFornTotale + speseExtraGenTotale}
         excludeSpeseExtra={excludeSpeseExtra}
         toggleExcludeSpeseExtra={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
         invenduto={parseFloat(invenduto.replace(',', '.')) || 0}
@@ -653,10 +661,10 @@ export default function HomeScreen() {
         visible={showSpeseExtraModal}
         onClose={() => setShowSpeseExtraModal(false)}
         fornitori={fornitori}
-        speseExtra={speseExtra}
-        setSpeseExtra={setSpeseExtra}
         speseExtraFornitore={speseExtraFornitore}
         setSpeseExtraFornitore={setSpeseExtraFornitore}
+        vociGeneriche={vociGeneriche}
+        setVociGeneriche={setVociGeneriche}
       />
 
       {/* Buongiorno AI Modal */}
