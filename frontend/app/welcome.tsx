@@ -15,8 +15,8 @@ import { useAppStore } from '../src/store/appStore';
 import { NeuBox } from '../src/components/NeuBox';
 import { Colors } from '../src/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
-
-const LINGUE = ['English', 'Français', 'Español', 'Italiano', 'Deutsch', 'Português'];
+import { useTranslation } from 'react-i18next';
+import { changeLanguage, LANGUAGES } from '../src/i18n';
 
 export default function WelcomeScreen() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -29,6 +29,19 @@ export default function WelcomeScreen() {
   const [emailRecupero, setEmailRecupero] = useState('');
   
   const { setConfig } = useAppStore();
+  const { t } = useTranslation();
+
+  // Map display name to language code
+  const LINGUA_MAP: Record<string, string> = {
+    'Italiano': 'it', 'English': 'en', 'Français': 'fr',
+    'Deutsch': 'de', 'Español': 'es', 'Português': 'pt',
+  };
+
+  const handleLinguaChange = (l: string) => {
+    setLingua(l);
+    const code = LINGUA_MAP[l] || 'it';
+    changeLanguage(code);
+  };
 
   const handleFinish = () => {
     setConfig({
@@ -133,14 +146,14 @@ export default function WelcomeScreen() {
       case 0:
         return (
           <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>LANGUAGE</Text>
+            <Text style={styles.stepTitle}>{t('settings.language').toUpperCase()}</Text>
             <View style={styles.optionsGrid}>
-              {LINGUE.map((l) => (
+              {LANGUAGES.map((l) => (
                 <OptionButton
-                  key={l}
-                  label={l}
-                  selected={lingua === l}
-                  onPress={() => setLingua(l)}
+                  key={l.label}
+                  label={l.label}
+                  selected={lingua === l.label}
+                  onPress={() => handleLinguaChange(l.label)}
                 />
               ))}
             </View>
@@ -150,12 +163,12 @@ export default function WelcomeScreen() {
       case 1:
         return (
           <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>SETTORE</Text>
+            <Text style={styles.stepTitle}>{t('settings.sector').toUpperCase()}</Text>
             <View style={styles.sectorButtons}>
               <TouchableOpacity onPress={() => setIsAlimentare(true)} style={styles.fullWidth}>
                 <NeuBox pressed={isAlimentare} padding={20} borderRadius={24}>
                   <Text style={[styles.optionText, isAlimentare && { color: Colors.primary }]}>
-                    ALIMENTARE
+                    {t('settings.alimentare')}
                   </Text>
                 </NeuBox>
               </TouchableOpacity>
@@ -163,7 +176,7 @@ export default function WelcomeScreen() {
               <TouchableOpacity onPress={() => setIsAlimentare(false)} style={styles.fullWidth}>
                 <NeuBox pressed={!isAlimentare} padding={20} borderRadius={24}>
                   <Text style={[styles.optionText, !isAlimentare && { color: Colors.primary }]}>
-                    NON ALIMENTARE
+                    {t('settings.nonAlimentare')}
                   </Text>
                 </NeuBox>
               </TouchableOpacity>
