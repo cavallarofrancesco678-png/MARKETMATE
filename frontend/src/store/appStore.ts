@@ -59,6 +59,11 @@ export interface Appunto {
   testo: string;
 }
 
+export interface DiarioEntry {
+  data: Date;
+  testo: string;
+}
+
 interface AppState {
   // Config
   isConfigured: boolean;
@@ -82,6 +87,7 @@ interface AppState {
   storicoGiornate: Giornata[];
   storicoCarburante: Carburante[];
   appuntiAgenda: Appunto[];
+  storicoDiario: DiarioEntry[];
   
   // Actions
   setConfig: (config: Partial<AppState>) => void;
@@ -97,6 +103,9 @@ interface AppState {
   removeCarburante: (data: Date) => void;
   addAppunto: (a: Appunto) => void;
   removeAppunto: (data: Date, testo: string) => void;
+  addDiario: (d: DiarioEntry) => void;
+  removeDiario: (data: Date) => void;
+  getDiarioForDate: (data: Date) => DiarioEntry | undefined;
   seedMockData: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
@@ -135,6 +144,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   storicoGiornate: [],
   storicoCarburante: [],
   appuntiAgenda: [],
+  storicoDiario: [],
   
   // Actions
   setConfig: (config) => {
@@ -220,6 +230,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
   
+  addDiario: (d) => {
+    set((state) => {
+      // Replace if same date exists, otherwise add
+      const dateStr = new Date(d.data).toDateString();
+      const existing = state.storicoDiario.findIndex(
+        e => new Date(e.data).toDateString() === dateStr
+      );
+      if (existing !== -1) {
+        const updated = [...state.storicoDiario];
+        updated[existing] = d;
+        return { storicoDiario: updated };
+      }
+      return { storicoDiario: [...state.storicoDiario, d] };
+    });
+    get().saveToStorage();
+  },
+  
+  removeDiario: (data) => {
+    set((state) => ({
+      storicoDiario: state.storicoDiario.filter(
+        d => new Date(d.data).toDateString() !== new Date(data).toDateString()
+      )
+    }));
+    get().saveToStorage();
+  },
+  
+  getDiarioForDate: (data) => {
+    return get().storicoDiario.find(
+      d => new Date(d.data).toDateString() === new Date(data).toDateString()
+    );
+  },
+  
   seedMockData: () => {
     const mock = generateAllMockData();
     set((state) => ({ ...state, ...mock }));
@@ -261,6 +303,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         storicoGiornate: state.storicoGiornate,
         storicoCarburante: state.storicoCarburante,
         appuntiAgenda: state.appuntiAgenda,
+        storicoDiario: state.storicoDiario,
       };
       await AsyncStorage.setItem('marketmate_data', JSON.stringify(dataToSave));
     } catch (e) {
@@ -289,6 +332,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       storicoGiornate: [],
       storicoCarburante: [],
       appuntiAgenda: [],
+      storicoDiario: [],
     });
     AsyncStorage.removeItem('marketmate_data');
   },

@@ -180,7 +180,11 @@
     "location": "Lieu",
     "noMarketPlanned": "Aucun marché prévu",
     "goToDate": "ALLER À LA DATE",
-    "appointmentDate": "DATE DU RENDEZ-VOUS"
+    "appointmentDate": "DATE DU RENDEZ-VOUS",
+    "diaryHistory": "HISTORIQUE JOURNAL",
+    "noDiary": "Aucune entrée de journal",
+    "diarySaved": "Entrée de journal enregistrée",
+    "deleteDiary": "Supprimer cette entrée?"
   },
   "modals": {
     "market": "FOIRE / MARCHÉ",

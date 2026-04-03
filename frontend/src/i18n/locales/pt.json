@@ -180,7 +180,11 @@
     "location": "Local",
     "noMarketPlanned": "Nenhum mercado previsto",
     "goToDate": "IR PARA DATA",
-    "appointmentDate": "DATA DO COMPROMISSO"
+    "appointmentDate": "DATA DO COMPROMISSO",
+    "diaryHistory": "HISTÓRICO DIÁRIO",
+    "noDiary": "Sem entradas de diário",
+    "diarySaved": "Entrada de diário guardada",
+    "deleteDiary": "Eliminar esta entrada?"
   },
   "modals": {
     "market": "FEIRA / MERCADO",

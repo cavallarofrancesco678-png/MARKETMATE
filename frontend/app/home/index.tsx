@@ -207,8 +207,11 @@ export default function HomeScreen() {
   // Spese fisse totali = spese fisse annuali + plateatico fiera (se attivo)
   const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
 
-  // Costo carburante giornaliero basato su km mercato
-  const costoCarburanteGiorno = (mercatoOggi?.km || 0) * (store.costoKm || 0);
+  // Costo carburante giornaliero basato su km mercato e media costo/km calcolata dai rifornimenti
+  const totaleCarburanteSpeso = store.storicoCarburante.reduce((s: number, c: any) => s + (c.euro || 0), 0);
+  const totaleKmPercorsi = store.storicoGiornate.reduce((s: number, g: any) => s + (g.km || 0), 0);
+  const costoKmCalcolato = totaleKmPercorsi > 0 ? totaleCarburanteSpeso / totaleKmPercorsi : 0;
+  const costoCarburanteGiorno = (mercatoOggi?.km || 0) * costoKmCalcolato;
 
   const utile = lordoNum - speseFisseTotali - speseExtraTotNum - invendutoNum - costoCollabAttivi - costoCarburanteGiorno;
   /* ── Storico mercato dati reali ── */
@@ -718,7 +721,7 @@ export default function HomeScreen() {
           fornitori: fornitori.map((f) => f.nome),
           speseAnnue: speseAnnue.map((sp) => ({ voce: sp.voce, importo: sp.importo })),
           partenzaDa: store.partenzaDa || '',
-          costoKm: store.costoKm || 0,
+          costoKm: costoKmCalcolato,
         }}
       />
     </View>

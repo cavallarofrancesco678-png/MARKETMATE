@@ -180,7 +180,11 @@
     "location": "Location",
     "noMarketPlanned": "No market planned",
     "goToDate": "GO TO DATE",
-    "appointmentDate": "APPOINTMENT DATE"
+    "appointmentDate": "APPOINTMENT DATE",
+    "diaryHistory": "DIARY HISTORY",
+    "noDiary": "No diary entries",
+    "diarySaved": "Diary entry saved",
+    "deleteDiary": "Delete this diary entry?"
   },
   "modals": {
     "market": "FAIR / MARKET",

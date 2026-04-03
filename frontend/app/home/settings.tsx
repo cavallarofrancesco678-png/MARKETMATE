@@ -178,31 +178,55 @@ export default function SettingsPage() {
         </Text>
       </View>
 
-      {/* ─── IDENTITÀ ─── */}
+      {/* ─── IDENTITÀ + PARTENZA ─── */}
       <View style={s.card}>
-        <TouchableOpacity
-          style={s.itemRow}
-          onPress={() => openModal(t('settings.businessName'), [t('settings.businessName')], (v) => store.setConfig({ nomeAttivita: v[0] }))}
-        >
+        <View style={s.itemRow}>
           <Ionicons name="storefront" size={20} color="#1E7F85" />
-          <View style={s.itemInfo}>
+          <TouchableOpacity style={s.itemInfo} onPress={() => openModal(t('settings.businessName'), [t('settings.businessName')], (v) => store.setConfig({ nomeAttivita: v[0] }))}>
             <Text style={s.itemLabel}>{t('settings.businessName')}</Text>
-            <Text style={s.itemVal}>{store.nomeAttivita}</Text>
-          </View>
-          <Ionicons name="create-outline" size={18} color="#7A9090" />
-        </TouchableOpacity>
+            <Text style={s.itemVal}>{store.nomeAttivita || '---'}</Text>
+          </TouchableOpacity>
+          {!!store.nomeAttivita && store.nomeAttivita !== 'MarketMate' && (
+            <TouchableOpacity onPress={() => store.setConfig({ nomeAttivita: '' })} style={{ marginRight: 6 }}>
+              <Ionicons name="close-circle" size={20} color="#D46A6A" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => openModal(t('settings.businessName'), [t('settings.businessName')], (v) => store.setConfig({ nomeAttivita: v[0] }))}>
+            <Ionicons name="create-outline" size={18} color="#7A9090" />
+          </TouchableOpacity>
+        </View>
         <View style={s.divider} />
-        <TouchableOpacity
-          style={s.itemRow}
-          onPress={() => openModal(t('settings.ownerName'), [t('settings.ownerName')], (v) => store.setConfig({ nomeTitolare: v[0] }))}
-        >
+        <View style={s.itemRow}>
           <Ionicons name="person" size={20} color="#1E7F85" />
-          <View style={s.itemInfo}>
+          <TouchableOpacity style={s.itemInfo} onPress={() => openModal(t('settings.ownerName'), [t('settings.ownerName')], (v) => store.setConfig({ nomeTitolare: v[0] }))}>
             <Text style={s.itemLabel}>{t('settings.ownerName')}</Text>
             <Text style={s.itemVal}>{store.nomeTitolare || '---'}</Text>
-          </View>
-          <Ionicons name="create-outline" size={18} color="#7A9090" />
-        </TouchableOpacity>
+          </TouchableOpacity>
+          {!!store.nomeTitolare && (
+            <TouchableOpacity onPress={() => store.setConfig({ nomeTitolare: '' })} style={{ marginRight: 6 }}>
+              <Ionicons name="close-circle" size={20} color="#D46A6A" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => openModal(t('settings.ownerName'), [t('settings.ownerName')], (v) => store.setConfig({ nomeTitolare: v[0] }))}>
+            <Ionicons name="create-outline" size={18} color="#7A9090" />
+          </TouchableOpacity>
+        </View>
+        <View style={s.divider} />
+        <View style={s.itemRow}>
+          <Ionicons name="navigate" size={20} color="#1E7F85" />
+          <TouchableOpacity style={s.itemInfo} onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => store.setConfig({ partenzaDa: v[0] }))}>
+            <Text style={s.itemLabel}>{t('settings.departure')}</Text>
+            <Text style={s.itemVal}>{store.partenzaDa || '---'}</Text>
+          </TouchableOpacity>
+          {!!store.partenzaDa && (
+            <TouchableOpacity onPress={() => store.setConfig({ partenzaDa: '' })} style={{ marginRight: 6 }}>
+              <Ionicons name="close-circle" size={20} color="#D46A6A" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => store.setConfig({ partenzaDa: v[0] }))}>
+            <Ionicons name="create-outline" size={18} color="#7A9090" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ─── SETTORE ─── */}
@@ -388,21 +412,6 @@ export default function SettingsPage() {
         <Ionicons name="cube-outline" size={18} color="#1E7F85" />
         <Text style={s.addBtnTxt}>{t('settings.addSupplier')}</Text>
       </TouchableOpacity>
-
-      {/* ─── PARTENZA DA ─── */}
-      <View style={s.card}>
-        <TouchableOpacity
-          style={s.itemRow}
-          onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => store.setConfig({ partenzaDa: v[0] }))}
-        >
-          <Ionicons name="navigate" size={20} color="#1E7F85" />
-          <View style={s.itemInfo}>
-            <Text style={s.itemLabel}>{t('settings.departure')}</Text>
-            <Text style={s.itemVal}>{store.partenzaDa || '---'}</Text>
-          </View>
-          <Ionicons name="create-outline" size={18} color="#7A9090" />
-        </TouchableOpacity>
-      </View>
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
       <View style={s.card}>

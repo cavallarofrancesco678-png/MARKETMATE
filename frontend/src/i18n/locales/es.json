@@ -180,7 +180,11 @@
     "location": "Ubicación",
     "noMarketPlanned": "No hay mercado previsto",
     "goToDate": "IR A FECHA",
-    "appointmentDate": "FECHA DE CITA"
+    "appointmentDate": "FECHA DE CITA",
+    "diaryHistory": "HISTORIAL DIARIO",
+    "noDiary": "Sin entradas de diario",
+    "diarySaved": "Entrada de diario guardada",
+    "deleteDiary": "Eliminar esta entrada?"
   },
   "modals": {
     "market": "FERIA / MERCADO",

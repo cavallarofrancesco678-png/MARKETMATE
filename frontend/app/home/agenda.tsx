@@ -20,7 +20,7 @@ const isToday = (d: Date) => isSameDay(d, new Date());
 const isTomorrow = (d: Date) => { const t = new Date(); t.setDate(t.getDate() + 1); return isSameDay(d, t); };
 
 export default function AgendaScreen() {
-  const { agenda, appuntiAgenda, addAppunto, removeAppunto } = useAppStore();
+  const { agenda, appuntiAgenda, addAppunto, removeAppunto, storicoDiario, addDiario, removeDiario, getDiarioForDate } = useAppStore();
   const { t } = useTranslation();
   const monthNames = getMonthNames();
   const shortDayNames = getShortDayNames();
@@ -31,6 +31,12 @@ export default function AgendaScreen() {
   const [appuntoText, setAppuntoText] = useState('');
   const [appuntoDate, setAppuntoDate] = useState(new Date());
   const [showAppuntoCalendar, setShowAppuntoCalendar] = useState(false);
+
+  // Load existing diary entry when date changes
+  React.useEffect(() => {
+    const existing = getDiarioForDate(selectedDate);
+    setDiarioText(existing ? existing.testo : '');
+  }, [selectedDate]);
 
   /* ── Translated date formatter ── */
   const formattaData = (d: Date) => {
@@ -61,6 +67,46 @@ export default function AgendaScreen() {
   const prossimi = appuntiAgenda
     .filter((a) => new Date(a.data) >= new Date(new Date().setHours(0, 0, 0, 0)))
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
+    .slice(0, 10);
+
+  /* ── Save diary entry ── */
+  const handleSalvaDiario = () => {
+    if (!diarioText.trim()) {
+      if (Platform.OS === 'web') window.alert(t('agenda.enterText'));
+      else Alert.alert(t('common.error'), t('agenda.enterText'));
+      return;
+    }
+    addDiario({ data: selectedDate, testo: diarioText.trim() });
+    if (Platform.OS === 'web') window.alert(t('common.saved'));
+    else Alert.alert(t('common.saved'), t('agenda.diarySaved'));
+  };
+
+  /* ── Delete diary entry ── */
+  const handleEliminaDiario = (data: Date) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('agenda.deleteDiary'))) {
+        removeDiario(data);
+        // Clear text if deleting current date
+        if (new Date(data).toDateString() === selectedDate.toDateString()) {
+          setDiarioText('');
+        }
+      }
+    } else {
+      Alert.alert(t('common.delete'), t('agenda.deleteDiary'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: () => {
+          removeDiario(data);
+          if (new Date(data).toDateString() === selectedDate.toDateString()) {
+            setDiarioText('');
+          }
+        }},
+      ]);
+    }
+  };
+
+  /* ── Recent diary entries (latest 10) ── */
+  const recentDiario = [...storicoDiario]
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
     .slice(0, 10);
 
   /* ── Save appunto (works on web and native) ── */
@@ -136,6 +182,10 @@ export default function AgendaScreen() {
               numberOfLines={3}
             />
           </View>
+          <TouchableOpacity style={[s.saveBtn, { marginTop: 10 }]} onPress={handleSalvaDiario}>
+            <Ionicons name="save-outline" size={16} color="#FFF" />
+            <Text style={s.saveTxt}>{t('common.save')}</Text>
+          </TouchableOpacity>
 
           {/* Appunti del giorno selezionato */}
           {appuntiOggi.length > 0 && (
@@ -246,6 +296,34 @@ export default function AgendaScreen() {
                 </View>
               );
             })
+        )}
+
+        {/* Storico Diario */}
+        <Text style={s.sectionTitleOut}>{t('agenda.diaryHistory')}</Text>
+        {recentDiario.length === 0 ? (
+          <View style={s.card}>
+            <Text style={[s.labelSm, { textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' }]}>
+              {t('agenda.noDiary')}
+            </Text>
+          </View>
+        ) : (
+          recentDiario.map((d, i) => {
+            const dt = new Date(d.data);
+            return (
+              <View key={i} style={[s.card, { marginBottom: 10, padding: 14 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="book-outline" size={16} color="#1E7F85" />
+                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 12, fontWeight: '800', color: '#1A4040' }}>
+                    {formattaData(dt).toUpperCase()}
+                  </Text>
+                  <TouchableOpacity onPress={() => handleEliminaDiario(d.data)}>
+                    <Ionicons name="trash-outline" size={18} color="#D46A6A" />
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ fontSize: 13, color: '#1A4040', lineHeight: 18 }}>{d.testo}</Text>
+              </View>
+            );
+          })
         )}
 
         <View style={{ height: 30 }} />

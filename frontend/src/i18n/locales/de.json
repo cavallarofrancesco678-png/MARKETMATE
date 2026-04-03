@@ -180,7 +180,11 @@
     "location": "Standort",
     "noMarketPlanned": "Kein Markt geplant",
     "goToDate": "ZUM DATUM GEHEN",
-    "appointmentDate": "TERMINDATUM"
+    "appointmentDate": "TERMINDATUM",
+    "diaryHistory": "TAGEBUCH-VERLAUF",
+    "noDiary": "Keine Tagebucheinträge",
+    "diarySaved": "Tagebucheintrag gespeichert",
+    "deleteDiary": "Diesen Eintrag löschen?"
   },
   "modals": {
     "market": "MESSE / MARKT",
