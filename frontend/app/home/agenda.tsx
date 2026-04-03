@@ -182,10 +182,6 @@ export default function AgendaScreen() {
               numberOfLines={3}
             />
           </View>
-          <TouchableOpacity style={[s.saveBtn, { marginTop: 10 }]} onPress={handleSalvaDiario}>
-            <Ionicons name="save-outline" size={16} color="#FFF" />
-            <Text style={s.saveTxt}>{t('common.save')}</Text>
-          </TouchableOpacity>
 
           {/* Appunti del giorno selezionato */}
           {appuntiOggi.length > 0 && (
@@ -202,6 +198,12 @@ export default function AgendaScreen() {
               ))}
             </View>
           )}
+
+          {/* Salva diario in fondo */}
+          <TouchableOpacity style={[s.saveBtn, { marginTop: 14 }]} onPress={handleSalvaDiario}>
+            <Ionicons name="save-outline" size={16} color="#FFF" />
+            <Text style={s.saveTxt}>{t('common.save')}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Aggiungi appunto */}
