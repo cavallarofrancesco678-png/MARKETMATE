@@ -8,6 +8,8 @@ import {
   Dimensions,
   useWindowDimensions,
   Alert,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +18,8 @@ import { useAppStore } from '../../src/store/appStore';
 import { MeteoStatsModal } from '../../src/components/MeteoStatsModal';
 import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames, getShortDayNames } from '../../src/i18n';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import type { Giornata } from '../../src/store/appStore';
 
 const { width: screenW } = Dimensions.get('window');
@@ -162,6 +166,10 @@ export default function StatsScreen() {
   const [filtroTipo, setFiltroTipo] = useState<FilterTipo>('TUTTO');
   const [showMeteo, setShowMeteo] = useState(false);
   const [showFiere, setShowFiere] = useState(false);
+  const [showStoricoModal, setShowStoricoModal] = useState(false);
+  const [storicoMercato, setStoricoMercato] = useState<string | null>(null);
+  const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
+  const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
 
   const tempoLabel = (key: string) => {
     const map: Record<string, string> = {
@@ -401,6 +409,94 @@ export default function StatsScreen() {
     );
   };
 
+  /* ═══ PDF Report Generation ═══ */
+  const generatePDF = async () => {
+    const monthNames = getMonthNames();
+    const month = monthNames[pdfMonth];
+    const year = pdfYear;
+    const giorni = storicoGiornate.filter((g) => {
+      const d = new Date(g.data);
+      return d.getMonth() === pdfMonth && d.getFullYear() === year;
+    }).sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+    
+    const totL = arrSum(giorni.map((g) => g.lordo || 0));
+    const totN = arrSum(giorni.map((g) => g.netto || 0));
+    const totKm = arrSum(giorni.map((g) => g.km || 0));
+    const rows = giorni.map((g) => {
+      const d = new Date(g.data);
+      return `<tr>
+        <td>${d.getDate()}/${d.getMonth() + 1}</td>
+        <td>${g.mercato}</td>
+        <td style="text-align:right">\u20AC${(g.lordo || 0).toFixed(0)}</td>
+        <td style="text-align:right">\u20AC${(g.netto || 0).toFixed(0)}</td>
+        <td style="text-align:right">${g.km || 0}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<html><head><style>
+      body{font-family:sans-serif;padding:20px;font-size:11px}
+      h1{color:#1E7F85;font-size:16px;margin-bottom:4px}
+      h2{color:#333;font-size:13px;margin-bottom:10px}
+      table{width:100%;border-collapse:collapse;margin:10px 0}
+      th{background:#1E7F85;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+      td{padding:5px 8px;border-bottom:1px solid #E0E0E0;font-size:10px}
+      tr:nth-child(even){background:#F5F5F0}
+      .summary{display:flex;gap:16px;margin:12px 0}
+      .box{background:#F0EDE4;padding:10px;border-radius:8px;flex:1;text-align:center}
+      .box .val{font-size:16px;font-weight:bold;color:#1E7F85}
+      .box .lbl{font-size:9px;color:#666}
+    </style></head><body>
+      <h1>MarketMate - Report ${month} ${year}</h1>
+      <div class="summary">
+        <div class="box"><div class="val">\u20AC${totL.toFixed(0)}</div><div class="lbl">${t('stats.gross')}</div></div>
+        <div class="box"><div class="val">\u20AC${totN.toFixed(0)}</div><div class="lbl">${t('stats.net')}</div></div>
+        <div class="box"><div class="val">${giorni.length}</div><div class="lbl">${t('stats.workingDays')}</div></div>
+        <div class="box"><div class="val">${totKm.toFixed(0)} km</div><div class="lbl">${t('stats.totalKm')}</div></div>
+      </div>
+      <table><thead><tr><th>Data</th><th>Mercato</th><th>${t('stats.gross')}</th><th>${t('stats.net')}</th><th>Km</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:20px">' + t('stats.noFairs') + '</td></tr>'}</tbody>
+      </table>
+    </body></html>`;
+
+    try {
+      if (Platform.OS === 'web') {
+        const w = window.open('', '_blank');
+        if (w) { w.document.write(html); w.document.close(); w.print(); }
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'PDF generation failed');
+    }
+  };
+
+  /* ═══ Storico Mercato Comparativo ═══ */
+  const mercatiUnici = useMemo(() => {
+    const set = new Set(storicoGiornate.map((g) => g.mercato).filter(Boolean));
+    return Array.from(set);
+  }, [storicoGiornate]);
+
+  const storicoData = useMemo(() => {
+    if (!storicoMercato) return [];
+    return storicoGiornate
+      .filter((g) => g.mercato === storicoMercato)
+      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  }, [storicoMercato, storicoGiornate]);
+
+  const storicoStats = useMemo(() => {
+    if (storicoData.length < 2) return null;
+    const last = storicoData[0];
+    const prev = storicoData[1];
+    const lastL = last?.lordo || 0;
+    const prevL = prev?.lordo || 0;
+    const diff = lastL - prevL;
+    const pct = prevL > 0 ? ((diff / prevL) * 100).toFixed(1) : '0';
+    const avgL = arrSum(storicoData.map((g) => g.lordo || 0)) / storicoData.length;
+    const avgN = arrSum(storicoData.map((g) => g.netto || 0)) / storicoData.length;
+    return { last, prev, diff, pct, avgL, avgN };
+  }, [storicoData]);
+
   return (
     <View style={st.root}>
       <ScrollView contentContainerStyle={[st.scroll, { gap: GAP }]} showsVerticalScrollIndicator={false}>
@@ -501,7 +597,7 @@ export default function StatsScreen() {
 
         <TouchableOpacity
           style={{ marginBottom: GAP }}
-          onPress={() => Alert.alert('Report', 'Export PDF in arrivo!')}
+          onPress={generatePDF}
           activeOpacity={0.8}
         >
           <LinearGradient
@@ -513,6 +609,37 @@ export default function StatsScreen() {
             <Ionicons name="document-text" size={18} color="#FFF" />
             <Text style={st.pdfBtnTxt}>{t('stats.pdfReport')}</Text>
           </LinearGradient>
+        </TouchableOpacity>
+        {/* Selettore mese/anno per PDF */}
+        <View style={[st.card, { marginBottom: GAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 10 }]}>
+          <TouchableOpacity onPress={() => setPdfMonth(m => m === 0 ? 11 : m - 1)}>
+            <Ionicons name="chevron-back" size={20} color="#1E7F85" />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A4040' }}>
+            {getMonthNames()[pdfMonth]} {pdfYear}
+          </Text>
+          <TouchableOpacity onPress={() => setPdfMonth(m => m === 11 ? 0 : m + 1)}>
+            <Ionicons name="chevron-forward" size={20} color="#1E7F85" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setPdfYear(y => y - 1)} style={{ marginLeft: 10 }}>
+            <Text style={{ fontSize: 11, color: '#7A9090' }}>{pdfYear - 1}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setPdfYear(y => y + 1)}>
+            <Text style={{ fontSize: 11, color: '#7A9090' }}>{pdfYear + 1}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ═══ STORICO MERCATO ═══ */}
+        <TouchableOpacity
+          style={[st.card, { marginBottom: GAP }]}
+          onPress={() => setShowStoricoModal(true)}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="time" size={20} color="#1E7F85" />
+            <Text style={[st.sectionLabel, { flex: 1 }]}>{t('stats.marketHistory')}</Text>
+            <Ionicons name="arrow-forward" size={16} color="#1E7F85" />
+          </View>
         </TouchableOpacity>
 
         <View style={[st.card, { marginBottom: GAP }]}>
@@ -541,6 +668,99 @@ export default function StatsScreen() {
         onClose={() => setShowMeteo(false)}
         giornate={storicoGiornate}
       />
+
+      {/* ═══ MODALE STORICO MERCATO ═══ */}
+      <Modal visible={showStoricoModal} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#D8EDE5', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', padding: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <Ionicons name="time" size={22} color="#1E7F85" />
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '900', color: '#1A4040', marginLeft: 10 }}>{t('stats.marketHistory')}</Text>
+              <TouchableOpacity onPress={() => setShowStoricoModal(false)}>
+                <Ionicons name="close-circle" size={28} color="#D46A6A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Selettore mercato */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14, maxHeight: 40 }}>
+              {mercatiUnici.map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  onPress={() => setStoricoMercato(m)}
+                  style={{
+                    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, marginRight: 8,
+                    backgroundColor: storicoMercato === m ? '#1E7F85' : '#E0DBC8',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: storicoMercato === m ? '#FFF' : '#1A4040' }}>{m}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <ScrollView style={{ maxHeight: 500 }}>
+              {!storicoMercato ? (
+                <Text style={{ textAlign: 'center', color: '#7A9090', marginTop: 30, fontSize: 13 }}>{t('stats.selectMarket')}</Text>
+              ) : storicoData.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: '#7A9090', marginTop: 30, fontSize: 13 }}>{t('stats.noData')}</Text>
+              ) : (
+                <>
+                  {/* Statistiche comparazione */}
+                  {storicoStats && (
+                    <View style={{ marginBottom: 16 }}>
+                      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                        <View style={{ flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, padding: 12, alignItems: 'center' }}>
+                          <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>{t('stats.average')}</Text>
+                          <Text style={{ fontSize: 16, fontWeight: '900', color: '#1E7F85' }}>{'\u20AC'}{storicoStats.avgL.toFixed(0)}</Text>
+                        </View>
+                        <View style={{ flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, padding: 12, alignItems: 'center' }}>
+                          <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>{t('stats.trend')}</Text>
+                          <Text style={{ fontSize: 16, fontWeight: '900', color: storicoStats.diff >= 0 ? '#2AAA6A' : '#D46A6A' }}>
+                            {storicoStats.diff >= 0 ? '+' : ''}{storicoStats.pct}%
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, padding: 12, alignItems: 'center' }}>
+                          <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>{t('stats.workingDays')}</Text>
+                          <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040' }}>{storicoData.length}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Lista giornate */}
+                  {storicoData.map((g, i) => {
+                    const d = new Date(g.data);
+                    const GG = getDayNames();
+                    const prevG = storicoData[i + 1];
+                    const prevL = prevG?.lordo || 0;
+                    const diff = prevG ? ((g.lordo || 0) - prevL) : 0;
+                    const pctDiff = prevL > 0 ? ((diff / prevL) * 100).toFixed(0) : null;
+                    return (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#E0DBC8', borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>
+                            {GG[d.getDay() === 0 ? 6 : d.getDay() - 1]} {d.getDate()}/{d.getMonth() + 1}/{d.getFullYear()}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: '#7A9090', marginTop: 2 }}>
+                            {g.km || 0} km
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 14, fontWeight: '900', color: '#1E7F85' }}>{'\u20AC'}{(g.lordo || 0).toFixed(0)}</Text>
+                          {pctDiff !== null && (
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: diff >= 0 ? '#2AAA6A' : '#D46A6A' }}>
+                              {diff >= 0 ? '+' : ''}{pctDiff}%
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
