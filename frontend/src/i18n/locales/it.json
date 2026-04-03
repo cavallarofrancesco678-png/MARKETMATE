@@ -22,7 +22,15 @@
     "subtitle": "Inserisci il tuo PIN",
     "button": "ACCEDI",
     "pinPlaceholder": "PIN",
-    "wrongPin": "PIN non corretto"
+    "wrongPin": "PIN non corretto",
+    "welcome": "BENTORNATO",
+    "manageMarket": "Gestisci il tuo mercato",
+    "enterPin": "INSERISCI PIN",
+    "login": "ACCEDI",
+    "locked": "Troppi tentativi. Riprova tra 30 secondi.",
+    "reconfigure": "RICONFIGURA L'APP",
+    "firstTime": "PRIMA VOLTA? CONFIGURA LA APP",
+    "secureData": "I tuoi dati sono protetti e criptati"
   },
   "tabs": {
     "home": "HOME",
@@ -127,7 +135,7 @@
     "average": "Media lordo",
     "best": "Migliore",
     "worst": "Peggiore",
-    "analysis": "ANALISI GESTIONALE",
+    "analysis": "STATISTICHE",
     "all": "TUTTO",
     "fairs": "FIERE",
     "summary": "RIEPILOGO",
@@ -144,9 +152,12 @@
     "weatherLabel": "STATISTICA METEO",
     "fuelCost": "Costo carburante",
     "marketHistory": "STORICO MERCATO",
-    "selectMarket": "Seleziona un mercato per vedere lo storico",
+    "selectMarket": "Seleziona un mercato",
     "noData": "Nessun dato disponibile",
-    "trend": "Tendenza"
+    "trend": "Tendenza",
+    "customersServed": "CLIENTI SERVITI",
+    "avgReceipt": "Media scontrino",
+    "peopleServed": "Persone servite"
   },
   "gas": {
     "title": "GESTIONE CARBURANTE",

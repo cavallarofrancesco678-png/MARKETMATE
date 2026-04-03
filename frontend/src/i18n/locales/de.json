@@ -22,7 +22,15 @@
     "subtitle": "Geben Sie Ihre PIN ein",
     "button": "ANMELDEN",
     "pinPlaceholder": "PIN",
-    "wrongPin": "Falsche PIN"
+    "wrongPin": "Falscher PIN",
+    "welcome": "WILLKOMMEN",
+    "manageMarket": "Verwalten Sie Ihren Markt",
+    "enterPin": "PIN EINGEBEN",
+    "login": "ANMELDEN",
+    "locked": "Zu viele Versuche. Versuchen Sie es in 30 Sekunden.",
+    "reconfigure": "APP NEUKONFIGURIEREN",
+    "firstTime": "ERSTES MAL? APP EINRICHTEN",
+    "secureData": "Ihre Daten sind geschützt und verschlüsselt"
   },
   "tabs": {
     "home": "START",
@@ -127,7 +135,7 @@
     "average": "Durchschn. brutto",
     "best": "Beste",
     "worst": "Schlechteste",
-    "analysis": "GESCHÄFTSANALYSE",
+    "analysis": "STATISTIKEN",
     "all": "ALLES",
     "fairs": "MESSEN",
     "summary": "ZUSAMMENFASSUNG",
@@ -146,7 +154,10 @@
     "marketHistory": "MARKTHISTORIE",
     "selectMarket": "Wählen Sie einen Markt",
     "noData": "Keine Daten verfügbar",
-    "trend": "Trend"
+    "trend": "Trend",
+    "customersServed": "BEDIENTE KUNDEN",
+    "avgReceipt": "Durchschn. Bon",
+    "peopleServed": "Bediente Personen"
   },
   "gas": {
     "title": "KRAFTSTOFFVERWALTUNG",

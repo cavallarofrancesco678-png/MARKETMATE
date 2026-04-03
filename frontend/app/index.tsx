@@ -10,18 +10,22 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
 import { NeuBox, NeuInset } from '../src/components/NeuBox';
-import { MarketMateLogo } from '../src/components/Logo';
 import { Colors } from '../src/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 export default function LoginScreen() {
   const [pin, setPin] = useState('');
+  const [attempts, setAttempts] = useState(0);
+  const [locked, setLocked] = useState(false);
   const { isConfigured, pin: savedPin, nomeAttivita, loadFromStorage } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const init = async () => {
@@ -31,11 +35,27 @@ export default function LoginScreen() {
     init();
   }, []);
 
+  // Lock after 5 failed attempts for 30 seconds
+  useEffect(() => {
+    if (attempts >= 5) {
+      setLocked(true);
+      const timer = setTimeout(() => { setLocked(false); setAttempts(0); }, 30000);
+      return () => clearTimeout(timer);
+    }
+  }, [attempts]);
+
   const handleAccedi = () => {
-    if (savedPin && pin !== savedPin) {
-      Alert.alert('Errore', 'PIN non corretto');
+    if (locked) {
+      Alert.alert(t('common.error'), t('login.locked'));
       return;
     }
+    if (savedPin && pin !== savedPin) {
+      setAttempts(a => a + 1);
+      Alert.alert(t('common.error'), t('login.wrongPin'));
+      setPin('');
+      return;
+    }
+    setAttempts(0);
     router.replace('/home');
   };
 
@@ -62,38 +82,46 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.logoContainer}>
-            <View style={styles.logoBox}>
-              <MarketMateLogo size={80} color={Colors.marrone} />
-            </View>
-            <Text style={styles.logoText}>MARKETMATE</Text>
+            <Image
+              source={require('../assets/logo_marketmode.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
-          <Text style={styles.title}>BENTORNATO</Text>
+          <Text style={styles.title}>{t('login.welcome')}</Text>
           <Text style={styles.subtitle}>
-            {isConfigured ? nomeAttivita : 'Gestisci il tuo mercato'}
+            {isConfigured ? nomeAttivita : t('login.manageMarket')}
           </Text>
 
           <View style={styles.inputContainer}>
             <NeuInset style={styles.pinInput}>
               <TextInput
                 style={styles.input}
-                placeholder="INSERISCI PIN"
+                placeholder={t('login.enterPin')}
                 placeholderTextColor={Colors.grey}
                 value={pin}
                 onChangeText={setPin}
                 secureTextEntry
                 keyboardType="number-pad"
                 maxLength={6}
+                editable={!locked}
               />
             </NeuInset>
+            {locked && (
+              <Text style={{ color: '#D46A6A', fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' }}>
+                {t('login.locked')}
+              </Text>
+            )}
           </View>
 
           <TouchableOpacity
-            style={styles.accediButton}
+            style={[styles.accediButton, locked && { opacity: 0.5 }]}
             onPress={handleAccedi}
             activeOpacity={0.8}
+            disabled={locked}
           >
-            <Text style={styles.accediText}>ACCEDI</Text>
+            <Text style={styles.accediText}>{t('login.login')}</Text>
           </TouchableOpacity>
 
           <View style={styles.divider} />
@@ -101,9 +129,14 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={handleConfigura} style={styles.configButton}>
             <Ionicons name="rocket-outline" size={20} color={Colors.terracotta} />
             <Text style={styles.configText}>
-              {isConfigured ? 'RICONFIGURA L\'APP' : 'PRIMA VOLTA? CONFIGURA LA APP'}
+              {isConfigured ? t('login.reconfigure') : t('login.firstTime')}
             </Text>
           </TouchableOpacity>
+
+          <View style={styles.securityBadge}>
+            <Ionicons name="shield-checkmark" size={16} color="#1E7F85" />
+            <Text style={styles.securityText}>{t('login.secureData')}</Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -137,6 +170,11 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     alignItems: 'center',
   },
+  logoImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 16,
+  },
   logoBox: {
     backgroundColor: Colors.caramello,
     borderRadius: 25,
@@ -155,6 +193,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.marroneChiaro,
     letterSpacing: 3,
+  },
+  securityBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 6,
+    marginTop: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(30,127,133,0.1)',
+  },
+  securityText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: '#1E7F85',
+    letterSpacing: 0.5,
   },
   title: {
     fontSize: 32,

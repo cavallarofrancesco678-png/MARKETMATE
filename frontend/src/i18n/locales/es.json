@@ -22,7 +22,15 @@
     "subtitle": "Introduce tu PIN",
     "button": "ACCEDER",
     "pinPlaceholder": "PIN",
-    "wrongPin": "PIN incorrecto"
+    "wrongPin": "PIN incorrecto",
+    "welcome": "BIENVENIDO",
+    "manageMarket": "Gestiona tu mercado",
+    "enterPin": "INTRODUCE PIN",
+    "login": "ACCEDER",
+    "locked": "Demasiados intentos. Inténtelo en 30 segundos.",
+    "reconfigure": "RECONFIGURAR APP",
+    "firstTime": "PRIMERA VEZ? CONFIGURA LA APP",
+    "secureData": "Tus datos están protegidos y encriptados"
   },
   "tabs": {
     "home": "INICIO",
@@ -127,7 +135,7 @@
     "average": "Media bruto",
     "best": "Mejor",
     "worst": "Peor",
-    "analysis": "ANÁLISIS DE GESTIÓN",
+    "analysis": "ESTADÍSTICAS",
     "all": "TODO",
     "fairs": "FERIAS",
     "summary": "RESUMEN",
@@ -146,7 +154,10 @@
     "marketHistory": "HISTORIAL MERCADO",
     "selectMarket": "Seleccione un mercado",
     "noData": "Sin datos disponibles",
-    "trend": "Tendencia"
+    "trend": "Tendencia",
+    "customersServed": "CLIENTES ATENDIDOS",
+    "avgReceipt": "Ticket medio",
+    "peopleServed": "Personas atendidas"
   },
   "gas": {
     "title": "GESTIÓN COMBUSTIBLE",

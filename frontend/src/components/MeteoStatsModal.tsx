@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Line, Circle, Text as SvgText } from 'react-native-svg';
+import { useTranslation } from 'react-i18next';
+import { getShortDayNames, getMonthNames } from '../i18n';
 
 const { width: screenW } = Dimensions.get('window');
 
@@ -22,25 +24,13 @@ interface Giornata {
   [key: string]: any;
 }
 
-const METEO_CFG: Record<string, { icon: string; color: string; label: string }> = {
-  SOLE: { icon: 'weather-sunny', color: '#F5A623', label: 'Sole' },
-  VAR: { icon: 'weather-partly-cloudy', color: '#C4A035', label: 'Variabile' },
-  PIOGGIA: { icon: 'weather-rainy', color: '#5A90C0', label: 'Pioggia' },
-  TEMP: { icon: 'weather-lightning-rainy', color: '#7A60BB', label: 'Temporale' },
-  VENTO: { icon: 'weather-windy', color: '#60B0A0', label: 'Vento' },
-  NUVOLO: { icon: 'weather-cloudy', color: '#8899AA', label: 'Nuvolo' },
-};
-
-const GIORNI_SHORT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-const MESI_FULL = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-
-const DONUT_COLORS: Record<string, string> = {
-  SOLE: '#E8A040',
-  VAR: '#C4A035',
-  PIOGGIA: '#5A90C0',
-  TEMP: '#7A60BB',
-  VENTO: '#60B0A0',
-  NUVOLO: '#8899AA',
+const METEO_CFG: Record<string, { icon: string; color: string }> = {
+  SOLE: { icon: 'weather-sunny', color: '#F5A623' },
+  VAR: { icon: 'weather-partly-cloudy', color: '#C4A035' },
+  PIOGGIA: { icon: 'weather-rainy', color: '#5A90C0' },
+  TEMP: { icon: 'weather-lightning-rainy', color: '#7A60BB' },
+  VENTO: { icon: 'weather-windy', color: '#60B0A0' },
+  NUVOLO: { icon: 'weather-cloudy', color: '#8899AA' },
 };
 
 interface Props {
@@ -51,7 +41,10 @@ interface Props {
 
 export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate }) => {
   const [view, setView] = useState<MeteoView>('Settimana');
+  const { t } = useTranslation();
   const now = new Date();
+  const shortDays = getShortDayNames();
+  const monthNames = getMonthNames();
 
   const weekData = useMemo(() => {
     const startOfWeek = new Date(now);
@@ -70,11 +63,11 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
       result.push({
         lordo: match?.lordo || 0,
         meteo: match?.meteo || 'SOLE',
-        label: GIORNI_SHORT[i],
+        label: shortDays[i],
       });
     }
     return result;
-  }, [giornate]);
+  }, [giornate, t]);
 
   const weekAvg = useMemo(() => {
     const working = weekData.filter((d) => d.lordo > 0);
@@ -96,81 +89,41 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
       const match = giornate.find(
         (g) => new Date(g.data).toDateString() === date.toDateString()
       );
-      grid.push({ day: d, meteo: match?.meteo || (date.getDay() === 0 ? '' : 'SOLE') });
+      grid.push({ day: d, meteo: match?.meteo || '' });
     }
     while (grid.length % 7 !== 0) grid.push(null);
 
-    const pioggiaDays = giornate.filter((g) => {
-      const d = new Date(g.data);
-      return d.getMonth() === month && d.getFullYear() === year && (g.meteo === 'PIOGGIA' || g.meteo === 'TEMP');
-    }).length;
+    return { grid, monthName: monthNames[month], year };
+  }, [giornate, t]);
 
-    return { grid, pioggiaDays, monthName: MESI_FULL[month], year };
-  }, [giornate]);
-
-  const yearData = useMemo(() => {
+  /* ═══ YEAR VIEW: Monthly weather stats ═══ */
+  const yearStats = useMemo(() => {
     const year = now.getFullYear();
-    const yearGiornate = giornate.filter((g) => new Date(g.data).getFullYear() === year);
-    const counts: Record<string, number> = {};
-    Object.keys(METEO_CFG).forEach((k) => (counts[k] = 0));
-    yearGiornate.forEach((g) => {
-      const m = g.meteo || 'SOLE';
-      counts[m] = (counts[m] || 0) + 1;
-    });
-    const total = yearGiornate.length || 1;
-    return { counts, total, year };
-  }, [giornate]);
+    const meteoKeys = Object.keys(METEO_CFG);
+    const months: { month: string; counts: Record<string, number>; total: number }[] = [];
+    
+    for (let m = 0; m < 12; m++) {
+      const counts: Record<string, number> = {};
+      meteoKeys.forEach(k => counts[k] = 0);
+      const monthGiornate = giornate.filter(g => {
+        const d = new Date(g.data);
+        return d.getFullYear() === year && d.getMonth() === m;
+      });
+      monthGiornate.forEach(g => {
+        const mt = g.meteo || 'SOLE';
+        counts[mt] = (counts[mt] || 0) + 1;
+      });
+      months.push({ month: monthNames[m], counts, total: monthGiornate.length });
+    }
 
-  const renderDonut = () => {
-    const size = Math.min(screenW - 80, 200);
-    const center = size / 2;
-    const radius = size / 2 - 15;
-    const strokeWidth = 28;
+    // Totals
+    const totals: Record<string, number> = {};
+    meteoKeys.forEach(k => totals[k] = 0);
+    months.forEach(m => meteoKeys.forEach(k => totals[k] += m.counts[k]));
+    const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
 
-    const entries = Object.entries(yearData.counts).filter(([, v]) => v > 0);
-    const total = yearData.total;
-    let startAngle = -Math.PI / 2;
-
-    const arcs = entries.map(([key, count]) => {
-      const angle = (count / total) * 2 * Math.PI;
-      const endAngle = startAngle + angle;
-      const largeArc = angle > Math.PI ? 1 : 0;
-      const x1 = center + radius * Math.cos(startAngle);
-      const y1 = center + radius * Math.sin(startAngle);
-      const x2 = center + radius * Math.cos(endAngle);
-      const y2 = center + radius * Math.sin(endAngle);
-      const path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
-      startAngle = endAngle;
-      return (
-        <Path key={key} d={path} stroke={DONUT_COLORS[key] || '#999'} strokeWidth={strokeWidth} fill="none" strokeLinecap="butt" />
-      );
-    });
-
-    return (
-      <View style={{ alignItems: 'center', marginVertical: 12 }}>
-        <View>
-          <Svg width={size} height={size}>{arcs}</Svg>
-          <View style={[ms.donutCenter, { width: size, height: size }]}>
-            <Text style={ms.donutTotal}>TOTALE</Text>
-            <Text style={ms.donutDays}>{yearData.total} GIORNI</Text>
-          </View>
-        </View>
-        <View style={ms.legendGrid}>
-          {entries.map(([key, count]) => {
-            const pct = Math.round((count / total) * 100);
-            const cfg = METEO_CFG[key];
-            return (
-              <View key={key} style={ms.legendItem}>
-                <MaterialCommunityIcons name={cfg?.icon as any || 'weather-sunny'} size={16} color={DONUT_COLORS[key]} />
-                <Text style={ms.legendLabel}>{cfg?.label || key}</Text>
-                <Text style={ms.legendPct}>{pct}%</Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-    );
-  };
+    return { months, totals, grandTotal, year, meteoKeys };
+  }, [giornate, t]);
 
   const renderWeekChart = () => {
     const chartW = screenW - 100;
@@ -246,7 +199,7 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
     return (
       <View style={{ alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', marginBottom: 6 }}>
-          {GIORNI_SHORT.map((g) => (
+          {shortDays.map((g) => (
             <View key={g} style={{ width: cellSize, alignItems: 'center' }}>
               <Text style={ms.calHeader}>{g}</Text>
             </View>
@@ -256,24 +209,22 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
           <View key={ri} style={{ flexDirection: 'row' }}>
             {row.map((cell, ci) => {
               if (!cell) {
-                return <View key={ci} style={{ width: cellSize, height: cellSize * 0.85 }} />;
+                return <View key={ci} style={{ width: cellSize, height: cellSize }} />;
               }
               const cfg = cell.meteo ? METEO_CFG[cell.meteo] : null;
               return (
-                <View key={ci} style={[ms.calCell, { width: cellSize, height: cellSize * 0.85 }]}>
+                <View key={ci} style={[ms.calCell, { width: cellSize, height: cellSize }]}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#1A4040', marginBottom: 1 }}>{cell.day}</Text>
                   {cfg ? (
-                    <MaterialCommunityIcons name={cfg.icon as any} size={20} color={cfg.color} />
+                    <MaterialCommunityIcons name={cfg.icon as any} size={16} color={cfg.color} />
                   ) : (
-                    <Text style={ms.calDayOff}>{cell.day}</Text>
+                    <View style={{ height: 16 }} />
                   )}
                 </View>
               );
             })}
           </View>
         ))}
-        <View style={ms.calSummary}>
-          <Text style={ms.calSummaryTxt}>{monthData.pioggiaDays} Giorni Pioggia</Text>
-        </View>
       </View>
     );
   };
@@ -283,19 +234,19 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
       <View style={ms.overlay}>
         <View style={ms.container}>
           <View style={ms.header}>
+            <Text style={ms.title}>{t('stats.weatherLabel')}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="arrow-back" size={24} color="#1A3535" />
+              <Ionicons name="close-circle" size={28} color="#D46A6A" />
             </TouchableOpacity>
-            <Text style={ms.title}>STATISTICHE METEO</Text>
-            <View style={{ width: 24 }} />
           </View>
 
           <View style={ms.segmentRow}>
             {(['Settimana', 'Mese', 'Anno'] as MeteoView[]).map((v) => {
+              const labels: Record<string, string> = { 'Settimana': t('stats.week'), 'Mese': t('stats.month'), 'Anno': t('stats.year') };
               const on = view === v;
               return (
                 <TouchableOpacity key={v} style={[ms.segBtn, on && ms.segBtnOn]} onPress={() => setView(v)}>
-                  <Text style={[ms.segTxt, on && { color: '#FFF' }]}>{v}</Text>
+                  <Text style={[ms.segTxt, on && { color: '#FFF' }]}>{labels[v]}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -304,23 +255,73 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
             {view === 'Settimana' && (
               <View style={ms.card}>
-                <Text style={ms.cardTitle}>Settimana Attuale</Text>
-                <Text style={ms.cardSub}>Vendite vs Media ({'\u20AC'}{Math.round(weekAvg)}/gg)</Text>
+                <Text style={ms.cardTitle}>{t('stats.week')}</Text>
+                <Text style={ms.cardSub}>{'\u20AC'}{Math.round(weekAvg)}/gg</Text>
                 {renderWeekChart()}
               </View>
             )}
 
             {view === 'Mese' && (
               <View style={ms.card}>
-                <Text style={ms.cardTitle}>{monthData.monthName} {monthData.year} - Panoramica</Text>
+                <Text style={ms.cardTitle}>{monthData.monthName} {monthData.year}</Text>
                 {renderMonthGrid()}
               </View>
             )}
 
             {view === 'Anno' && (
               <View style={ms.card}>
-                <Text style={ms.cardTitle}>Distribuzione Annua {yearData.year}</Text>
-                {renderDonut()}
+                <Text style={ms.cardTitle}>{yearStats.year} - {t('stats.weatherLabel')}</Text>
+                <Text style={[ms.cardSub, { marginBottom: 10 }]}>{yearStats.grandTotal} {t('stats.workingDays')}</Text>
+
+                {/* Legend icons */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
+                  {yearStats.meteoKeys.map((k) => {
+                    const cfg = METEO_CFG[k];
+                    const total = yearStats.totals[k];
+                    if (total === 0) return null;
+                    return (
+                      <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <MaterialCommunityIcons name={cfg.icon as any} size={16} color={cfg.color} />
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>{total}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Monthly breakdown table */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                  <View>
+                    {/* Header row */}
+                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#D5DDD8', paddingBottom: 6, marginBottom: 6 }}>
+                      <Text style={{ width: 60, fontSize: 9, fontWeight: '800', color: '#1A4040' }}>{t('stats.month')}</Text>
+                      {yearStats.meteoKeys.map((k) => {
+                        const cfg = METEO_CFG[k];
+                        return (
+                          <View key={k} style={{ width: 36, alignItems: 'center' }}>
+                            <MaterialCommunityIcons name={cfg.icon as any} size={14} color={cfg.color} />
+                          </View>
+                        );
+                      })}
+                      <Text style={{ width: 36, fontSize: 9, fontWeight: '800', color: '#1A4040', textAlign: 'center' }}>TOT</Text>
+                    </View>
+
+                    {/* Month rows */}
+                    {yearStats.months.map((m, mi) => {
+                      if (m.total === 0) return null;
+                      return (
+                        <View key={mi} style={{ flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 0.5, borderColor: '#E0DBC8' }}>
+                          <Text style={{ width: 60, fontSize: 10, fontWeight: '700', color: '#1A4040' }}>{m.month.substring(0, 3)}</Text>
+                          {yearStats.meteoKeys.map((k) => (
+                            <Text key={k} style={{ width: 36, fontSize: 10, fontWeight: '700', color: m.counts[k] > 0 ? METEO_CFG[k].color : '#D5DDD8', textAlign: 'center' }}>
+                              {m.counts[k] > 0 ? m.counts[k] : '-'}
+                            </Text>
+                          ))}
+                          <Text style={{ width: 36, fontSize: 10, fontWeight: '800', color: '#1E7F85', textAlign: 'center' }}>{m.total}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
               </View>
             )}
           </ScrollView>

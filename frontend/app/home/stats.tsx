@@ -58,7 +58,7 @@ const isSameMonth = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear(
 const isSameYear = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear();
 const arrSum = (arr: number[]) => arr.reduce((s, v) => s + v, 0);
 
-/* ═══ Interactive SVG Line Chart ═══ */
+/* ═══ Interactive SVG Line Chart with Data Labels ═══ */
 const InteractiveLineChart = ({ labels, lines, height = 140 }: {
   labels: string[];
   lines: { label: string; color: string; data: number[] }[];
@@ -67,7 +67,7 @@ const InteractiveLineChart = ({ labels, lines, height = 140 }: {
   const chartW = screenW - 70;
   const padL = 40;
   const padR = 10;
-  const padT = 15;
+  const padT = 22;
   const padB = 25;
   const drawW = chartW - padL - padR;
   const drawH = height - padT - padB;
@@ -94,13 +94,21 @@ const InteractiveLineChart = ({ labels, lines, height = 140 }: {
         const pts = line.data.map((v, i) => ({
           x: padL + i * stepX,
           y: padT + drawH - (v / maxVal) * drawH,
+          v,
         }));
         const pathD = pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
         return (
           <React.Fragment key={li}>
             <Path d={pathD} stroke={line.color} strokeWidth={2} fill="none" strokeLinejoin="round" />
             {pts.map((p, i) => (
-              <Circle key={i} cx={p.x} cy={p.y} r={3} fill={line.color} stroke="#FFF" strokeWidth={1.5} />
+              <React.Fragment key={i}>
+                <Circle cx={p.x} cy={p.y} r={3} fill={line.color} stroke="#FFF" strokeWidth={1.5} />
+                {p.v > 0 && (
+                  <SvgText x={p.x} y={p.y - 7} fill={line.color} fontSize={8} fontWeight="bold" textAnchor="middle">
+                    {p.v >= 1000 ? `${(p.v / 1000).toFixed(1)}k` : p.v.toFixed(0)}
+                  </SvgText>
+                )}
+              </React.Fragment>
             ))}
           </React.Fragment>
         );
@@ -114,42 +122,45 @@ const InteractiveLineChart = ({ labels, lines, height = 140 }: {
   );
 };
 
-/* ═══ Donut Chart SVG with Percentages ═══ */
-const DonutChart = ({ items, size = 70 }: { items: { label: string; value: number; color: string }[]; size?: number }) => {
+/* ═══ Pie Chart SVG (filled) with readable percentages ═══ */
+const PIE_COLORS = ['#1E7F85', '#E8A060', '#D46A6A', '#6ABFAA', '#B88A44', '#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B', '#6366F1'];
+
+const PieChart = ({ items, size = 120 }: { items: { label: string; value: number; color: string }[]; size?: number }) => {
   const center = size / 2;
-  const radius = size / 2 - 6;
-  const strokeW = 12;
+  const radius = size / 2 - 4;
   const total = arrSum(items.map((i) => i.value)) || 1;
   let startAngle = -Math.PI / 2;
 
-  const arcs = items.map((item, idx) => {
-    const angle = (item.value / total) * 2 * Math.PI;
-    const endAngle = startAngle + angle;
-    const largeArc = angle > Math.PI ? 1 : 0;
-    const x1 = center + radius * Math.cos(startAngle);
-    const y1 = center + radius * Math.sin(startAngle);
-    const x2 = center + radius * Math.cos(endAngle);
-    const y2 = center + radius * Math.sin(endAngle);
-    const path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
-    const midAngle = startAngle + angle / 2;
-    const pct = Math.round((item.value / total) * 100);
-    const labelR = radius + 1;
-    const labelX = center + labelR * Math.cos(midAngle);
-    const labelY = center + labelR * Math.sin(midAngle);
-    startAngle = endAngle;
-    return (
-      <React.Fragment key={idx}>
-        <Path d={path} stroke={item.color} strokeWidth={strokeW} fill="none" strokeLinecap="butt" />
-        {pct >= 5 && (
-          <SvgText x={labelX} y={labelY + 3} fill="#FFF" fontSize={7} fontWeight="bold" textAnchor="middle">
-            {pct}%
-          </SvgText>
-        )}
-      </React.Fragment>
-    );
-  });
-
-  return <Svg width={size} height={size}>{arcs}</Svg>;
+  return (
+    <Svg width={size} height={size}>
+      {items.map((item, idx) => {
+        const angle = (item.value / total) * 2 * Math.PI;
+        const endAngle = startAngle + angle;
+        const largeArc = angle > Math.PI ? 1 : 0;
+        const x1 = center + radius * Math.cos(startAngle);
+        const y1 = center + radius * Math.sin(startAngle);
+        const x2 = center + radius * Math.cos(endAngle);
+        const y2 = center + radius * Math.sin(endAngle);
+        const path = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+        const midAngle = startAngle + angle / 2;
+        const pct = Math.round((item.value / total) * 100);
+        const labelR = radius * 0.6;
+        const labelX = center + labelR * Math.cos(midAngle);
+        const labelY = center + labelR * Math.sin(midAngle);
+        startAngle = endAngle;
+        return (
+          <React.Fragment key={idx}>
+            <Path d={path} fill={item.color} stroke="#D8EDE5" strokeWidth={1} />
+            {pct >= 5 && (
+              <SvgText x={labelX} y={labelY + 4} fill="#FFF" fontSize={11} fontWeight="900" textAnchor="middle">
+                {pct}%
+              </SvgText>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </Svg>
+  );
 };
 
 /* ══════════════════════════════════════════════════════ */
@@ -166,8 +177,6 @@ export default function StatsScreen() {
   const [filtroTipo, setFiltroTipo] = useState<FilterTipo>('TUTTO');
   const [showMeteo, setShowMeteo] = useState(false);
   const [showFiere, setShowFiere] = useState(false);
-  const [showStoricoModal, setShowStoricoModal] = useState(false);
-  const [storicoMercato, setStoricoMercato] = useState<string | null>(null);
   const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
   const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
 
@@ -383,7 +392,7 @@ export default function StatsScreen() {
     );
   };
 
-  const renderDonutBox = (title: string, items: { label: string; value: number; color: string }[]) => {
+  const renderPieBox = (title: string, items: { label: string; value: number; color: string }[]) => {
     const total = arrSum(items.map((i) => i.value));
     if (total === 0) return null;
     return (
@@ -392,15 +401,21 @@ export default function StatsScreen() {
           <Text style={st.sectionLabel}>{title}</Text>
           <Text style={st.sectionTotal}>TOT: {'\u20AC'}{total}</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 16 }}>
-          <DonutChart items={items} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 14 }}>
+          <PieChart items={items} size={130} />
           <View style={{ flex: 1 }}>
             {items.map((it, i) => {
               const pct = Math.round((it.value / total) * 100);
               return (
-                <Text key={i} style={{ fontSize: 10, fontWeight: '700', color: it.color, marginBottom: 3 }}>
-                  {it.label}: {'\u20AC'}{it.value} ({pct}%)
-                </Text>
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: it.color, marginRight: 6 }} />
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>
+                    {it.label}
+                  </Text>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: it.color }}>
+                    {'\u20AC'}{it.value} ({pct}%)
+                  </Text>
+                </View>
               );
             })}
           </View>
@@ -471,32 +486,6 @@ export default function StatsScreen() {
     }
   };
 
-  /* ═══ Storico Mercato Comparativo ═══ */
-  const mercatiUnici = useMemo(() => {
-    const set = new Set(storicoGiornate.map((g) => g.mercato).filter(Boolean));
-    return Array.from(set);
-  }, [storicoGiornate]);
-
-  const storicoData = useMemo(() => {
-    if (!storicoMercato) return [];
-    return storicoGiornate
-      .filter((g) => g.mercato === storicoMercato)
-      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-  }, [storicoMercato, storicoGiornate]);
-
-  const storicoStats = useMemo(() => {
-    if (storicoData.length < 2) return null;
-    const last = storicoData[0];
-    const prev = storicoData[1];
-    const lastL = last?.lordo || 0;
-    const prevL = prev?.lordo || 0;
-    const diff = lastL - prevL;
-    const pct = prevL > 0 ? ((diff / prevL) * 100).toFixed(1) : '0';
-    const avgL = arrSum(storicoData.map((g) => g.lordo || 0)) / storicoData.length;
-    const avgN = arrSum(storicoData.map((g) => g.netto || 0)) / storicoData.length;
-    return { last, prev, diff, pct, avgL, avgN };
-  }, [storicoData]);
-
   return (
     <View style={st.root}>
       <ScrollView contentContainerStyle={[st.scroll, { gap: GAP }]} showsVerticalScrollIndicator={false}>
@@ -534,8 +523,8 @@ export default function StatsScreen() {
         {renderChartBox(t('stats.collaborators'), collabLines)}
         {renderChartBox(t('stats.suppliers'), fornitoriLines)}
 
-        {renderDonutBox(t('stats.fixedExpenses'), speseFisseItems)}
-        {renderDonutBox(t('stats.extraExpenses'), speseExtraItems)}
+        {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
+        {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
 
         <View style={[st.card, { marginBottom: GAP }]}>
           <TouchableOpacity onPress={() => setShowFiere(!showFiere)} activeOpacity={0.7}>
@@ -629,36 +618,40 @@ export default function StatsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ═══ STORICO MERCATO ═══ */}
-        <TouchableOpacity
-          style={[st.card, { marginBottom: GAP }]}
-          onPress={() => setShowStoricoModal(true)}
-          activeOpacity={0.8}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="time" size={20} color="#1E7F85" />
-            <Text style={[st.sectionLabel, { flex: 1 }]}>{t('stats.marketHistory')}</Text>
-            <Ionicons name="arrow-forward" size={16} color="#1E7F85" />
-          </View>
-        </TouchableOpacity>
-
-        <View style={[st.card, { marginBottom: GAP }]}>
-          <Text style={st.sectionLabel}>{t('stats.summary')}</Text>
-          {[
-            [t('stats.workingDays'), `${giorniLav}`],
-            [t('stats.dailyAverage'), `\u20AC${giorniLav > 0 ? (totLordo / giorniLav).toFixed(0) : '0'}`],
-            [t('stats.totalKm'), `${arrSum(filteredData.map((g) => g.km || 0)).toFixed(0)} km`],
-            [t('stats.staffCost'), `\u20AC${arrSum(filteredData.map((g) => {
-              if (!g.dettaglio_staff) return 0;
-              return Object.values(g.dettaglio_staff).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
-            })).toFixed(0)}`],
-          ].map(([label, value], i) => (
-            <View key={i} style={st.riepilogoRow}>
-              <Text style={st.riepilogoLabel}>{label}</Text>
-              <Text style={st.riepilogoValue}>{value}</Text>
+        {/* ═══ CLIENTI SERVITI ═══ */}
+        {(() => {
+          const clientiData = storicoGiornate
+            .filter((g) => g.mercato && (g.lordo || 0) > 0)
+            .map((g) => {
+              const mkt = store.agenda.find((a) => a.mercato === g.mercato);
+              const avgR = mkt?.mediaScontrino || 0;
+              return { ...g, persone: avgR > 0 ? Math.round((g.lordo || 0) / avgR) : 0 };
+            })
+            .filter((g) => g.persone > 0)
+            .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+            .slice(0, 7);
+          
+          if (clientiData.length === 0) return null;
+          
+          return (
+            <View style={[st.card, { marginBottom: GAP }]}>
+              <Text style={st.sectionLabel}>{t('stats.customersServed')}</Text>
+              {clientiData.map((g, i) => {
+                const d = new Date(g.data);
+                return (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: i < clientiData.length - 1 ? 0.5 : 0, borderColor: '#D5DDD8' }}>
+                    <Ionicons name="people" size={16} color="#1E7F85" />
+                    <Text style={{ flex: 1, marginLeft: 8, fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
+                      {g.mercato} - {d.getDate()}/{d.getMonth() + 1}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#E8A060' }}>{g.persone}</Text>
+                    <Text style={{ fontSize: 9, color: '#7A9090', marginLeft: 4 }}>{t('stats.peopleServed')}</Text>
+                  </View>
+                );
+              })}
             </View>
-          ))}
-        </View>
+          );
+        })()}
 
         <View style={{ height: 20 }} />
       </ScrollView>
@@ -668,99 +661,6 @@ export default function StatsScreen() {
         onClose={() => setShowMeteo(false)}
         giornate={storicoGiornate}
       />
-
-      {/* ═══ MODALE STORICO MERCATO ═══ */}
-      <Modal visible={showStoricoModal} transparent animationType="slide">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: '#D8EDE5', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <Ionicons name="time" size={22} color="#1E7F85" />
-              <Text style={{ flex: 1, fontSize: 15, fontWeight: '900', color: '#1A4040', marginLeft: 10 }}>{t('stats.marketHistory')}</Text>
-              <TouchableOpacity onPress={() => setShowStoricoModal(false)}>
-                <Ionicons name="close-circle" size={28} color="#D46A6A" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Selettore mercato */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14, maxHeight: 40 }}>
-              {mercatiUnici.map((m) => (
-                <TouchableOpacity
-                  key={m}
-                  onPress={() => setStoricoMercato(m)}
-                  style={{
-                    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, marginRight: 8,
-                    backgroundColor: storicoMercato === m ? '#1E7F85' : '#E0DBC8',
-                  }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: storicoMercato === m ? '#FFF' : '#1A4040' }}>{m}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <ScrollView style={{ maxHeight: 500 }}>
-              {!storicoMercato ? (
-                <Text style={{ textAlign: 'center', color: '#7A9090', marginTop: 30, fontSize: 13 }}>{t('stats.selectMarket')}</Text>
-              ) : storicoData.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: '#7A9090', marginTop: 30, fontSize: 13 }}>{t('stats.noData')}</Text>
-              ) : (
-                <>
-                  {/* Statistiche comparazione */}
-                  {storicoStats && (
-                    <View style={{ marginBottom: 16 }}>
-                      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                        <View style={{ flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, padding: 12, alignItems: 'center' }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>{t('stats.average')}</Text>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: '#1E7F85' }}>{'\u20AC'}{storicoStats.avgL.toFixed(0)}</Text>
-                        </View>
-                        <View style={{ flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, padding: 12, alignItems: 'center' }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>{t('stats.trend')}</Text>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: storicoStats.diff >= 0 ? '#2AAA6A' : '#D46A6A' }}>
-                            {storicoStats.diff >= 0 ? '+' : ''}{storicoStats.pct}%
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1, backgroundColor: '#E0DBC8', borderRadius: 12, padding: 12, alignItems: 'center' }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>{t('stats.workingDays')}</Text>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040' }}>{storicoData.length}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Lista giornate */}
-                  {storicoData.map((g, i) => {
-                    const d = new Date(g.data);
-                    const GG = getDayNames();
-                    const prevG = storicoData[i + 1];
-                    const prevL = prevG?.lordo || 0;
-                    const diff = prevG ? ((g.lordo || 0) - prevL) : 0;
-                    const pctDiff = prevL > 0 ? ((diff / prevL) * 100).toFixed(0) : null;
-                    return (
-                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#E0DBC8', borderRadius: 10, padding: 12, marginBottom: 8 }}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>
-                            {GG[d.getDay() === 0 ? 6 : d.getDay() - 1]} {d.getDate()}/{d.getMonth() + 1}/{d.getFullYear()}
-                          </Text>
-                          <Text style={{ fontSize: 10, color: '#7A9090', marginTop: 2 }}>
-                            {g.km || 0} km
-                          </Text>
-                        </View>
-                        <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={{ fontSize: 14, fontWeight: '900', color: '#1E7F85' }}>{'\u20AC'}{(g.lordo || 0).toFixed(0)}</Text>
-                          {pctDiff !== null && (
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: diff >= 0 ? '#2AAA6A' : '#D46A6A' }}>
-                              {diff >= 0 ? '+' : ''}{pctDiff}%
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })}
-                </>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

@@ -22,7 +22,15 @@
     "subtitle": "Enter your PIN",
     "button": "LOGIN",
     "pinPlaceholder": "PIN",
-    "wrongPin": "Incorrect PIN"
+    "wrongPin": "Wrong PIN",
+    "welcome": "WELCOME BACK",
+    "manageMarket": "Manage your market",
+    "enterPin": "ENTER PIN",
+    "login": "LOGIN",
+    "locked": "Too many attempts. Try again in 30 seconds.",
+    "reconfigure": "RECONFIGURE APP",
+    "firstTime": "FIRST TIME? SET UP THE APP",
+    "secureData": "Your data is protected and encrypted"
   },
   "tabs": {
     "home": "HOME",
@@ -127,7 +135,7 @@
     "average": "Avg gross",
     "best": "Best",
     "worst": "Worst",
-    "analysis": "MANAGEMENT ANALYSIS",
+    "analysis": "STATISTICS",
     "all": "ALL",
     "fairs": "FAIRS",
     "summary": "SUMMARY",
@@ -144,9 +152,12 @@
     "weatherLabel": "WEATHER STATISTICS",
     "fuelCost": "Fuel cost",
     "marketHistory": "MARKET HISTORY",
-    "selectMarket": "Select a market to see history",
+    "selectMarket": "Select a market",
     "noData": "No data available",
-    "trend": "Trend"
+    "trend": "Trend",
+    "customersServed": "CUSTOMERS SERVED",
+    "avgReceipt": "Avg receipt",
+    "peopleServed": "People served"
   },
   "gas": {
     "title": "FUEL MANAGEMENT",
