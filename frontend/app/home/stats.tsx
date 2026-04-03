@@ -59,15 +59,17 @@ const isSameYear = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear()
 const arrSum = (arr: number[]) => arr.reduce((s, v) => s + v, 0);
 
 /* ═══ Interactive SVG Line Chart with Data Labels ═══ */
-const InteractiveLineChart = ({ labels, lines, height = 140 }: {
+const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, onPointPress }: {
   labels: string[];
   lines: { label: string; color: string; data: number[] }[];
   height?: number;
+  activeLineIndex: number | null;
+  onPointPress?: (lineIdx: number, pointIdx: number, value: number) => void;
 }) => {
   const chartW = screenW - 70;
   const padL = 40;
   const padR = 10;
-  const padT = 22;
+  const padT = 28;
   const padB = 25;
   const drawW = chartW - padL - padR;
   const drawH = height - padT - padB;
@@ -91,6 +93,8 @@ const InteractiveLineChart = ({ labels, lines, height = 140 }: {
         );
       })}
       {lines.map((line, li) => {
+        const isActive = activeLineIndex === null || activeLineIndex === li;
+        const lineOpacity = isActive ? 1 : 0.12;
         const pts = line.data.map((v, i) => ({
           x: padL + i * stepX,
           y: padT + drawH - (v / maxVal) * drawH,
@@ -99,12 +103,21 @@ const InteractiveLineChart = ({ labels, lines, height = 140 }: {
         const pathD = pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
         return (
           <React.Fragment key={li}>
-            <Path d={pathD} stroke={line.color} strokeWidth={2} fill="none" strokeLinejoin="round" />
+            <Path d={pathD} stroke={line.color} strokeWidth={isActive ? 2.5 : 1.5} fill="none" strokeLinejoin="round" opacity={lineOpacity} />
             {pts.map((p, i) => (
               <React.Fragment key={i}>
-                <Circle cx={p.x} cy={p.y} r={3} fill={line.color} stroke="#FFF" strokeWidth={1.5} />
-                {p.v > 0 && (
-                  <SvgText x={p.x} y={p.y - 7} fill={line.color} fontSize={8} fontWeight="bold" textAnchor="middle">
+                <Circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={isActive ? 5.5 : 3}
+                  fill={isActive ? line.color : `${line.color}30`}
+                  stroke={isActive ? '#FFF' : 'transparent'}
+                  strokeWidth={2}
+                  opacity={lineOpacity}
+                  onPress={() => onPointPress?.(li, i, p.v)}
+                />
+                {isActive && p.v > 0 && (
+                  <SvgText x={p.x} y={p.y - 10} fill={line.color} fontSize={9} fontWeight="900" textAnchor="middle" opacity={1}>
                     {p.v >= 1000 ? `${(p.v / 1000).toFixed(1)}k` : p.v.toFixed(0)}
                   </SvgText>
                 )}
@@ -179,6 +192,25 @@ export default function StatsScreen() {
   const [showFiere, setShowFiere] = useState(false);
   const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
   const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
+
+  const [activeChartLine, setActiveChartLine] = useState<Record<string, number | null>>({});
+  const [tooltipInfo, setTooltipInfo] = useState<{ chartKey: string; lineIdx: number; pointIdx: number; value: number } | null>(null);
+
+  const handleLineTap = (chartKey: string, lineIdx: number) => {
+    setActiveChartLine((prev) => ({
+      ...prev,
+      [chartKey]: prev[chartKey] === lineIdx ? null : lineIdx,
+    }));
+    setTooltipInfo(null);
+  };
+
+  const handlePointPress = (chartKey: string, lineIdx: number, pointIdx: number, value: number) => {
+    setTooltipInfo((prev) =>
+      prev && prev.chartKey === chartKey && prev.lineIdx === lineIdx && prev.pointIdx === pointIdx
+        ? null
+        : { chartKey, lineIdx, pointIdx, value }
+    );
+  };
 
   const tempoLabel = (key: string) => {
     const map: Record<string, string> = {
@@ -368,25 +400,51 @@ export default function StatsScreen() {
     </View>
   );
 
-  const renderChartBox = (title: string, lines: { label: string; color: string; data: number[] }[]) => {
+  const renderChartBox = (title: string, lines: { label: string; color: string; data: number[] }[], chartKey: string) => {
     const totalSection = arrSum(lines.map((l) => arrSum(l.data)));
     if (lines.length === 0) return null;
+    const activeLine = activeChartLine[chartKey] ?? null;
+    const currentTooltip = tooltipInfo && tooltipInfo.chartKey === chartKey ? tooltipInfo : null;
     return (
       <View style={[st.card, { marginBottom: GAP }]}>
         <View style={st.chartHeader}>
           <Text style={st.sectionLabel}>{title}</Text>
           <Text style={st.sectionTotal}>TOTALE: {'\u20AC'}{totalSection.toFixed(0)}</Text>
         </View>
+        {currentTooltip && (
+          <View style={st.tooltipBanner}>
+            <View style={[st.tooltipDot, { backgroundColor: lines[currentTooltip.lineIdx]?.color }]} />
+            <Text style={st.tooltipText}>
+              {lines[currentTooltip.lineIdx]?.label}: {'\u20AC'}{currentTooltip.value.toFixed(0)} — {chartLabels[currentTooltip.pointIdx]}
+            </Text>
+          </View>
+        )}
         <View style={st.legendRow}>
-          {lines.map((l, i) => (
-            <View key={i} style={st.legendItem}>
-              <View style={[st.legendDot, { backgroundColor: l.color }]} />
-              <Text style={[st.legendText, { color: l.color }]}>{l.label}: {'\u20AC'}{arrSum(l.data).toFixed(0)}</Text>
-            </View>
-          ))}
+          {lines.map((l, i) => {
+            const isSelected = activeLine === i;
+            const isDimmed = activeLine !== null && activeLine !== i;
+            return (
+              <TouchableOpacity
+                key={i}
+                style={[st.legendItem, isSelected && st.legendItemActive]}
+                onPress={() => handleLineTap(chartKey, i)}
+                activeOpacity={0.7}
+              >
+                <View style={[st.legendDot, { backgroundColor: l.color, opacity: isDimmed ? 0.25 : 1 }]} />
+                <Text style={[st.legendText, { color: l.color, opacity: isDimmed ? 0.3 : 1 }]}>
+                  {l.label}: {'\u20AC'}{arrSum(l.data).toFixed(0)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
         <View style={{ alignItems: 'center', marginTop: 8 }}>
-          <InteractiveLineChart labels={chartLabels} lines={lines} />
+          <InteractiveLineChart
+            labels={chartLabels}
+            lines={lines}
+            activeLineIndex={activeLine}
+            onPointPress={(li, pi, val) => handlePointPress(chartKey, li, pi, val)}
+          />
         </View>
       </View>
     );
@@ -517,11 +575,11 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {renderChartBox(t('stats.economic'), economicoLines)}
-        {renderChartBox(t('stats.income'), incassiLines)}
-        {renderChartBox(t('stats.unsold'), invendutoLines)}
-        {renderChartBox(t('stats.collaborators'), collabLines)}
-        {renderChartBox(t('stats.suppliers'), fornitoriLines)}
+        {renderChartBox(t('stats.economic'), economicoLines, 'economico')}
+        {renderChartBox(t('stats.income'), incassiLines, 'incassi')}
+        {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
+        {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}
+        {renderChartBox(t('stats.suppliers'), fornitoriLines, 'fornitori')}
 
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
         {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
@@ -703,9 +761,17 @@ const st = StyleSheet.create({
   sectionTotal: { fontSize: 10, fontWeight: '900', color: '#1A3535' },
 
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendDot: { width: 7, height: 7, borderRadius: 3.5 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 },
+  legendItemActive: { backgroundColor: 'rgba(30,127,133,0.1)', borderWidth: 1, borderColor: 'rgba(30,127,133,0.25)' },
+  legendDot: { width: 9, height: 9, borderRadius: 4.5 },
   legendText: { fontSize: 9, fontWeight: '700' },
+
+  tooltipBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#1A4040', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, marginTop: 8,
+  },
+  tooltipDot: { width: 8, height: 8, borderRadius: 4 },
+  tooltipText: { fontSize: 11, fontWeight: '800', color: '#FFF', letterSpacing: 0.3 },
 
   meteoRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
   meteoItem: { alignItems: 'center' },
