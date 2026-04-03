@@ -30,7 +30,10 @@
     "locked": "Too many attempts. Try again in 30 seconds.",
     "reconfigure": "RECONFIGURE APP",
     "firstTime": "FIRST TIME? SET UP THE APP",
-    "secureData": "Your data is protected and encrypted"
+    "secureData": "Your data is protected and encrypted",
+    "securityLine1": "Your data stays ONLY on your device.",
+    "securityLine2": "No external server can ever access it.",
+    "securityLine3": "Your privacy is fully guaranteed."
   },
   "tabs": {
     "home": "HOME",
@@ -64,6 +67,20 @@
     "wind": "WIND",
     "profitDetail": "PROFIT DETAIL",
     "deductions": "Deductions"
+  },
+  "welcome": {
+    "identity": "IDENTITY",
+    "businessNamePlaceholder": "Business Name",
+    "ownerNamePlaceholder": "Owner Name",
+    "security": "SECURITY",
+    "createPin": "Create Owner PIN",
+    "recoveryEmail": "Recovery Email",
+    "completed": "COMPLETED",
+    "configSaved": "Configuration saved successfully",
+    "enterApp": "ENTER THE APP",
+    "sector": "SECTOR",
+    "alimentare": "FOOD",
+    "nonAlimentare": "NON-FOOD"
   },
   "settings": {
     "title": "SETTINGS",

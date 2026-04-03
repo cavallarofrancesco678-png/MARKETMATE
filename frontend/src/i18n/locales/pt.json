@@ -30,7 +30,10 @@
     "locked": "Demasiadas tentativas. Tente em 30 segundos.",
     "reconfigure": "RECONFIGURAR APP",
     "firstTime": "PRIMEIRA VEZ? CONFIGURAR APP",
-    "secureData": "Os seus dados estão protegidos e encriptados"
+    "secureData": "Os seus dados estão protegidos e encriptados",
+    "securityLine1": "Os seus dados ficam APENAS no seu dispositivo.",
+    "securityLine2": "Nenhum servidor externo pode aceder, nunca.",
+    "securityLine3": "A sua privacidade é totalmente garantida."
   },
   "tabs": {
     "home": "INÍCIO",
@@ -64,6 +67,20 @@
     "wind": "VENTO",
     "profitDetail": "DETALHE LUCRO",
     "deductions": "Deduções"
+  },
+  "welcome": {
+    "identity": "IDENTIDADE",
+    "businessNamePlaceholder": "Nome do negócio",
+    "ownerNamePlaceholder": "Nome do titular",
+    "security": "SEGURANÇA",
+    "createPin": "Criar PIN do titular",
+    "recoveryEmail": "Email de recuperação",
+    "completed": "CONCLUÍDO",
+    "configSaved": "Configuração guardada com sucesso",
+    "enterApp": "ENTRAR NA APP",
+    "sector": "SETOR",
+    "alimentare": "ALIMENTAR",
+    "nonAlimentare": "NÃO ALIMENTAR"
   },
   "settings": {
     "title": "DEFINIÇÕES",

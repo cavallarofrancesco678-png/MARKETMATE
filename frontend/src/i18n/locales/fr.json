@@ -30,7 +30,10 @@
     "locked": "Trop de tentatives. Réessayez dans 30 secondes.",
     "reconfigure": "RECONFIGURER L'APP",
     "firstTime": "PREMIÈRE FOIS ? CONFIGURER",
-    "secureData": "Vos données sont protégées et cryptées"
+    "secureData": "Vos données sont protégées et cryptées",
+    "securityLine1": "Vos données restent UNIQUEMENT sur votre appareil.",
+    "securityLine2": "Aucun serveur externe ne peut y accéder, jamais.",
+    "securityLine3": "Votre vie privée est totalement garantie."
   },
   "tabs": {
     "home": "ACCUEIL",
@@ -64,6 +67,20 @@
     "wind": "VENT",
     "profitDetail": "DÉTAIL BÉNÉFICE",
     "deductions": "Déductions"
+  },
+  "welcome": {
+    "identity": "IDENTITÉ",
+    "businessNamePlaceholder": "Nom de l'activité",
+    "ownerNamePlaceholder": "Nom du titulaire",
+    "security": "SÉCURITÉ",
+    "createPin": "Créer PIN titulaire",
+    "recoveryEmail": "Email de récupération",
+    "completed": "TERMINÉ",
+    "configSaved": "Configuration enregistrée avec succès",
+    "enterApp": "ENTRER DANS L'APP",
+    "sector": "SECTEUR",
+    "alimentare": "ALIMENTAIRE",
+    "nonAlimentare": "NON ALIMENTAIRE"
   },
   "settings": {
     "title": "PARAMÈTRES",

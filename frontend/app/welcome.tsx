@@ -163,12 +163,12 @@ export default function WelcomeScreen() {
       case 1:
         return (
           <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>{t('settings.sector').toUpperCase()}</Text>
+            <Text style={styles.stepTitle}>{t('welcome.sector')}</Text>
             <View style={styles.sectorButtons}>
               <TouchableOpacity onPress={() => setIsAlimentare(true)} style={styles.fullWidth}>
                 <NeuBox pressed={isAlimentare} padding={20} borderRadius={24}>
                   <Text style={[styles.optionText, isAlimentare && { color: Colors.primary }]}>
-                    {t('settings.alimentare')}
+                    {t('welcome.alimentare')}
                   </Text>
                 </NeuBox>
               </TouchableOpacity>
@@ -176,7 +176,7 @@ export default function WelcomeScreen() {
               <TouchableOpacity onPress={() => setIsAlimentare(false)} style={styles.fullWidth}>
                 <NeuBox pressed={!isAlimentare} padding={20} borderRadius={24}>
                   <Text style={[styles.optionText, !isAlimentare && { color: Colors.primary }]}>
-                    {t('settings.nonAlimentare')}
+                    {t('welcome.nonAlimentare')}
                   </Text>
                 </NeuBox>
               </TouchableOpacity>
@@ -187,17 +187,17 @@ export default function WelcomeScreen() {
       case 2:
         return (
           <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>IDENTITÀ</Text>
+            <Text style={styles.stepTitle}>{t('welcome.identity')}</Text>
             <View style={styles.inputsContainer}>
               <InputField
-                label="Nome dell'Attività"
+                label={t('welcome.businessNamePlaceholder')}
                 icon="storefront-outline"
                 value={nomeAttivita}
                 onChangeText={setNomeAttivita}
               />
               <View style={styles.spacer} />
               <InputField
-                label="Nome del Titolare"
+                label={t('welcome.ownerNamePlaceholder')}
                 icon="person-outline"
                 value={nomeTitolare}
                 onChangeText={setNomeTitolare}
@@ -209,10 +209,10 @@ export default function WelcomeScreen() {
       case 3:
         return (
           <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>SICUREZZA</Text>
+            <Text style={styles.stepTitle}>{t('welcome.security')}</Text>
             <View style={styles.inputsContainer}>
               <InputField
-                label="Crea PIN Titolare"
+                label={t('welcome.createPin')}
                 icon="lock-closed-outline"
                 value={pin}
                 onChangeText={setPin}
@@ -221,7 +221,7 @@ export default function WelcomeScreen() {
               />
               <View style={styles.spacer} />
               <InputField
-                label="Email di Recupero"
+                label={t('welcome.recoveryEmail')}
                 icon="mail-outline"
                 value={emailRecupero}
                 onChangeText={setEmailRecupero}
@@ -233,9 +233,9 @@ export default function WelcomeScreen() {
       case 4:
         return (
           <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>COMPLETATO</Text>
+            <Text style={styles.stepTitle}>{t('welcome.completed')}</Text>
             <Text style={styles.completeSubtitle}>
-              Configurazione salvata con successo
+              {t('welcome.configSaved')}
             </Text>
             
             <NeuBox
@@ -251,7 +251,7 @@ export default function WelcomeScreen() {
               onPress={handleFinish}
               activeOpacity={0.8}
             >
-              <Text style={styles.enterButtonText}>ENTRA NELL'APP</Text>
+              <Text style={styles.enterButtonText}>{t('welcome.enterApp')}</Text>
             </TouchableOpacity>
           </View>
         );

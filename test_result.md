@@ -105,7 +105,7 @@
 user_problem_statement: "MarketMate - App per ambulanti con design Neumorphic. Implementare Spese Extra generiche e migliorare il prompt AI Buongiorno."
 
 backend:
-  - task: "AI Chat endpoint /api/ai/chat - Buongiorno structured prompt"
+  - task: "AI Chat endpoint /api/ai/chat - Buongiorno structured prompt v2"
     implemented: true
     working: true
     file: "server.py"
@@ -113,37 +113,64 @@ backend:
     priority: "high"
     needs_retesting: false
     status_history:
-        - working: "NA"
-        - agent: "main"
-        - comment: "Updated system prompt to enforce structured response format (Meteo, Incasso, Carburante, Consiglio). The endpoint receives message, context and session_id."
         - working: true
         - agent: "testing"
-        - comment: "✅ TESTED SUCCESSFULLY: Both GET /api/ and POST /api/ai/chat endpoints working perfectly. AI chat returns structured response with all required sections (METEO, INCASSO, CARBURANTE, CONSIGLIO) in Italian. Response format matches requirements exactly. Session handling working correctly."
+        - comment: "Previously tested and working"
+        - working: "NA"
+        - agent: "main"
+        - comment: "UPGRADED system prompt to 8 sections: 1) Saluto personalizzato, 2) Meteo, 3) Mercato & Percorso, 4) Carburante economico, 5) Incasso settimana precedente (per mercato specifico), 6) Notizie del giorno, 7) Promemoria scontrino/media clienti, 8) Consiglio del giorno"
+        - working: true
+        - agent: "testing"
+        - comment: "COMPREHENSIVE TEST PASSED: Both GET /api/ health check and POST /api/ai/chat endpoints working perfectly. AI response contains ALL 8 required structured sections: 1) Saluto personalizzato (mentions Marco), 2) Meteo (SOLE, 25 gradi), 3) Mercato & Percorso (Milano to Magenta, 30km), 4) Carburante economico (cost optimization tips), 5) Incasso specifico mercato Magenta (800€ previous week), 6) Notizie del giorno (asks user preference), 7) Promemoria scontrino (photo reminder), 8) Consiglio del giorno (weather-based sales tips). Response is 1359 chars, well-formatted with emojis and bold headers. All specific content checks passed: mentions Marco, Milano, Magenta, weather details, and previous earnings."
 
 frontend:
+  - task: "Welcome Screen i18n reactivity + back navigation"
+    implemented: true
+    working: true
+    file: "app/welcome.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "main"
+        - comment: "All hardcoded Italian text replaced with t() calls using new 'welcome' namespace. Back arrow already present and working. Language change instantly updates all text on screen. Verified via screenshots."
+
+  - task: "Login Screen - Logo MARKETMATE + 3-line security text"
+    implemented: true
+    working: true
+    file: "app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "main"
+        - comment: "Replaced PNG logo with clean text-based logo (Ionicons storefront + MARKETMATE text, no gray bg). Added 3 separate localized security lines: data stays on device, no external server access, privacy guaranteed. All 6 languages translated."
+
   - task: "SpeseExtraModal - Generic expenses (voci generiche)"
     implemented: true
     working: "NA"
     file: "src/components/SpeseExtraModal.tsx"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: true
+    priority: "medium"
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "main"
-        - comment: "Implemented SpeseExtraModal with vociGeneriche array. Users can add custom expenses, toggle on/off, set amounts, and delete. Integrated with Home index.tsx to calculate total and subtract from Utile."
+        - comment: "Previously implemented, not retesting."
 
   - task: "BuongiornoModal - AI chat frontend"
     implemented: true
     working: "NA"
     file: "src/components/BuongiornoModal.tsx"
     stuck_count: 0
-    priority: "high"
-    needs_retesting: true
+    priority: "medium"
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "main"
-        - comment: "Updated auto-message to be cleaner. Now sends 'Buongiorno! Come si presenta la giornata di oggi?' instead of long instructions. Backend system prompt handles formatting."
+        - comment: "Frontend sends context and message, backend prompt upgraded."
 
 metadata:
   created_by: "main_agent"
@@ -152,14 +179,13 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "AI Chat endpoint /api/ai/chat - Buongiorno structured prompt"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-    - message: "Please test the POST /api/ai/chat endpoint. Send a POST request with body: {\"message\": \"Buongiorno!\", \"context\": \"Attivita: MarketMate\\nTitolare: Marco\\nMercato oggi: Magenta\\nMeteo oggi: SOLE\\nKm oggi: 30\\nCollaboratori: Luca, Anna\\nFornitori: Rossi SRL\\nSpese annuali: Assicurazione: 1200/anno\\nSettimana precedente: Lordo: 3500, Netto: 2100, 5 giorni lavorati\\nCarburante: Ultimo rifornimento: 01/04/2026, 85\", \"session_id\": \"test_session_1\"}. The response should contain structured sections about weather, income, fuel, and a daily tip."
+    - message: "Please test the POST /api/ai/chat endpoint with the UPGRADED prompt. Send POST to /api/ai/chat with body: {\"message\": \"Buongiorno!\", \"context\": \"Attivita: MarketMate\\nTitolare: Marco\\nMercato oggi: Magenta\\nPartenza da: Milano\\nMeteo oggi: SOLE, 25 gradi\\nKm oggi: 30\\nCosto/km: 0.25\\nCollaboratori: Luca, Anna\\nFornitori: Rossi SRL\\nSpese annuali: Assicurazione: 1200/anno\\nSettimana precedente totale: Lordo: 3500, Netto: 2100, 5 giorni lavorati\\nSettimana precedente mercato Magenta: Lordo: 800, 1 giornata\\nCarburante: Ultimo rifornimento: 01/04/2026, 85 euro\", \"session_id\": \"test_v2_1\"}. The response should now have 8 structured sections including: Meteo, Carburante economico, Incasso per mercato specifico, Notizie del giorno request, Promemoria scontrino, and Consiglio."
     - agent: "testing"
-    - message: "✅ BACKEND TESTING COMPLETE: All backend APIs tested successfully. GET /api/ returns correct Hello World message. POST /api/ai/chat works perfectly with structured Italian response containing all required sections (METEO, INCASSO, CARBURANTE, CONSIGLIO). AI integration with Emergent LLM is working correctly. Backend is ready for production use."
+    - message: "TESTING COMPLETED SUCCESSFULLY: Both backend endpoints tested and working perfectly. GET /api/ returns correct health check response. POST /api/ai/chat with Buongiorno message returns comprehensive response with ALL 8 required structured sections: Saluto personalizzato (mentions Marco), Meteo (SOLE, 25 gradi), Mercato & Percorso (Milano to Magenta, 30km), Carburante economico, Incasso specifico mercato Magenta (800€), Notizie del giorno, Promemoria scontrino, and Consiglio del giorno. Response is well-formatted with emojis and bold headers. All content validation checks passed. Backend API is fully functional and ready for production use."

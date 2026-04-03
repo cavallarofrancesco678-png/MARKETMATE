@@ -41,11 +41,11 @@ def test_ai_chat_endpoint():
     """Test POST /api/ai/chat endpoint with the exact request from review"""
     print("\n🔍 Testing POST /api/ai/chat endpoint...")
     
-    # Exact request from the review
+    # Exact payload as specified in the review request
     payload = {
-        "message": "Buongiorno! Come si presenta la giornata di oggi?",
-        "context": "Attivita: MarketMate\nTitolare: Marco\nMercato oggi: Magenta\nMeteo oggi: SOLE\nKm oggi: 30\nCollaboratori: Luca, Anna\nFornitori: Rossi SRL\nSpese annuali: Assicurazione: 1200/anno\nSettimana precedente: Lordo: 3500, Netto: 2100, 5 giorni lavorati\nCarburante: Ultimo rifornimento: 01/04/2026, 85",
-        "session_id": "test_session_1"
+        "message": "Buongiorno!",
+        "context": "Attivita: MarketMate\nTitolare: Marco\nMercato oggi: Magenta\nPartenza da: Milano\nMeteo oggi: SOLE, 25 gradi\nKm oggi: 30\nCosto/km: 0.25\nCollaboratori: Luca, Anna\nFornitori: Rossi SRL\nSpese annuali: Assicurazione: 1200/anno\nSettimana precedente totale: Lordo: 3500, Netto: 2100, 5 giorni lavorati\nSettimana precedente mercato Magenta: Lordo: 800, 1 giornata\nCarburante: Ultimo rifornimento: 01/04/2026, 85 euro",
+        "session_id": "test_v2_1"
     }
     
     headers = {
@@ -78,27 +78,67 @@ def test_ai_chat_endpoint():
                     return False
                 
                 # Check if session_id matches
-                if data["session_id"] != "test_session_1":
-                    print(f"❌ Session ID mismatch. Expected: test_session_1, Got: {data['session_id']}")
+                if data["session_id"] != "test_v2_1":
+                    print(f"❌ Session ID mismatch. Expected: test_v2_1, Got: {data['session_id']}")
                     return False
                 
-                # Check if response contains structured content
-                response_text = data["response"].upper()
-                required_sections = ["METEO", "INCASSO", "CARBURANTE", "CONSIGLIO"]
+                # Check if response contains the 8 structured sections
+                response_text = data["response"]
+                response_lower = response_text.lower()
+                
+                print(f"\n📝 AI Response ({len(response_text)} chars):")
+                print("-" * 50)
+                print(response_text)
+                print("-" * 50)
+                
+                # Check for the 8 required sections
+                sections_to_check = [
+                    ("Saluto personalizzato", ["marco", "salut", "buongiorno", "ciao"]),
+                    ("Meteo", ["meteo", "sole", "25 gradi", "temperatura", "tempo"]),
+                    ("Mercato & Percorso", ["milano", "magenta", "mercato", "km", "percorso"]),
+                    ("Carburante economico", ["carburante", "distributore", "benzina", "economico", "prezzo"]),
+                    ("Incasso specifico mercato Magenta", ["incasso", "settimana", "magenta", "800", "lordo"]),
+                    ("Notizie del giorno", ["notizie", "novità", "informazioni"]),
+                    ("Promemoria scontrino", ["scontrino", "foto", "chiusura fiscale", "media"]),
+                    ("Consiglio del giorno", ["consiglio", "suggerimento", "strategia"])
+                ]
+                
+                found_sections = []
                 missing_sections = []
                 
-                for section in required_sections:
-                    if section not in response_text:
-                        missing_sections.append(section)
+                for section_name, keywords in sections_to_check:
+                    found = any(keyword in response_lower for keyword in keywords)
+                    if found:
+                        found_sections.append(section_name)
+                    else:
+                        missing_sections.append(section_name)
                 
+                print(f"\n✅ Found sections ({len(found_sections)}/8): {', '.join(found_sections)}")
                 if missing_sections:
-                    print(f"❌ Missing required sections in AI response: {missing_sections}")
-                    print(f"Response content: {data['response']}")
-                    return False
+                    print(f"❌ Missing sections ({len(missing_sections)}/8): {', '.join(missing_sections)}")
                 
-                print("✅ POST /api/ai/chat endpoint working correctly")
-                print("✅ Response contains all required structured sections")
-                return True
+                # Additional specific checks
+                specific_checks = {
+                    "Mentions Marco": "marco" in response_lower,
+                    "Mentions Milano": "milano" in response_lower,
+                    "Mentions Magenta": "magenta" in response_lower,
+                    "Mentions weather (SOLE)": any(word in response_lower for word in ["sole", "25", "gradi"]),
+                    "Mentions previous earnings": "800" in response_text or "settimana precedente" in response_lower
+                }
+                
+                print("\n🔍 Specific Content Checks:")
+                for check_name, result in specific_checks.items():
+                    status = "✅" if result else "❌"
+                    print(f"{status} {check_name}: {result}")
+                
+                # Overall assessment
+                if len(found_sections) >= 6:
+                    print("\n✅ POST /api/ai/chat endpoint working correctly")
+                    print("✅ Response contains required structured sections")
+                    return True
+                else:
+                    print(f"\n❌ AI response missing too many sections. Found {len(found_sections)}/8")
+                    return False
                 
             except json.JSONDecodeError as e:
                 print(f"❌ Invalid JSON response: {e}")

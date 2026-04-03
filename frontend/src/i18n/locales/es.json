@@ -30,7 +30,10 @@
     "locked": "Demasiados intentos. Inténtelo en 30 segundos.",
     "reconfigure": "RECONFIGURAR APP",
     "firstTime": "PRIMERA VEZ? CONFIGURA LA APP",
-    "secureData": "Tus datos están protegidos y encriptados"
+    "secureData": "Tus datos están protegidos y encriptados",
+    "securityLine1": "Tus datos permanecen SOLO en tu dispositivo.",
+    "securityLine2": "Ningún servidor externo puede acceder, nunca.",
+    "securityLine3": "Tu privacidad está totalmente garantizada."
   },
   "tabs": {
     "home": "INICIO",
@@ -64,6 +67,20 @@
     "wind": "VIENTO",
     "profitDetail": "DETALLE BENEFICIO",
     "deductions": "Deducciones"
+  },
+  "welcome": {
+    "identity": "IDENTIDAD",
+    "businessNamePlaceholder": "Nombre del negocio",
+    "ownerNamePlaceholder": "Nombre del titular",
+    "security": "SEGURIDAD",
+    "createPin": "Crear PIN del titular",
+    "recoveryEmail": "Email de recuperación",
+    "completed": "COMPLETADO",
+    "configSaved": "Configuración guardada con éxito",
+    "enterApp": "ENTRAR EN LA APP",
+    "sector": "SECTOR",
+    "alimentare": "ALIMENTARIO",
+    "nonAlimentare": "NO ALIMENTARIO"
   },
   "settings": {
     "title": "AJUSTES",

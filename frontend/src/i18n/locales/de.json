@@ -30,7 +30,10 @@
     "locked": "Zu viele Versuche. Versuchen Sie es in 30 Sekunden.",
     "reconfigure": "APP NEUKONFIGURIEREN",
     "firstTime": "ERSTES MAL? APP EINRICHTEN",
-    "secureData": "Ihre Daten sind geschützt und verschlüsselt"
+    "secureData": "Ihre Daten sind geschützt und verschlüsselt",
+    "securityLine1": "Ihre Daten bleiben NUR auf Ihrem Gerät.",
+    "securityLine2": "Kein externer Server kann darauf zugreifen.",
+    "securityLine3": "Ihre Privatsphäre ist vollständig garantiert."
   },
   "tabs": {
     "home": "START",
@@ -64,6 +67,20 @@
     "wind": "WIND",
     "profitDetail": "GEWINNDETAILS",
     "deductions": "Abzüge"
+  },
+  "welcome": {
+    "identity": "IDENTITÄT",
+    "businessNamePlaceholder": "Geschäftsname",
+    "ownerNamePlaceholder": "Name des Inhabers",
+    "security": "SICHERHEIT",
+    "createPin": "Inhaber-PIN erstellen",
+    "recoveryEmail": "Wiederherstellungs-E-Mail",
+    "completed": "ABGESCHLOSSEN",
+    "configSaved": "Konfiguration erfolgreich gespeichert",
+    "enterApp": "APP STARTEN",
+    "sector": "BRANCHE",
+    "alimentare": "LEBENSMITTEL",
+    "nonAlimentare": "NICHT-LEBENSMITTEL"
   },
   "settings": {
     "title": "EINSTELLUNGEN",

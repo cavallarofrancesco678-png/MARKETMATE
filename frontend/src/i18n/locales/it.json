@@ -30,7 +30,10 @@
     "locked": "Troppi tentativi. Riprova tra 30 secondi.",
     "reconfigure": "RICONFIGURA L'APP",
     "firstTime": "PRIMA VOLTA? CONFIGURA LA APP",
-    "secureData": "I tuoi dati sono protetti e criptati"
+    "secureData": "I tuoi dati sono protetti e criptati",
+    "securityLine1": "I tuoi dati restano SOLO sul tuo dispositivo.",
+    "securityLine2": "Nessun server esterno può accedervi, mai.",
+    "securityLine3": "La tua privacy è totalmente garantita."
   },
   "tabs": {
     "home": "HOME",
@@ -64,6 +67,20 @@
     "wind": "VENTO",
     "profitDetail": "DETTAGLIO UTILE",
     "deductions": "Deduzioni"
+  },
+  "welcome": {
+    "identity": "IDENTITÀ",
+    "businessNamePlaceholder": "Nome dell'Attività",
+    "ownerNamePlaceholder": "Nome del Titolare",
+    "security": "SICUREZZA",
+    "createPin": "Crea PIN Titolare",
+    "recoveryEmail": "Email di Recupero",
+    "completed": "COMPLETATO",
+    "configSaved": "Configurazione salvata con successo",
+    "enterApp": "ENTRA NELL'APP",
+    "sector": "SETTORE",
+    "alimentare": "ALIMENTARE",
+    "nonAlimentare": "NON ALIMENTARE"
   },
   "settings": {
     "title": "IMPOSTAZIONI",

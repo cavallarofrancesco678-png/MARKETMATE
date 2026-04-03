@@ -10,7 +10,6 @@ import {
   Platform,
   ScrollView,
   Alert,
-  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
@@ -82,11 +81,10 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.logoContainer}>
-            <Image
-              source={require('../assets/logo_marketmode.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            <View style={styles.logoTextBox}>
+              <Ionicons name="storefront" size={48} color={Colors.primary} />
+              <Text style={styles.logoMainText}>MARKETMATE</Text>
+            </View>
           </View>
 
           <Text style={styles.title}>{t('login.welcome')}</Text>
@@ -134,8 +132,12 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <View style={styles.securityBadge}>
-            <Ionicons name="shield-checkmark" size={16} color="#1E7F85" />
-            <Text style={styles.securityText}>{t('login.secureData')}</Text>
+            <Ionicons name="shield-checkmark" size={22} color="#1E7F85" />
+            <View style={styles.securityTextContainer}>
+              <Text style={styles.securityLine}>{t('login.securityLine1')}</Text>
+              <Text style={styles.securityLine}>{t('login.securityLine2')}</Text>
+              <Text style={styles.securityLine}>{t('login.securityLine3')}</Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -167,8 +169,27 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginTop: 30,
-    marginBottom: 40,
+    marginBottom: 30,
     alignItems: 'center',
+  },
+  logoTextBox: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 30,
+  },
+  logoMainText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: Colors.primary,
+    letterSpacing: 4,
+    marginTop: 10,
+  },
+  logoSubText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.grey,
+    letterSpacing: 2,
+    marginTop: 4,
   },
   logoImage: {
     width: 140,
@@ -198,12 +219,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    gap: 6,
+    gap: 10,
     marginTop: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(30,127,133,0.1)',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    backgroundColor: 'rgba(30,127,133,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(30,127,133,0.15)',
+  },
+  securityTextContainer: {
+    flexShrink: 1,
+  },
+  securityLine: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#1E7F85',
+    letterSpacing: 0.3,
+    lineHeight: 17,
   },
   securityText: {
     fontSize: 10,
