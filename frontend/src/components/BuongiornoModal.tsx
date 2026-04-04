@@ -35,6 +35,8 @@ interface StoreData {
   speseAnnue: { voce: string; importo: number }[];
   partenzaDa: string;
   costoKm: number;
+  tipoCarburante: string;
+  mediaScontrino: number;
 }
 
 interface Props {
@@ -52,26 +54,56 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [fuelData, setFuelData] = useState<string>('');
   const scrollRef = useRef<ScrollView>(null);
   const recognitionRef = useRef<any>(null);
   const sessionId = useRef(`session_${Date.now()}`);
   const { t } = useTranslation();
 
+  // Fetch fuel prices when modal opens
+  useEffect(() => {
+    if (visible && storeData.partenzaDa && storeData.mercatoOggi) {
+      fetchFuelPrices();
+    }
+  }, [visible]);
+
+  const fetchFuelPrices = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/fuel/cheapest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partenza: storeData.partenzaDa,
+          destinazione: storeData.mercatoOggi,
+          tipo_carburante: storeData.tipoCarburante || 'benzina',
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.stations && data.stations.length > 0) {
+        const stationInfo = data.stations.map((s: any, i: number) =>
+          `${i + 1}. ${s.nome} - ${s.indirizzo} - €${s.prezzo}/L (${s.distanza_km}km dal tragitto)`
+        ).join('\n');
+        setFuelData(`PREZZI CARBURANTE REALI (${storeData.tipoCarburante || 'benzina'}) nel tragitto ${storeData.partenzaDa} → ${storeData.mercatoOggi}:\n${stationInfo}`);
+      } else {
+        setFuelData(data.message || 'Prezzi carburante in tempo reale non disponibili per questa zona.');
+      }
+    } catch {
+      setFuelData('Impossibile recuperare i prezzi carburante in tempo reale.');
+    }
+  };
+
   const contextStr = useMemo(() => {
     const s = storeData;
-    const collabs = s.collaboratori.length > 0 ? s.collaboratori.join(', ') : 'Nessuno';
-    const forns = s.fornitori.length > 0 ? s.fornitori.join(', ') : 'Nessuno';
-    const spese = s.speseAnnue.map((sp) => `${sp.voce}: €${sp.importo}/anno`).join(', ');
     const settPrec = s.settimanaPrec.giorni > 0
       ? `Lordo: €${s.settimanaPrec.lordo}, Netto: €${s.settimanaPrec.netto}, ${s.settimanaPrec.giorni} giorni lavorati`
       : 'Nessun dato';
     const settPrecMerc = s.settimanaPrecMercato && s.settimanaPrecMercato.giorni > 0
-      ? `Mercato ${s.settimanaPrecMercato.mercato}: Lordo: €${s.settimanaPrecMercato.lordo}, Netto: €${s.settimanaPrecMercato.netto}, ${s.settimanaPrecMercato.giorni} giornate`
+      ? `Mercato ${s.settimanaPrecMercato.mercato}: Lordo: €${s.settimanaPrecMercato.lordo}, ${s.settimanaPrecMercato.giorni} giornate`
       : `Nessun dato specifico per mercato ${s.mercatoOggi}`;
     const carb = s.ultimoCarburante
       ? `Ultimo rifornimento: ${s.ultimoCarburante.data}, €${s.ultimoCarburante.euro}`
       : 'Nessun dato carburante';
-    const costoViaggio = s.kmOggi > 0 ? `€${(s.kmOggi * s.costoKm).toFixed(2)}` : 'Non calcolabile';
+    const mediaSc = s.mediaScontrino > 0 ? `€${s.mediaScontrino.toFixed(2)}` : 'Non calcolata';
 
     return `Attivita: ${s.nomeAttivita}
 Titolare: ${s.nomeTitolare}
@@ -79,15 +111,14 @@ Mercato oggi: ${s.mercatoOggi}
 Meteo oggi: ${s.meteoOggi}
 Km oggi: ${s.kmOggi}
 Partenza da: ${s.partenzaDa || 'Non specificata'}
+Tipo carburante: ${s.tipoCarburante || 'benzina'}
 Costo/km: €${s.costoKm.toFixed(3)}
-Costo stimato viaggio: ${costoViaggio}
-Collaboratori: ${collabs}
-Fornitori: ${forns}
-Spese annuali: ${spese}
 Settimana precedente totale: ${settPrec}
 Settimana precedente mercato specifico: ${settPrecMerc}
-Carburante: ${carb}`;
-  }, [storeData]);
+Media scontrino attuale: ${mediaSc}
+Carburante: ${carb}
+${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
+  }, [storeData, fuelData]);
 
   // Auto-send welcome message on open
   useEffect(() => {

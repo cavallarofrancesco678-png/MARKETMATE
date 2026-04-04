@@ -146,7 +146,8 @@
     "dailyTotal": "Tagesumsatz",
     "numReceipts": "Anz. Bons",
     "saveResult": "Ergebnis speichern",
-    "receiptsAnalyzed": "Bons analysiert"
+    "receiptsAnalyzed": "Bons analysiert",
+    "fuelType": "Kraftstoffart"
   },
   "stats": {
     "title": "STATISTIKEN",

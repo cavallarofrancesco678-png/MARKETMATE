@@ -379,6 +379,35 @@ export default function SettingsPage() {
         </View>
       </View>
 
+      {/* ─── TIPO CARBURANTE ─── */}
+      <View style={s.card}>
+        <View style={s.itemRow}>
+          <Ionicons name="speedometer" size={20} color="#1E7F85" />
+          <View style={s.itemInfo}>
+            <Text style={s.itemLabel}>{t('settings.fuelType') || 'Tipo Carburante'}</Text>
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+          {['benzina', 'gasolio', 'gpl'].map((tipo) => (
+            <TouchableOpacity
+              key={tipo}
+              onPress={() => store.setConfig({ tipoCarburante: tipo })}
+              style={[
+                s.fuelChip,
+                (store.tipoCarburante || 'benzina') === tipo && s.fuelChipActive
+              ]}
+            >
+              <Text style={[
+                s.fuelChipText,
+                (store.tipoCarburante || 'benzina') === tipo && s.fuelChipTextActive
+              ]}>
+                {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* ─── SETTORE ─── */}
       <View style={s.card}>
         <View style={s.switchRow}>
@@ -962,6 +991,26 @@ const s = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     color: '#1A3535',
+  },
+  fuelChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#E8E3D5',
+    borderWidth: 1.5,
+    borderColor: '#C0D0C8',
+  },
+  fuelChipActive: {
+    backgroundColor: '#1E7F85',
+    borderColor: '#1E7F85',
+  },
+  fuelChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A3535',
+  },
+  fuelChipTextActive: {
+    color: '#FFF',
   },
 });
 

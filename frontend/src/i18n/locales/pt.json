@@ -146,7 +146,8 @@
     "dailyTotal": "Total diário",
     "numReceipts": "Nº Recibos",
     "saveResult": "Guardar resultado",
-    "receiptsAnalyzed": "recibos analisados"
+    "receiptsAnalyzed": "recibos analisados",
+    "fuelType": "Tipo de combustível"
   },
   "stats": {
     "title": "ESTATÍSTICAS",

@@ -146,7 +146,8 @@
     "dailyTotal": "Total journalier",
     "numReceipts": "Nb. Tickets",
     "saveResult": "Enregistrer le résultat",
-    "receiptsAnalyzed": "tickets analysés"
+    "receiptsAnalyzed": "tickets analysés",
+    "fuelType": "Type de carburant"
   },
   "stats": {
     "title": "STATISTIQUES",

@@ -146,7 +146,8 @@
     "dailyTotal": "Daily Total",
     "numReceipts": "No. Receipts",
     "saveResult": "Save Result",
-    "receiptsAnalyzed": "receipts analyzed"
+    "receiptsAnalyzed": "receipts analyzed",
+    "fuelType": "Fuel Type"
   },
   "stats": {
     "title": "STATISTICS",

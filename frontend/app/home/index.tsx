@@ -764,6 +764,8 @@ export default function HomeScreen() {
           speseAnnue: speseAnnue.map((sp) => ({ voce: sp.voce, importo: sp.importo })),
           partenzaDa: store.partenzaDa || '',
           costoKm: costoKmCalcolato,
+          tipoCarburante: store.tipoCarburante || 'benzina',
+          mediaScontrino: mercatoOggi?.mediaScontrino || 0,
         }}
       />
     </View>
