@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Backend API Testing Script for MarketMate
-Tests the receipt analysis endpoint and other core APIs
+Tests the fuel price endpoints and other core APIs
 """
 
 import requests
@@ -9,9 +9,11 @@ import json
 import time
 import sys
 from datetime import datetime
+from typing import Dict, Any
 
 # Backend URL from environment
 BACKEND_URL = "https://fato-status-1.preview.emergentagent.com"
+FUEL_TIMEOUT = 30  # 30 seconds timeout for fuel API calls
 
 def test_health_check():
     """Test the basic health check endpoint"""
@@ -194,6 +196,153 @@ def test_receipt_analyze():
         print(f"   ❌ Receipt Analysis FAILED - Exception: {e}")
         return False
 
+def test_fuel_italian_cities() -> bool:
+    """Test fuel endpoint with Italian cities (Milano to Magenta)"""
+    print("\n🇮🇹 Testing POST /api/fuel/cheapest - Italian cities (Milano to Magenta)...")
+    payload = {
+        "partenza": "Milano",
+        "destinazione": "Magenta", 
+        "tipo_carburante": "benzina"
+    }
+    
+    try:
+        start_time = time.time()
+        response = requests.post(
+            f"{BACKEND_URL}/api/fuel/cheapest",
+            json=payload,
+            timeout=FUEL_TIMEOUT,
+            headers={"Content-Type": "application/json"}
+        )
+        response_time = round(time.time() - start_time, 2)
+        
+        print(f"   Status Code: {response.status_code}")
+        print(f"   Response Time: {response_time}s")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"   Response: {json.dumps(data, indent=2)}")
+            
+            # Validate response structure
+            required_fields = ["success", "country", "stations", "message"]
+            missing_fields = [field for field in required_fields if field not in data]
+            
+            if missing_fields:
+                print(f"   ❌ Missing fields: {missing_fields}")
+                return False
+            
+            # Check country is IT
+            if data.get("country") != "IT":
+                print(f"   ❌ Expected country 'IT', got '{data.get('country')}'")
+                return False
+                
+            # Validate station structure if stations exist
+            if data.get("stations"):
+                station = data["stations"][0]
+                station_fields = ["nome", "indirizzo", "prezzo", "distanza_km", "carburante"]
+                missing_station_fields = [field for field in station_fields if field not in station]
+                if missing_station_fields:
+                    print(f"   ❌ Station missing fields: {missing_station_fields}")
+                    return False
+                else:
+                    print(f"   First station: {station['nome']} - €{station['prezzo']} - {station['distanza_km']}km")
+            
+            print("   ✅ Italian cities test PASSED")
+            return True
+        else:
+            print(f"   ❌ Italian cities test FAILED - Status: {response.status_code}")
+            print(f"   Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ Italian cities test FAILED - Exception: {e}")
+        return False
+
+def test_fuel_french_cities() -> bool:
+    """Test fuel endpoint with French cities (Paris to Lyon)"""
+    print("\n🇫🇷 Testing POST /api/fuel/cheapest - French cities (Paris to Lyon)...")
+    payload = {
+        "partenza": "Paris",
+        "destinazione": "Lyon",
+        "tipo_carburante": "gasolio"
+    }
+    
+    try:
+        start_time = time.time()
+        response = requests.post(
+            f"{BACKEND_URL}/api/fuel/cheapest",
+            json=payload,
+            timeout=FUEL_TIMEOUT,
+            headers={"Content-Type": "application/json"}
+        )
+        response_time = round(time.time() - start_time, 2)
+        
+        print(f"   Status Code: {response.status_code}")
+        print(f"   Response Time: {response_time}s")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"   Response: {json.dumps(data, indent=2)}")
+            
+            # Check if country is FR
+            if data.get("country") == "FR":
+                print(f"   Success: {data.get('success')}, Stations: {len(data.get('stations', []))}")
+                print("   ✅ French cities test PASSED")
+                return True
+            else:
+                print(f"   ❌ Expected country 'FR', got '{data.get('country')}'")
+                return False
+        else:
+            print(f"   ❌ French cities test FAILED - Status: {response.status_code}")
+            print(f"   Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ French cities test FAILED - Exception: {e}")
+        return False
+
+def test_fuel_unsupported_country() -> bool:
+    """Test fuel endpoint with unsupported country (Berlin to Munich)"""
+    print("\n🇩🇪 Testing POST /api/fuel/cheapest - Unsupported country (Berlin to Munich)...")
+    payload = {
+        "partenza": "Berlin",
+        "destinazione": "Munich",
+        "tipo_carburante": "benzina"
+    }
+    
+    try:
+        start_time = time.time()
+        response = requests.post(
+            f"{BACKEND_URL}/api/fuel/cheapest",
+            json=payload,
+            timeout=FUEL_TIMEOUT,
+            headers={"Content-Type": "application/json"}
+        )
+        response_time = round(time.time() - start_time, 2)
+        
+        print(f"   Status Code: {response.status_code}")
+        print(f"   Response Time: {response_time}s")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"   Response: {json.dumps(data, indent=2)}")
+            
+            # Should return success=false for unsupported country
+            if data.get("success") == False:
+                print(f"   Message: {data.get('message')}")
+                print("   ✅ Unsupported country test PASSED")
+                return True
+            else:
+                print(f"   ❌ Expected success=false for unsupported country, got success={data.get('success')}")
+                return False
+        else:
+            print(f"   ❌ Unsupported country test FAILED - Status: {response.status_code}")
+            print(f"   Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ Unsupported country test FAILED - Exception: {e}")
+        return False
+
 def main():
     """Run all backend tests"""
     print("🚀 Starting MarketMate Backend API Tests")
@@ -213,8 +362,17 @@ def main():
         print("\n⚠️  Skipping AI Chat test due to health check failure")
         results["ai_chat"] = False
     
-    # Test 3: Receipt Analysis (the main focus of this test)
+    # Test 3: Receipt Analysis
     results["receipt_analyze"] = test_receipt_analyze()
+    
+    # Test 4: Fuel - Italian cities
+    results["fuel_italian"] = test_fuel_italian_cities()
+    
+    # Test 5: Fuel - French cities
+    results["fuel_french"] = test_fuel_french_cities()
+    
+    # Test 6: Fuel - Unsupported country
+    results["fuel_unsupported"] = test_fuel_unsupported_country()
     
     # Summary
     print("\n" + "=" * 60)
@@ -230,11 +388,22 @@ def main():
     
     print(f"\n🎯 Overall Result: {passed_tests}/{total_tests} tests passed")
     
-    if results.get("receipt_analyze", False):
-        print("\n🎉 KEY SUCCESS: Receipt analysis endpoint is working correctly!")
-        print("   The fix (content_type='image' instead of 'image/jpeg') resolved the integration issue.")
+    # Specific feedback for fuel endpoints
+    fuel_tests = ["fuel_italian", "fuel_french", "fuel_unsupported"]
+    fuel_passed = sum(results.get(test, False) for test in fuel_tests)
+    
+    if fuel_passed == 3:
+        print("\n🎉 KEY SUCCESS: All fuel price endpoints are working correctly!")
+        print("   External API integrations (Nominatim geocoding + fuel APIs) are functional.")
+    elif fuel_passed > 0:
+        print(f"\n⚠️  PARTIAL SUCCESS: {fuel_passed}/3 fuel endpoints working.")
+        print("   Some external API integrations may have issues.")
     else:
-        print("\n⚠️  KEY ISSUE: Receipt analysis endpoint still has problems.")
+        print("\n❌ KEY ISSUE: Fuel price endpoints have problems.")
+        print("   External API integrations may be failing.")
+    
+    if results.get("receipt_analyze", False):
+        print("\n✅ Receipt analysis endpoint is working correctly!")
     
     return passed_tests == total_tests
 

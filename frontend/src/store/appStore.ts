@@ -85,6 +85,7 @@ interface AppState {
   partenzaDa: string;
   targetMensile: number;
   settore: string;
+  tipoCarburante: string;
   speseFisseDisabilitate: string[];
   
   // Data
@@ -149,6 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   partenzaDa: '',
   targetMensile: 3000,
   settore: 'Alimentare',
+  tipoCarburante: 'benzina',
   speseFisseDisabilitate: [],
   
   collaboratori: [],
@@ -332,6 +334,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         themeColor: state.themeColor,
         targetMensile: state.targetMensile,
         settore: state.settore,
+        tipoCarburante: state.tipoCarburante,
         speseFisseDisabilitate: state.speseFisseDisabilitate,
         partenzaDa: state.partenzaDa,
         collaboratori: state.collaboratori,
@@ -363,6 +366,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       themeColor: '#D2691E',
       targetMensile: 3000,
       settore: 'Alimentare',
+      tipoCarburante: 'benzina',
       speseFisseDisabilitate: [],
       partenzaDa: '',
       collaboratori: [],

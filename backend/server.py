@@ -12,6 +12,7 @@ from datetime import datetime
 from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContent
 import json
 import re
+import httpx
 
 
 ROOT_DIR = Path(__file__).parent
@@ -56,6 +57,24 @@ class ReceiptAnalyzeResponse(BaseModel):
     totale: float = 0
     num_scontrini: int = 0
     media_scontrino: float = 0
+    message: str = ""
+
+class FuelStation(BaseModel):
+    nome: str = ""
+    indirizzo: str = ""
+    prezzo: float = 0
+    distanza_km: float = 0
+    carburante: str = ""
+
+class FuelRequest(BaseModel):
+    partenza: str
+    destinazione: str
+    tipo_carburante: str = "benzina"
+
+class FuelResponse(BaseModel):
+    success: bool
+    country: str = ""
+    stations: List[FuelStation] = []
     message: str = ""
 
 # Add your routes to the router instead of directly to app
@@ -196,6 +215,145 @@ Se non riesci a leggere nulla, rispondi: {"totale": 0, "num_scontrini": 0, "medi
     except Exception as e:
         logger.error(f"Receipt OCR error: {e}")
         return ReceiptAnalyzeResponse(success=False, message=f"Errore analisi: {str(e)}")
+
+# ── Fuel Price Helpers ──
+
+async def geocode_city(city_name: str) -> dict:
+    """Geocode a city name to lat/lon using Nominatim (OpenStreetMap)."""
+    async with httpx.AsyncClient(timeout=10) as client_http:
+        resp = await client_http.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": city_name, "format": "json", "limit": 1},
+            headers={"User-Agent": "MarketMate/1.0"}
+        )
+        if resp.status_code == 200 and resp.json():
+            data = resp.json()[0]
+            return {"lat": float(data["lat"]), "lon": float(data["lon"]), "country": data.get("display_name", "")}
+    return {}
+
+def detect_country(display_name: str) -> str:
+    """Detect country from Nominatim display_name."""
+    name_lower = display_name.lower()
+    if "italia" in name_lower or "italy" in name_lower:
+        return "IT"
+    elif "france" in name_lower or "francia" in name_lower:
+        return "FR"
+    elif "deutschland" in name_lower or "germany" in name_lower or "germania" in name_lower:
+        return "DE"
+    elif "españa" in name_lower or "spain" in name_lower or "spagna" in name_lower:
+        return "ES"
+    elif "portugal" in name_lower or "portogallo" in name_lower:
+        return "PT"
+    return "OTHER"
+
+async def search_fuel_italy(lat: float, lon: float, fuel_type: str, distance_km: int = 10) -> list:
+    """Search cheapest fuel stations in Italy using MIMIT open data API."""
+    fuel_map = {"benzina": "benzina", "gasolio": "gasolio", "diesel": "gasolio", "gpl": "gpl"}
+    fuel = fuel_map.get(fuel_type.lower(), "benzina")
+    try:
+        async with httpx.AsyncClient(timeout=15) as client_http:
+            resp = await client_http.get(
+                "https://prezzi-carburante.onrender.com/api/distributori",
+                params={"latitude": lat, "longitude": lon, "distance": distance_km, "fuel": fuel, "results": 3}
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                stations = []
+                for s in data if isinstance(data, list) else data.get("results", data.get("distributori", [])):
+                    stations.append(FuelStation(
+                        nome=s.get("gestore", s.get("nome", "N/A")),
+                        indirizzo=s.get("indirizzo", s.get("address", "N/A")),
+                        prezzo=float(s.get("prezzo", s.get("price", 0))),
+                        distanza_km=round(float(s.get("distanza", s.get("distance", 0))), 1),
+                        carburante=fuel
+                    ))
+                return stations
+    except Exception as e:
+        logger.error(f"Italy fuel API error: {e}")
+    return []
+
+async def search_fuel_france(lat: float, lon: float, fuel_type: str) -> list:
+    """Search cheapest fuel stations in France using government open data."""
+    fuel_map = {"benzina": "SP95", "gasolio": "Gazole", "diesel": "Gazole", "gpl": "GPLc", "sp95": "SP95", "sp98": "SP98", "e10": "E10"}
+    fuel = fuel_map.get(fuel_type.lower(), "SP95")
+    try:
+        async with httpx.AsyncClient(timeout=15) as client_http:
+            resp = await client_http.get(
+                "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records",
+                params={
+                    "where": f"distance(geom, geom'POINT({lon} {lat})', 10km)",
+                    "order_by": f"{fuel.lower()}_prix",
+                    "limit": 3,
+                    "select": f"adresse,ville,{fuel.lower()}_prix,{fuel.lower()}_maj,latitude,longitude"
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                stations = []
+                for record in data.get("results", []):
+                    prix = record.get(f"{fuel.lower()}_prix")
+                    if prix:
+                        stations.append(FuelStation(
+                            nome=record.get("ville", "N/A"),
+                            indirizzo=record.get("adresse", "N/A"),
+                            prezzo=float(prix) / 1000 if float(prix) > 100 else float(prix),
+                            distanza_km=0,
+                            carburante=fuel
+                        ))
+                return stations
+    except Exception as e:
+        logger.error(f"France fuel API error: {e}")
+    return []
+
+@api_router.post("/fuel/cheapest", response_model=FuelResponse)
+async def find_cheapest_fuel(req: FuelRequest):
+    try:
+        # Geocode departure
+        dep_geo = await geocode_city(req.partenza)
+        if not dep_geo:
+            return FuelResponse(success=False, message=f"Non trovo la città: {req.partenza}")
+
+        # Geocode destination
+        dest_geo = await geocode_city(req.destinazione)
+        if not dest_geo:
+            return FuelResponse(success=False, message=f"Non trovo la città: {req.destinazione}")
+
+        # Calculate midpoint for search
+        mid_lat = (dep_geo["lat"] + dest_geo["lat"]) / 2
+        mid_lon = (dep_geo["lon"] + dest_geo["lon"]) / 2
+
+        # Detect country from departure
+        country = detect_country(dep_geo.get("country", ""))
+
+        stations = []
+        if country == "IT":
+            # Try midpoint first, then departure
+            stations = await search_fuel_italy(mid_lat, mid_lon, req.tipo_carburante, 15)
+            if not stations:
+                stations = await search_fuel_italy(dep_geo["lat"], dep_geo["lon"], req.tipo_carburante, 10)
+        elif country == "FR":
+            stations = await search_fuel_france(mid_lat, mid_lon, req.tipo_carburante)
+            if not stations:
+                stations = await search_fuel_france(dep_geo["lat"], dep_geo["lon"], req.tipo_carburante)
+        else:
+            return FuelResponse(
+                success=False,
+                country=country,
+                message=f"Prezzi carburante in tempo reale non disponibili per questo paese. Usa il costo/km impostato nelle settings."
+            )
+
+        if stations:
+            return FuelResponse(success=True, country=country, stations=stations)
+        else:
+            return FuelResponse(
+                success=False,
+                country=country,
+                message="Nessun distributore trovato nelle vicinanze del tragitto."
+            )
+
+    except Exception as e:
+        logger.error(f"Fuel search error: {e}")
+        return FuelResponse(success=False, message=f"Errore ricerca carburante: {str(e)}")
 
 # Include the router in the main app
 app.include_router(api_router)
