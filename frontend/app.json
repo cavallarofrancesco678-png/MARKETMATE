@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.marketmate.app"
+      "bundleIdentifier": "com.marketmate.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scatta foto della chiusura fiscale per calcolare la media scontrino",
+        "NSPhotoLibraryUsageDescription": "Seleziona foto della chiusura fiscale dalla galleria"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +22,8 @@
         "backgroundColor": "#F0F4F8"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.marketmate.app"
+      "package": "com.marketmate.app",
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
     },
     "web": {
       "bundler": "metro",
@@ -36,7 +41,14 @@
           "backgroundColor": "#F0F4F8"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Seleziona foto della chiusura fiscale",
+          "cameraPermission": "Scatta foto della chiusura fiscale"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

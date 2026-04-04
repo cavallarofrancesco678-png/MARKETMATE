@@ -328,9 +328,9 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   welcomeLogo: {
-    width: 160,
-    height: 160,
-    marginBottom: 15,
+    width: 280,
+    height: 280,
+    marginBottom: 10,
   },
   optionsGrid: {
     flexDirection: 'row',

@@ -64,6 +64,14 @@ export interface DiarioEntry {
   testo: string;
 }
 
+export interface ScontrinoRecord {
+  data: string;
+  mercato: string;
+  totale: number;
+  numScontrini: number;
+  mediaScontrino: number;
+}
+
 interface AppState {
   // Config
   isConfigured: boolean;
@@ -89,6 +97,7 @@ interface AppState {
   appuntiAgenda: Appunto[];
   storicoDiario: DiarioEntry[];
   speseExtraTags: string[];
+  storicoScontrini: ScontrinoRecord[];
   
   // Actions
   setConfig: (config: Partial<AppState>) => void;
@@ -109,6 +118,8 @@ interface AppState {
   getDiarioForDate: (data: Date) => DiarioEntry | undefined;
   addSpeseExtraTag: (tag: string) => void;
   removeSpeseExtraTag: (tag: string) => void;
+  addScontrino: (s: ScontrinoRecord) => void;
+  getScontriniForMercato: (mercato: string) => ScontrinoRecord[];
   seedMockData: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
@@ -149,6 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   appuntiAgenda: [],
   storicoDiario: [],
   speseExtraTags: [],
+  storicoScontrini: [],
   
   // Actions
   setConfig: (config) => {
@@ -278,6 +290,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({ speseExtraTags: state.speseExtraTags.filter(t => t !== tag) }));
     get().saveToStorage();
   },
+
+  addScontrino: (s) => {
+    set((state) => ({ storicoScontrini: [...state.storicoScontrini, s] }));
+    get().saveToStorage();
+  },
+
+  getScontriniForMercato: (mercato) => {
+    return get().storicoScontrini.filter(s => s.mercato === mercato);
+  },
   
   seedMockData: () => {
     const mock = generateAllMockData();
@@ -322,6 +343,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         appuntiAgenda: state.appuntiAgenda,
         storicoDiario: state.storicoDiario,
         speseExtraTags: state.speseExtraTags,
+        storicoScontrini: state.storicoScontrini,
       };
       await AsyncStorage.setItem('marketmate_data', JSON.stringify(dataToSave));
     } catch (e) {
@@ -352,6 +374,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       appuntiAgenda: [],
       storicoDiario: [],
       speseExtraTags: [],
+      storicoScontrini: [],
     });
     AsyncStorage.removeItem('marketmate_data');
   },

@@ -123,6 +123,21 @@ backend:
         - agent: "testing"
         - comment: "COMPREHENSIVE TEST PASSED: Both GET /api/ health check and POST /api/ai/chat endpoints working perfectly. AI response contains ALL 8 required structured sections: 1) Saluto personalizzato (mentions Marco), 2) Meteo (SOLE, 25 gradi), 3) Mercato & Percorso (Milano to Magenta, 30km), 4) Carburante economico (cost optimization tips), 5) Incasso specifico mercato Magenta (800€ previous week), 6) Notizie del giorno (asks user preference), 7) Promemoria scontrino (photo reminder), 8) Consiglio del giorno (weather-based sales tips). Response is 1359 chars, well-formatted with emojis and bold headers. All specific content checks passed: mentions Marco, Milano, Magenta, weather details, and previous earnings."
 
+  - task: "Receipt OCR endpoint /api/receipt/analyze"
+    implemented: true
+    working: false
+    file: "server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "NEW endpoint added. POST /api/receipt/analyze accepts {image_base64, mercato}. Uses GPT-4.1-mini vision via emergentintegrations FileContent to analyze receipt images. Returns {success, totale, num_scontrini, media_scontrino, message}. Extracts daily totals and number of receipts from Italian fiscal closure receipts."
+        - working: false
+        - agent: "testing"
+        - comment: "CRITICAL ISSUE: Endpoint structure is correct and API responds with proper JSON format, but LLM integration fails. Error: 'Expected a base64-encoded data URL with an application/pdf MIME type but got unsupported MIME type image/jpeg'. The emergentintegrations FileContent with gpt-4.1-mini is configured to only accept PDF format, not images. This is a configuration/integration issue, not a code structure problem. The endpoint returns success:false with proper error handling, so it doesn't crash. Tested with tiny PNG (1x1 pixel) as specified in review request."
+
 frontend:
   - task: "Welcome Screen i18n reactivity + back navigation"
     implemented: true
@@ -180,12 +195,13 @@ metadata:
 
 test_plan:
   current_focus: []
-  stuck_tasks: []
+  stuck_tasks: 
+    - "Receipt OCR endpoint /api/receipt/analyze"
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-    - message: "Please test the POST /api/ai/chat endpoint with the UPGRADED prompt. Send POST to /api/ai/chat with body: {\"message\": \"Buongiorno!\", \"context\": \"Attivita: MarketMate\\nTitolare: Marco\\nMercato oggi: Magenta\\nPartenza da: Milano\\nMeteo oggi: SOLE, 25 gradi\\nKm oggi: 30\\nCosto/km: 0.25\\nCollaboratori: Luca, Anna\\nFornitori: Rossi SRL\\nSpese annuali: Assicurazione: 1200/anno\\nSettimana precedente totale: Lordo: 3500, Netto: 2100, 5 giorni lavorati\\nSettimana precedente mercato Magenta: Lordo: 800, 1 giornata\\nCarburante: Ultimo rifornimento: 01/04/2026, 85 euro\", \"session_id\": \"test_v2_1\"}. The response should now have 8 structured sections including: Meteo, Carburante economico, Incasso per mercato specifico, Notizie del giorno request, Promemoria scontrino, and Consiglio."
+    - message: "NEW: Test the POST /api/receipt/analyze endpoint. This endpoint analyzes receipt images using GPT-4.1-mini vision. Test it in TWO ways: 1) Send a POST to /api/receipt/analyze with body {\"image_base64\": \"test_placeholder\", \"mercato\": \"Magenta\"} - this should return a response (may have an error since it's not a real image, but endpoint should NOT 500). 2) Verify the endpoint exists and responds to requests. Also verify the existing GET /api/ and POST /api/ai/chat still work correctly."
     - agent: "testing"
-    - message: "TESTING COMPLETED SUCCESSFULLY: Both backend endpoints tested and working perfectly. GET /api/ returns correct health check response. POST /api/ai/chat with Buongiorno message returns comprehensive response with ALL 8 required structured sections: Saluto personalizzato (mentions Marco), Meteo (SOLE, 25 gradi), Mercato & Percorso (Milano to Magenta, 30km), Carburante economico, Incasso specifico mercato Magenta (800€), Notizie del giorno, Promemoria scontrino, and Consiglio del giorno. Response is well-formatted with emojis and bold headers. All content validation checks passed. Backend API is fully functional and ready for production use."
+    - message: "BACKEND TESTING COMPLETE: ✅ GET /api/ health check working perfectly (200 OK, correct message). ✅ POST /api/ai/chat working perfectly with all 8 structured sections in response (1465 chars, mentions Marco, Milano, Magenta, weather, earnings). ❌ POST /api/receipt/analyze has CRITICAL INTEGRATION ISSUE: emergentintegrations FileContent + gpt-4.1-mini expects PDF format but receives image format. Error: 'Expected application/pdf MIME type but got image/jpeg'. Endpoint structure is correct, doesn't crash, returns proper JSON with error handling. This is a third-party integration configuration issue, not code structure problem. NEEDS WEBSEARCH to find correct emergentintegrations vision configuration for images."

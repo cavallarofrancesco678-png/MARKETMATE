@@ -154,6 +154,92 @@ def test_ai_chat_endpoint():
         print(f"❌ POST /api/ai/chat endpoint error: {str(e)}")
         return False
 
+def test_receipt_analyze_endpoint():
+    """Test POST /api/receipt/analyze endpoint with the exact request from review"""
+    print("\n🔍 Testing POST /api/receipt/analyze endpoint...")
+    
+    # Exact payload as specified in the review request
+    payload = {
+        "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "mercato": "Magenta"
+    }
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/api/receipt/analyze", 
+            json=payload, 
+            headers=headers,
+            timeout=30
+        )
+        
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Headers: {dict(response.headers)}")
+        
+        if response.status_code == 200:
+            try:
+                data = response.json()
+                print(f"Response JSON: {json.dumps(data, indent=2, ensure_ascii=False)}")
+                
+                # Check required fields according to review request
+                required_fields = ["success", "totale", "num_scontrini", "media_scontrino", "message"]
+                missing_fields = []
+                
+                for field in required_fields:
+                    if field not in data:
+                        missing_fields.append(field)
+                
+                if missing_fields:
+                    print(f"❌ Missing required fields: {missing_fields}")
+                    return False
+                
+                # Validate field types
+                type_checks = {
+                    "success": bool,
+                    "totale": (int, float),
+                    "num_scontrini": int,
+                    "media_scontrino": (int, float),
+                    "message": str
+                }
+                
+                type_errors = []
+                for field, expected_type in type_checks.items():
+                    if not isinstance(data[field], expected_type):
+                        type_errors.append(f"{field} should be {expected_type}, got {type(data[field])}")
+                
+                if type_errors:
+                    print(f"❌ Type validation errors: {type_errors}")
+                    return False
+                
+                print(f"\n📝 Receipt Analysis Response:")
+                print(f"   Success: {data['success']}")
+                print(f"   Totale: {data['totale']}")
+                print(f"   Num Scontrini: {data['num_scontrini']}")
+                print(f"   Media Scontrino: {data['media_scontrino']}")
+                print(f"   Message: {data['message']}")
+                
+                # The endpoint should NOT crash even with a tiny test image
+                print("✅ POST /api/receipt/analyze endpoint working correctly")
+                print("✅ Response structure is correct (endpoint did not crash)")
+                return True
+                
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid JSON response: {e}")
+                print(f"Raw response: {response.text}")
+                return False
+                
+        else:
+            print(f"❌ POST /api/receipt/analyze endpoint failed with status {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ POST /api/receipt/analyze endpoint error: {str(e)}")
+        return False
+
 def main():
     """Run all backend tests"""
     print("🚀 Starting MarketMate Backend API Tests")
@@ -162,18 +248,30 @@ def main():
     
     results = []
     
-    # Test basic endpoint
-    results.append(test_basic_endpoint())
+    # Test 1: Health check endpoint
+    results.append(("GET /api/", test_basic_endpoint()))
     
-    # Test AI chat endpoint
-    results.append(test_ai_chat_endpoint())
+    # Test 2: Receipt OCR endpoint (NEW - PRIORITY)
+    results.append(("POST /api/receipt/analyze", test_receipt_analyze_endpoint()))
+    
+    # Test 3: AI chat endpoint (verify existing still works)
+    results.append(("POST /api/ai/chat", test_ai_chat_endpoint()))
     
     print("\n" + "=" * 60)
     print("📊 Test Results Summary:")
-    print(f"✅ Passed: {sum(results)}")
-    print(f"❌ Failed: {len(results) - sum(results)}")
     
-    if all(results):
+    passed = 0
+    total = len(results)
+    
+    for test_name, result in results:
+        status = "✅ PASSED" if result else "❌ FAILED"
+        print(f"{test_name:30} {status}")
+        if result:
+            passed += 1
+    
+    print(f"\nTotal: {passed}/{total} tests passed")
+    
+    if passed == total:
         print("🎉 All tests passed!")
         return 0
     else:

@@ -10,12 +10,15 @@ import {
   Switch,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage, getDayNames } from '../../src/i18n';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
 
 /* ─── REUSABLE INPUT MODAL ─── */
 const InputModal = ({
@@ -98,6 +101,17 @@ export default function SettingsPage() {
   const store = useAppStore();
   const { t, i18n } = useTranslation();
 
+  // OCR state
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{
+    visible: boolean;
+    totale: number;
+    numScontrini: number;
+    mediaScontrino: number;
+    mercatoIdx: number;
+    message: string;
+  }>({ visible: false, totale: 0, numScontrini: 0, mediaScontrino: 0, mercatoIdx: -1, message: '' });
+
   // Local state for dialogs
   const [modalConfig, setModalConfig] = useState<{
     visible: boolean;
@@ -141,6 +155,140 @@ export default function SettingsPage() {
 
   const totalePlatAnnui = store.agenda.reduce((s, m) => s + m.p_annuo, 0);
   const totaleSpeseAnnue = store.speseAnnue.reduce((s, x) => s + x.importo, 0) + totalePlatAnnui;
+
+  const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+  const handleReceiptCapture = async (idx: number) => {
+    try {
+      // Ask user to choose camera or gallery
+      const choiceResult = await new Promise<'camera' | 'gallery' | null>((resolve) => {
+        if (Platform.OS === 'web') {
+          resolve('gallery');
+          return;
+        }
+        Alert.alert(
+          t('settings.receiptPhoto') || 'Foto Scontrino',
+          t('settings.chooseSource') || 'Come vuoi acquisire la foto?',
+          [
+            { text: t('settings.camera') || 'Fotocamera', onPress: () => resolve('camera') },
+            { text: t('settings.gallery') || 'Galleria', onPress: () => resolve('gallery') },
+            { text: t('common.cancel') || 'Annulla', onPress: () => resolve(null), style: 'cancel' },
+          ]
+        );
+      });
+
+      if (!choiceResult) return;
+
+      let result: ImagePicker.ImagePickerResult;
+      if (choiceResult === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permesso', 'Servono i permessi per la fotocamera.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          quality: 0.7,
+          base64: true,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permesso', 'Servono i permessi per la galleria.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.7,
+          base64: true,
+        });
+      }
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      setOcrLoading(true);
+
+      // Get base64 data
+      let base64Data = asset.base64 || '';
+      if (!base64Data && asset.uri) {
+        // Read file as base64 if not provided directly
+        try {
+          const fileData = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          base64Data = fileData;
+        } catch {
+          setOcrLoading(false);
+          Alert.alert('Errore', 'Impossibile leggere il file immagine.');
+          return;
+        }
+      }
+
+      if (!base64Data) {
+        setOcrLoading(false);
+        Alert.alert('Errore', 'Nessun dato immagine disponibile.');
+        return;
+      }
+
+      // Send to backend OCR
+      const mercato = store.agenda[idx]?.mercato || '';
+      const apiUrl = `${BACKEND_URL}/api/receipt/analyze`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_base64: base64Data,
+          mercato: mercato,
+        }),
+      });
+
+      const data = await response.json();
+      setOcrLoading(false);
+
+      if (data.success) {
+        // Show result modal
+        setOcrResult({
+          visible: true,
+          totale: data.totale,
+          numScontrini: data.num_scontrini,
+          mediaScontrino: data.media_scontrino,
+          mercatoIdx: idx,
+          message: data.message,
+        });
+      } else {
+        Alert.alert(
+          t('settings.ocrFailed') || 'Analisi non riuscita',
+          data.message || 'Non sono riuscito a leggere lo scontrino. Prova con una foto più nitida.'
+        );
+      }
+    } catch (error: any) {
+      setOcrLoading(false);
+      if (Platform.OS === 'web') {
+        window.alert('Fotocamera non disponibile su web. Usa la galleria immagini.');
+      } else {
+        Alert.alert('Errore', `Si è verificato un errore: ${error?.message || 'sconosciuto'}`);
+      }
+    }
+  };
+
+  const confirmOcrResult = () => {
+    if (ocrResult.mercatoIdx >= 0) {
+      // Update mediaScontrino in the agenda
+      updateMercato(ocrResult.mercatoIdx, 'mediaScontrino', ocrResult.mediaScontrino);
+
+      // Save to storico scontrini
+      const mercato = store.agenda[ocrResult.mercatoIdx]?.mercato || '';
+      store.addScontrino({
+        data: new Date().toISOString(),
+        mercato: mercato,
+        totale: ocrResult.totale,
+        numScontrini: ocrResult.numScontrini,
+        mediaScontrino: ocrResult.mediaScontrino,
+      });
+    }
+    setOcrResult(prev => ({ ...prev, visible: false }));
+  };
 
   const lingue = ['Italiano', 'Français', 'English', 'Español', 'Deutsch', 'Português'];
 
@@ -324,25 +472,24 @@ export default function SettingsPage() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={s.cameraBtn}
-                  onPress={async () => {
-                    try {
-                      const result = await ImagePicker.launchCameraAsync({
-                        mediaTypes: ['images'],
-                        quality: 0.7,
-                      });
-                      if (!result.canceled) {
-                        const alertFn = Platform.OS === 'web' ? (msg: string) => window.alert(msg) : (msg: string) => Alert.alert('Scontrino', msg);
-                        alertFn('Foto acquisita! La media scontrino verrà calcolata automaticamente nelle prossime versioni.');
-                      }
-                    } catch {
-                      const alertFn = Platform.OS === 'web' ? (msg: string) => window.alert(msg) : (msg: string) => Alert.alert('Info', msg);
-                      alertFn('Fotocamera non disponibile su questa piattaforma. Inserisci la media scontrino manualmente.');
-                    }
-                  }}
+                  onPress={() => handleReceiptCapture(idx)}
+                  disabled={ocrLoading}
                 >
-                  <Ionicons name="camera-outline" size={18} color="#FFF" />
-                  <Text style={s.cameraBtnTxt}>Foto chiusura fiscale → calcola media scontrino</Text>
+                  {ocrLoading ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Ionicons name="camera-outline" size={18} color="#FFF" />
+                  )}
+                  <Text style={s.cameraBtnTxt}>
+                    {ocrLoading ? (t('settings.analyzing') || 'Analisi in corso...') : (t('settings.receiptPhotoBtn') || 'Foto chiusura fiscale → calcola media scontrino')}
+                  </Text>
                 </TouchableOpacity>
+                {/* Show storico scontrini count if available */}
+                {store.storicoScontrini && store.storicoScontrini.filter(sc => sc.mercato === m.mercato).length > 0 && (
+                  <Text style={s.agendaHint}>
+                    {store.storicoScontrini.filter(sc => sc.mercato === m.mercato).length} {t('settings.receiptsAnalyzed') || 'scontrini analizzati'}
+                  </Text>
+                )}
                 <View style={s.switchRow}>
                   <Text style={s.itemLabel}>{t('settings.standFeeType')}</Text>
                   <Switch
@@ -487,6 +634,69 @@ export default function SettingsPage() {
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
+
+      {/* ─── OCR Loading Overlay ─── */}
+      {ocrLoading && (
+        <Modal visible transparent animationType="fade">
+          <View style={ms.overlay}>
+            <View style={[ms.modal, { alignItems: 'center' }]}>
+              <ActivityIndicator size="large" color="#1E7F85" />
+              <Text style={[ms.modalTitle, { marginTop: 16 }]}>
+                {t('settings.analyzingReceipt') || 'Analisi scontrino in corso...'}
+              </Text>
+              <Text style={{ fontSize: 12, color: '#7A9090', textAlign: 'center', marginTop: 8 }}>
+                {t('settings.aiReading') || 'L\'AI sta leggendo i dati dalla foto'}
+              </Text>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ─── OCR Result Modal ─── */}
+      <Modal visible={ocrResult.visible} transparent animationType="fade" onRequestClose={() => setOcrResult(p => ({ ...p, visible: false }))}>
+        <View style={ms.overlay}>
+          <View style={ms.modal}>
+            <Text style={ms.modalTitle}>
+              {t('settings.receiptResult') || 'Risultato Analisi'}
+            </Text>
+            
+            <View style={s.ocrResultCard}>
+              <View style={s.ocrResultRow}>
+                <Ionicons name="cash-outline" size={22} color="#1E7F85" />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.ocrResultLabel}>{t('settings.dailyTotal') || 'Totale Giornaliero'}</Text>
+                  <Text style={s.ocrResultValue}>€{ocrResult.totale.toFixed(2)}</Text>
+                </View>
+              </View>
+              <View style={s.divider} />
+              <View style={s.ocrResultRow}>
+                <Ionicons name="receipt-outline" size={22} color="#1E7F85" />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.ocrResultLabel}>{t('settings.numReceipts') || 'N. Scontrini'}</Text>
+                  <Text style={s.ocrResultValue}>{ocrResult.numScontrini}</Text>
+                </View>
+              </View>
+              <View style={s.divider} />
+              <View style={s.ocrResultRow}>
+                <Ionicons name="analytics-outline" size={22} color="#8B6914" />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.ocrResultLabel}>{t('settings.avgReceipt') || 'Media Scontrino'}</Text>
+                  <Text style={[s.ocrResultValue, { color: '#8B6914', fontSize: 22 }]}>€{ocrResult.mediaScontrino.toFixed(2)}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={ms.modalBtns}>
+              <TouchableOpacity onPress={() => setOcrResult(p => ({ ...p, visible: false }))} style={ms.modalCancel}>
+                <Text style={ms.modalCancelTxt}>{(t('common.cancel') || 'ANNULLA').toUpperCase()}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirmOcrResult} style={ms.modalSave}>
+                <Text style={ms.modalSaveTxt}>{t('settings.saveResult') || 'Salva Risultato'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ─── Input Modal ─── */}
       <InputModal
@@ -730,6 +940,28 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     flex: 1,
+  },
+  ocrResultCard: {
+    backgroundColor: '#E8E3D5',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  ocrResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  ocrResultLabel: {
+    fontSize: 11,
+    color: '#7A9090',
+    fontWeight: '600',
+  },
+  ocrResultValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1A3535',
   },
 });
 

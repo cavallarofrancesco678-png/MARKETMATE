@@ -168,12 +168,12 @@ const styles = StyleSheet.create({
   innerContent: {
     flex: 1,
     paddingHorizontal: 30,
-    paddingTop: 20,
+    paddingTop: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoContainer: {
-    marginBottom: 10,
+    marginBottom: 4,
     alignItems: 'center',
   },
   logoTextBox: {
@@ -196,8 +196,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   logoImage: {
-    width: 260,
-    height: 260,
+    width: 320,
+    height: 320,
     borderRadius: 24,
   },
   logoBox: {
@@ -249,17 +249,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: Colors.marrone,
     letterSpacing: 2,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.grey,
-    marginBottom: 50,
+    marginBottom: 30,
   },
   inputContainer: {
     width: '100%',
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 1,
     backgroundColor: Colors.lightGrey,
-    marginVertical: 35,
+    marginVertical: 20,
   },
   configButton: {
     flexDirection: 'row',
