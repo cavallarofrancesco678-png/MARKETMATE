@@ -168,12 +168,12 @@ const styles = StyleSheet.create({
   innerContent: {
     flex: 1,
     paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoContainer: {
-    marginBottom: 20,
+    marginBottom: 10,
     alignItems: 'center',
   },
   logoTextBox: {
@@ -196,9 +196,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   logoImage: {
-    width: 180,
-    height: 180,
-    borderRadius: 16,
+    width: 260,
+    height: 260,
+    borderRadius: 24,
   },
   logoBox: {
     backgroundColor: Colors.caramello,
