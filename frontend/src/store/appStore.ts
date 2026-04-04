@@ -88,6 +88,7 @@ interface AppState {
   storicoCarburante: Carburante[];
   appuntiAgenda: Appunto[];
   storicoDiario: DiarioEntry[];
+  speseExtraTags: string[];
   
   // Actions
   setConfig: (config: Partial<AppState>) => void;
@@ -106,6 +107,8 @@ interface AppState {
   addDiario: (d: DiarioEntry) => void;
   removeDiario: (data: Date) => void;
   getDiarioForDate: (data: Date) => DiarioEntry | undefined;
+  addSpeseExtraTag: (tag: string) => void;
+  removeSpeseExtraTag: (tag: string) => void;
   seedMockData: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
@@ -145,6 +148,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   storicoCarburante: [],
   appuntiAgenda: [],
   storicoDiario: [],
+  speseExtraTags: [],
   
   // Actions
   setConfig: (config) => {
@@ -261,6 +265,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       d => new Date(d.data).toDateString() === new Date(data).toDateString()
     );
   },
+
+  addSpeseExtraTag: (tag) => {
+    set((state) => {
+      if (state.speseExtraTags.includes(tag)) return state;
+      return { speseExtraTags: [...state.speseExtraTags, tag] };
+    });
+    get().saveToStorage();
+  },
+
+  removeSpeseExtraTag: (tag) => {
+    set((state) => ({ speseExtraTags: state.speseExtraTags.filter(t => t !== tag) }));
+    get().saveToStorage();
+  },
   
   seedMockData: () => {
     const mock = generateAllMockData();
@@ -304,6 +321,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         storicoCarburante: state.storicoCarburante,
         appuntiAgenda: state.appuntiAgenda,
         storicoDiario: state.storicoDiario,
+        speseExtraTags: state.speseExtraTags,
       };
       await AsyncStorage.setItem('marketmate_data', JSON.stringify(dataToSave));
     } catch (e) {
@@ -333,6 +351,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       storicoCarburante: [],
       appuntiAgenda: [],
       storicoDiario: [],
+      speseExtraTags: [],
     });
     AsyncStorage.removeItem('marketmate_data');
   },

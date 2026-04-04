@@ -24,12 +24,10 @@ export default function TabLayout() {
     name,
     focused,
     custom,
-    label,
   }: {
     name?: string;
     focused: boolean;
     custom?: boolean;
-    label: string;
   }) => (
     <View style={st.tabItem}>
       <View style={[st.oval, focused && st.ovalActive]}>
@@ -43,7 +41,6 @@ export default function TabLayout() {
           />
         )}
       </View>
-      <Text style={[st.label, focused && st.labelActive]}>{label}</Text>
     </View>
   );
 
@@ -59,7 +56,7 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} label={t('tabs.home')} />
+            <TabIcon name="home" focused={focused} />
           ),
         }}
       />
@@ -67,7 +64,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="settings" focused={focused} label={t('tabs.settings')} />
+            <TabIcon name="settings" focused={focused} />
           ),
         }}
       />
@@ -75,7 +72,7 @@ export default function TabLayout() {
         name="stats"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="bar-chart" focused={focused} label={t('tabs.stats')} />
+            <TabIcon name="bar-chart" focused={focused} />
           ),
         }}
       />
@@ -83,7 +80,7 @@ export default function TabLayout() {
         name="gas"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon custom focused={focused} label={t('tabs.gas')} />
+            <TabIcon custom focused={focused} />
           ),
         }}
       />
@@ -91,7 +88,7 @@ export default function TabLayout() {
         name="agenda"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="calendar" focused={focused} label={t('tabs.agenda')} />
+            <TabIcon name="calendar" focused={focused} />
           ),
         }}
       />

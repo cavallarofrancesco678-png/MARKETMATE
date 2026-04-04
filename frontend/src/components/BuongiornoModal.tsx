@@ -27,6 +27,7 @@ interface StoreData {
   meteoOggi: string;
   mercatoOggi: string;
   settimanaPrec: { lordo: number; netto: number; giorni: number };
+  settimanaPrecMercato?: { lordo: number; netto: number; giorni: number; mercato: string };
   ultimoCarburante: { data: string; euro: number } | null;
   kmOggi: number;
   collaboratori: string[];
@@ -64,9 +65,13 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
     const settPrec = s.settimanaPrec.giorni > 0
       ? `Lordo: €${s.settimanaPrec.lordo}, Netto: €${s.settimanaPrec.netto}, ${s.settimanaPrec.giorni} giorni lavorati`
       : 'Nessun dato';
+    const settPrecMerc = s.settimanaPrecMercato && s.settimanaPrecMercato.giorni > 0
+      ? `Mercato ${s.settimanaPrecMercato.mercato}: Lordo: €${s.settimanaPrecMercato.lordo}, Netto: €${s.settimanaPrecMercato.netto}, ${s.settimanaPrecMercato.giorni} giornate`
+      : `Nessun dato specifico per mercato ${s.mercatoOggi}`;
     const carb = s.ultimoCarburante
       ? `Ultimo rifornimento: ${s.ultimoCarburante.data}, €${s.ultimoCarburante.euro}`
       : 'Nessun dato carburante';
+    const costoViaggio = s.kmOggi > 0 ? `€${(s.kmOggi * s.costoKm).toFixed(2)}` : 'Non calcolabile';
 
     return `Attivita: ${s.nomeAttivita}
 Titolare: ${s.nomeTitolare}
@@ -75,10 +80,12 @@ Meteo oggi: ${s.meteoOggi}
 Km oggi: ${s.kmOggi}
 Partenza da: ${s.partenzaDa || 'Non specificata'}
 Costo/km: €${s.costoKm.toFixed(3)}
+Costo stimato viaggio: ${costoViaggio}
 Collaboratori: ${collabs}
 Fornitori: ${forns}
 Spese annuali: ${spese}
-Settimana precedente: ${settPrec}
+Settimana precedente totale: ${settPrec}
+Settimana precedente mercato specifico: ${settPrecMerc}
 Carburante: ${carb}`;
   }, [storeData]);
 

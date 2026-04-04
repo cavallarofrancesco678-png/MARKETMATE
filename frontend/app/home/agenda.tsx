@@ -199,11 +199,7 @@ export default function AgendaScreen() {
             </View>
           )}
 
-          {/* Salva diario in fondo */}
-          <TouchableOpacity style={[s.saveBtn, { marginTop: 14 }]} onPress={handleSalvaDiario}>
-            <Ionicons name="save-outline" size={16} color="#FFF" />
-            <Text style={s.saveTxt}>{t('common.save')}</Text>
-          </TouchableOpacity>
+          {/* Salva diario verrà fatto dal tasto SALVA in fondo */}
         </View>
 
         {/* Aggiungi appunto */}
@@ -221,9 +217,6 @@ export default function AgendaScreen() {
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             <TouchableOpacity style={s.datePick} onPress={() => setShowAppuntoCalendar(true)}>
               <Text style={s.datePickTxt}>{t('agenda.forDate')}: {formattaData(appuntoDate)}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.saveBtn} onPress={handleSalvaAppunto}>
-              <Text style={s.saveTxt}>{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -327,6 +320,29 @@ export default function AgendaScreen() {
             );
           })
         )}
+
+        <View style={{ height: 10 }} />
+
+        {/* ═══ UNICO TASTO SALVA IN FONDO ═══ */}
+        <TouchableOpacity style={[s.saveBtn, { paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', gap: 8, borderRadius: 14, alignItems: 'center' }]} onPress={() => {
+          let saved = false;
+          if (diarioText.trim()) {
+            addDiario({ data: selectedDate, testo: diarioText.trim() });
+            saved = true;
+          }
+          if (appuntoText.trim()) {
+            addAppunto({ data: appuntoDate, testo: appuntoText.trim() });
+            setAppuntoText('');
+            saved = true;
+          }
+          if (saved) {
+            if (Platform.OS === 'web') window.alert(t('common.saved'));
+            else Alert.alert(t('common.saved'));
+          }
+        }}>
+          <Ionicons name="save-outline" size={18} color="#FFF" />
+          <Text style={[s.saveTxt, { fontSize: 14 }]}>{t('common.save').toUpperCase()}</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 30 }} />
       </ScrollView>

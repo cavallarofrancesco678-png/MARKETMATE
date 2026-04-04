@@ -12,6 +12,7 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppStore } from '../store/appStore';
 
 interface Fornitore {
   nome: string;
@@ -50,6 +51,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
   vociGeneriche, setVociGeneriche,
 }) => {
   const [nuovaVoce, setNuovaVoce] = useState('');
+  const { speseExtraTags, addSpeseExtraTag } = useAppStore();
 
   const updateEntry = (key: string, field: 'importo' | 'periodo', value: string) => {
     const current = speseExtraFornitore[key] || { importo: '', periodo: 'giornaliero' };
@@ -61,8 +63,17 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
   const addVoceGenerica = () => {
     if (!nuovaVoce.trim()) return;
-    setVociGeneriche([...vociGeneriche, { nome: nuovaVoce.trim(), importo: '', attivo: true }]);
+    const tagName = nuovaVoce.trim();
+    setVociGeneriche([...vociGeneriche, { nome: tagName, importo: '', attivo: true }]);
+    addSpeseExtraTag(tagName);
     setNuovaVoce('');
+  };
+
+  const addVoceFromTag = (tag: string) => {
+    const alreadyExists = vociGeneriche.some((v) => v.nome === tag);
+    if (!alreadyExists) {
+      setVociGeneriche([...vociGeneriche, { nome: tag, importo: '', attivo: true }]);
+    }
   };
 
   const updateVoce = (idx: number, field: string, value: any) => {
@@ -182,6 +193,20 @@ export const SpeseExtraModal: React.FC<Props> = ({
               </View>
             ))}
 
+            {/* ═══ TAG SALVATI (quick add) ═══ */}
+            {speseExtraTags.length > 0 && (
+              <View style={st.tagsRow}>
+                {speseExtraTags
+                  .filter((tag) => !vociGeneriche.some((v) => v.nome === tag))
+                  .map((tag) => (
+                    <TouchableOpacity key={tag} style={st.tagChip} onPress={() => addVoceFromTag(tag)}>
+                      <Ionicons name="add-circle-outline" size={14} color="#1E7F85" />
+                      <Text style={st.tagChipTxt}>{tag}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            )}
+
             {/* Aggiungi nuova voce */}
             <View style={st.addRow}>
               <TextInput
@@ -264,6 +289,13 @@ const st = StyleSheet.create({
   },
   deleteBtn: { padding: 4 },
   addRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 4 },
+  tagChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#D8EDE5', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: '#A5D8D0',
+  },
+  tagChipTxt: { fontSize: 11, fontWeight: '700', color: '#1E7F85' },
   addInput: {
     flex: 1, fontSize: 14, color: '#1A3535', backgroundColor: '#EDE8DA',
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,

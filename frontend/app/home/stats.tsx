@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Dimensions,
   useWindowDimensions,
   Alert,
@@ -79,6 +80,32 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
   const stepX = labels.length > 1 ? drawW / (labels.length - 1) : drawW;
 
   return (
+    <View
+      onStartShouldSetResponder={() => true}
+      onResponderRelease={(evt) => {
+        const { locationX, locationY } = evt.nativeEvent;
+        // Build all point positions for touch detection
+        const allPoints: { x: number; y: number; li: number; pi: number; val: number }[] = [];
+        lines.forEach((line2, li2) => {
+          line2.data.forEach((v, i) => {
+            allPoints.push({
+              x: padL + i * stepX,
+              y: padT + drawH - (v / maxVal) * drawH,
+              li: li2, pi: i, val: v,
+            });
+          });
+        });
+        let closest: typeof allPoints[0] | null = null;
+        let minDist = 30;
+        allPoints.forEach((p) => {
+          const dist = Math.sqrt((p.x - locationX) ** 2 + (p.y - locationY) ** 2);
+          if (dist < minDist) { minDist = dist; closest = p; }
+        });
+        if (closest && onPointPress) {
+          onPointPress(closest.li, closest.pi, closest.val);
+        }
+      }}
+    >
     <Svg width={chartW} height={height}>
       {[0, 1, 2, 3, 4].map((i) => {
         const y = padT + drawH - (drawH * i) / 4;
@@ -109,12 +136,11 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
                 <Circle
                   cx={p.x}
                   cy={p.y}
-                  r={isActive ? 5.5 : 3}
+                  r={isActive ? 6 : 3}
                   fill={isActive ? line.color : `${line.color}30`}
                   stroke={isActive ? '#FFF' : 'transparent'}
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   opacity={lineOpacity}
-                  onPress={() => onPointPress?.(li, i, p.v)}
                 />
                 {isActive && p.v > 0 && (
                   <SvgText x={p.x} y={p.y - 10} fill={line.color} fontSize={9} fontWeight="900" textAnchor="middle" opacity={1}>
@@ -132,6 +158,7 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
         </SvgText>
       ))}
     </Svg>
+    </View>
   );
 };
 
@@ -424,17 +451,17 @@ export default function StatsScreen() {
             const isSelected = activeLine === i;
             const isDimmed = activeLine !== null && activeLine !== i;
             return (
-              <TouchableOpacity
+              <Pressable
                 key={i}
                 style={[st.legendItem, isSelected && st.legendItemActive]}
                 onPress={() => handleLineTap(chartKey, i)}
-                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
               >
                 <View style={[st.legendDot, { backgroundColor: l.color, opacity: isDimmed ? 0.25 : 1 }]} />
                 <Text style={[st.legendText, { color: l.color, opacity: isDimmed ? 0.3 : 1 }]}>
                   {l.label}: {'\u20AC'}{arrSum(l.data).toFixed(0)}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>

@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollView,
   Switch,
+  Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
@@ -22,6 +23,7 @@ import { SpeseExtraModal } from '../../src/components/SpeseExtraModal';
 import { BuongiornoModal } from '../../src/components/BuongiornoModal';
 import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
+import * as ImagePicker from 'expo-image-picker';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
@@ -219,7 +221,7 @@ export default function HomeScreen() {
   // Costo carburante giornaliero basato su km mercato e media costo/km calcolata dai rifornimenti
   const totaleCarburanteSpeso = store.storicoCarburante.reduce((s: number, c: any) => s + (c.euro || 0), 0);
   const totaleKmPercorsi = store.storicoGiornate.reduce((s: number, g: any) => s + (g.km || 0), 0);
-  const costoKmCalcolato = totaleKmPercorsi > 0 ? totaleCarburanteSpeso / totaleKmPercorsi : 0;
+  const costoKmCalcolato = totaleKmPercorsi > 0 ? totaleCarburanteSpeso / totaleKmPercorsi : 0.18;
   const costoCarburanteGiorno = (mercatoOggi?.km || 0) * costoKmCalcolato;
 
   const utile = lordoNum - speseFisseTotali - speseExtraTotNum - invendutoNum - costoCollabAttivi - costoCarburanteGiorno;
@@ -455,7 +457,7 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ ROW 4: INVENDUTO / BUONGIORNO ═══ */}
+      {/* ═══ ROW 4: INVENDUTO / BUONGIORNO / FOTO SCONTRINO ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowInvendutoModal(true)}>
           <Text style={s.cardLbl}>{t('home.unsold')}</Text>
@@ -464,6 +466,22 @@ export default function HomeScreen() {
         <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
           <Ionicons name="globe-outline" size={16} color="#FFF" />
           <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>{t('home.goodMorning').toUpperCase()}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.card, { height: normalRowH, backgroundColor: '#8B6914', width: normalRowH }]}
+          activeOpacity={0.7}
+          onPress={async () => {
+            const result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              quality: 0.7,
+            });
+            if (!result.canceled) {
+              const msg = Platform.OS === 'web' ? window.alert : Alert.alert;
+              msg('Scontrino acquisito! La funzione di analisi verrà implementata prossimamente.');
+            }
+          }}
+        >
+          <Ionicons name="camera-outline" size={22} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -739,6 +757,21 @@ export default function HomeScreen() {
               giorni: prev.length,
             };
           })(),
+          settimanaPrecMercato: (() => {
+            const now = dataCorrente;
+            const weekAgo = new Date(now);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const prev = (store.storicoGiornate || []).filter((g) => {
+              const d = new Date(g.data);
+              return d >= weekAgo && d < now && g.mercato === mercatoNome;
+            });
+            return {
+              lordo: prev.reduce((s, g) => s + (g.lordo || 0), 0),
+              netto: prev.reduce((s, g) => s + (g.netto || 0), 0),
+              giorni: prev.length,
+              mercato: mercatoNome,
+            };
+          })(),
           ultimoCarburante: store.storicoCarburante?.length > 0
             ? { data: new Date(store.storicoCarburante[store.storicoCarburante.length - 1].data).toLocaleDateString('it-IT'), euro: store.storicoCarburante[store.storicoCarburante.length - 1].euro }
             : null,
@@ -790,7 +823,7 @@ const s = StyleSheet.create({
   badgeTxt: { color: '#FFF', fontSize: 10, fontWeight: '700' },
   bellRight: {
     position: 'absolute',
-    top: 0,
+    top: 8,
     right: 0,
   },
   bell: {

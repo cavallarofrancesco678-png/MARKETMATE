@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
@@ -146,6 +146,11 @@ export default function WelcomeScreen() {
       case 0:
         return (
           <View style={styles.pageContent}>
+            <Image
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
+              style={styles.welcomeLogo}
+              resizeMode="contain"
+            />
             <Text style={styles.stepTitle}>{t('settings.language').toUpperCase()}</Text>
             <View style={styles.optionsGrid}>
               {LANGUAGES.map((l) => (
@@ -269,13 +274,9 @@ export default function WelcomeScreen() {
       >
         {renderIndicator()}
         
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.contentWrapper}>
           {renderContent()}
-        </ScrollView>
+        </View>
         
         {renderNavigation()}
       </KeyboardAvoidingView>
@@ -293,6 +294,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  contentWrapper: {
+    flex: 1,
   },
   indicatorContainer: {
     flexDirection: 'row',
@@ -321,7 +325,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Colors.marrone,
     letterSpacing: 2,
-    marginBottom: 50,
+    marginBottom: 30,
+  },
+  welcomeLogo: {
+    width: 160,
+    height: 160,
+    marginBottom: 15,
   },
   optionsGrid: {
     flexDirection: 'row',
