@@ -132,7 +132,21 @@
     "enterName": "Inserisci almeno il nome",
     "departure": "Partenza da",
     "annualExpense": "Spesa Annuale",
-    "expenseItem": "Voce"
+    "expenseItem": "Voce",
+    "receiptPhoto": "Foto Scontrino",
+    "receiptPhotoBtn": "Foto chiusura fiscale → calcola media scontrino",
+    "chooseSource": "Come vuoi acquisire la foto?",
+    "camera": "Fotocamera",
+    "gallery": "Galleria",
+    "analyzing": "Analisi in corso...",
+    "analyzingReceipt": "Analisi scontrino in corso...",
+    "aiReading": "L'AI sta leggendo i dati dalla foto",
+    "ocrFailed": "Analisi non riuscita",
+    "receiptResult": "Risultato Analisi Scontrino",
+    "dailyTotal": "Totale Giornaliero",
+    "numReceipts": "N. Scontrini",
+    "saveResult": "Salva Risultato",
+    "receiptsAnalyzed": "scontrini analizzati"
   },
   "stats": {
     "title": "STATISTICHE",

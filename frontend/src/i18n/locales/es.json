@@ -132,7 +132,21 @@
     "enterName": "Introduce al menos un nombre",
     "departure": "Salida desde",
     "annualExpense": "Gasto Anual",
-    "expenseItem": "Concepto"
+    "expenseItem": "Concepto",
+    "receiptPhoto": "Foto del ticket",
+    "receiptPhotoBtn": "Foto cierre fiscal → calcular ticket medio",
+    "chooseSource": "¿Cómo quieres capturar la foto?",
+    "camera": "Cámara",
+    "gallery": "Galería",
+    "analyzing": "Analizando...",
+    "analyzingReceipt": "Analizando ticket...",
+    "aiReading": "La IA está leyendo los datos de la foto",
+    "ocrFailed": "Análisis fallido",
+    "receiptResult": "Resultado del análisis",
+    "dailyTotal": "Total diario",
+    "numReceipts": "Nº Tickets",
+    "saveResult": "Guardar resultado",
+    "receiptsAnalyzed": "tickets analizados"
   },
   "stats": {
     "title": "ESTADÍSTICAS",

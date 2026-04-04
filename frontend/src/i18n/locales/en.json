@@ -132,7 +132,21 @@
     "enterName": "Enter at least a name",
     "departure": "Departure from",
     "annualExpense": "Annual Expense",
-    "expenseItem": "Item"
+    "expenseItem": "Item",
+    "receiptPhoto": "Receipt Photo",
+    "receiptPhotoBtn": "Photo of fiscal closure → calculate avg receipt",
+    "chooseSource": "How do you want to capture the photo?",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "analyzing": "Analyzing...",
+    "analyzingReceipt": "Analyzing receipt...",
+    "aiReading": "AI is reading data from the photo",
+    "ocrFailed": "Analysis failed",
+    "receiptResult": "Receipt Analysis Result",
+    "dailyTotal": "Daily Total",
+    "numReceipts": "No. Receipts",
+    "saveResult": "Save Result",
+    "receiptsAnalyzed": "receipts analyzed"
   },
   "stats": {
     "title": "STATISTICS",

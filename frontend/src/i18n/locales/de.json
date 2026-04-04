@@ -132,7 +132,21 @@
     "enterName": "Geben Sie mindestens einen Namen ein",
     "departure": "Abfahrt von",
     "annualExpense": "Jährliche Kosten",
-    "expenseItem": "Position"
+    "expenseItem": "Position",
+    "receiptPhoto": "Bonsfoto",
+    "receiptPhotoBtn": "Foto Tagesabschluss → Durchschnittlichen Bonwert berechnen",
+    "chooseSource": "Wie möchten Sie das Foto aufnehmen?",
+    "camera": "Kamera",
+    "gallery": "Galerie",
+    "analyzing": "Analyse läuft...",
+    "analyzingReceipt": "Bon wird analysiert...",
+    "aiReading": "Die KI liest die Daten aus dem Foto",
+    "ocrFailed": "Analyse fehlgeschlagen",
+    "receiptResult": "Analyseergebnis",
+    "dailyTotal": "Tagesumsatz",
+    "numReceipts": "Anz. Bons",
+    "saveResult": "Ergebnis speichern",
+    "receiptsAnalyzed": "Bons analysiert"
   },
   "stats": {
     "title": "STATISTIKEN",

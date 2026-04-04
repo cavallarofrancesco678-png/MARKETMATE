@@ -132,7 +132,21 @@
     "enterName": "Entrez au moins un nom",
     "departure": "Départ de",
     "annualExpense": "Charge Annuelle",
-    "expenseItem": "Poste"
+    "expenseItem": "Poste",
+    "receiptPhoto": "Photo du ticket",
+    "receiptPhotoBtn": "Photo de clôture fiscale → calculer le ticket moyen",
+    "chooseSource": "Comment voulez-vous prendre la photo?",
+    "camera": "Appareil photo",
+    "gallery": "Galerie",
+    "analyzing": "Analyse en cours...",
+    "analyzingReceipt": "Analyse du ticket en cours...",
+    "aiReading": "L'IA lit les données de la photo",
+    "ocrFailed": "Analyse échouée",
+    "receiptResult": "Résultat de l'analyse",
+    "dailyTotal": "Total journalier",
+    "numReceipts": "Nb. Tickets",
+    "saveResult": "Enregistrer le résultat",
+    "receiptsAnalyzed": "tickets analysés"
   },
   "stats": {
     "title": "STATISTIQUES",

@@ -132,7 +132,21 @@
     "enterName": "Introduza pelo menos um nome",
     "departure": "Partida de",
     "annualExpense": "Despesa Anual",
-    "expenseItem": "Rubrica"
+    "expenseItem": "Rubrica",
+    "receiptPhoto": "Foto do recibo",
+    "receiptPhotoBtn": "Foto fecho fiscal → calcular ticket médio",
+    "chooseSource": "Como deseja capturar a foto?",
+    "camera": "Câmera",
+    "gallery": "Galeria",
+    "analyzing": "Analisando...",
+    "analyzingReceipt": "Analisando recibo...",
+    "aiReading": "A IA está lendo os dados da foto",
+    "ocrFailed": "Análise falhou",
+    "receiptResult": "Resultado da análise",
+    "dailyTotal": "Total diário",
+    "numReceipts": "Nº Recibos",
+    "saveResult": "Guardar resultado",
+    "receiptsAnalyzed": "recibos analisados"
   },
   "stats": {
     "title": "ESTATÍSTICAS",
