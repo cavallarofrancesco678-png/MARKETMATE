@@ -141,11 +141,6 @@ async def analyze_receipt(req: ReceiptAnalyzeRequest):
         if ',' in image_b64:
             image_b64 = image_b64.split(',', 1)[1]
 
-        # Determine content type
-        content_type = "image/jpeg"
-        if req.image_base64.startswith('data:image/png'):
-            content_type = "image/png"
-
         ocr_chat = LlmChat(
             api_key=llm_key,
             session_id=f"receipt_{uuid.uuid4()}",
@@ -164,7 +159,7 @@ Se riesci a leggere solo il totale, metti num_scontrini a 0 e media_scontrino a 
 Se non riesci a leggere nulla, rispondi: {"totale": 0, "num_scontrini": 0, "media_scontrino": 0}"""
         ).with_model("openai", "gpt-4.1-mini")
 
-        file_content = FileContent(content_type=content_type, file_content_base64=image_b64)
+        file_content = FileContent(content_type="image", file_content_base64=image_b64)
         user_msg = UserMessage(
             text="Analizza questa chiusura fiscale / scontrino e estrai i dati richiesti. Rispondi SOLO con il JSON.",
             file_contents=[file_content]

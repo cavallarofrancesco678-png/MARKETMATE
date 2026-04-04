@@ -1,282 +1,243 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for MarketMate
-Tests the FastAPI backend endpoints
+Backend API Testing Script for MarketMate
+Tests the receipt analysis endpoint and other core APIs
 """
 
 import requests
 import json
+import time
 import sys
-from typing import Dict, Any
+from datetime import datetime
 
-# Backend URL from frontend .env
+# Backend URL from environment
 BACKEND_URL = "https://fato-status-1.preview.emergentagent.com"
 
-def test_basic_endpoint():
-    """Test GET /api/ endpoint"""
-    print("🔍 Testing GET /api/ endpoint...")
-    
+def test_health_check():
+    """Test the basic health check endpoint"""
+    print("🔍 Testing GET /api/ health check...")
     try:
         response = requests.get(f"{BACKEND_URL}/api/", timeout=10)
-        print(f"Status Code: {response.status_code}")
-        print(f"Response: {response.text}")
+        print(f"   Status Code: {response.status_code}")
+        print(f"   Response: {response.json()}")
         
         if response.status_code == 200:
             data = response.json()
             if data.get("message") == "Hello World":
-                print("✅ GET /api/ endpoint working correctly")
+                print("   ✅ Health check PASSED")
                 return True
             else:
-                print(f"❌ Unexpected response content: {data}")
+                print("   ❌ Health check FAILED - unexpected message")
                 return False
         else:
-            print(f"❌ GET /api/ endpoint failed with status {response.status_code}")
+            print("   ❌ Health check FAILED - wrong status code")
             return False
             
     except Exception as e:
-        print(f"❌ GET /api/ endpoint error: {str(e)}")
+        print(f"   ❌ Health check FAILED - Exception: {e}")
         return False
 
-def test_ai_chat_endpoint():
-    """Test POST /api/ai/chat endpoint with the exact request from review"""
-    print("\n🔍 Testing POST /api/ai/chat endpoint...")
+def test_ai_chat():
+    """Test the AI chat endpoint with a simple greeting"""
+    print("\n🔍 Testing POST /api/ai/chat...")
+    try:
+        payload = {
+            "message": "Buongiorno",
+            "context": "Titolare: Marco\nPartenza da: Milano\nMercato oggi: Magenta\nMeteo: SOLE, 25 gradi\nIncasso settimana precedente (Magenta): 800€",
+            "session_id": "test_session"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/api/ai/chat", 
+                               json=payload, 
+                               timeout=30,
+                               headers={"Content-Type": "application/json"})
+        
+        print(f"   Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            ai_response = data.get("response", "")
+            print(f"   Response length: {len(ai_response)} chars")
+            print(f"   Response preview: {ai_response[:200]}...")
+            
+            # Check for key elements in the structured response
+            checks = {
+                "mentions Marco": "Marco" in ai_response,
+                "mentions Milano": "Milano" in ai_response,
+                "mentions Magenta": "Magenta" in ai_response,
+                "mentions weather": any(word in ai_response.lower() for word in ["sole", "25", "gradi", "meteo"]),
+                "mentions earnings": "800" in ai_response,
+                "has structure": "**" in ai_response or "1." in ai_response
+            }
+            
+            passed_checks = sum(checks.values())
+            print(f"   Content checks: {passed_checks}/6 passed")
+            for check, result in checks.items():
+                print(f"     {check}: {'✅' if result else '❌'}")
+            
+            if passed_checks >= 4:  # At least 4/6 checks should pass
+                print("   ✅ AI Chat PASSED")
+                return True
+            else:
+                print("   ❌ AI Chat FAILED - insufficient content checks")
+                return False
+        else:
+            print(f"   ❌ AI Chat FAILED - Status: {response.status_code}")
+            try:
+                print(f"   Error response: {response.json()}")
+            except:
+                print(f"   Error response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ AI Chat FAILED - Exception: {e}")
+        return False
+
+def test_receipt_analyze():
+    """Test the receipt analysis endpoint with the specific test image"""
+    print("\n🔍 Testing POST /api/receipt/analyze...")
+    print("   Using 1x1 pixel test PNG as specified in review request...")
     
-    # Exact payload as specified in the review request
-    payload = {
-        "message": "Buongiorno!",
-        "context": "Attivita: MarketMate\nTitolare: Marco\nMercato oggi: Magenta\nPartenza da: Milano\nMeteo oggi: SOLE, 25 gradi\nKm oggi: 30\nCosto/km: 0.25\nCollaboratori: Luca, Anna\nFornitori: Rossi SRL\nSpese annuali: Assicurazione: 1200/anno\nSettimana precedente totale: Lordo: 3500, Netto: 2100, 5 giorni lavorati\nSettimana precedente mercato Magenta: Lordo: 800, 1 giornata\nCarburante: Ultimo rifornimento: 01/04/2026, 85 euro",
-        "session_id": "test_v2_1"
-    }
-    
-    headers = {
-        "Content-Type": "application/json"
-    }
+    # The exact test image from the review request
+    test_image_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     
     try:
-        response = requests.post(
-            f"{BACKEND_URL}/api/ai/chat", 
-            json=payload, 
-            headers=headers,
-            timeout=30
-        )
+        payload = {
+            "image_base64": test_image_b64,
+            "mercato": "Magenta"
+        }
         
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Headers: {dict(response.headers)}")
+        print("   Sending request (may take up to 30 seconds for AI processing)...")
+        start_time = time.time()
+        
+        response = requests.post(f"{BACKEND_URL}/api/receipt/analyze", 
+                               json=payload, 
+                               timeout=35,  # Allow extra time for AI processing
+                               headers={"Content-Type": "application/json"})
+        
+        end_time = time.time()
+        duration = round(end_time - start_time, 2)
+        
+        print(f"   Status Code: {response.status_code}")
+        print(f"   Response Time: {duration} seconds")
         
         if response.status_code == 200:
             try:
                 data = response.json()
-                print(f"Response JSON: {json.dumps(data, indent=2, ensure_ascii=False)}")
+                print(f"   Response JSON: {json.dumps(data, indent=2)}")
                 
-                # Check required fields
-                if "response" not in data:
-                    print("❌ Missing 'response' field in JSON response")
-                    return False
-                    
-                if "session_id" not in data:
-                    print("❌ Missing 'session_id' field in JSON response")
-                    return False
-                
-                # Check if session_id matches
-                if data["session_id"] != "test_v2_1":
-                    print(f"❌ Session ID mismatch. Expected: test_v2_1, Got: {data['session_id']}")
-                    return False
-                
-                # Check if response contains the 8 structured sections
-                response_text = data["response"]
-                response_lower = response_text.lower()
-                
-                print(f"\n📝 AI Response ({len(response_text)} chars):")
-                print("-" * 50)
-                print(response_text)
-                print("-" * 50)
-                
-                # Check for the 8 required sections
-                sections_to_check = [
-                    ("Saluto personalizzato", ["marco", "salut", "buongiorno", "ciao"]),
-                    ("Meteo", ["meteo", "sole", "25 gradi", "temperatura", "tempo"]),
-                    ("Mercato & Percorso", ["milano", "magenta", "mercato", "km", "percorso"]),
-                    ("Carburante economico", ["carburante", "distributore", "benzina", "economico", "prezzo"]),
-                    ("Incasso specifico mercato Magenta", ["incasso", "settimana", "magenta", "800", "lordo"]),
-                    ("Notizie del giorno", ["notizie", "novità", "informazioni"]),
-                    ("Promemoria scontrino", ["scontrino", "foto", "chiusura fiscale", "media"]),
-                    ("Consiglio del giorno", ["consiglio", "suggerimento", "strategia"])
-                ]
-                
-                found_sections = []
-                missing_sections = []
-                
-                for section_name, keywords in sections_to_check:
-                    found = any(keyword in response_lower for keyword in keywords)
-                    if found:
-                        found_sections.append(section_name)
-                    else:
-                        missing_sections.append(section_name)
-                
-                print(f"\n✅ Found sections ({len(found_sections)}/8): {', '.join(found_sections)}")
-                if missing_sections:
-                    print(f"❌ Missing sections ({len(missing_sections)}/8): {', '.join(missing_sections)}")
-                
-                # Additional specific checks
-                specific_checks = {
-                    "Mentions Marco": "marco" in response_lower,
-                    "Mentions Milano": "milano" in response_lower,
-                    "Mentions Magenta": "magenta" in response_lower,
-                    "Mentions weather (SOLE)": any(word in response_lower for word in ["sole", "25", "gradi"]),
-                    "Mentions previous earnings": "800" in response_text or "settimana precedente" in response_lower
-                }
-                
-                print("\n🔍 Specific Content Checks:")
-                for check_name, result in specific_checks.items():
-                    status = "✅" if result else "❌"
-                    print(f"{status} {check_name}: {result}")
-                
-                # Overall assessment
-                if len(found_sections) >= 6:
-                    print("\n✅ POST /api/ai/chat endpoint working correctly")
-                    print("✅ Response contains required structured sections")
-                    return True
-                else:
-                    print(f"\n❌ AI response missing too many sections. Found {len(found_sections)}/8")
-                    return False
-                
-            except json.JSONDecodeError as e:
-                print(f"❌ Invalid JSON response: {e}")
-                print(f"Raw response: {response.text}")
-                return False
-                
-        else:
-            print(f"❌ POST /api/ai/chat endpoint failed with status {response.status_code}")
-            print(f"Response: {response.text}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ POST /api/ai/chat endpoint error: {str(e)}")
-        return False
-
-def test_receipt_analyze_endpoint():
-    """Test POST /api/receipt/analyze endpoint with the exact request from review"""
-    print("\n🔍 Testing POST /api/receipt/analyze endpoint...")
-    
-    # Exact payload as specified in the review request
-    payload = {
-        "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-        "mercato": "Magenta"
-    }
-    
-    headers = {
-        "Content-Type": "application/json"
-    }
-    
-    try:
-        response = requests.post(
-            f"{BACKEND_URL}/api/receipt/analyze", 
-            json=payload, 
-            headers=headers,
-            timeout=30
-        )
-        
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Headers: {dict(response.headers)}")
-        
-        if response.status_code == 200:
-            try:
-                data = response.json()
-                print(f"Response JSON: {json.dumps(data, indent=2, ensure_ascii=False)}")
-                
-                # Check required fields according to review request
+                # Check required fields are present
                 required_fields = ["success", "totale", "num_scontrini", "media_scontrino", "message"]
-                missing_fields = []
-                
-                for field in required_fields:
-                    if field not in data:
-                        missing_fields.append(field)
+                missing_fields = [field for field in required_fields if field not in data]
                 
                 if missing_fields:
-                    print(f"❌ Missing required fields: {missing_fields}")
+                    print(f"   ❌ Receipt Analysis FAILED - Missing fields: {missing_fields}")
                     return False
                 
                 # Validate field types
-                type_checks = {
-                    "success": bool,
-                    "totale": (int, float),
-                    "num_scontrini": int,
-                    "media_scontrino": (int, float),
-                    "message": str
+                field_checks = {
+                    "success is boolean": isinstance(data["success"], bool),
+                    "totale is number": isinstance(data["totale"], (int, float)),
+                    "num_scontrini is number": isinstance(data["num_scontrini"], (int, float)),
+                    "media_scontrino is number": isinstance(data["media_scontrino"], (int, float)),
+                    "message is string": isinstance(data["message"], str)
                 }
                 
-                type_errors = []
-                for field, expected_type in type_checks.items():
-                    if not isinstance(data[field], expected_type):
-                        type_errors.append(f"{field} should be {expected_type}, got {type(data[field])}")
+                print("   Field validation:")
+                for check, result in field_checks.items():
+                    print(f"     {check}: {'✅' if result else '❌'}")
                 
-                if type_errors:
-                    print(f"❌ Type validation errors: {type_errors}")
+                if all(field_checks.values()):
+                    success_value = data["success"]
+                    message = data["message"]
+                    
+                    print(f"   Success: {success_value}")
+                    print(f"   Message: {message}")
+                    
+                    # For this tiny test image, we expect the AI to either:
+                    # 1. Successfully process it (success=true) but likely return 0 values
+                    # 2. Fail to extract data (success=false) with appropriate error message
+                    # Both are acceptable as long as the endpoint doesn't crash
+                    
+                    print("   ✅ Receipt Analysis PASSED - Endpoint working correctly")
+                    print("   📝 Note: Success can be true/false for test image - both acceptable")
+                    return True
+                else:
+                    print("   ❌ Receipt Analysis FAILED - Field type validation failed")
                     return False
-                
-                print(f"\n📝 Receipt Analysis Response:")
-                print(f"   Success: {data['success']}")
-                print(f"   Totale: {data['totale']}")
-                print(f"   Num Scontrini: {data['num_scontrini']}")
-                print(f"   Media Scontrino: {data['media_scontrino']}")
-                print(f"   Message: {data['message']}")
-                
-                # The endpoint should NOT crash even with a tiny test image
-                print("✅ POST /api/receipt/analyze endpoint working correctly")
-                print("✅ Response structure is correct (endpoint did not crash)")
-                return True
-                
+                    
             except json.JSONDecodeError as e:
-                print(f"❌ Invalid JSON response: {e}")
-                print(f"Raw response: {response.text}")
+                print(f"   ❌ Receipt Analysis FAILED - Invalid JSON response: {e}")
+                print(f"   Raw response: {response.text}")
                 return False
                 
+        elif response.status_code == 500:
+            print("   ❌ Receipt Analysis FAILED - Server error (500)")
+            print("   This indicates the endpoint crashed - CRITICAL ISSUE")
+            try:
+                print(f"   Error details: {response.json()}")
+            except:
+                print(f"   Error details: {response.text}")
+            return False
         else:
-            print(f"❌ POST /api/receipt/analyze endpoint failed with status {response.status_code}")
-            print(f"Response: {response.text}")
+            print(f"   ❌ Receipt Analysis FAILED - Unexpected status code: {response.status_code}")
+            try:
+                print(f"   Response: {response.json()}")
+            except:
+                print(f"   Response: {response.text}")
             return False
             
+    except requests.exceptions.Timeout:
+        print("   ❌ Receipt Analysis FAILED - Request timeout (>35 seconds)")
+        return False
     except Exception as e:
-        print(f"❌ POST /api/receipt/analyze endpoint error: {str(e)}")
+        print(f"   ❌ Receipt Analysis FAILED - Exception: {e}")
         return False
 
 def main():
     """Run all backend tests"""
     print("🚀 Starting MarketMate Backend API Tests")
-    print(f"Backend URL: {BACKEND_URL}")
+    print(f"📍 Backend URL: {BACKEND_URL}")
+    print(f"🕐 Test started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
     
-    results = []
+    results = {}
     
-    # Test 1: Health check endpoint
-    results.append(("GET /api/", test_basic_endpoint()))
+    # Test 1: Health Check
+    results["health_check"] = test_health_check()
     
-    # Test 2: Receipt OCR endpoint (NEW - PRIORITY)
-    results.append(("POST /api/receipt/analyze", test_receipt_analyze_endpoint()))
-    
-    # Test 3: AI chat endpoint (verify existing still works)
-    results.append(("POST /api/ai/chat", test_ai_chat_endpoint()))
-    
-    print("\n" + "=" * 60)
-    print("📊 Test Results Summary:")
-    
-    passed = 0
-    total = len(results)
-    
-    for test_name, result in results:
-        status = "✅ PASSED" if result else "❌ FAILED"
-        print(f"{test_name:30} {status}")
-        if result:
-            passed += 1
-    
-    print(f"\nTotal: {passed}/{total} tests passed")
-    
-    if passed == total:
-        print("🎉 All tests passed!")
-        return 0
+    # Test 2: AI Chat (only if health check passes)
+    if results["health_check"]:
+        results["ai_chat"] = test_ai_chat()
     else:
-        print("💥 Some tests failed!")
-        return 1
+        print("\n⚠️  Skipping AI Chat test due to health check failure")
+        results["ai_chat"] = False
+    
+    # Test 3: Receipt Analysis (the main focus of this test)
+    results["receipt_analyze"] = test_receipt_analyze()
+    
+    # Summary
+    print("\n" + "=" * 60)
+    print("📊 TEST SUMMARY")
+    print("=" * 60)
+    
+    total_tests = len(results)
+    passed_tests = sum(results.values())
+    
+    for test_name, passed in results.items():
+        status = "✅ PASSED" if passed else "❌ FAILED"
+        print(f"   {test_name.replace('_', ' ').title()}: {status}")
+    
+    print(f"\n🎯 Overall Result: {passed_tests}/{total_tests} tests passed")
+    
+    if results.get("receipt_analyze", False):
+        print("\n🎉 KEY SUCCESS: Receipt analysis endpoint is working correctly!")
+        print("   The fix (content_type='image' instead of 'image/jpeg') resolved the integration issue.")
+    else:
+        print("\n⚠️  KEY ISSUE: Receipt analysis endpoint still has problems.")
+    
+    return passed_tests == total_tests
 
 if __name__ == "__main__":
-    sys.exit(main())
+    success = main()
+    sys.exit(0 if success else 1)

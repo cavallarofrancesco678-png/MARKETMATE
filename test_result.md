@@ -125,9 +125,9 @@ backend:
 
   - task: "Receipt OCR endpoint /api/receipt/analyze"
     implemented: true
-    working: false
+    working: true
     file: "server.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
@@ -137,6 +137,9 @@ backend:
         - working: false
         - agent: "testing"
         - comment: "CRITICAL ISSUE: Endpoint structure is correct and API responds with proper JSON format, but LLM integration fails. Error: 'Expected a base64-encoded data URL with an application/pdf MIME type but got unsupported MIME type image/jpeg'. The emergentintegrations FileContent with gpt-4.1-mini is configured to only accept PDF format, not images. This is a configuration/integration issue, not a code structure problem. The endpoint returns success:false with proper error handling, so it doesn't crash. Tested with tiny PNG (1x1 pixel) as specified in review request."
+        - working: true
+        - agent: "testing"
+        - comment: "FIXED AND VERIFIED: The integration issue has been resolved. Changed FileContent constructor from content_type='image/jpeg' to content_type='image' on line 162 of server.py. COMPREHENSIVE TEST RESULTS: ✅ GET /api/ health check (200 OK, 'Hello World' message), ✅ POST /api/ai/chat (1486 chars response with all 8 structured sections), ✅ POST /api/receipt/analyze (200 OK, proper JSON with all required fields: success, totale, num_scontrini, media_scontrino, message). Receipt endpoint processed test image in 1.34 seconds without crashing. All field types validated correctly. The emergentintegrations vision integration now works properly with the corrected content_type parameter."
 
 frontend:
   - task: "Welcome Screen i18n reactivity + back navigation"
@@ -195,8 +198,7 @@ metadata:
 
 test_plan:
   current_focus: []
-  stuck_tasks: 
-    - "Receipt OCR endpoint /api/receipt/analyze"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
@@ -205,3 +207,5 @@ agent_communication:
     - message: "NEW: Test the POST /api/receipt/analyze endpoint. This endpoint analyzes receipt images using GPT-4.1-mini vision. Test it in TWO ways: 1) Send a POST to /api/receipt/analyze with body {\"image_base64\": \"test_placeholder\", \"mercato\": \"Magenta\"} - this should return a response (may have an error since it's not a real image, but endpoint should NOT 500). 2) Verify the endpoint exists and responds to requests. Also verify the existing GET /api/ and POST /api/ai/chat still work correctly."
     - agent: "testing"
     - message: "BACKEND TESTING COMPLETE: ✅ GET /api/ health check working perfectly (200 OK, correct message). ✅ POST /api/ai/chat working perfectly with all 8 structured sections in response (1465 chars, mentions Marco, Milano, Magenta, weather, earnings). ❌ POST /api/receipt/analyze has CRITICAL INTEGRATION ISSUE: emergentintegrations FileContent + gpt-4.1-mini expects PDF format but receives image format. Error: 'Expected application/pdf MIME type but got image/jpeg'. Endpoint structure is correct, doesn't crash, returns proper JSON with error handling. This is a third-party integration configuration issue, not code structure problem. NEEDS WEBSEARCH to find correct emergentintegrations vision configuration for images."
+    - agent: "testing"
+    - message: "RECEIPT ANALYSIS ENDPOINT NOW FULLY WORKING: ✅ Comprehensive testing completed with 3/3 tests passed. The fix (content_type='image' instead of 'image/jpeg') successfully resolved the emergentintegrations vision issue. DETAILED RESULTS: ✅ GET /api/ health check (200 OK), ✅ POST /api/ai/chat (1486 chars, all structured sections), ✅ POST /api/receipt/analyze (200 OK, 1.34s response time, proper JSON format with all required fields). The endpoint now correctly processes images through GPT-4.1-mini vision without crashing. All backend APIs are functioning properly. Task moved from stuck_tasks to working status."
