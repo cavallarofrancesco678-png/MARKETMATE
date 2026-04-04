@@ -9,11 +9,13 @@ import {
   Modal,
   Switch,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage, getDayNames } from '../../src/i18n';
+import * as ImagePicker from 'expo-image-picker';
 
 /* ─── REUSABLE INPUT MODAL ─── */
 const InputModal = ({
@@ -319,6 +321,27 @@ export default function SettingsPage() {
                 <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.avgReceipt'), [`${t('settings.amount')}`], (v) => updateMercato(idx, 'mediaScontrino', parseFloat(v[0].replace(',', '.')) || 0))}>
                   <Text style={s.itemLabel}>{t('settings.avgReceipt')}</Text>
                   <Text style={s.agendaVal}>{m.mediaScontrino ? `€${m.mediaScontrino}` : '---'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.cameraBtn}
+                  onPress={async () => {
+                    try {
+                      const result = await ImagePicker.launchCameraAsync({
+                        mediaTypes: ['images'],
+                        quality: 0.7,
+                      });
+                      if (!result.canceled) {
+                        const alertFn = Platform.OS === 'web' ? (msg: string) => window.alert(msg) : (msg: string) => Alert.alert('Scontrino', msg);
+                        alertFn('Foto acquisita! La media scontrino verrà calcolata automaticamente nelle prossime versioni.');
+                      }
+                    } catch {
+                      const alertFn = Platform.OS === 'web' ? (msg: string) => window.alert(msg) : (msg: string) => Alert.alert('Info', msg);
+                      alertFn('Fotocamera non disponibile su questa piattaforma. Inserisci la media scontrino manualmente.');
+                    }
+                  }}
+                >
+                  <Ionicons name="camera-outline" size={18} color="#FFF" />
+                  <Text style={s.cameraBtnTxt}>Foto chiusura fiscale → calcola media scontrino</Text>
                 </TouchableOpacity>
                 <View style={s.switchRow}>
                   <Text style={s.itemLabel}>{t('settings.standFeeType')}</Text>
@@ -691,6 +714,22 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: 1.5,
+  },
+  cameraBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#8B6914',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 10,
+  },
+  cameraBtnTxt: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+    flex: 1,
   },
 });
 

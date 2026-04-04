@@ -8,8 +8,8 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
@@ -76,15 +76,13 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.innerContent}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoTextBox}>
-              <Ionicons name="storefront" size={48} color={Colors.primary} />
-              <Text style={styles.logoMainText}>MARKETMATE</Text>
-            </View>
+            <Image
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           <Text style={styles.title}>{t('login.welcome')}</Text>
@@ -139,7 +137,7 @@ export default function LoginScreen() {
               <Text style={styles.securityLine}>{t('login.securityLine3')}</Text>
             </View>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -167,9 +165,15 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     alignItems: 'center',
   },
+  innerContent: {
+    flex: 1,
+    paddingHorizontal: 30,
+    paddingTop: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logoContainer: {
-    marginTop: 30,
-    marginBottom: 30,
+    marginBottom: 20,
     alignItems: 'center',
   },
   logoTextBox: {
@@ -192,8 +196,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   logoImage: {
-    width: 140,
-    height: 140,
+    width: 180,
+    height: 180,
     borderRadius: 16,
   },
   logoBox: {

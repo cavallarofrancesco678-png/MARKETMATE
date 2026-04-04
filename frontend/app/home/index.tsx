@@ -23,7 +23,6 @@ import { SpeseExtraModal } from '../../src/components/SpeseExtraModal';
 import { BuongiornoModal } from '../../src/components/BuongiornoModal';
 import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
-import * as ImagePicker from 'expo-image-picker';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
@@ -457,7 +456,7 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ ROW 4: INVENDUTO / BUONGIORNO / FOTO SCONTRINO ═══ */}
+      {/* ═══ ROW 4: INVENDUTO / BUONGIORNO ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowInvendutoModal(true)}>
           <Text style={s.cardLbl}>{t('home.unsold')}</Text>
@@ -466,22 +465,6 @@ export default function HomeScreen() {
         <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
           <Ionicons name="globe-outline" size={16} color="#FFF" />
           <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>{t('home.goodMorning').toUpperCase()}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.card, { height: normalRowH, backgroundColor: '#8B6914', width: normalRowH }]}
-          activeOpacity={0.7}
-          onPress={async () => {
-            const result = await ImagePicker.launchCameraAsync({
-              mediaTypes: ['images'],
-              quality: 0.7,
-            });
-            if (!result.canceled) {
-              const msg = Platform.OS === 'web' ? window.alert : Alert.alert;
-              msg('Scontrino acquisito! La funzione di analisi verrà implementata prossimamente.');
-            }
-          }}
-        >
-          <Ionicons name="camera-outline" size={22} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -823,7 +806,7 @@ const s = StyleSheet.create({
   badgeTxt: { color: '#FFF', fontSize: 10, fontWeight: '700' },
   bellRight: {
     position: 'absolute',
-    top: 8,
+    top: 14,
     right: 0,
   },
   bell: {
