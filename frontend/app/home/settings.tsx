@@ -302,6 +302,29 @@ export default function SettingsPage() {
       updated[idx].p_annuo = Math.round(value * 48);
     }
     store.updateAgenda(updated);
+
+    // Auto-calculate km when market name is set and partenzaDa exists
+    if (field === 'mercato' && value && store.partenzaDa) {
+      autoCalculateKm(idx, store.partenzaDa, value);
+    }
+  };
+
+  const autoCalculateKm = async (idx: number, partenza: string, destinazione: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/distance/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partenza, destinazione }),
+      });
+      const data = await res.json();
+      if (data.success && data.km_andata_ritorno > 0) {
+        const updated = [...store.agenda];
+        updated[idx] = { ...updated[idx], km: data.km_andata_ritorno };
+        store.updateAgenda(updated);
+      }
+    } catch (err) {
+      // Silently fail - user can always set km manually
+    }
   };
 
   return (
@@ -422,6 +445,7 @@ export default function SettingsPage() {
       </View>
 
       {/* ─── SQUADRA COLLABORATORI ─── */}
+      <Text style={s.secTitle}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
       {store.collaboratori.map((c, i) => (
         <View key={i} style={s.card}>
           <View style={s.itemRow}>
@@ -639,7 +663,15 @@ export default function SettingsPage() {
               <View key={`p-${i}`} style={s.spesaRow}>
                 <Text style={[s.spesaNome, { color: '#7A9090' }]}>Plat. {m.mercato}</Text>
                 <Text style={[s.spesaVal, { color: '#7A9090' }]}>€{m.p_annuo}</Text>
-                <View style={{ width: 24 }} />
+                <TouchableOpacity onPress={() => {
+                  const idx = store.agenda.findIndex(a => a.mercato === m.mercato);
+                  if (idx >= 0) {
+                    updateMercato(idx, 'p_annuo', 0);
+                    updateMercato(idx, 'p_giornaliero', 0);
+                  }
+                }}>
+                  <Ionicons name="trash-outline" size={16} color="#D46A6A" />
+                </TouchableOpacity>
               </View>
             ))}
             <TouchableOpacity
@@ -958,7 +990,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#8B6914',
+    backgroundColor: '#1E7F85',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,

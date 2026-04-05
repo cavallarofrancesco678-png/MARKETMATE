@@ -77,6 +77,16 @@ class FuelResponse(BaseModel):
     stations: List[FuelStation] = []
     message: str = ""
 
+class DistanceRequest(BaseModel):
+    partenza: str
+    destinazione: str
+
+class DistanceResponse(BaseModel):
+    success: bool
+    km: float = 0
+    km_andata_ritorno: float = 0
+    message: str = ""
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
@@ -354,6 +364,42 @@ async def find_cheapest_fuel(req: FuelRequest):
     except Exception as e:
         logger.error(f"Fuel search error: {e}")
         return FuelResponse(success=False, message=f"Errore ricerca carburante: {str(e)}")
+
+@api_router.post("/distance/calculate", response_model=DistanceResponse)
+async def calculate_distance(req: DistanceRequest):
+    """Calculate distance between two cities using geocoding + Haversine formula."""
+    import math
+    try:
+        dep_geo = await geocode_city(req.partenza)
+        if not dep_geo:
+            return DistanceResponse(success=False, message=f"Città non trovata: {req.partenza}")
+
+        # Small delay to respect Nominatim rate limits
+        import asyncio
+        await asyncio.sleep(1.1)
+
+        dest_geo = await geocode_city(req.destinazione)
+        if not dest_geo:
+            return DistanceResponse(success=False, message=f"Città non trovata: {req.destinazione}")
+
+        # Haversine formula
+        R = 6371  # Earth radius in km
+        lat1, lon1 = math.radians(dep_geo["lat"]), math.radians(dep_geo["lon"])
+        lat2, lon2 = math.radians(dest_geo["lat"]), math.radians(dest_geo["lon"])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+        c = 2 * math.asin(math.sqrt(a))
+        dist = R * c
+        # Multiply by 1.3 to approximate road distance vs straight line
+        road_dist = round(dist * 1.3, 1)
+        round_trip = round(road_dist * 2, 1)
+
+        return DistanceResponse(success=True, km=road_dist, km_andata_ritorno=round_trip, message=f"{req.partenza} → {req.destinazione}: {road_dist} km ({round_trip} km A/R)")
+
+    except Exception as e:
+        logger.error(f"Distance calc error: {e}")
+        return DistanceResponse(success=False, message=f"Errore calcolo distanza: {str(e)}")
 
 # Include the router in the main app
 app.include_router(api_router)

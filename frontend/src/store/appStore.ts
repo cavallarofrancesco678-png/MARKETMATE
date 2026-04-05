@@ -226,11 +226,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   removeCarburante: (data) => {
-    set((state) => ({
-      storicoCarburante: state.storicoCarburante.filter(
-        c => new Date(c.data).toDateString() !== new Date(data).toDateString()
-      )
-    }));
+    const targetTime = new Date(data).getTime();
+    set((state) => {
+      // Remove first matching entry only
+      let removed = false;
+      return {
+        storicoCarburante: state.storicoCarburante.filter(c => {
+          if (!removed && new Date(c.data).getTime() === targetTime) {
+            removed = true;
+            return false;
+          }
+          return true;
+        })
+      };
+    });
     get().saveToStorage();
   },
   
@@ -240,11 +249,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   removeAppunto: (data, testo) => {
-    set((state) => ({
-      appuntiAgenda: state.appuntiAgenda.filter(
-        a => !(new Date(a.data).toDateString() === new Date(data).toDateString() && a.testo === testo)
-      )
-    }));
+    set((state) => {
+      let removed = false;
+      return {
+        appuntiAgenda: state.appuntiAgenda.filter(a => {
+          if (!removed && a.testo === testo) {
+            const aDate = new Date(a.data).toDateString();
+            const targetDate = new Date(data).toDateString();
+            if (aDate === targetDate) {
+              removed = true;
+              return false;
+            }
+          }
+          return true;
+        })
+      };
+    });
     get().saveToStorage();
   },
   

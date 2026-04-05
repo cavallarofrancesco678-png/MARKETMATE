@@ -53,7 +53,7 @@ const MiniBar = () => (
 );
 
 export default function HomeScreen() {
-  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, storicoDiario } = useAppStore();
+  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
   const dayNames = getDayNames();
@@ -104,14 +104,8 @@ export default function HomeScreen() {
     return (appuntiAgenda || []).filter((a) => new Date(a.data).toDateString() === oggi);
   }, [appuntiAgenda, dataCorrente]);
 
-  /* ── Diario di oggi per campanello ── */
-  const diarioOggi = useMemo(() => {
-    const oggi = dataCorrente.toDateString();
-    return (storicoDiario || []).find((d) => new Date(d.data).toDateString() === oggi);
-  }, [storicoDiario, dataCorrente]);
-
-  /* ── Conteggio notifiche totale ── */
-  const notificheCount = appuntiOggi.length + (diarioOggi ? 1 : 0);
+  /* ── Conteggio notifiche totale (solo appuntamenti/ordini, NO diario) ── */
+  const notificheCount = appuntiOggi.length;
 
   /* ── All products from all fornitori ── */
   const tuttiProdotti = useMemo(() => {
@@ -510,18 +504,7 @@ export default function HomeScreen() {
             <Text style={s.modalTitle}>{t('home.todayAppointments')}</Text>
             <Text style={s.modalSub}>{giorno} {data}</Text>
             <ScrollView style={{ maxHeight: 350 }}>
-              {/* Diario di oggi */}
-              {diarioOggi && (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6 }}>{t('agenda.dayNotes').toUpperCase()}</Text>
-                  <View style={[s.modalRow, { backgroundColor: '#F0EDE4', borderRadius: 8, padding: 10 }]}>
-                    <Ionicons name="book-outline" size={18} color="#1E7F85" />
-                    <Text style={[s.modalLabel, { flex: 1, lineHeight: 18 }]}>{diarioOggi.testo}</Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Appuntamenti di oggi */}
+              {/* Appuntamenti e ordini di oggi (NO diario) */}
               {appuntiOggi.length > 0 && (
                 <View style={{ marginBottom: 12 }}>
                   <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6 }}>{t('agenda.dayOrders').toUpperCase()}</Text>

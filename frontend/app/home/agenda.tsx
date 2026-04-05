@@ -254,7 +254,7 @@ export default function AgendaScreen() {
           })
         )}
 
-        {/* Tutte le annotazioni salvate */}
+        {/* Tutte le annotazioni salvate (colore freddo - teal) */}
         <Text style={s.sectionTitleOut}>{t('agenda.allNotes')}</Text>
         {appuntiAgenda.length === 0 ? (
           <View style={s.card}>
@@ -269,7 +269,7 @@ export default function AgendaScreen() {
               const d = new Date(a.data);
               const isPast = d < new Date(new Date().setHours(0, 0, 0, 0));
               return (
-                <View key={i} style={s.upcomingCard}>
+                <View key={i} style={[s.upcomingCard, { borderLeftWidth: 4, borderLeftColor: '#1E7F85' }]}>
                   <View style={[s.dateBadge, { backgroundColor: isPast ? '#999' : isToday(d) ? '#1E7F85' : isTomorrow(d) ? '#E8A060' : '#D46A6A' }]}>
                     <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
                     <Text style={s.dateBadgeMonth}>{shortMonth(d)}</Text>
@@ -293,7 +293,7 @@ export default function AgendaScreen() {
             })
         )}
 
-        {/* Storico Diario */}
+        {/* Storico Diario (colore caldo - ambra/oro) */}
         <Text style={s.sectionTitleOut}>{t('agenda.diaryHistory')}</Text>
         {recentDiario.length === 0 ? (
           <View style={s.card}>
@@ -305,10 +305,10 @@ export default function AgendaScreen() {
           recentDiario.map((d, i) => {
             const dt = new Date(d.data);
             return (
-              <View key={i} style={[s.card, { marginBottom: 10, padding: 14 }]}>
+              <View key={i} style={[s.card, { marginBottom: 10, padding: 14, borderLeftWidth: 4, borderLeftColor: '#E8A060' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Ionicons name="book-outline" size={16} color="#1E7F85" />
-                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 12, fontWeight: '800', color: '#1A4040' }}>
+                  <Ionicons name="book-outline" size={16} color="#E8A060" />
+                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 12, fontWeight: '800', color: '#8B6914' }}>
                     {formattaData(dt).toUpperCase()}
                   </Text>
                   <TouchableOpacity onPress={() => handleEliminaDiario(d.data)}>
