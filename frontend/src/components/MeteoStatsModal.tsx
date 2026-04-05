@@ -198,15 +198,15 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
 
     return (
       <View style={{ alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+        <View style={{ flexDirection: 'row', marginBottom: 6, justifyContent: 'center' }}>
           {shortDays.map((g) => (
-            <View key={g} style={{ width: cellSize, alignItems: 'center' }}>
+            <View key={g} style={{ width: cellSize, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={ms.calHeader}>{g}</Text>
             </View>
           ))}
         </View>
         {rows.map((row, ri) => (
-          <View key={ri} style={{ flexDirection: 'row' }}>
+          <View key={ri} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             {row.map((cell, ci) => {
               if (!cell) {
                 return <View key={ci} style={{ width: cellSize, height: cellSize }} />;

@@ -908,14 +908,17 @@ const s = StyleSheet.create({
   },
   collabRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
+    justifyContent: 'space-evenly',
+    gap: 0,
+    paddingHorizontal: 8,
   },
   collab: {
     backgroundColor: '#E0DBC8',
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 7,
+    minWidth: 70,
+    alignItems: 'center',
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(155,145,125,0.55), -5px -5px 12px rgba(255,255,250,0.9)',
   },

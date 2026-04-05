@@ -130,22 +130,25 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
         const pathD = pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
         return (
           <React.Fragment key={li}>
-            <Path d={pathD} stroke={line.color} strokeWidth={isActive ? 2.5 : 1.5} fill="none" strokeLinejoin="round" opacity={lineOpacity} />
+            <Path d={pathD} stroke={line.color} strokeWidth={isActive ? 4 : 1.5} fill="none" strokeLinejoin="round" opacity={lineOpacity} />
             {pts.map((p, i) => (
               <React.Fragment key={i}>
                 <Circle
                   cx={p.x}
                   cy={p.y}
-                  r={isActive ? 6 : 3}
+                  r={isActive ? 8 : 3}
                   fill={isActive ? line.color : `${line.color}30`}
                   stroke={isActive ? '#FFF' : 'transparent'}
-                  strokeWidth={2.5}
+                  strokeWidth={isActive ? 3 : 1}
                   opacity={lineOpacity}
                 />
                 {isActive && p.v > 0 && (
-                  <SvgText x={p.x} y={p.y - 10} fill={line.color} fontSize={9} fontWeight="900" textAnchor="middle" opacity={1}>
-                    {p.v >= 1000 ? `${(p.v / 1000).toFixed(1)}k` : p.v.toFixed(0)}
-                  </SvgText>
+                  <>
+                    <Circle cx={p.x} cy={p.y - 14} r={16} fill={line.color} opacity={0.9} />
+                    <SvgText x={p.x} y={p.y - 10} fill="#FFF" fontSize={10} fontWeight="900" textAnchor="middle" opacity={1}>
+                      {p.v >= 1000 ? `${(p.v / 1000).toFixed(1)}k` : `€${p.v.toFixed(0)}`}
+                    </SvgText>
+                  </>
                 )}
               </React.Fragment>
             ))}
@@ -794,11 +797,13 @@ const st = StyleSheet.create({
   legendText: { fontSize: 9, fontWeight: '700' },
 
   tooltipBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#1A4040', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, marginTop: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#1A3535', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, marginTop: 8,
+    // @ts-ignore
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
   },
-  tooltipDot: { width: 8, height: 8, borderRadius: 4 },
-  tooltipText: { fontSize: 11, fontWeight: '800', color: '#FFF', letterSpacing: 0.3 },
+  tooltipDot: { width: 12, height: 12, borderRadius: 6 },
+  tooltipText: { fontSize: 14, fontWeight: '900', color: '#FFF', letterSpacing: 0.5 },
 
   meteoRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
   meteoItem: { alignItems: 'center' },

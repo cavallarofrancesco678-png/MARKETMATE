@@ -37,6 +37,15 @@ export default function GasScreen() {
   const totaleKm = storicoGiornate.reduce((s, g) => s + (g.km || 0), 0);
   const costoKm = totaleKm > 0 ? totaleCarb / totaleKm : 0;
 
+  /* ── Media km settimanali calcolata dai mercati ── */
+  const kmSettimana = useMemo(() => {
+    return agenda.reduce((sum, m) => sum + (m.km || 0), 0);
+  }, [agenda]);
+  const costoSettimanaleStimato = useMemo(() => {
+    if (costoKm > 0 && kmSettimana > 0) return Math.round(kmSettimana * costoKm * 100) / 100;
+    return Math.round(kmSettimana * 0.18 * 100) / 100; // Default €0.18/km
+  }, [kmSettimana, costoKm]);
+
   /* ── Costo carburante per mercato ── */
   const costoPerMercato = useMemo(() => {
     if (totaleKm === 0 || totaleCarb === 0) return [];
@@ -163,6 +172,20 @@ export default function GasScreen() {
             <Text style={[s.kpiValue, { color: '#5A7575' }]}>{totaleKm.toFixed(0)}</Text>
           </View>
         </View>
+
+        {/* Media km settimanale dai mercati */}
+        {kmSettimana > 0 && (
+          <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#7A9090' }}>{t('gas.weeklyKm') || 'KM settimanali (da mercati)'}</Text>
+              <Text style={{ fontSize: 20, fontWeight: '900', color: '#1E7F85' }}>{kmSettimana} km</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#7A9090' }}>{t('gas.weeklyCostEstimate') || 'Costo stimato/sett.'}</Text>
+              <Text style={{ fontSize: 20, fontWeight: '900', color: '#E8A060' }}>€{costoSettimanaleStimato.toFixed(2)}</Text>
+            </View>
+          </View>
+        )}
 
         {/* Filtro periodo */}
         <View style={s.filterRow}>
