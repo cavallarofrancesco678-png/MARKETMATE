@@ -88,7 +88,7 @@ export default function HomeScreen() {
   const [invenduto, setInvenduto] = useState('');
 
   const mercatoOggi = agenda[getGiornoIndex(dataCorrente)];
-  const mercatoNome = isFiera ? 'Fiera' : mercatoOggi?.mercato || 'Magenta';
+  const mercatoNome = isFiera ? 'Fiera' : (mercatoOggi?.mercato || '');
   const giorno = dayNames[(dataCorrente.getDay() + 6) % 7]; // dayNames is Mon-Sun, getDay() is Sun=0
   const data = `${dataCorrente.getDate()} ${monthNames[dataCorrente.getMonth()]}`;
 
@@ -98,14 +98,21 @@ export default function HomeScreen() {
     setPresenze(p);
   }, [collaboratori]);
 
-  /* ── Appunti di oggi per notifiche campanello ── */
-  const appuntiOggi = useMemo(() => {
-    const oggi = dataCorrente.toDateString();
-    return (appuntiAgenda || []).filter((a) => new Date(a.data).toDateString() === oggi);
+  /* ── Appunti prossimi 2 giorni per notifiche campanello ── */
+  const appuntiProssimi = useMemo(() => {
+    const oggi = new Date(dataCorrente);
+    oggi.setHours(0, 0, 0, 0);
+    const fra2gg = new Date(oggi);
+    fra2gg.setDate(fra2gg.getDate() + 2);
+    fra2gg.setHours(23, 59, 59, 999);
+    return (appuntiAgenda || []).filter((a) => {
+      const d = new Date(a.data);
+      return d >= oggi && d <= fra2gg;
+    });
   }, [appuntiAgenda, dataCorrente]);
 
   /* ── Conteggio notifiche totale (solo appuntamenti/ordini, NO diario) ── */
-  const notificheCount = appuntiOggi.length;
+  const notificheCount = appuntiProssimi.length;
 
   /* ── All products from all fornitori ── */
   const tuttiProdotti = useMemo(() => {
@@ -143,27 +150,42 @@ export default function HomeScreen() {
       items.push({ id: `sp_${sp.voce}`, label: sp.voce, importoGG: sp.importo / (48 * gg) });
     });
 
-    // Plateatico for ALL markets → each divided only by ITS own days (48 weeks)
+    // Plateatico for ALL markets → use p_giornaliero directly when available
     agenda.forEach((m) => {
-      if (m.p_annuo > 0) {
-        items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: m.p_annuo / 48 });
-      } else if (m.p_giornaliero > 0 && !m.is_plat_annuo) {
+      if (m.p_giornaliero > 0) {
         items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: m.p_giornaliero });
+      } else if (m.p_annuo > 0) {
+        items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: Math.round(m.p_annuo / 48 * 100) / 100 });
       }
     });
 
     return items;
   }, [speseAnnue, agenda]);
 
-  // Filter: only show today's plateatico + all general spese
+  // Add fuel cost as daily fixed expense
+  const costoCarburanteSpeso = store.storicoCarburante.reduce((s: number, c: any) => s + (c.euro || 0), 0);
+  const kmTotPercorsi = store.storicoGiornate.reduce((s: number, g: any) => s + (g.km || 0), 0);
+  const costoPerKm = kmTotPercorsi > 0 ? costoCarburanteSpeso / kmTotPercorsi : 0.18;
+
+  const speseFisseConCarburante = useMemo(() => {
+    const items = [...speseFisseItems];
+    const kmMercato = mercatoOggi?.km || 0;
+    if (kmMercato > 0) {
+      const costoCarb = Math.round(kmMercato * costoPerKm * 100) / 100;
+      items.push({ id: 'carburante_gg', label: t('home.fuelCost') || 'Carburante', importoGG: costoCarb });
+    }
+    return items;
+  }, [speseFisseItems, mercatoOggi, costoPerKm]);
+
+  // Filter: only show today's plateatico + all general spese + fuel
   const speseFisseOggi = useMemo(() => {
     const mercatoGiornoId = `plat_${mercatoOggi?.giorno}`;
-    return speseFisseItems.filter((it) => {
-      // Show all non-plateatico items + only today's plateatico
+    return speseFisseConCarburante.filter((it) => {
+      if (it.id === 'carburante_gg') return true;
       if (it.id.startsWith('plat_')) return it.id === mercatoGiornoId;
       return true;
     });
-  }, [speseFisseItems, mercatoOggi]);
+  }, [speseFisseConCarburante, mercatoOggi]);
 
   const speseFisse = speseFisseOggi
     .filter((it) => !(speseFisseDisabilitate || []).includes(it.id))
@@ -212,10 +234,7 @@ export default function HomeScreen() {
   const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
 
   // Costo carburante giornaliero basato su km mercato e media costo/km calcolata dai rifornimenti
-  const totaleCarburanteSpeso = store.storicoCarburante.reduce((s: number, c: any) => s + (c.euro || 0), 0);
-  const totaleKmPercorsi = store.storicoGiornate.reduce((s: number, g: any) => s + (g.km || 0), 0);
-  const costoKmCalcolato = totaleKmPercorsi > 0 ? totaleCarburanteSpeso / totaleKmPercorsi : 0.18;
-  const costoCarburanteGiorno = (mercatoOggi?.km || 0) * costoKmCalcolato;
+  const costoCarburanteGiorno = (mercatoOggi?.km || 0) * costoPerKm;
 
   const utile = lordoNum - speseFisseTotali - speseExtraTotNum - invendutoNum - costoCollabAttivi - costoCarburanteGiorno;
   /* ── Storico mercato dati reali ── */
@@ -501,22 +520,30 @@ export default function HomeScreen() {
       <Modal visible={showBellModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>{t('home.todayAppointments')}</Text>
-            <Text style={s.modalSub}>{giorno} {data}</Text>
+            <Text style={s.modalTitle}>{t('home.upcomingAppointments') || 'Appuntamenti prossimi'}</Text>
+            <Text style={s.modalSub}>{t('home.next2days') || 'Prossimi 2 giorni'}</Text>
             <ScrollView style={{ maxHeight: 350 }}>
-              {/* Appuntamenti e ordini di oggi (NO diario) */}
-              {appuntiOggi.length > 0 && (
+              {/* Appuntamenti e ordini prossimi 2 giorni (NO diario) */}
+              {appuntiProssimi.length > 0 && (
                 <View style={{ marginBottom: 12 }}>
                   <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6 }}>{t('agenda.dayOrders').toUpperCase()}</Text>
-                  {appuntiOggi.map((a, i) => (
-                    <View key={i} style={s.modalRow}>
-                      <Ionicons name="document-text" size={18} color="#1E7F85" />
-                      <Text style={[s.modalLabel, { flex: 1 }]}>{a.testo}</Text>
-                      <TouchableOpacity onPress={() => { removeAppunto(a.data, a.testo); }}>
-                        <Ionicons name="close-circle" size={22} color="#D46A6A" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+                  {appuntiProssimi.map((a, i) => {
+                    const d = new Date(a.data);
+                    const isToday = d.toDateString() === dataCorrente.toDateString();
+                    const dateLabel = isToday ? 'OGGI' : `${d.getDate()}/${d.getMonth() + 1}`;
+                    return (
+                      <View key={i} style={s.modalRow}>
+                        <View style={{ backgroundColor: isToday ? '#1E7F85' : '#E8A060', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
+                          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
+                        </View>
+                        <Ionicons name="document-text" size={18} color="#1E7F85" />
+                        <Text style={[s.modalLabel, { flex: 1 }]}>{a.testo}</Text>
+                        <TouchableOpacity onPress={() => { removeAppunto(a.data, a.testo); }}>
+                          <Ionicons name="close-circle" size={22} color="#D46A6A" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 
@@ -746,7 +773,7 @@ export default function HomeScreen() {
           fornitori: fornitori.map((f) => f.nome),
           speseAnnue: speseAnnue.map((sp) => ({ voce: sp.voce, importo: sp.importo })),
           partenzaDa: store.partenzaDa || '',
-          costoKm: costoKmCalcolato,
+          costoKm: costoPerKm,
           tipoCarburante: store.tipoCarburante || 'benzina',
           mediaScontrino: mercatoOggi?.mediaScontrino || 0,
         }}

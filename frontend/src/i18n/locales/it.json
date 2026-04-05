@@ -66,7 +66,10 @@
     "todayAppointments": "Appuntamenti di oggi",
     "wind": "VENTO",
     "profitDetail": "DETTAGLIO UTILE",
-    "deductions": "Deduzioni"
+    "deductions": "Deduzioni",
+    "upcomingAppointments": "Appuntamenti in arrivo",
+    "next2days": "Prossimi 2 giorni",
+    "fuelCost": "Carburante"
   },
   "welcome": {
     "identity": "IDENTITÀ",
@@ -148,7 +151,12 @@
     "saveResult": "Salva Risultato",
     "receiptsAnalyzed": "scontrini analizzati",
     "fuelType": "Tipo Carburante",
-    "collaboratorsTitle": "COLLABORATORI"
+    "collaboratorsTitle": "COLLABORATORI",
+    "suppliersTitle": "FORNITORI",
+    "securityTitle": "SICUREZZA",
+    "phoneNumber": "Numero di telefono",
+    "otpLogin": "Login con OTP",
+    "otpDesc": "Ricevi un codice di verifica ad ogni accesso"
   },
   "stats": {
     "title": "STATISTICHE",

@@ -86,6 +86,8 @@ interface AppState {
   targetMensile: number;
   settore: string;
   tipoCarburante: string;
+  phoneNumber: string;
+  otpEnabled: boolean;
   speseFisseDisabilitate: string[];
   
   // Data
@@ -151,6 +153,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   targetMensile: 3000,
   settore: 'Alimentare',
   tipoCarburante: 'benzina',
+  phoneNumber: '',
+  otpEnabled: false,
   speseFisseDisabilitate: [],
   
   collaboratori: [],
@@ -355,6 +359,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         targetMensile: state.targetMensile,
         settore: state.settore,
         tipoCarburante: state.tipoCarburante,
+        phoneNumber: state.phoneNumber,
+        otpEnabled: state.otpEnabled,
         speseFisseDisabilitate: state.speseFisseDisabilitate,
         partenzaDa: state.partenzaDa,
         collaboratori: state.collaboratori,

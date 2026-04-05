@@ -22,7 +22,11 @@ export default function LoginScreen() {
   const [pin, setPin] = useState('');
   const [attempts, setAttempts] = useState(0);
   const [locked, setLocked] = useState(false);
-  const { isConfigured, pin: savedPin, nomeAttivita, loadFromStorage } = useAppStore();
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const { isConfigured, pin: savedPin, nomeAttivita, loadFromStorage, otpEnabled, phoneNumber } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
   const { t } = useTranslation();
 
@@ -43,19 +47,62 @@ export default function LoginScreen() {
     }
   }, [attempts]);
 
+  const generateOtp = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+    setOtpStep(true);
+    // Simulate SMS sending - show code in alert
+    const msg = `Codice OTP inviato al ${phoneNumber}: ${code}`;
+    if (Platform.OS === 'web') {
+      window.alert(msg);
+    } else {
+      Alert.alert('OTP Inviato', msg);
+    }
+  };
+
   const handleAccedi = () => {
     if (locked) {
-      Alert.alert(t('common.error'), t('login.locked'));
+      if (Platform.OS === 'web') {
+        window.alert(t('login.locked') || 'Troppi tentativi. Riprova tra 30 secondi.');
+      } else {
+        Alert.alert(t('common.error'), t('login.locked'));
+      }
       return;
     }
     if (savedPin && pin !== savedPin) {
       setAttempts(a => a + 1);
-      Alert.alert(t('common.error'), t('login.wrongPin'));
+      if (Platform.OS === 'web') {
+        window.alert(t('login.wrongPin') || 'PIN errato');
+      } else {
+        Alert.alert(t('common.error'), t('login.wrongPin'));
+      }
       setPin('');
+      return;
+    }
+    // If OTP enabled, go to OTP step
+    if (otpEnabled && phoneNumber) {
+      generateOtp();
       return;
     }
     setAttempts(0);
     router.replace('/home');
+  };
+
+  const handleOtpVerify = () => {
+    if (otpInput === generatedOtp) {
+      setAttempts(0);
+      setOtpStep(false);
+      setOtpInput('');
+      router.replace('/home');
+    } else {
+      setAttempts(a => a + 1);
+      if (Platform.OS === 'web') {
+        window.alert('Codice OTP errato');
+      } else {
+        Alert.alert('Errore', 'Codice OTP errato');
+      }
+      setOtpInput('');
+    }
   };
 
   const handleConfigura = () => {
@@ -91,34 +138,70 @@ export default function LoginScreen() {
           </Text>
 
           <View style={styles.inputContainer}>
-            <NeuInset style={styles.pinInput}>
-              <TextInput
-                style={styles.input}
-                placeholder={t('login.enterPin')}
-                placeholderTextColor={Colors.grey}
-                value={pin}
-                onChangeText={setPin}
-                secureTextEntry
-                keyboardType="number-pad"
-                maxLength={6}
-                editable={!locked}
-              />
-            </NeuInset>
-            {locked && (
-              <Text style={{ color: '#D46A6A', fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' }}>
-                {t('login.locked')}
-              </Text>
+            {!otpStep ? (
+              <>
+                <NeuInset style={styles.pinInput}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t('login.enterPin')}
+                    placeholderTextColor={Colors.grey}
+                    value={pin}
+                    onChangeText={setPin}
+                    secureTextEntry
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    editable={!locked}
+                  />
+                </NeuInset>
+                {locked && (
+                  <Text style={{ color: '#D46A6A', fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' }}>
+                    {t('login.locked')}
+                  </Text>
+                )}
+              </>
+            ) : (
+              <>
+                <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                  <Ionicons name="shield-checkmark" size={36} color="#1E7F85" />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.marrone, marginTop: 8, textAlign: 'center' }}>
+                    {t('login.otpSent') || 'Codice OTP inviato'}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: Colors.grey, textAlign: 'center', marginTop: 4 }}>
+                    {t('login.enterOtp') || 'Inserisci il codice a 6 cifre'}
+                  </Text>
+                </View>
+                <NeuInset style={styles.pinInput}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="000000"
+                    placeholderTextColor={Colors.grey}
+                    value={otpInput}
+                    onChangeText={setOtpInput}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </NeuInset>
+              </>
             )}
           </View>
 
           <TouchableOpacity
             style={[styles.accediButton, locked && { opacity: 0.5 }]}
-            onPress={handleAccedi}
+            onPress={otpStep ? handleOtpVerify : handleAccedi}
             activeOpacity={0.8}
             disabled={locked}
           >
-            <Text style={styles.accediText}>{t('login.login')}</Text>
+            <Text style={styles.accediText}>{otpStep ? (t('login.verifyOtp') || 'VERIFICA OTP') : t('login.login')}</Text>
           </TouchableOpacity>
+
+          {otpStep && (
+            <TouchableOpacity onPress={() => { setOtpStep(false); setOtpInput(''); }} style={{ marginTop: 12 }}>
+              <Text style={{ color: '#1E7F85', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                {t('login.backToPin') || '← Torna al PIN'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.divider} />
 

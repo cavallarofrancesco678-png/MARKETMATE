@@ -37,61 +37,73 @@ const InputModal = ({
   keyboardTypes?: string[];
 }) => {
   const [values, setValues] = useState<string[]>([]);
-  const [openCount, setOpenCount] = useState(0);
 
   // Reset values EVERY time modal opens
   React.useEffect(() => {
     if (visible) {
       setValues(hints.map(() => ''));
-      setOpenCount((c) => c + 1);
     }
   }, [visible]);
 
   const { t: tModal } = useTranslation();
 
   const handleSave = () => {
-    // Only first field (name) is required; numeric fields default to 0
     if (!values[0] || values[0].trim() === '') {
-      Alert.alert(tModal('settings.attention'), tModal('settings.enterName'));
+      if (Platform.OS === 'web') {
+        window.alert(tModal('settings.enterName') || 'Inserisci un valore');
+      } else {
+        Alert.alert(tModal('settings.attention') || 'Attenzione', tModal('settings.enterName') || 'Inserisci un valore');
+      }
       return;
     }
     const filled = hints.map((_, i) => values[i] || '');
     onSave(filled);
     onClose();
   };
+
+  if (!visible) return null;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={ms.overlay}>
-        <View style={ms.modal}>
+      <TouchableOpacity
+        activeOpacity={1}
+        style={ms.overlay}
+        onPress={onClose}
+      >
+        <TouchableOpacity activeOpacity={1} style={ms.modal} onPress={() => {}}>
           <Text style={ms.modalTitle}>{title}</Text>
           {hints.map((h, i) => (
             <TextInput
-              key={i}
+              key={`input-${i}-${title}`}
               style={ms.modalInput}
               placeholder={h}
               placeholderTextColor="#A0A090"
-              value={values[i]}
+              value={values[i] || ''}
               onChangeText={(txt) => {
-                const nv = [...values];
-                nv[i] = txt;
-                setValues(nv);
+                setValues(prev => {
+                  const nv = [...prev];
+                  nv[i] = txt;
+                  return nv;
+                });
               }}
               keyboardType={
                 (keyboardTypes?.[i] === 'numeric' ? 'numeric' : 'default') as any
               }
               autoFocus={i === 0}
+              autoCapitalize="words"
+              returnKeyType={i === hints.length - 1 ? 'done' : 'next'}
             />
           ))}
           <View style={ms.modalBtns}>
             <TouchableOpacity onPress={onClose} style={ms.modalCancel}>
-              <Text style={ms.modalCancelTxt}>{tModal('common.cancel').toUpperCase()}</Text>
+              <Text style={ms.modalCancelTxt}>{(tModal('common.cancel') || 'Annulla').toUpperCase()}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSave} style={ms.modalSave}>
-              <Text style={ms.modalSaveTxt}>{tModal('common.save')}</Text>
+              <Text style={ms.modalSaveTxt}>{tModal('common.save') || 'Salva'}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -444,6 +456,46 @@ export default function SettingsPage() {
         </View>
       </View>
 
+      {/* ─── SICUREZZA OTP ─── */}
+      <Text style={s.secTitle}>{t('settings.securityTitle') || 'SICUREZZA'}</Text>
+      <View style={s.card}>
+        <View style={s.itemRow}>
+          <Ionicons name="shield-checkmark" size={20} color="#1E7F85" />
+          <View style={s.itemInfo}>
+            <Text style={s.itemLabel}>{t('settings.phoneNumber') || 'Numero di telefono'}</Text>
+            <Text style={s.itemVal}>{store.phoneNumber || '---'}</Text>
+          </View>
+          <TouchableOpacity onPress={() => openModal(t('settings.phoneNumber') || 'Numero di telefono', ['+39...'], (v) => store.setConfig({ phoneNumber: v[0] }))}>
+            <Ionicons name="create-outline" size={18} color="#1E7F85" />
+          </TouchableOpacity>
+        </View>
+        <View style={s.divider} />
+        <View style={s.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.switchLabel}>{t('settings.otpLogin') || 'Login con OTP'}</Text>
+            <Text style={{ fontSize: 10, color: '#7A9090' }}>
+              {t('settings.otpDesc') || 'Ricevi un codice di verifica ad ogni accesso'}
+            </Text>
+          </View>
+          <Switch
+            value={store.otpEnabled || false}
+            onValueChange={(v) => {
+              if (v && !store.phoneNumber) {
+                if (Platform.OS === 'web') {
+                  window.alert('Inserisci prima il numero di telefono');
+                } else {
+                  Alert.alert('Attenzione', 'Inserisci prima il numero di telefono');
+                }
+                return;
+              }
+              store.setConfig({ otpEnabled: v });
+            }}
+            trackColor={{ false: '#C0D0C8', true: '#1E7F85' }}
+            thumbColor="#FFF"
+          />
+        </View>
+      </View>
+
       {/* ─── SQUADRA COLLABORATORI ─── */}
       <Text style={s.secTitle}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
       {store.collaboratori.map((c, i) => (
@@ -498,12 +550,6 @@ export default function SettingsPage() {
         return (
           <View key={idx} style={s.card}>
             <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedDay(isOpen ? null : idx)}>
-              <TouchableOpacity
-                onPress={() => updateMercato(idx, 'lavorativo', !m.lavorativo)}
-                style={[s.checkbox, m.lavorativo && s.checkboxOn]}
-              >
-                {m.lavorativo && <Ionicons name="checkmark" size={14} color="#FFF" />}
-              </TouchableOpacity>
               <Text style={s.agendaDay}>{t(`days.${['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][idx]}`).toUpperCase()}</Text>
               <Text style={s.agendaMarket}>{m.mercato || '---'}</Text>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
@@ -576,6 +622,7 @@ export default function SettingsPage() {
       })}
 
       {/* ─── FORNITORI ─── */}
+      <Text style={s.secTitle}>{t('settings.suppliersTitle') || 'FORNITORI'}</Text>
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (
