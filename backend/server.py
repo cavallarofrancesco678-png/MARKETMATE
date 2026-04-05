@@ -228,12 +228,15 @@ Se non riesci a leggere nulla, rispondi: {"totale": 0, "num_scontrini": 0, "medi
 
 # ── Fuel Price Helpers ──
 
-async def geocode_city(city_name: str) -> dict:
+async def geocode_city(city_name: str, country_code: str = "") -> dict:
     """Geocode a city name to lat/lon using Nominatim (OpenStreetMap)."""
     async with httpx.AsyncClient(timeout=10) as client_http:
+        params = {"q": city_name, "format": "json", "limit": 1}
+        if country_code:
+            params["countrycodes"] = country_code
         resp = await client_http.get(
             "https://nominatim.openstreetmap.org/search",
-            params={"q": city_name, "format": "json", "limit": 1},
+            params=params,
             headers={"User-Agent": "MarketMate/1.0"}
         )
         if resp.status_code == 200 and resp.json():
@@ -370,15 +373,22 @@ async def calculate_distance(req: DistanceRequest):
     """Calculate distance between two cities using geocoding + Haversine formula."""
     import math
     try:
+        # First geocode departure without country to detect country
         dep_geo = await geocode_city(req.partenza)
         if not dep_geo:
             return DistanceResponse(success=False, message=f"Città non trovata: {req.partenza}")
+
+        # Detect country from departure
+        country = detect_country(dep_geo.get("country", ""))
+        country_map = {"IT": "it", "FR": "fr", "DE": "de", "ES": "es", "PT": "pt"}
+        cc = country_map.get(country, "")
 
         # Small delay to respect Nominatim rate limits
         import asyncio
         await asyncio.sleep(1.1)
 
-        dest_geo = await geocode_city(req.destinazione)
+        # Geocode destination with same country for accuracy
+        dest_geo = await geocode_city(req.destinazione, cc)
         if not dest_geo:
             return DistanceResponse(success=False, message=f"Città non trovata: {req.destinazione}")
 
