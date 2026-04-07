@@ -214,7 +214,7 @@ export default function WelcomeScreen() {
             {!otpSent ? (
               <View style={styles.inputsContainer}>
                 <InputField
-                  label="Numero di telefono"
+                  label="Numero di telefono (opzionale)"
                   icon="call-outline"
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
@@ -229,6 +229,15 @@ export default function WelcomeScreen() {
                 >
                   <Ionicons name="send" size={18} color="#FFF" />
                   <Text style={styles.otpButtonText}>INVIA CODICE OTP</Text>
+                </TouchableOpacity>
+                <View style={{ height: 16 }} />
+                <TouchableOpacity
+                  style={styles.skipButton}
+                  onPress={() => { setOtpVerified(true); setCurrentPage(1); }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.skipButtonText}>SALTA VERIFICA</Text>
+                  <Ionicons name="arrow-forward" size={16} color={Colors.grey} />
                 </TouchableOpacity>
               </View>
             ) : !otpVerified ? (
@@ -257,9 +266,14 @@ export default function WelcomeScreen() {
                   <Ionicons name="shield-checkmark" size={18} color="#FFF" />
                   <Text style={styles.otpButtonText}>VERIFICA OTP</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setOtpSent(false); setOtpInput(''); }} style={{ marginTop: 14 }}>
-                  <Text style={styles.otpResend}>Rinvia codice</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 }}>
+                  <TouchableOpacity onPress={() => { setOtpSent(false); setOtpInput(''); }}>
+                    <Text style={styles.otpResend}>Rinvia codice</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setOtpVerified(true); setCurrentPage(1); }}>
+                    <Text style={[styles.otpResend, { color: Colors.grey }]}>Salta →</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
               <View style={styles.inputsContainer}>
@@ -624,5 +638,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: Colors.grey,
+  },
+  skipButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 30,
+    borderWidth: 1.5,
+    borderColor: Colors.lightGrey || '#D0D0C8',
+    backgroundColor: 'transparent',
+  },
+  skipButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.grey,
+    letterSpacing: 1,
   },
 });

@@ -558,10 +558,24 @@ export default function SettingsPage() {
             {isOpen && (
               <View style={s.agendaBody}>
                 <View style={s.divider} />
-                <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.marketName'), [t('settings.marketName')], (v) => updateMercato(idx, 'mercato', v[0]))}>
-                  <Text style={s.itemLabel}>{t('settings.marketName')}</Text>
-                  <Text style={s.agendaVal}>{m.mercato || '---'}</Text>
-                </TouchableOpacity>
+                {/* Inline TextInput per nome mercato - salva direttamente */}
+                <View style={s.inlineInputRow}>
+                  <Ionicons name="storefront-outline" size={18} color="#1E7F85" />
+                  <TextInput
+                    style={s.inlineInput}
+                    placeholder={t('settings.marketName') || 'Nome mercato'}
+                    placeholderTextColor="#A0A090"
+                    value={m.mercato || ''}
+                    onChangeText={(text) => updateMercato(idx, 'mercato', text)}
+                    onBlur={() => store.forceFlushSave()}
+                    onEndEditing={() => store.forceFlushSave()}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                  />
+                  {m.mercato ? (
+                    <Ionicons name="checkmark-circle" size={16} color="#1D8348" />
+                  ) : null}
+                </View>
                 <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.kmRoundTrip'), [t('settings.km')], (v) => updateMercato(idx, 'km', parseFloat(v[0].replace(',', '.')) || 0))}>
                   <Text style={s.itemLabel}>{t('settings.kmRoundTrip')}</Text>
                   <Text style={s.agendaVal}>{m.km || '---'}</Text>
@@ -917,6 +931,25 @@ const s = StyleSheet.create({
     marginRight: 8,
   },
   agendaBody: { paddingTop: 4 },
+  inlineInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 4,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(30,127,133,0.2)',
+  },
+  inlineInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A3535',
+    paddingVertical: 10,
+  },
   agendaItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',

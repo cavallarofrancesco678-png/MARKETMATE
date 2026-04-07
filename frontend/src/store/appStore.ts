@@ -109,6 +109,7 @@ interface AppState {
   addFornitore: (f: Fornitore) => void;
   removeFornitore: (nome: string) => void;
   updateAgenda: (agenda: MercatoAgenda[]) => void;
+  forceFlushSave: () => void;
   addSpesaAnnua: (s: SpesaAnnua) => void;
   removeSpesaAnnua: (voce: string) => void;
   salvaGiornata: (g: Giornata) => void;
@@ -196,20 +197,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   updateAgenda: (agenda) => {
     set({ agenda });
-    // Throttled save: save immediately but skip if already saving within 300ms
+    // Debounce the disk write (300ms) but always save the latest
     if ((globalThis as any).__agendaSaveTimer) {
       clearTimeout((globalThis as any).__agendaSaveTimer);
     }
-    // Always schedule a save to ensure latest data is persisted
     (globalThis as any).__agendaSaveTimer = setTimeout(() => {
       get().saveToStorage();
     }, 300);
-    // Also save immediately if it's been more than 1 second since last save
-    const now = Date.now();
-    if (!((globalThis as any).__lastAgendaSave) || now - (globalThis as any).__lastAgendaSave > 1000) {
-      (globalThis as any).__lastAgendaSave = now;
-      get().saveToStorage();
+  },
+  
+  // Force immediate save - call this on onBlur/onEndEditing
+  forceFlushSave: () => {
+    if ((globalThis as any).__agendaSaveTimer) {
+      clearTimeout((globalThis as any).__agendaSaveTimer);
     }
+    get().saveToStorage();
   },
   
   addSpesaAnnua: (s) => {

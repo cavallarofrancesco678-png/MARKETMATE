@@ -48,11 +48,18 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      sceneContainerStyle={{ paddingTop: insets.top }}
+      sceneContainerStyle={{
+        paddingTop: insets.top,
+        backgroundColor: '#D8EDE5',
+      }}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: st.bar,
+        tabBarStyle: {
+          ...st.bar,
+          paddingBottom: Math.max(insets.bottom, 10),
+          height: 70 + Math.max(insets.bottom, 10),
+        },
       }}
     >
       <Tabs.Screen
