@@ -11,22 +11,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-interface SpesaItem {
-  nome: string;
-  valore: number;
-  attivo: boolean;
-  tipo: string; // 'fissa' | 'collab' | 'extra' | 'invenduto'
-}
-
 interface Props {
   visible: boolean;
   onClose: () => void;
   speseFisse: number;
-  speseFisseItems: { voce: string; importo: number }[];
-  speseFisseDisabilitate: Record<string, boolean>;
-  toggleSpesaFissa: (voce: string) => void;
-  collabCosts: { nome: string; costo: number; attivo: boolean }[];
-  toggleCollab: (nome: string) => void;
+  excludeSpeseFisse: boolean;
+  toggleExcludeSpeseFisse: () => void;
+  collabCosto: number;
+  excludeCollaboratori: boolean;
+  toggleExcludeCollaboratori: () => void;
   speseExtra: number;
   excludeSpeseExtra: boolean;
   toggleExcludeSpeseExtra: () => void;
@@ -35,22 +28,91 @@ interface Props {
   toggleExcludeInvenduto: () => void;
   utile: number;
   lordo: number;
-  costoCarburante?: number;
 }
 
+interface CategoryRowProps {
+  label: string;
+  icon: string;
+  iconColor: string;
+  value: number;
+  excluded: boolean;
+  onToggle: () => void;
+}
+
+const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value, excluded, onToggle }) => (
+  <View style={st.row}>
+    <View style={st.rowIcon}>
+      <Ionicons name={icon as any} size={20} color={excluded ? '#B0B0A0' : iconColor} />
+    </View>
+    <View style={{ flex: 1 }}>
+      <Text style={[st.rowLabel, excluded && st.rowDisabled]}>{label}</Text>
+      <Text style={[st.rowVal, excluded && st.rowDisabled]}>
+        {excluded ? 'Escluso dal calcolo' : `€${value.toFixed(2)}`}
+      </Text>
+    </View>
+    <View style={st.rowRight}>
+      <Text style={[st.rowAmount, { color: excluded ? '#B0B0A0' : '#D46A6A' }]}>
+        {excluded ? '—' : `-€${value.toFixed(2)}`}
+      </Text>
+      <Switch
+        value={!excluded}
+        onValueChange={onToggle}
+        trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
+        thumbColor={!excluded ? '#1E7F85' : '#999'}
+      />
+    </View>
+  </View>
+);
+
 export const UtileModal: React.FC<Props> = ({
-  visible, onClose, speseFisse, speseFisseItems, speseFisseDisabilitate,
-  toggleSpesaFissa, collabCosts, toggleCollab, speseExtra,
-  excludeSpeseExtra, toggleExcludeSpeseExtra, invenduto,
-  excludeInvenduto, toggleExcludeInvenduto, utile, lordo,
-  costoCarburante = 0,
+  visible, onClose, speseFisse, excludeSpeseFisse, toggleExcludeSpeseFisse,
+  collabCosto, excludeCollaboratori, toggleExcludeCollaboratori,
+  speseExtra, excludeSpeseExtra, toggleExcludeSpeseExtra,
+  invenduto, excludeInvenduto, toggleExcludeInvenduto,
+  utile, lordo,
 }) => {
   const { t } = useTranslation();
-  const totDeduzioni = speseFisse +
-    collabCosts.filter((c) => c.attivo).reduce((s, c) => s + c.costo, 0) +
+
+  const totDeduzioni =
+    (excludeSpeseFisse ? 0 : speseFisse) +
+    (excludeCollaboratori ? 0 : collabCosto) +
     (excludeSpeseExtra ? 0 : speseExtra) +
-    (excludeInvenduto ? 0 : invenduto) +
-    costoCarburante;
+    (excludeInvenduto ? 0 : invenduto);
+
+  const categories = [
+    {
+      label: 'SPESE FISSE',
+      icon: 'business-outline',
+      iconColor: '#1E7F85',
+      value: speseFisse,
+      excluded: excludeSpeseFisse,
+      onToggle: toggleExcludeSpeseFisse,
+    },
+    {
+      label: 'COLLABORATORI',
+      icon: 'people-outline',
+      iconColor: '#E8A060',
+      value: collabCosto,
+      excluded: excludeCollaboratori,
+      onToggle: toggleExcludeCollaboratori,
+    },
+    {
+      label: 'SPESE EXTRA',
+      icon: 'receipt-outline',
+      iconColor: '#D46A6A',
+      value: speseExtra,
+      excluded: excludeSpeseExtra,
+      onToggle: toggleExcludeSpeseExtra,
+    },
+    {
+      label: 'INVENDUTO',
+      icon: 'cube-outline',
+      iconColor: '#8B5CF6',
+      value: invenduto,
+      excluded: excludeInvenduto,
+      onToggle: toggleExcludeInvenduto,
+    },
+  ];
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -58,8 +120,8 @@ export const UtileModal: React.FC<Props> = ({
         <View style={st.container}>
           <View style={st.handle} />
           <View style={st.headerRow}>
-            <Text style={st.title}>{t('home.profitDetail')}</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Text style={st.title}>{t('home.profitDetail') || 'DETTAGLIO UTILE'}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Ionicons name="close-circle" size={28} color="#5A7575" />
             </TouchableOpacity>
           </View>
@@ -67,107 +129,63 @@ export const UtileModal: React.FC<Props> = ({
           {/* Summary */}
           <View style={st.summaryRow}>
             <View style={st.summaryItem}>
-              <Text style={st.summaryLabel}>{t('home.gross').toUpperCase()}</Text>
+              <Text style={st.summaryLabel}>{(t('home.gross') || 'LORDO').toUpperCase()}</Text>
               <Text style={st.summaryGreen}>{'\u20AC'}{lordo.toFixed(2)}</Text>
             </View>
             <Text style={st.summaryMinus}>-</Text>
             <View style={st.summaryItem}>
-              <Text style={st.summaryLabel}>{t('home.deductions').toUpperCase()}</Text>
+              <Text style={st.summaryLabel}>{(t('home.deductions') || 'DEDUZIONI').toUpperCase()}</Text>
               <Text style={st.summaryRed}>{'\u20AC'}{totDeduzioni.toFixed(2)}</Text>
             </View>
             <Text style={st.summaryEquals}>=</Text>
             <View style={st.summaryItem}>
               <Text style={st.summaryLabel}>UTILE</Text>
-              <Text style={[st.summaryResult, { color: utile >= 0 ? '#1D8348' : '#D44' }]}>{'\u20AC'}{utile.toFixed(2)}</Text>
+              <Text style={[st.summaryResult, { color: utile >= 0 ? '#1D8348' : '#D44' }]}>
+                {'\u20AC'}{utile.toFixed(2)}
+              </Text>
             </View>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            {/* Spese Fisse */}
-            <Text style={st.sectionTitle}>SPESE FISSE GIORNALIERE</Text>
-            {speseFisseItems.map((sp) => {
-              const dailyVal = sp.importo / 365;
-              const disabled = speseFisseDisabilitate[sp.voce];
-              return (
-                <View key={sp.voce} style={st.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[st.rowLabel, disabled && st.rowDisabled]}>{sp.voce}</Text>
-                    <Text style={[st.rowVal, disabled && st.rowDisabled]}>{'\u20AC'}{dailyVal.toFixed(2)}/gg</Text>
-                  </View>
-                  <Switch
-                    value={!disabled}
-                    onValueChange={() => toggleSpesaFissa(sp.voce)}
-                    trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
-                    thumbColor={!disabled ? '#1E7F85' : '#999'}
-                  />
-                </View>
-              );
-            })}
+            <Text style={st.sectionTitle}>CATEGORIE DI SPESA</Text>
+            <Text style={st.sectionSub}>
+              Attiva/disattiva intere categorie dal calcolo dell'utile
+            </Text>
 
-            {/* Collaboratori */}
-            {collabCosts.length > 0 && (
-              <>
-                <Text style={st.sectionTitle}>COLLABORATORI</Text>
-                {collabCosts.map((c) => (
-                  <View key={c.nome} style={st.row}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[st.rowLabel, !c.attivo && st.rowDisabled]}>{c.nome}</Text>
-                      <Text style={[st.rowVal, !c.attivo && st.rowDisabled]}>{'\u20AC'}{c.costo.toFixed(2)}/gg</Text>
-                    </View>
-                    <Switch
-                      value={c.attivo}
-                      onValueChange={() => toggleCollab(c.nome)}
-                      trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
-                      thumbColor={c.attivo ? '#1E7F85' : '#999'}
-                    />
-                  </View>
-                ))}
-              </>
-            )}
-
-            {/* Spese Extra */}
-            <Text style={st.sectionTitle}>SPESE EXTRA</Text>
-            <View style={st.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={[st.rowLabel, excludeSpeseExtra && st.rowDisabled]}>Spese Extra Giornaliere</Text>
-                <Text style={[st.rowVal, excludeSpeseExtra && st.rowDisabled]}>{'\u20AC'}{speseExtra.toFixed(2)}</Text>
-              </View>
-              <Switch
-                value={!excludeSpeseExtra}
-                onValueChange={toggleExcludeSpeseExtra}
-                trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
-                thumbColor={!excludeSpeseExtra ? '#1E7F85' : '#999'}
+            {categories.map((cat) => (
+              <CategoryRow
+                key={cat.label}
+                label={cat.label}
+                icon={cat.icon}
+                iconColor={cat.iconColor}
+                value={cat.value}
+                excluded={cat.excluded}
+                onToggle={cat.onToggle}
               />
-            </View>
+            ))}
 
-            {/* Invenduto */}
-            <Text style={st.sectionTitle}>INVENDUTO</Text>
-            <View style={st.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={[st.rowLabel, excludeInvenduto && st.rowDisabled]}>Totale Invenduto</Text>
-                <Text style={[st.rowVal, excludeInvenduto && st.rowDisabled]}>{'\u20AC'}{invenduto.toFixed(2)}</Text>
-              </View>
-              <Switch
-                value={!excludeInvenduto}
-                onValueChange={toggleExcludeInvenduto}
-                trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
-                thumbColor={!excludeInvenduto ? '#1E7F85' : '#999'}
-              />
-            </View>
-
-            {/* Carburante */}
-            {costoCarburante > 0 && (
-              <>
-                <Text style={st.sectionTitle}>{t('stats.fuelCost').toUpperCase()}</Text>
-                <View style={st.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.rowLabel}>{t('stats.fuelCost')}</Text>
-                    <Text style={st.rowVal}>{'\u20AC'}{costoCarburante.toFixed(2)}</Text>
+            {/* Riepilogo Deduzioni */}
+            <View style={st.riepilogo}>
+              <Text style={st.riepilogoTitle}>RIEPILOGO DEDUZIONI</Text>
+              {categories.map((cat) => (
+                <View key={cat.label} style={st.riepilogoRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                    <View style={[st.riepilogoDot, { backgroundColor: cat.excluded ? '#D0D0C8' : cat.iconColor }]} />
+                    <Text style={[st.riepilogoLabel, cat.excluded && st.rowDisabled]}>
+                      {cat.label}
+                    </Text>
                   </View>
-                  <Ionicons name="car-outline" size={20} color="#E8A060" />
+                  <Text style={[st.riepilogoVal, cat.excluded && st.rowDisabled]}>
+                    {cat.excluded ? '€0.00' : `€${cat.value.toFixed(2)}`}
+                  </Text>
                 </View>
-              </>
-            )}
+              ))}
+              <View style={st.riepilogoDivider} />
+              <View style={st.riepilogoRow}>
+                <Text style={st.riepilogoTotalLabel}>TOTALE DEDUZIONI</Text>
+                <Text style={st.riepilogoTotalVal}>{'\u20AC'}{totDeduzioni.toFixed(2)}</Text>
+              </View>
+            </View>
 
             <View style={{ height: 30 }} />
           </ScrollView>
@@ -210,16 +228,46 @@ const st = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 10, fontWeight: '800', color: '#5A7575',
-    letterSpacing: 1.5, marginTop: 16, marginBottom: 8,
+    letterSpacing: 1.5, marginTop: 8, marginBottom: 2,
+  },
+  sectionSub: {
+    fontSize: 10, color: '#7A9090', marginBottom: 12,
   },
   row: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#EDE8DA', borderRadius: 12, padding: 14,
-    marginBottom: 8,
+    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 14,
+    marginBottom: 10,
     // @ts-ignore
     boxShadow: '4px 4px 10px rgba(160,150,130,0.4), -3px -3px 8px rgba(255,255,250,0.9)',
   },
-  rowLabel: { fontSize: 13, fontWeight: '700', color: '#1A3535' },
-  rowVal: { fontSize: 11, fontWeight: '600', color: '#5A7575', marginTop: 2 },
+  rowIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#D8EDE5', justifyContent: 'center', alignItems: 'center',
+    marginRight: 12,
+  },
+  rowLabel: { fontSize: 12, fontWeight: '800', color: '#1A3535', letterSpacing: 0.8 },
+  rowVal: { fontSize: 10, fontWeight: '600', color: '#5A7575', marginTop: 2 },
   rowDisabled: { color: '#B0B0A0', textDecorationLine: 'line-through' },
+  rowRight: { alignItems: 'flex-end', gap: 4 },
+  rowAmount: { fontSize: 13, fontWeight: '900' },
+
+  riepilogo: {
+    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 16, marginTop: 12,
+    // @ts-ignore
+    boxShadow: '4px 4px 10px rgba(160,150,130,0.4), -3px -3px 8px rgba(255,255,250,0.9)',
+  },
+  riepilogoTitle: {
+    fontSize: 10, fontWeight: '800', color: '#5A7575',
+    letterSpacing: 1.5, marginBottom: 10,
+  },
+  riepilogoRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: 5,
+  },
+  riepilogoDot: { width: 8, height: 8, borderRadius: 4 },
+  riepilogoLabel: { fontSize: 11, fontWeight: '700', color: '#1A3535' },
+  riepilogoVal: { fontSize: 11, fontWeight: '800', color: '#D46A6A' },
+  riepilogoDivider: { height: 1, backgroundColor: '#C5DDD4', marginVertical: 8 },
+  riepilogoTotalLabel: { fontSize: 12, fontWeight: '800', color: '#5A7575', letterSpacing: 1 },
+  riepilogoTotalVal: { fontSize: 16, fontWeight: '900', color: '#1E7F85' },
 });

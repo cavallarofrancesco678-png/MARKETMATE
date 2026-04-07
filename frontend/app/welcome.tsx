@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -18,20 +19,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, LANGUAGES } from '../src/i18n';
 
+const TOTAL_PAGES = 6;
+
 export default function WelcomeScreen() {
   const [currentPage, setCurrentPage] = useState(0);
   
+  // Step 0: OTP
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+
+  // Step 1: Language
   const [lingua, setLingua] = useState('Italiano');
+  // Step 2: Sector
   const [isAlimentare, setIsAlimentare] = useState(true);
+  // Step 3: Identity
   const [nomeAttivita, setNomeAttivita] = useState('');
   const [nomeTitolare, setNomeTitolare] = useState('');
+  // Step 4: Security
   const [pin, setPin] = useState('');
   const [emailRecupero, setEmailRecupero] = useState('');
   
   const { setConfig } = useAppStore();
   const { t } = useTranslation();
 
-  // Map display name to language code
   const LINGUA_MAP: Record<string, string> = {
     'Italiano': 'it', 'English': 'en', 'Français': 'fr',
     'Deutsch': 'de', 'Español': 'es', 'Português': 'pt',
@@ -43,6 +56,33 @@ export default function WelcomeScreen() {
     changeLanguage(code);
   };
 
+  const handleSendOtp = () => {
+    if (!phoneNumber || phoneNumber.length < 6) {
+      const msg = 'Inserisci un numero di telefono valido';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Errore', msg);
+      return;
+    }
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+    setOtpSent(true);
+    const msg = `Codice OTP inviato al ${phoneNumber}: ${code}`;
+    if (Platform.OS === 'web') window.alert(msg);
+    else Alert.alert('OTP Inviato', msg);
+  };
+
+  const handleVerifyOtp = () => {
+    if (otpInput === generatedOtp) {
+      setOtpVerified(true);
+      setCurrentPage(1);
+    } else {
+      const msg = 'Codice OTP errato. Riprova.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Errore', msg);
+      setOtpInput('');
+    }
+  };
+
   const handleFinish = () => {
     setConfig({
       isConfigured: true,
@@ -52,18 +92,31 @@ export default function WelcomeScreen() {
       nomeTitolare: nomeTitolare || 'Titolare',
       pin,
       emailRecupero,
+      phoneNumber,
+      otpEnabled: otpVerified,
     });
     router.replace('/home');
   };
 
+  const canGoNext = () => {
+    if (currentPage === 0) return otpVerified;
+    return true;
+  };
+
+  const handleNext = () => {
+    if (currentPage === 0 && !otpVerified) return;
+    if (currentPage < TOTAL_PAGES - 1) setCurrentPage(currentPage + 1);
+  };
+
   const renderIndicator = () => (
     <View style={styles.indicatorContainer}>
-      {[0, 1, 2, 3, 4].map((i) => (
+      {Array.from({ length: TOTAL_PAGES }).map((_, i) => (
         <View
           key={i}
           style={[
             styles.indicator,
             currentPage === i && styles.indicatorActive,
+            i === 0 && otpVerified && currentPage !== 0 && { backgroundColor: Colors.verde },
           ]}
         />
       ))}
@@ -83,10 +136,10 @@ export default function WelcomeScreen() {
         <View style={styles.navButton} />
       )}
       
-      {currentPage < 4 ? (
+      {currentPage > 0 && currentPage < TOTAL_PAGES - 1 ? (
         <TouchableOpacity
           style={styles.navButton}
-          onPress={() => setCurrentPage(currentPage + 1)}
+          onPress={handleNext}
         >
           <Ionicons name="arrow-forward" size={32} color={Colors.primary} />
         </TouchableOpacity>
@@ -117,13 +170,15 @@ export default function WelcomeScreen() {
     </TouchableOpacity>
   );
 
-  const InputField = ({ label, icon, value, onChangeText, secure, numeric }: {
+  const InputField = ({ label, icon, value, onChangeText, secure, numeric, keyType, autoFocus }: {
     label: string;
     icon: string;
     value: string;
     onChangeText: (text: string) => void;
     secure?: boolean;
     numeric?: boolean;
+    keyType?: any;
+    autoFocus?: boolean;
   }) => (
     <NeuBox pressed borderRadius={50} padding={0}>
       <View style={styles.inputRow}>
@@ -135,7 +190,8 @@ export default function WelcomeScreen() {
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secure}
-          keyboardType={numeric ? 'number-pad' : 'default'}
+          keyboardType={keyType || (numeric ? 'number-pad' : 'default')}
+          autoFocus={autoFocus}
         />
       </View>
     </NeuBox>
@@ -143,7 +199,91 @@ export default function WelcomeScreen() {
 
   const renderContent = () => {
     switch (currentPage) {
+      // Step 0: PHONE + OTP (primo step assoluto)
       case 0:
+        return (
+          <View style={styles.pageContent}>
+            <View style={styles.otpIconCircle}>
+              <Ionicons name="shield-checkmark" size={48} color="#1E7F85" />
+            </View>
+            <Text style={styles.stepTitle}>VERIFICA TELEFONO</Text>
+            <Text style={styles.otpSubtitle}>
+              Per la sicurezza del tuo account, verifica il tuo numero di telefono
+            </Text>
+
+            {!otpSent ? (
+              <View style={styles.inputsContainer}>
+                <InputField
+                  label="Numero di telefono"
+                  icon="call-outline"
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyType="phone-pad"
+                  autoFocus
+                />
+                <View style={styles.spacer} />
+                <TouchableOpacity
+                  style={styles.otpButton}
+                  onPress={handleSendOtp}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="send" size={18} color="#FFF" />
+                  <Text style={styles.otpButtonText}>INVIA CODICE OTP</Text>
+                </TouchableOpacity>
+              </View>
+            ) : !otpVerified ? (
+              <View style={styles.inputsContainer}>
+                <View style={styles.otpSentBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color="#1D8348" />
+                  <Text style={styles.otpSentText}>
+                    OTP inviato a {phoneNumber}
+                  </Text>
+                </View>
+                <View style={styles.spacer} />
+                <InputField
+                  label="Inserisci codice a 6 cifre"
+                  icon="key-outline"
+                  value={otpInput}
+                  onChangeText={setOtpInput}
+                  numeric
+                  autoFocus
+                />
+                <View style={styles.spacer} />
+                <TouchableOpacity
+                  style={styles.otpButton}
+                  onPress={handleVerifyOtp}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="shield-checkmark" size={18} color="#FFF" />
+                  <Text style={styles.otpButtonText}>VERIFICA OTP</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setOtpSent(false); setOtpInput(''); }} style={{ marginTop: 14 }}>
+                  <Text style={styles.otpResend}>Rinvia codice</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.inputsContainer}>
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-done-circle" size={40} color="#1D8348" />
+                  <Text style={styles.verifiedText}>Numero verificato!</Text>
+                  <Text style={styles.verifiedPhone}>{phoneNumber}</Text>
+                </View>
+                <View style={styles.spacer} />
+                <TouchableOpacity
+                  style={[styles.otpButton, { backgroundColor: Colors.verde }]}
+                  onPress={() => setCurrentPage(1)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.otpButtonText}>CONTINUA</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );
+
+      // Step 1: Language
+      case 1:
         return (
           <View style={styles.pageContent}>
             <Image
@@ -165,7 +305,8 @@ export default function WelcomeScreen() {
           </View>
         );
       
-      case 1:
+      // Step 2: Sector
+      case 2:
         return (
           <View style={styles.pageContent}>
             <Text style={styles.stepTitle}>{t('welcome.sector')}</Text>
@@ -189,7 +330,8 @@ export default function WelcomeScreen() {
           </View>
         );
       
-      case 2:
+      // Step 3: Identity
+      case 3:
         return (
           <View style={styles.pageContent}>
             <Text style={styles.stepTitle}>{t('welcome.identity')}</Text>
@@ -211,7 +353,8 @@ export default function WelcomeScreen() {
           </View>
         );
       
-      case 3:
+      // Step 4: Security PIN + Email
+      case 4:
         return (
           <View style={styles.pageContent}>
             <Text style={styles.stepTitle}>{t('welcome.security')}</Text>
@@ -235,7 +378,8 @@ export default function WelcomeScreen() {
           </View>
         );
       
-      case 4:
+      // Step 5: Complete
+      case 5:
         return (
           <View style={styles.pageContent}>
             <Text style={styles.stepTitle}>{t('welcome.completed')}</Text>
@@ -291,9 +435,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   contentWrapper: {
     flex: 1,
@@ -404,5 +545,84 @@ const styles = StyleSheet.create({
   navButton: {
     padding: 20,
     width: 70,
+  },
+
+  // OTP Styles
+  otpIconCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(30,127,133,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(30,127,133,0.2)',
+  },
+  otpSubtitle: {
+    fontSize: 13,
+    color: Colors.grey,
+    textAlign: 'center',
+    marginBottom: 30,
+    lineHeight: 20,
+    paddingHorizontal: 10,
+  },
+  otpButton: {
+    backgroundColor: '#1E7F85',
+    paddingVertical: 16,
+    borderRadius: 30,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  otpButtonText: {
+    color: '#FFF',
+    fontWeight: '900',
+    fontSize: 14,
+    letterSpacing: 1.5,
+  },
+  otpSentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(29,131,72,0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(29,131,72,0.2)',
+  },
+  otpSentText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1D8348',
+  },
+  otpResend: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E7F85',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+  },
+  verifiedBadge: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  verifiedText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1D8348',
+  },
+  verifiedPhone: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.grey,
   },
 });

@@ -196,13 +196,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   updateAgenda: (agenda) => {
     set({ agenda });
-    // Debounced save - avoid multiple rapid saves
+    // Throttled save: save immediately but skip if already saving within 300ms
     if ((globalThis as any).__agendaSaveTimer) {
       clearTimeout((globalThis as any).__agendaSaveTimer);
     }
+    // Always schedule a save to ensure latest data is persisted
     (globalThis as any).__agendaSaveTimer = setTimeout(() => {
       get().saveToStorage();
-    }, 500);
+    }, 300);
+    // Also save immediately if it's been more than 1 second since last save
+    const now = Date.now();
+    if (!((globalThis as any).__lastAgendaSave) || now - (globalThis as any).__lastAgendaSave > 1000) {
+      (globalThis as any).__lastAgendaSave = now;
+      get().saveToStorage();
+    }
   },
   
   addSpesaAnnua: (s) => {
