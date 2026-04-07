@@ -78,6 +78,8 @@ export default function HomeScreen() {
   const [showSpeseExtraModal, setShowSpeseExtraModal] = useState(false);
   const [excludeSpeseExtra, setExcludeSpeseExtra] = useState(false);
   const [excludeInvenduto, setExcludeInvenduto] = useState(false);
+  const [excludeSpeseFisse, setExcludeSpeseFisse] = useState(false);
+  const [excludeCollaboratori, setExcludeCollaboratori] = useState(false);
   const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
@@ -233,10 +235,12 @@ export default function HomeScreen() {
   // Spese fisse totali = spese fisse annuali + plateatico fiera (se attivo)
   const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
 
-  // Costo carburante giornaliero basato su km mercato e media costo/km calcolata dai rifornimenti
-  const costoCarburanteGiorno = (mercatoOggi?.km || 0) * costoPerKm;
-
-  const utile = lordoNum - speseFisseTotali - speseExtraTotNum - invendutoNum - costoCollabAttivi - costoCarburanteGiorno;
+  // UTILE: calcolo con flag macro-categorie
+  const utile = lordoNum
+    - (excludeSpeseFisse ? 0 : speseFisseTotali)
+    - (excludeSpeseExtra ? 0 : speseExtraTotNum)
+    - (excludeInvenduto ? 0 : invendutoNum)
+    - (excludeCollaboratori ? 0 : costoCollabAttivi);
   /* ── Storico mercato dati reali ── */
   const storicoMercato = useMemo(() => {
     const gg = store.storicoGiornate || [];
@@ -699,12 +703,12 @@ export default function HomeScreen() {
       <UtileModal
         visible={showUtileModal}
         onClose={() => setShowUtileModal(false)}
-        speseFisse={speseFisse}
-        speseFisseItems={speseAnnue}
-        speseFisseDisabilitate={speseFisseDisabilitate}
-        toggleSpesaFissa={(voce) => setSpeseFisseDisabilitate((prev) => ({ ...prev, [voce]: !prev[voce] }))}
-        collabCosts={collaboratori.map((c) => ({ nome: c.nome, costo: c.costo || 0, attivo: !!presenze[c.nome] }))}
-        toggleCollab={(nome) => setPresenze((prev) => ({ ...prev, [nome]: !prev[nome] }))}
+        speseFisse={speseFisseTotali}
+        excludeSpeseFisse={excludeSpeseFisse}
+        toggleExcludeSpeseFisse={() => setExcludeSpeseFisse(!excludeSpeseFisse)}
+        collabCosto={costoCollabAttivi}
+        excludeCollaboratori={excludeCollaboratori}
+        toggleExcludeCollaboratori={() => setExcludeCollaboratori(!excludeCollaboratori)}
         speseExtra={speseExtraFornTotale + speseExtraGenTotale}
         excludeSpeseExtra={excludeSpeseExtra}
         toggleExcludeSpeseExtra={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
@@ -713,7 +717,6 @@ export default function HomeScreen() {
         toggleExcludeInvenduto={() => setExcludeInvenduto(!excludeInvenduto)}
         utile={utile}
         lordo={lordoNum}
-        costoCarburante={costoCarburanteGiorno}
       />
 
       {/* Spese Extra Fornitori Modal */}
