@@ -603,12 +603,14 @@ export default function StatsScreen() {
 
         {renderChartBox(t('stats.economic'), economicoLines, 'economico')}
         {renderChartBox(t('stats.income'), incassiLines, 'incassi')}
+
+        {/* ─── AREOGRAMMI ─── */}
+        {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
+        {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
+
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
         {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}
         {renderChartBox(t('stats.suppliers'), fornitoriLines, 'fornitori')}
-
-        {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
-        {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
 
         <View style={[st.card, { marginBottom: GAP }]}>
           <TouchableOpacity onPress={() => setShowFiere(!showFiere)} activeOpacity={0.7}>

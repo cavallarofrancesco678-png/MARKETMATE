@@ -23,6 +23,7 @@ import { SpeseExtraModal } from '../../src/components/SpeseExtraModal';
 import { BuongiornoModal } from '../../src/components/BuongiornoModal';
 import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
@@ -59,6 +60,7 @@ export default function HomeScreen() {
   const dayNames = getDayNames();
   const monthNames = getMonthNames();
   const { height: screenH } = useWindowDimensions();
+  const safeInsets = useSafeAreaInsets();
   const [dataCorrente, setDataCorrente] = useState(new Date());
   const [isFiera, setIsFiera] = useState(false);
   const [isInPiazza, setIsInPiazza] = useState(true);
@@ -307,8 +309,9 @@ export default function HomeScreen() {
   };
 
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
-  const TAB_BAR = 80;
-  const contentH = screenH - TAB_BAR;
+  // Use real safe area insets for accurate layout on all devices
+  const TAB_BAR = 70 + Math.max(safeInsets.bottom, 10);
+  const contentH = screenH - TAB_BAR - safeInsets.top;
   const vh = contentH / 100;
 
   // ★ STANDARD GAP — extracted from grid, used as universal spacer
