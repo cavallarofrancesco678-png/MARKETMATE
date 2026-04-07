@@ -80,19 +80,25 @@ export default function GasScreen() {
     else Alert.alert(t('common.saved'), t('gas.refuelSaved'));
   };
 
-  /* Delete — fixed comparison */
-  const handleDelete = (index: number) => {
-    const doDelete = () => {
-      const sorted = [...storicoCarburante].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-      const item = sorted[index];
-      if (item) removeCarburante(item.data);
-    };
+  /* Delete — uses original store index */
+  const handleDelete = (cronologiaIndex: number) => {
+    const sorted = [...storicoCarburante].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    const item = sorted[cronologiaIndex];
+    if (!item) return;
+    // Find the original index in the unsorted store array
+    const origIndex = storicoCarburante.findIndex((c) =>
+      new Date(c.data).toISOString() === new Date(item.data).toISOString() && c.euro === item.euro
+    );
+    if (origIndex === -1) return;
+
+    const doDelete = () => removeCarburante(origIndex);
+
     if (Platform.OS === 'web') {
-      if (window.confirm(t('gas.deleteRefuel'))) doDelete();
+      if (window.confirm(t('gas.deleteRefuel') || 'Eliminare questo rifornimento?')) doDelete();
     } else {
-      Alert.alert(t('common.delete'), t('gas.deleteRefuel'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('common.delete'), style: 'destructive', onPress: doDelete },
+      Alert.alert(t('common.delete') || 'Elimina', t('gas.deleteRefuel') || 'Eliminare questo rifornimento?', [
+        { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+        { text: t('common.delete') || 'Elimina', style: 'destructive', onPress: doDelete },
       ]);
     }
   };

@@ -116,7 +116,7 @@ interface AppState {
   toggleSpesaAnnua: (voce: string) => void;
   salvaGiornata: (g: Giornata) => void;
   addCarburante: (c: Carburante) => void;
-  removeCarburante: (data: Date) => void;
+  removeCarburante: (index: number) => void;
   addAppunto: (a: Appunto) => void;
   removeAppunto: (data: Date, testo: string) => void;
   addDiario: (d: DiarioEntry) => void;
@@ -260,12 +260,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
   
-  removeCarburante: (data) => {
-    const targetStr = new Date(data).toISOString();
+  removeCarburante: (index) => {
     set((state) => ({
-      storicoCarburante: state.storicoCarburante.filter((c, idx) => {
-        return new Date(c.data).toISOString() !== targetStr;
-      })
+      storicoCarburante: state.storicoCarburante.filter((_, i) => i !== index)
     }));
     get().saveToStorage();
   },

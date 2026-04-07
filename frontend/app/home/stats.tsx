@@ -221,6 +221,13 @@ export default function StatsScreen() {
 
   const [activeChartLine, setActiveChartLine] = useState<Record<string, number | null>>({});
   const [tooltipInfo, setTooltipInfo] = useState<{ chartKey: string; lineIdx: number; pointIdx: number; value: number } | null>(null);
+  const [showNettoModal, setShowNettoModal] = useState(false);
+  // Netto deduction flags
+  const [excludeSpeseFisse, setExcludeSpeseFisse] = useState(false);
+  const [excludeCollaboratori, setExcludeCollaboratori] = useState(false);
+  const [excludeSpeseExtra, setExcludeSpeseExtra] = useState(false);
+  const [excludeInvenduto, setExcludeInvenduto] = useState(false);
+  const [excludeCarburante, setExcludeCarburante] = useState(false);
 
   const handleLineTap = (chartKey: string, lineIdx: number) => {
     setActiveChartLine((prev) => ({
@@ -596,10 +603,10 @@ export default function StatsScreen() {
               <Text style={st.kpiLabel}>{t('stats.gross').toUpperCase()}</Text>
               <Text style={[st.kpiValue, { color: PALETTE[0] }]}>{'\u20AC'}{totLordo.toFixed(0)}</Text>
             </View>
-            <View style={st.kpiCard}>
-              <Text style={st.kpiLabel}>{t('stats.net').toUpperCase()}</Text>
+            <TouchableOpacity style={st.kpiCard} onPress={() => setShowNettoModal(true)} activeOpacity={0.7}>
+              <Text style={st.kpiLabel}>{t('stats.net').toUpperCase()} ▼</Text>
               <Text style={[st.kpiValue, { color: totNetto >= 0 ? PALETTE[1] : '#D46A6A' }]}>{'\u20AC'}{totNetto.toFixed(0)}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
           <View style={st.kpiRow}>
             <View style={st.kpiCard}>
@@ -619,6 +626,7 @@ export default function StatsScreen() {
         {/* ─── AREOGRAMMI ─── */}
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
         {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
+        {renderPieBox('FORNITORI', fornitoriItems)}
 
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
         {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}
