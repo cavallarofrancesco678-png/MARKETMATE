@@ -650,7 +650,7 @@ export default function SettingsPage() {
               </TouchableOpacity>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" style={{ marginLeft: 8 }} />
             </TouchableOpacity>
-            {isOpen && (
+            {isOpen && store.isAlimentare && (
               <View style={s.agendaBody}>
                 <View style={s.divider} />
                 {f.prodotti.map((p, pi) => (
@@ -682,6 +682,14 @@ export default function SettingsPage() {
                   <Ionicons name="add" size={16} color="#1E7F85" />
                   <Text style={s.addBtnSmallTxt}>{t('settings.addProduct')}</Text>
                 </TouchableOpacity>
+              </View>
+            )}
+            {isOpen && !store.isAlimentare && (
+              <View style={s.agendaBody}>
+                <View style={s.divider} />
+                <Text style={[s.itemLabel, { paddingVertical: 8, color: '#7A9090', fontStyle: 'italic' }]}>
+                  Fornitore registrato. Le perdite si inseriscono dalla Home.
+                </Text>
               </View>
             )}
           </View>

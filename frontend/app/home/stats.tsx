@@ -580,11 +580,15 @@ export default function StatsScreen() {
 
   return (
     <View style={st.root}>
-      <ScrollView contentContainerStyle={[st.scroll, { gap: GAP }]} showsVerticalScrollIndicator={false}>
+      {/* ═══ HEADER FISSO ═══ */}
+      <View style={st.stickyHeader}>
         <Text style={st.pageTitle}>{t('stats.analysis')}</Text>
-
         {renderFilterBar(['Pers.', 'Ieri', 'Oggi', 'Sett.', 'Mese', 'Anno'], filtroTempo, setFiltroTempo, false, tempoLabel)}
         {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true, tipoLabel)}
+      </View>
+
+      {/* ═══ CONTENUTO SCROLLABILE ═══ */}
+      <ScrollView contentContainerStyle={[st.scroll, { gap: GAP }]} showsVerticalScrollIndicator={false}>
 
         <View style={{ gap: GAP }}>
           <View style={st.kpiRow}>
@@ -761,7 +765,8 @@ export default function StatsScreen() {
 
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#D8EDE5' },
-  scroll: { padding: 20, paddingTop: 50, paddingBottom: 40 },
+  stickyHeader: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: '#D8EDE5', zIndex: 10, gap: 8 },
+  scroll: { padding: 20, paddingTop: 10, paddingBottom: 40 },
   pageTitle: { fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', letterSpacing: 1.5 },
 
   filterRow: { flexDirection: 'row' },

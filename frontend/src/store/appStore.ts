@@ -261,20 +261,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   removeCarburante: (data) => {
-    const targetTime = new Date(data).getTime();
-    set((state) => {
-      // Remove first matching entry only
-      let removed = false;
-      return {
-        storicoCarburante: state.storicoCarburante.filter(c => {
-          if (!removed && new Date(c.data).getTime() === targetTime) {
-            removed = true;
-            return false;
-          }
-          return true;
-        })
-      };
-    });
+    const targetStr = new Date(data).toISOString();
+    set((state) => ({
+      storicoCarburante: state.storicoCarburante.filter((c, idx) => {
+        return new Date(c.data).toISOString() !== targetStr;
+      })
+    }));
     get().saveToStorage();
   },
   
