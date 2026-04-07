@@ -61,6 +61,8 @@ export default function HomeScreen() {
   const monthNames = getMonthNames();
   const { height: screenH } = useWindowDimensions();
   const safeInsets = useSafeAreaInsets();
+  const isAlimentare = store.isAlimentare;
+  const perditaLabel = isAlimentare ? (t('home.unsold') || 'INVENDUTO') : 'PERDITA';
   const [dataCorrente, setDataCorrente] = useState(new Date());
   const [isFiera, setIsFiera] = useState(false);
   const [isInPiazza, setIsInPiazza] = useState(true);
@@ -129,15 +131,23 @@ export default function HomeScreen() {
     return prods;
   }, [fornitori]);
 
-  /* ── Invenduto calculated from product quantities ── */
+  /* ── Invenduto/Perdita calculated from product quantities ── */
   const invendutoCalcolato = useMemo(() => {
     let tot = 0;
     tuttiProdotti.forEach((p) => {
-      const qty = parseFloat((invendutoQty[`${p.fornitore}_${p.nome}`] || '0').replace(',', '.')) || 0;
-      tot += qty * p.prezzo;
+      const key = `${p.fornitore}_${p.nome}`;
+      if (isAlimentare) {
+        // Alimentare: qty × prezzo/kg
+        const qty = parseFloat((invendutoQty[key] || '0').replace(',', '.')) || 0;
+        tot += qty * p.prezzo;
+      } else {
+        // Non-alimentare: direttamente il prezzo perdita
+        const price = parseFloat((invendutoQty[key] || '0').replace(',', '.')) || 0;
+        tot += price;
+      }
     });
     return tot;
-  }, [tuttiProdotti, invendutoQty]);
+  }, [tuttiProdotti, invendutoQty, isAlimentare]);
 
   const confermaInvenduto = () => {
     setInvenduto(parseFloat(invendutoCalcolato.toFixed(2)).toString());
@@ -476,10 +486,10 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ ROW 4: INVENDUTO / BUONGIORNO ═══ */}
+      {/* ═══ ROW 4: INVENDUTO/PERDITA / BUONGIORNO ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowInvendutoModal(true)}>
-          <Text style={s.cardLbl}>{t('home.unsold')}</Text>
+          <Text style={s.cardLbl}>{perditaLabel}</Text>
           <Text style={s.cardVal}>{invendutoNum > 0 ? `€${invendutoNum}` : '0'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
@@ -565,12 +575,16 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* ═══ MODALE INVENDUTO / PRODOTTI ═══ */}
+      {/* ═══ MODALE INVENDUTO / PERDITA ═══ */}
       <Modal visible={showInvendutoModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>{t('home.unsold')}</Text>
-            <Text style={s.modalSub}>Inserisci la quantità invenduta per prodotto</Text>
+            <Text style={s.modalTitle}>{perditaLabel}</Text>
+            <Text style={s.modalSub}>
+              {isAlimentare
+                ? 'Inserisci la quantità invenduta per prodotto'
+                : 'Inserisci le perdite per fornitore con motivo'}
+            </Text>
             <ScrollView style={{ maxHeight: 320 }}>
               {tuttiProdotti.length === 0 ? (
                 <View>
@@ -587,7 +601,8 @@ export default function HomeScreen() {
                     textAlign="center"
                   />
                 </View>
-              ) : (
+              ) : isAlimentare ? (
+                /* ── ALIMENTARE: qty × prezzo/kg ── */
                 tuttiProdotti.map((p, i) => {
                   const key = `${p.fornitore}_${p.nome}`;
                   const qty = parseFloat((invendutoQty[key] || '0').replace(',', '.')) || 0;
@@ -611,13 +626,42 @@ export default function HomeScreen() {
                     </View>
                   );
                 })
+              ) : (
+                /* ── NON ALIMENTARE: fornitore + motivo + prezzo ── */
+                tuttiProdotti.map((p, i) => {
+                  const key = `${p.fornitore}_${p.nome}`;
+                  return (
+                    <View key={i} style={[s.invProdRow, { flexDirection: 'column', alignItems: 'stretch' }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                        <Ionicons name="business-outline" size={14} color="#1E7F85" />
+                        <Text style={[s.invProdName, { marginLeft: 6, flex: 1 }]}>{p.fornitore} — {p.nome}</Text>
+                      </View>
+                      <TextInput
+                        style={[s.manualInput, { fontSize: 12, paddingVertical: 6, marginBottom: 4 }]}
+                        placeholder="Motivo (es: maglione bucato)"
+                        placeholderTextColor="#B0B5A8"
+                        value={invendutoQty[`${key}_motivo`] || ''}
+                        onChangeText={(t) => setInvendutoQty((prev) => ({ ...prev, [`${key}_motivo`]: t }))}
+                      />
+                      <TextInput
+                        style={[s.manualInput, { fontSize: 14, paddingVertical: 8 }]}
+                        placeholder="Prezzo perdita €"
+                        placeholderTextColor="#B0B5A8"
+                        keyboardType="numeric"
+                        value={invendutoQty[key] || ''}
+                        onChangeText={(t) => setInvendutoQty((prev) => ({ ...prev, [key]: t }))}
+                        textAlign="center"
+                      />
+                    </View>
+                  );
+                })
               )}
             </ScrollView>
             {tuttiProdotti.length > 0 && (
               <>
                 <View style={s.modalDivider} />
                 <View style={s.modalTotalRow}>
-                  <Text style={s.modalTotalLabel}>TOTALE INVENDUTO</Text>
+                  <Text style={s.modalTotalLabel}>TOTALE {perditaLabel}</Text>
                   <Text style={s.modalTotalVal}>{'\u20AC'}{invendutoCalcolato.toFixed(2)}</Text>
                 </View>
               </>

@@ -712,15 +712,25 @@ export default function SettingsPage() {
             {store.speseAnnue.length === 0 && totalePlatAnnui === 0 && (
               <Text style={s.emptyTxt}>{t('settings.noExpenses')}</Text>
             )}
-            {store.speseAnnue.map((sp, i) => (
-              <View key={i} style={s.spesaRow}>
-                <Text style={s.spesaNome}>{sp.voce}</Text>
-                <Text style={s.spesaVal}>€{sp.importo}</Text>
-                <TouchableOpacity onPress={() => store.removeSpesaAnnua(sp.voce)}>
-                  <Ionicons name="trash-outline" size={16} color="#D46A6A" />
-                </TouchableOpacity>
-              </View>
-            ))}
+            {store.speseAnnue.map((sp, i) => {
+              const isDisabled = (store.speseAnnueDisabilitate || []).includes(sp.voce);
+              return (
+                <View key={i} style={s.spesaRow}>
+                  <Switch
+                    value={!isDisabled}
+                    onValueChange={() => store.toggleSpesaAnnua(sp.voce)}
+                    trackColor={{ false: '#D0C8C0', true: '#1E7F85' }}
+                    thumbColor="#FFF"
+                    style={{ transform: [{ scale: 0.7 }], marginRight: 4 }}
+                  />
+                  <Text style={[s.spesaNome, isDisabled && { textDecorationLine: 'line-through', color: '#B0A898' }]}>{sp.voce}</Text>
+                  <Text style={[s.spesaVal, isDisabled && { textDecorationLine: 'line-through', color: '#B0A898' }]}>€{sp.importo}</Text>
+                  <TouchableOpacity onPress={() => store.removeSpesaAnnua(sp.voce)}>
+                    <Ionicons name="trash-outline" size={16} color="#D46A6A" />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
             {store.agenda.filter((m) => m.p_annuo > 0).map((m, i) => (
               <View key={`p-${i}`} style={s.spesaRow}>
                 <Text style={[s.spesaNome, { color: '#7A9090' }]}>Plat. {m.mercato}</Text>

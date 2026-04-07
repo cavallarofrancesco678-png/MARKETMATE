@@ -89,6 +89,7 @@ interface AppState {
   phoneNumber: string;
   otpEnabled: boolean;
   speseFisseDisabilitate: string[];
+  speseAnnueDisabilitate: string[];
   
   // Data
   collaboratori: Collaboratore[];
@@ -112,6 +113,7 @@ interface AppState {
   forceFlushSave: () => void;
   addSpesaAnnua: (s: SpesaAnnua) => void;
   removeSpesaAnnua: (voce: string) => void;
+  toggleSpesaAnnua: (voce: string) => void;
   salvaGiornata: (g: Giornata) => void;
   addCarburante: (c: Carburante) => void;
   removeCarburante: (data: Date) => void;
@@ -157,6 +159,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   phoneNumber: '',
   otpEnabled: false,
   speseFisseDisabilitate: [],
+  speseAnnueDisabilitate: [],
   
   collaboratori: [],
   fornitori: [],
@@ -221,6 +224,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   removeSpesaAnnua: (voce) => {
     set((state) => ({ speseAnnue: state.speseAnnue.filter(s => s.voce !== voce) }));
+    get().saveToStorage();
+  },
+  
+  toggleSpesaAnnua: (voce) => {
+    set((state) => {
+      const disabled = state.speseAnnueDisabilitate || [];
+      const isDisabled = disabled.includes(voce);
+      return {
+        speseAnnueDisabilitate: isDisabled
+          ? disabled.filter(v => v !== voce)
+          : [...disabled, voce]
+      };
+    });
     get().saveToStorage();
   },
   
@@ -382,6 +398,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         fornitori: state.fornitori,
         agenda: state.agenda,
         speseAnnue: state.speseAnnue,
+        speseAnnueDisabilitate: state.speseAnnueDisabilitate,
         storicoGiornate: state.storicoGiornate,
         storicoCarburante: state.storicoCarburante,
         appuntiAgenda: state.appuntiAgenda,
@@ -409,6 +426,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       settore: 'Alimentare',
       tipoCarburante: 'benzina',
       speseFisseDisabilitate: [],
+  speseAnnueDisabilitate: [],
       partenzaDa: '',
       collaboratori: [],
       fornitori: [],
