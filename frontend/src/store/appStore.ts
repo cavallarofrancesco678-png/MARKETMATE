@@ -196,7 +196,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   updateAgenda: (agenda) => {
     set({ agenda });
-    get().saveToStorage();
+    // Debounced save - avoid multiple rapid saves
+    if ((globalThis as any).__agendaSaveTimer) {
+      clearTimeout((globalThis as any).__agendaSaveTimer);
+    }
+    (globalThis as any).__agendaSaveTimer = setTimeout(() => {
+      get().saveToStorage();
+    }, 500);
   },
   
   addSpesaAnnua: (s) => {

@@ -8,8 +8,8 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
 import { NeuBox } from '../src/components/NeuBox';

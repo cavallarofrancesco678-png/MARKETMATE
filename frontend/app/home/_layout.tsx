@@ -1,9 +1,10 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import '../../src/i18n';
 
 // Custom Fuel Pump SVG
@@ -19,6 +20,7 @@ const FuelPumpIcon = ({ color, size }: { color: string; size: number }) => (
 
 export default function TabLayout() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const TabIcon = ({
     name,
@@ -46,6 +48,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      sceneContainerStyle={{ paddingTop: insets.top }}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,

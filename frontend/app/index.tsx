@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
 import { NeuBox, NeuInset } from '../src/components/NeuBox';

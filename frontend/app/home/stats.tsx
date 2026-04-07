@@ -121,7 +121,7 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
       })}
       {lines.map((line, li) => {
         const isActive = activeLineIndex === null || activeLineIndex === li;
-        const lineOpacity = isActive ? 1 : 0.12;
+        if (!isActive) return null; // Linee non attive SPARISCONO completamente
         const pts = line.data.map((v, i) => ({
           x: padL + i * stepX,
           y: padT + drawH - (v / maxVal) * drawH,
@@ -130,25 +130,21 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
         const pathD = pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
         return (
           <React.Fragment key={li}>
-            <Path d={pathD} stroke={line.color} strokeWidth={isActive ? 4 : 1.5} fill="none" strokeLinejoin="round" opacity={lineOpacity} />
+            <Path d={pathD} stroke={line.color} strokeWidth={2.5} fill="none" strokeLinejoin="round" />
             {pts.map((p, i) => (
               <React.Fragment key={i}>
                 <Circle
                   cx={p.x}
                   cy={p.y}
-                  r={isActive ? 8 : 3}
-                  fill={isActive ? line.color : `${line.color}30`}
-                  stroke={isActive ? '#FFF' : 'transparent'}
-                  strokeWidth={isActive ? 3 : 1}
-                  opacity={lineOpacity}
+                  r={4}
+                  fill={line.color}
+                  stroke="#FFF"
+                  strokeWidth={1.5}
                 />
-                {isActive && p.v > 0 && (
-                  <>
-                    <Circle cx={p.x} cy={p.y - 14} r={16} fill={line.color} opacity={0.9} />
-                    <SvgText x={p.x} y={p.y - 10} fill="#FFF" fontSize={10} fontWeight="900" textAnchor="middle" opacity={1}>
-                      {p.v >= 1000 ? `${(p.v / 1000).toFixed(1)}k` : `€${p.v.toFixed(0)}`}
-                    </SvgText>
-                  </>
+                {activeLineIndex !== null && p.v > 0 && (
+                  <SvgText x={p.x} y={p.y - 10} fill={line.color} fontSize={9} fontWeight="900" textAnchor="middle">
+                    €{p.v.toFixed(0)}
+                  </SvgText>
                 )}
               </React.Fragment>
             ))}

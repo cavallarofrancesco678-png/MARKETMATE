@@ -156,7 +156,8 @@
     "securityTitle": "SICUREZZA",
     "phoneNumber": "Numero di telefono",
     "otpLogin": "Login con OTP",
-    "otpDesc": "Ricevi un codice di verifica ad ogni accesso"
+    "otpDesc": "Ricevi un codice di verifica ad ogni accesso",
+    "marketsTitle": "MERCATI"
   },
   "stats": {
     "title": "STATISTICHE",

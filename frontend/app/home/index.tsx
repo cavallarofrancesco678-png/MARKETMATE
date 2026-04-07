@@ -425,7 +425,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={{ height: GAP }} />
+      <View style={{ height: GAP * 2 }} />
 
       {/* ═══ ROW 1: LORDO / UTILE (+20% altezza) ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>

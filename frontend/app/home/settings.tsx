@@ -545,6 +545,7 @@ export default function SettingsPage() {
       </TouchableOpacity>
 
       {/* ─── AGENDA MERCATI ─── */}
+      <Text style={s.secTitle}>{t('settings.marketsTitle') || 'MERCATI'}</Text>
       {store.agenda.map((m, idx) => {
         const isOpen = expandedDay === idx;
         return (
