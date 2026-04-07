@@ -293,7 +293,7 @@ export default function WelcomeScreen() {
             <Image
               source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
               style={styles.welcomeLogo}
-              resizeMode="contain"
+              contentFit="contain"
             />
             <Text style={styles.stepTitle}>{t('settings.language').toUpperCase()}</Text>
             <View style={styles.optionsGrid}>
@@ -340,14 +340,14 @@ export default function WelcomeScreen() {
           <View style={styles.pageContent}>
             <Text style={styles.stepTitle}>{t('welcome.identity')}</Text>
             <View style={styles.inputsContainer}>
-              <InputField
+              <WelcomeInputField
                 label={t('welcome.businessNamePlaceholder')}
                 icon="storefront-outline"
                 value={nomeAttivita}
                 onChangeText={setNomeAttivita}
               />
               <View style={styles.spacer} />
-              <InputField
+              <WelcomeInputField
                 label={t('welcome.ownerNamePlaceholder')}
                 icon="person-outline"
                 value={nomeTitolare}
@@ -363,7 +363,7 @@ export default function WelcomeScreen() {
           <View style={styles.pageContent}>
             <Text style={styles.stepTitle}>{t('welcome.security')}</Text>
             <View style={styles.inputsContainer}>
-              <InputField
+              <WelcomeInputField
                 label={t('welcome.createPin')}
                 icon="lock-closed-outline"
                 value={pin}
@@ -372,7 +372,7 @@ export default function WelcomeScreen() {
                 numeric
               />
               <View style={styles.spacer} />
-              <InputField
+              <WelcomeInputField
                 label={t('welcome.recoveryEmail')}
                 icon="mail-outline"
                 value={emailRecupero}
