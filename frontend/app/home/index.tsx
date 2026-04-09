@@ -503,7 +503,7 @@ export default function HomeScreen() {
 
       {/* ═══ STORICO MERCATO - Grafico Professionale ═══ */}
       <View style={[s.section, { height: STORICO_H }]}>
-        <View style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4), flexDirection: 'column', padding: 10 }]}>
+        <View style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4), flexDirection: 'column', padding: 6 }]}>
           {(() => {
             const gg = store.storicoGiornate || [];
             const mNome = mercatoNome.toLowerCase();
@@ -519,7 +519,6 @@ export default function HomeScreen() {
             let giorniCount = 0;
             
             // Delta anno precedente
-            const todayStr = `${dataCorrente.getMonth()}-${dataCorrente.getDate()}`;
             const incassoOggiAnnoPrec = filtered.find((g) => {
               const d = new Date(g.data);
               return d.getFullYear() === prevYear && d.getMonth() === dataCorrente.getMonth() && d.getDate() === dataCorrente.getDate();
@@ -532,7 +531,7 @@ export default function HomeScreen() {
             
             if (chartMode === 'mese') {
               // BAR CHART - 4 settimane del mese corrente
-              chartLabels = ['Sett.1', 'Sett.2', 'Sett.3', 'Sett.4'];
+              chartLabels = ['S1', 'S2', 'S3', 'S4'];
               chartData = Array(4).fill(0);
               const meseData = filtered.filter((g) => {
                 const d = new Date(g.data);
@@ -559,55 +558,49 @@ export default function HomeScreen() {
             const maxVal = Math.max(...chartData, 1);
             const mediaLine = maxVal > 0 ? (media / maxVal) : 0.5;
             
-            // SVG dimensions
-            const svgW = 280;
-            const svgH = 60;
-            const padding = 5;
+            // SVG dimensions - PIÙ GRANDE
+            const svgW = 300;
+            const svgH = 85;
+            const padding = 8;
             const chartW = svgW - padding * 2;
-            const chartH = svgH - 15;
+            const chartH = svgH - 12;
             
             return (
               <>
-                {/* Header con KPI */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                  <View>
-                    <Text style={s.storicoT}>
-                      {chartMode === 'mese' ? 'INCASSO MESE' : chartMode === 'anno' ? 'TREND ANNUALE' : 'ANNO PRECEDENTE'}
-                    </Text>
-                    <Text style={s.storicoDay}>{giorniCount} giornate · {chartMode === 'mese' ? 'dettaglio settimanale' : 'trend mensile'}</Text>
+                {/* Header compatto con totale e KPI */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2, paddingHorizontal: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                    <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A4040' }}>€{totale.toFixed(0)}</Text>
+                    <Text style={{ fontSize: 9, color: '#7A9090', fontWeight: '600' }}>{giorniCount} gg</Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[s.storicoVal, { fontSize: 18 }]}>€{totale.toFixed(0)}</Text>
-                    {/* KPI Chip - Delta anno precedente */}
-                    {chartMode !== 'annoprec' && incassoOggiAnnoPrec > 0 && (
-                      <View style={{ 
-                        flexDirection: 'row', 
-                        alignItems: 'center', 
-                        backgroundColor: deltaPercent >= 0 ? 'rgba(42,170,100,0.15)' : 'rgba(212,70,70,0.15)',
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        borderRadius: 8,
-                        marginTop: 2,
+                  {/* KPI Chip - Delta anno precedente */}
+                  {chartMode !== 'annoprec' && incassoOggiAnnoPrec > 0 && (
+                    <View style={{ 
+                      flexDirection: 'row', 
+                      alignItems: 'center', 
+                      backgroundColor: deltaPercent >= 0 ? 'rgba(42,170,100,0.15)' : 'rgba(212,70,70,0.15)',
+                      paddingHorizontal: 6,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                    }}>
+                      <Ionicons 
+                        name={deltaPercent >= 0 ? 'arrow-up' : 'arrow-down'} 
+                        size={11} 
+                        color={deltaPercent >= 0 ? '#2AAA64' : '#D44646'} 
+                      />
+                      <Text style={{ 
+                        fontSize: 10, 
+                        fontWeight: '800', 
+                        color: deltaPercent >= 0 ? '#2AAA64' : '#D44646',
+                        marginLeft: 2,
                       }}>
-                        <Ionicons 
-                          name={deltaPercent >= 0 ? 'arrow-up' : 'arrow-down'} 
-                          size={10} 
-                          color={deltaPercent >= 0 ? '#2AAA64' : '#D44646'} 
-                        />
-                        <Text style={{ 
-                          fontSize: 9, 
-                          fontWeight: '800', 
-                          color: deltaPercent >= 0 ? '#2AAA64' : '#D44646',
-                          marginLeft: 2,
-                        }}>
-                          {deltaPercent > 0 ? '+' : ''}{deltaPercent}% vs {prevYear}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                        {deltaPercent > 0 ? '+' : ''}{deltaPercent}%
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 
-                {/* Grafico SVG */}
+                {/* Grafico SVG - PIÙ GRANDE */}
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                   <Svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
                     <Defs>
@@ -624,33 +617,34 @@ export default function HomeScreen() {
                     {/* Linea media tratteggiata */}
                     <Line 
                       x1={padding} 
-                      y1={chartH - mediaLine * (chartH - 10)} 
+                      y1={chartH - mediaLine * (chartH - 15)} 
                       x2={svgW - padding} 
-                      y2={chartH - mediaLine * (chartH - 10)} 
+                      y2={chartH - mediaLine * (chartH - 15)} 
                       stroke="#1E7F85" 
                       strokeWidth="1" 
                       strokeDasharray="4,3" 
-                      opacity={0.6}
+                      opacity={0.5}
                     />
                     
                     {chartMode === 'mese' ? (
-                      // BAR CHART per MESE
+                      // BAR CHART per MESE - BARRE PIÙ GRANDI
                       chartData.map((val, i) => {
-                        const barW = 36;
+                        const barW = 50;
                         const gap = (chartW - barW * 4) / 5;
                         const x = padding + gap + i * (barW + gap);
-                        const h = maxVal > 0 ? (val / maxVal) * (chartH - 10) : 0;
+                        const h = maxVal > 0 ? (val / maxVal) * (chartH - 20) : 0;
                         const y = chartH - h;
                         return (
-                          <Rect 
-                            key={i}
-                            x={x} 
-                            y={y} 
-                            width={barW} 
-                            height={Math.max(h, 3)} 
-                            rx={4}
-                            fill="url(#barGradient)"
-                          />
+                          <React.Fragment key={i}>
+                            <Rect 
+                              x={x} 
+                              y={y} 
+                              width={barW} 
+                              height={Math.max(h, 4)} 
+                              rx={5}
+                              fill="url(#barGradient)"
+                            />
+                          </React.Fragment>
                         );
                       })
                     ) : (
@@ -660,11 +654,11 @@ export default function HomeScreen() {
                         <Path
                           d={(() => {
                             const points = chartData.map((val, i) => {
-                              const x = padding + (i * chartW) / 11;
-                              const y = chartH - (maxVal > 0 ? (val / maxVal) * (chartH - 10) : 0);
+                              const x = padding + 8 + (i * (chartW - 16)) / 11;
+                              const y = chartH - (maxVal > 0 ? (val / maxVal) * (chartH - 15) : 0);
                               return `${x},${y}`;
                             });
-                            return `M${padding},${chartH} L${points.join(' L')} L${svgW - padding},${chartH} Z`;
+                            return `M${padding + 8},${chartH} L${points.join(' L')} L${svgW - padding - 8},${chartH} Z`;
                           })()}
                           fill="url(#areaGradient)"
                         />
@@ -672,8 +666,8 @@ export default function HomeScreen() {
                         <Path
                           d={(() => {
                             const points = chartData.map((val, i) => {
-                              const x = padding + (i * chartW) / 11;
-                              const y = chartH - (maxVal > 0 ? (val / maxVal) * (chartH - 10) : 0);
+                              const x = padding + 8 + (i * (chartW - 16)) / 11;
+                              const y = chartH - (maxVal > 0 ? (val / maxVal) * (chartH - 15) : 0);
                               return `${i === 0 ? 'M' : 'L'}${x},${y}`;
                             });
                             return points.join(' ');
@@ -687,31 +681,63 @@ export default function HomeScreen() {
                         {/* Punti di ancoraggio */}
                         {chartData.map((val, i) => {
                           if (val === 0) return null;
-                          const x = padding + (i * chartW) / 11;
-                          const y = chartH - (val / maxVal) * (chartH - 10);
+                          const x = padding + 8 + (i * (chartW - 16)) / 11;
+                          const y = chartH - (val / maxVal) * (chartH - 15);
                           return (
-                            <Circle key={i} cx={x} cy={y} r={3} fill="#FFF" stroke="#E8A060" strokeWidth="1.5" />
+                            <Circle key={i} cx={x} cy={y} r={3.5} fill="#FFF" stroke="#E8A060" strokeWidth="2" />
                           );
                         })}
                       </>
                     )}
                   </Svg>
+                  
+                  {/* Cifre sopra le barre - SOLO PER MESE */}
+                  {chartMode === 'mese' && (
+                    <View style={{ 
+                      position: 'absolute', 
+                      top: 0, 
+                      left: 0, 
+                      right: 0, 
+                      flexDirection: 'row', 
+                      justifyContent: 'space-around',
+                      paddingHorizontal: 20,
+                    }}>
+                      {chartData.map((val, i) => (
+                        <Text key={i} style={{ 
+                          fontSize: 11, 
+                          fontWeight: '800', 
+                          color: val > 0 ? '#1A4040' : '#B0B0B0',
+                          width: 50,
+                          textAlign: 'center',
+                        }}>
+                          {val > 0 ? `€${val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toFixed(0)}` : '-'}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
                 </View>
                 
                 {/* Labels sotto il grafico */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 5, marginTop: 2 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: chartMode === 'mese' ? 20 : 10, marginTop: 1 }}>
                   {chartLabels.map((label, i) => (
-                    <Text key={i} style={{ fontSize: chartMode === 'mese' ? 8 : 7, color: '#7A9090', fontWeight: '700', textAlign: 'center', flex: 1 }}>
+                    <Text key={i} style={{ 
+                      fontSize: chartMode === 'mese' ? 10 : 8, 
+                      color: '#7A9090', 
+                      fontWeight: '700', 
+                      textAlign: 'center', 
+                      width: chartMode === 'mese' ? 50 : 'auto',
+                      flex: chartMode === 'mese' ? 0 : 1,
+                    }}>
                       {label}
                     </Text>
                   ))}
                 </View>
                 
-                {/* Legenda media */}
-                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 3 }}>
-                  <View style={{ width: 12, height: 1, backgroundColor: '#1E7F85', marginRight: 4 }} />
-                  <Text style={{ fontSize: 8, color: '#1E7F85', fontWeight: '600' }}>
-                    Media: €{media.toFixed(0)}{chartMode === 'mese' ? '/sett' : '/mese'}
+                {/* Legenda media - piccola */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 1 }}>
+                  <View style={{ width: 10, height: 1, backgroundColor: '#1E7F85', marginRight: 3 }} />
+                  <Text style={{ fontSize: 7, color: '#1E7F85', fontWeight: '600' }}>
+                    media €{media.toFixed(0)}
                   </Text>
                 </View>
               </>
