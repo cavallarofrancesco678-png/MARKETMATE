@@ -560,17 +560,10 @@ export default function HomeScreen() {
             const maxVal = Math.max(...chartData, 1);
             const deltaPercent = totaleAnnoPrec > 0 ? Math.round(((totaleAnnoCorr - totaleAnnoPrec) / totaleAnnoPrec) * 100) : 0;
             
-            // SVG dimensions
-            const svgW = chartMode === 'annoprec' ? 140 : (chartMode === 'anno' ? 200 : 180);
-            const svgH = 75;
-            const padding = 5;
-            const chartW = svgW - padding * 2;
-            const chartH = svgH - 16;
-            
             return (
               <>
                 {/* SINISTRA - Numeri */}
-                <View style={{ width: chartMode === 'annoprec' ? 110 : 85, justifyContent: 'center', paddingRight: 6 }}>
+                <View style={{ width: chartMode === 'annoprec' ? 100 : 80, justifyContent: 'center', paddingRight: 6 }}>
                   <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A4040' }}>
                     €{totale >= 1000 ? `${(totale/1000).toFixed(1)}k` : totale.toFixed(0)}
                   </Text>
@@ -612,126 +605,135 @@ export default function HomeScreen() {
                 
                 {/* DESTRA - Grafico a BARRE */}
                 <View style={{ flex: 1, justifyContent: 'center' }}>
-                  {/* Valori sopra le barre */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 2, paddingHorizontal: chartMode === 'anno' ? 2 : 8 }}>
-                    {chartData.map((val, i) => {
-                      if (chartMode === 'annoprec') {
-                        // Per ANNO PREC mostra anche la label dell'anno
-                        return (
-                          <View key={i} style={{ alignItems: 'center', flex: 1 }}>
-                            <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>{chartLabels[i]}</Text>
-                            <Text style={{ fontSize: 11, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
+                  {chartMode === 'anno' ? (
+                    // ANNO - Layout speciale per allineamento perfetto
+                    <View style={{ flex: 1 }}>
+                      {/* Valori sopra */}
+                      <View style={{ flexDirection: 'row', height: 14, marginBottom: 2 }}>
+                        {chartData.map((val, i) => (
+                          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 7, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
+                              {val > 0 ? (val >= 1000 ? `${(val/1000).toFixed(0)}k` : val.toFixed(0)) : '-'}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      
+                      {/* Barre */}
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                        {chartData.map((val, i) => {
+                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          return (
+                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                              <View style={{
+                                width: 14,
+                                height: `${Math.max(h, 5)}%`,
+                                minHeight: 4,
+                                backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
+                                borderRadius: 3,
+                              }} />
+                            </View>
+                          );
+                        })}
+                      </View>
+                      
+                      {/* Labels mesi */}
+                      <View style={{ flexDirection: 'row', height: 14, marginTop: 3 }}>
+                        {chartLabels.map((label, i) => (
+                          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 8, color: '#7A9090', fontWeight: '700' }}>{label}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      
+                      {/* Linea media */}
+                      {media > 0 && (
+                        <View style={{
+                          position: 'absolute',
+                          left: 0,
+                          right: 0,
+                          top: 14 + 2 + (1 - media / maxVal) * 50,
+                          height: 1.5,
+                          backgroundColor: '#1E7F85',
+                          opacity: 0.5,
+                          // @ts-ignore
+                          borderStyle: 'dashed',
+                        }} />
+                      )}
+                    </View>
+                  ) : chartMode === 'mese' ? (
+                    // MESE - 4 barre
+                    <View style={{ flex: 1 }}>
+                      {/* Valori sopra */}
+                      <View style={{ flexDirection: 'row', height: 16, marginBottom: 2 }}>
+                        {chartData.map((val, i) => (
+                          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
+                              {val > 0 ? (val >= 1000 ? `${(val/1000).toFixed(1)}k` : `€${val.toFixed(0)}`) : '-'}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      
+                      {/* Barre */}
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                        {chartData.map((val, i) => {
+                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          return (
+                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 4 }}>
+                              <View style={{
+                                width: 36,
+                                height: `${Math.max(h, 5)}%`,
+                                minHeight: 4,
+                                backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
+                                borderRadius: 5,
+                              }} />
+                            </View>
+                          );
+                        })}
+                      </View>
+                      
+                      {/* Labels settimane */}
+                      <View style={{ flexDirection: 'row', height: 14, marginTop: 3 }}>
+                        {chartLabels.map((label, i) => (
+                          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 10, color: '#7A9090', fontWeight: '700' }}>{label}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ) : (
+                    // ANNO PREC - 2 barre confronto
+                    <View style={{ flex: 1 }}>
+                      {/* Labels anni + valori */}
+                      <View style={{ flexDirection: 'row', height: 28, marginBottom: 4 }}>
+                        {chartData.map((val, i) => (
+                          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090' }}>{chartLabels[i]}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
                               €{val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toFixed(0)}
                             </Text>
                           </View>
-                        );
-                      }
-                      return (
-                        <Text key={i} style={{ 
-                          fontSize: chartMode === 'anno' ? 7 : 9, 
-                          fontWeight: '800', 
-                          color: val > 0 ? '#1A4040' : '#C0C0C0',
-                          textAlign: 'center',
-                          width: chartMode === 'anno' ? 14 : 36,
-                        }}>
-                          {val > 0 ? (val >= 1000 ? `${(val/1000).toFixed(0)}k` : val.toFixed(0)) : '-'}
-                        </Text>
-                      );
-                    })}
-                  </View>
-                  
-                  {/* Barre SVG */}
-                  <Svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
-                    <Defs>
-                      <LinearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0%" stopColor="#E8A060" stopOpacity="1" />
-                        <Stop offset="100%" stopColor="#D4875A" stopOpacity="1" />
-                      </LinearGradient>
-                      <LinearGradient id="barGradientPrev" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0%" stopColor="#7A9090" stopOpacity="0.8" />
-                        <Stop offset="100%" stopColor="#5A7070" stopOpacity="0.8" />
-                      </LinearGradient>
-                      <LinearGradient id="barGradientCurr" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0%" stopColor="#1E7F85" stopOpacity="1" />
-                        <Stop offset="100%" stopColor="#156065" stopOpacity="1" />
-                      </LinearGradient>
-                    </Defs>
-                    
-                    {/* Linea media tratteggiata */}
-                    {media > 0 && chartMode !== 'annoprec' && (
-                      <Line 
-                        x1={padding} 
-                        y1={chartH - (media / maxVal) * (chartH - 5)} 
-                        x2={svgW - padding} 
-                        y2={chartH - (media / maxVal) * (chartH - 5)} 
-                        stroke="#1E7F85" 
-                        strokeWidth="1.5" 
-                        strokeDasharray="3,2" 
-                        opacity={0.5}
-                      />
-                    )}
-                    
-                    {chartMode === 'mese' ? (
-                      // 4 BARRE per MESE
-                      chartData.map((val, i) => {
-                        const barW = 36;
-                        const gap = (chartW - barW * 4) / 5;
-                        const x = padding + gap + i * (barW + gap);
-                        const h = maxVal > 0 ? (val / maxVal) * (chartH - 5) : 0;
-                        const y = chartH - h;
-                        return (
-                          <Rect key={i} x={x} y={Math.max(y, 2)} width={barW} height={Math.max(h, 4)} rx={4} fill="url(#barGradient)" />
-                        );
-                      })
-                    ) : chartMode === 'anno' ? (
-                      // 12 BARRE per ANNO
-                      chartData.map((val, i) => {
-                        const barW = 12;
-                        const gap = (chartW - barW * 12) / 13;
-                        const x = padding + gap + i * (barW + gap);
-                        const h = maxVal > 0 ? (val / maxVal) * (chartH - 5) : 0;
-                        const y = chartH - h;
-                        return (
-                          <Rect key={i} x={x} y={Math.max(y, 2)} width={barW} height={Math.max(h, 4)} rx={3} fill="url(#barGradient)" />
-                        );
-                      })
-                    ) : (
-                      // 2 BARRE per ANNO PREC (confronto)
-                      chartData.map((val, i) => {
-                        const barW = 50;
-                        const gap = 20;
-                        const x = padding + 10 + i * (barW + gap);
-                        const h = maxVal > 0 ? (val / maxVal) * (chartH - 5) : 0;
-                        const y = chartH - h;
-                        return (
-                          <Rect 
-                            key={i} 
-                            x={x} 
-                            y={Math.max(y, 2)} 
-                            width={barW} 
-                            height={Math.max(h, 4)} 
-                            rx={6} 
-                            fill={i === 0 ? 'url(#barGradientPrev)' : 'url(#barGradientCurr)'} 
-                          />
-                        );
-                      })
-                    )}
-                  </Svg>
-                  
-                  {/* Labels sotto - solo per MESE e ANNO */}
-                  {chartMode !== 'annoprec' && (
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 2, paddingHorizontal: chartMode === 'anno' ? 2 : 8 }}>
-                      {chartLabels.map((label, i) => (
-                        <Text key={i} style={{ 
-                          fontSize: chartMode === 'anno' ? 7 : 9, 
-                          color: '#7A9090', 
-                          fontWeight: '700', 
-                          textAlign: 'center',
-                          width: chartMode === 'anno' ? 14 : 36,
-                        }}>
-                          {label}
-                        </Text>
-                      ))}
+                        ))}
+                      </View>
+                      
+                      {/* Barre */}
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10 }}>
+                        {chartData.map((val, i) => {
+                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          return (
+                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 8 }}>
+                              <View style={{
+                                width: 50,
+                                height: `${Math.max(h, 8)}%`,
+                                minHeight: 6,
+                                backgroundColor: i === 0 ? '#7A9090' : '#1E7F85',
+                                borderRadius: 6,
+                              }} />
+                            </View>
+                          );
+                        })}
+                      </View>
                     </View>
                   )}
                 </View>
