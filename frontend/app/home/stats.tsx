@@ -626,7 +626,6 @@ export default function StatsScreen() {
         {/* ─── AREOGRAMMI ─── */}
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
         {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
-        {renderPieBox('FORNITORI', fornitoriItems)}
 
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
         {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}
