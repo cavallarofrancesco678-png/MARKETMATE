@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
 import { CalendarModal } from '../../src/components/CalendarModal';
@@ -501,80 +501,222 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ STORICO MERCATO (dati reali con grafico grande) ═══ */}
+      {/* ═══ STORICO MERCATO - Grafico Professionale ═══ */}
       <View style={[s.section, { height: STORICO_H }]}>
-        <View style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4), flexDirection: 'column', paddingVertical: 10 }]}>
-          {/* Header con totale */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, marginBottom: 8 }}>
-            <View>
-              <Text style={s.storicoT}>{chartMode === 'mese' ? 'INCASSO MESE' : chartMode === 'anno' ? 'INCASSO ANNO' : 'ANNO PRECEDENTE'}</Text>
-              <Text style={s.storicoDay}>{storicoMercato.giorni} giornate lavorative</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[s.storicoVal, { fontSize: 20 }]}>{'\u20AC'}{storicoMercato.totale.toFixed(0)}</Text>
-              <Text style={s.storicoSub}>media: €{storicoMercato.media.toFixed(0)}/gg</Text>
-            </View>
-          </View>
-          
-          {/* Grafico a barre grande */}
-          <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', paddingHorizontal: 5 }}>
-            {(() => {
-              const gg = store.storicoGiornate || [];
-              const mNome = mercatoNome.toLowerCase();
-              const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome);
-              
-              let chartLabels: string[];
-              let monthlyData: number[];
-              
-              if (chartMode === 'mese') {
-                // Ultime 4 settimane
-                chartLabels = ['S1', 'S2', 'S3', 'S4'];
-                monthlyData = Array(4).fill(0);
-                filtered.filter((g) => {
-                  const d = new Date(g.data);
-                  return d.getMonth() === dataCorrente.getMonth() && d.getFullYear() === dataCorrente.getFullYear();
-                }).forEach((g) => {
-                  const week = Math.min(Math.floor((new Date(g.data).getDate() - 1) / 7), 3);
-                  monthlyData[week] += g.lordo || 0;
-                });
-              } else if (chartMode === 'annoprec') {
-                chartLabels = ['G', 'F', 'M', 'A', 'M', 'G', 'L', 'A', 'S', 'O', 'N', 'D'];
-                monthlyData = Array(12).fill(0);
-                filtered.filter((g) => new Date(g.data).getFullYear() === new Date().getFullYear() - 1)
-                  .forEach((g) => { monthlyData[new Date(g.data).getMonth()] += g.lordo || 0; });
-              } else {
-                chartLabels = ['G', 'F', 'M', 'A', 'M', 'G', 'L', 'A', 'S', 'O', 'N', 'D'];
-                monthlyData = Array(12).fill(0);
-                filtered.filter((g) => new Date(g.data).getFullYear() === new Date().getFullYear())
-                  .forEach((g) => { monthlyData[new Date(g.data).getMonth()] += g.lordo || 0; });
-              }
-              
-              const maxVal = Math.max(...monthlyData, 1);
-              const barColors = ['#5CC0B8', '#E8A060', '#3A8AB0', '#5CC0B8', '#E8A060', '#3A8AB0', '#5CC0B8', '#E8A060', '#3A8AB0', '#5CC0B8', '#E8A060', '#3A8AB0'];
-              
-              return monthlyData.map((val, i) => (
-                <View key={i} style={{ alignItems: 'center', flex: 1 }}>
-                  {val > 0 && (
-                    <Text style={{ fontSize: 7, fontWeight: '700', color: '#5A7575', marginBottom: 2 }}>
-                      €{val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toFixed(0)}
+        <View style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4), flexDirection: 'column', padding: 10 }]}>
+          {(() => {
+            const gg = store.storicoGiornate || [];
+            const mNome = mercatoNome.toLowerCase();
+            const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome);
+            const currentYear = new Date().getFullYear();
+            const prevYear = currentYear - 1;
+            
+            // Calcola dati per ogni modalità
+            let chartData: number[] = [];
+            let chartLabels: string[] = [];
+            let media = 0;
+            let totale = 0;
+            let giorniCount = 0;
+            
+            // Delta anno precedente
+            const todayStr = `${dataCorrente.getMonth()}-${dataCorrente.getDate()}`;
+            const incassoOggiAnnoPrec = filtered.find((g) => {
+              const d = new Date(g.data);
+              return d.getFullYear() === prevYear && d.getMonth() === dataCorrente.getMonth() && d.getDate() === dataCorrente.getDate();
+            })?.lordo || 0;
+            const incassoOggiAnnoCorr = filtered.find((g) => {
+              const d = new Date(g.data);
+              return d.getFullYear() === currentYear && d.getMonth() === dataCorrente.getMonth() && d.getDate() === dataCorrente.getDate();
+            })?.lordo || 0;
+            const deltaPercent = incassoOggiAnnoPrec > 0 ? Math.round(((incassoOggiAnnoCorr - incassoOggiAnnoPrec) / incassoOggiAnnoPrec) * 100) : 0;
+            
+            if (chartMode === 'mese') {
+              // BAR CHART - 4 settimane del mese corrente
+              chartLabels = ['Sett.1', 'Sett.2', 'Sett.3', 'Sett.4'];
+              chartData = Array(4).fill(0);
+              const meseData = filtered.filter((g) => {
+                const d = new Date(g.data);
+                return d.getMonth() === dataCorrente.getMonth() && d.getFullYear() === currentYear;
+              });
+              meseData.forEach((g) => {
+                const week = Math.min(Math.floor((new Date(g.data).getDate() - 1) / 7), 3);
+                chartData[week] += g.lordo || 0;
+              });
+              giorniCount = meseData.length;
+              totale = chartData.reduce((s, v) => s + v, 0);
+              media = giorniCount > 0 ? totale / giorniCount : 0;
+            } else {
+              // LINE CHART - 12 mesi
+              chartLabels = ['G', 'F', 'M', 'A', 'M', 'G', 'L', 'A', 'S', 'O', 'N', 'D'];
+              chartData = Array(12).fill(0);
+              const yearData = filtered.filter((g) => new Date(g.data).getFullYear() === (chartMode === 'annoprec' ? prevYear : currentYear));
+              yearData.forEach((g) => { chartData[new Date(g.data).getMonth()] += g.lordo || 0; });
+              giorniCount = yearData.length;
+              totale = chartData.reduce((s, v) => s + v, 0);
+              media = giorniCount > 0 ? totale / giorniCount : 0;
+            }
+            
+            const maxVal = Math.max(...chartData, 1);
+            const mediaLine = maxVal > 0 ? (media / maxVal) : 0.5;
+            
+            // SVG dimensions
+            const svgW = 280;
+            const svgH = 60;
+            const padding = 5;
+            const chartW = svgW - padding * 2;
+            const chartH = svgH - 15;
+            
+            return (
+              <>
+                {/* Header con KPI */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <View>
+                    <Text style={s.storicoT}>
+                      {chartMode === 'mese' ? 'INCASSO MESE' : chartMode === 'anno' ? 'TREND ANNUALE' : 'ANNO PRECEDENTE'}
                     </Text>
-                  )}
-                  <View style={{ flex: 1, justifyContent: 'flex-end', width: '100%', alignItems: 'center' }}>
-                    <View
-                      style={{
-                        width: chartMode === 'mese' ? 24 : 12,
-                        height: `${Math.max((val / maxVal) * 100, val > 0 ? 15 : 5)}%`,
-                        backgroundColor: val > 0 ? barColors[i % barColors.length] : '#C0D0C8',
-                        borderRadius: 3,
-                        minHeight: 4,
-                      }}
-                    />
+                    <Text style={s.storicoDay}>{giorniCount} giornate · {chartMode === 'mese' ? 'dettaglio settimanale' : 'trend mensile'}</Text>
                   </View>
-                  <Text style={{ fontSize: 8, color: '#7A9090', marginTop: 3, fontWeight: '700' }}>{chartLabels[i]}</Text>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[s.storicoVal, { fontSize: 18 }]}>€{totale.toFixed(0)}</Text>
+                    {/* KPI Chip - Delta anno precedente */}
+                    {chartMode !== 'annoprec' && incassoOggiAnnoPrec > 0 && (
+                      <View style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        backgroundColor: deltaPercent >= 0 ? 'rgba(42,170,100,0.15)' : 'rgba(212,70,70,0.15)',
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                        marginTop: 2,
+                      }}>
+                        <Ionicons 
+                          name={deltaPercent >= 0 ? 'arrow-up' : 'arrow-down'} 
+                          size={10} 
+                          color={deltaPercent >= 0 ? '#2AAA64' : '#D44646'} 
+                        />
+                        <Text style={{ 
+                          fontSize: 9, 
+                          fontWeight: '800', 
+                          color: deltaPercent >= 0 ? '#2AAA64' : '#D44646',
+                          marginLeft: 2,
+                        }}>
+                          {deltaPercent > 0 ? '+' : ''}{deltaPercent}% vs {prevYear}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              ));
-            })()}
-          </View>
+                
+                {/* Grafico SVG */}
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <Svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
+                    <Defs>
+                      <LinearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0%" stopColor="#E8A060" stopOpacity="0.4" />
+                        <Stop offset="100%" stopColor="#E8A060" stopOpacity="0.05" />
+                      </LinearGradient>
+                      <LinearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0%" stopColor="#E8A060" stopOpacity="1" />
+                        <Stop offset="100%" stopColor="#D4875A" stopOpacity="1" />
+                      </LinearGradient>
+                    </Defs>
+                    
+                    {/* Linea media tratteggiata */}
+                    <Line 
+                      x1={padding} 
+                      y1={chartH - mediaLine * (chartH - 10)} 
+                      x2={svgW - padding} 
+                      y2={chartH - mediaLine * (chartH - 10)} 
+                      stroke="#1E7F85" 
+                      strokeWidth="1" 
+                      strokeDasharray="4,3" 
+                      opacity={0.6}
+                    />
+                    
+                    {chartMode === 'mese' ? (
+                      // BAR CHART per MESE
+                      chartData.map((val, i) => {
+                        const barW = 36;
+                        const gap = (chartW - barW * 4) / 5;
+                        const x = padding + gap + i * (barW + gap);
+                        const h = maxVal > 0 ? (val / maxVal) * (chartH - 10) : 0;
+                        const y = chartH - h;
+                        return (
+                          <Rect 
+                            key={i}
+                            x={x} 
+                            y={y} 
+                            width={barW} 
+                            height={Math.max(h, 3)} 
+                            rx={4}
+                            fill="url(#barGradient)"
+                          />
+                        );
+                      })
+                    ) : (
+                      // LINE CHART con AREA per ANNO
+                      <>
+                        {/* Area sfumata sotto la linea */}
+                        <Path
+                          d={(() => {
+                            const points = chartData.map((val, i) => {
+                              const x = padding + (i * chartW) / 11;
+                              const y = chartH - (maxVal > 0 ? (val / maxVal) * (chartH - 10) : 0);
+                              return `${x},${y}`;
+                            });
+                            return `M${padding},${chartH} L${points.join(' L')} L${svgW - padding},${chartH} Z`;
+                          })()}
+                          fill="url(#areaGradient)"
+                        />
+                        {/* Linea principale */}
+                        <Path
+                          d={(() => {
+                            const points = chartData.map((val, i) => {
+                              const x = padding + (i * chartW) / 11;
+                              const y = chartH - (maxVal > 0 ? (val / maxVal) * (chartH - 10) : 0);
+                              return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+                            });
+                            return points.join(' ');
+                          })()}
+                          stroke="#E8A060"
+                          strokeWidth="2.5"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        {/* Punti di ancoraggio */}
+                        {chartData.map((val, i) => {
+                          if (val === 0) return null;
+                          const x = padding + (i * chartW) / 11;
+                          const y = chartH - (val / maxVal) * (chartH - 10);
+                          return (
+                            <Circle key={i} cx={x} cy={y} r={3} fill="#FFF" stroke="#E8A060" strokeWidth="1.5" />
+                          );
+                        })}
+                      </>
+                    )}
+                  </Svg>
+                </View>
+                
+                {/* Labels sotto il grafico */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 5, marginTop: 2 }}>
+                  {chartLabels.map((label, i) => (
+                    <Text key={i} style={{ fontSize: chartMode === 'mese' ? 8 : 7, color: '#7A9090', fontWeight: '700', textAlign: 'center', flex: 1 }}>
+                      {label}
+                    </Text>
+                  ))}
+                </View>
+                
+                {/* Legenda media */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 3 }}>
+                  <View style={{ width: 12, height: 1, backgroundColor: '#1E7F85', marginRight: 4 }} />
+                  <Text style={{ fontSize: 8, color: '#1E7F85', fontWeight: '600' }}>
+                    Media: €{media.toFixed(0)}{chartMode === 'mese' ? '/sett' : '/mese'}
+                  </Text>
+                </View>
+              </>
+            );
+          })()}
         </View>
         
         <View style={s.filterRow}>
