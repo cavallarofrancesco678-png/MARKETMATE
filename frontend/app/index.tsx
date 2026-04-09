@@ -213,7 +213,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <View style={styles.securityBadge}>
-            <Ionicons name="shield-checkmark" size={22} color="#1E7F85" />
+            <Ionicons name="shield-checkmark" size={24} color="#1E7F85" />
             <View style={styles.securityTextContainer}>
               <Text style={styles.securityLine}>{t('login.securityLine1')}</Text>
               <Text style={styles.securityLine}>{t('login.securityLine2')}</Text>
@@ -303,27 +303,28 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
   securityBadge: {
-    flexDirection: 'row' as const,
+    flexDirection: 'column' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    gap: 12,
+    gap: 10,
     marginTop: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
     borderRadius: 16,
-    backgroundColor: 'rgba(30,127,133,0.12)',
+    backgroundColor: 'rgba(30,127,133,0.1)',
     borderWidth: 1.5,
-    borderColor: 'rgba(30,127,133,0.25)',
+    borderColor: 'rgba(30,127,133,0.2)',
   },
   securityTextContainer: {
-    flexShrink: 1,
+    alignItems: 'center' as const,
   },
   securityLine: {
-    fontSize: 13,
-    fontWeight: '800' as const,
-    color: '#1A5555',
-    letterSpacing: 0.3,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#2A6565',
+    letterSpacing: 0.2,
     lineHeight: 20,
+    textAlign: 'center' as const,
   },
   securityText: {
     fontSize: 10,
