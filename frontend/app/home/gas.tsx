@@ -80,21 +80,38 @@ export default function GasScreen() {
     else Alert.alert(t('common.saved'), t('gas.refuelSaved'));
   };
 
-  /* Delete — uses original store index */
+  /* Delete — uses unique ID matching to find correct item */
   const handleDelete = (cronologiaIndex: number) => {
     const sorted = [...storicoCarburante].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
     const item = sorted[cronologiaIndex];
     if (!item) return;
-    // Find the original index in the unsorted store array
-    const origIndex = storicoCarburante.findIndex((c) =>
-      new Date(c.data).toISOString() === new Date(item.data).toISOString() && c.euro === item.euro
-    );
-    if (origIndex === -1) return;
+    
+    // Find the original index in the unsorted store array by matching data+euro
+    const itemDate = new Date(item.data).getTime();
+    const itemEuro = item.euro;
+    
+    let origIndex = -1;
+    for (let i = 0; i < storicoCarburante.length; i++) {
+      const c = storicoCarburante[i];
+      if (new Date(c.data).getTime() === itemDate && c.euro === itemEuro) {
+        origIndex = i;
+        break;
+      }
+    }
+    
+    if (origIndex === -1) {
+      console.error('Item not found in store', item);
+      return;
+    }
 
-    const doDelete = () => removeCarburante(origIndex);
+    const doDelete = () => {
+      removeCarburante(origIndex);
+    };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(t('gas.deleteRefuel') || 'Eliminare questo rifornimento?')) doDelete();
+      if (window.confirm(t('gas.deleteRefuel') || 'Eliminare questo rifornimento?')) {
+        doDelete();
+      }
     } else {
       Alert.alert(t('common.delete') || 'Elimina', t('gas.deleteRefuel') || 'Eliminare questo rifornimento?', [
         { text: t('common.cancel') || 'Annulla', style: 'cancel' },

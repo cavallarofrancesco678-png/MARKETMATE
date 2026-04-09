@@ -766,6 +766,100 @@ export default function StatsScreen() {
         onClose={() => setShowMeteo(false)}
         giornate={storicoGiornate}
       />
+
+      {/* ═══ MODAL NETTO - Selezione voci da escludere ═══ */}
+      <Modal
+        visible={showNettoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNettoModal(false)}
+      >
+        <Pressable style={st.modalOverlay} onPress={() => setShowNettoModal(false)}>
+          <Pressable style={st.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={st.modalHeader}>
+              <Text style={st.modalTitle}>CALCOLO NETTO</Text>
+              <TouchableOpacity onPress={() => setShowNettoModal(false)}>
+                <Ionicons name="close" size={24} color="#5A7575" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={st.modalSubtitle}>Seleziona le voci da escludere dal calcolo:</Text>
+            
+            <View style={st.checkboxList}>
+              <TouchableOpacity 
+                style={st.checkboxRow} 
+                onPress={() => setExcludeSpeseFisse(!excludeSpeseFisse)}
+              >
+                <View style={[st.checkbox, excludeSpeseFisse && st.checkboxChecked]}>
+                  {excludeSpeseFisse && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                </View>
+                <Text style={st.checkboxLabel}>Spese Fisse</Text>
+                <Text style={st.checkboxValue}>€{arrSum(speseFisseItems.map(i => i.value))}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={st.checkboxRow} 
+                onPress={() => setExcludeCollaboratori(!excludeCollaboratori)}
+              >
+                <View style={[st.checkbox, excludeCollaboratori && st.checkboxChecked]}>
+                  {excludeCollaboratori && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                </View>
+                <Text style={st.checkboxLabel}>Collaboratori</Text>
+                <Text style={st.checkboxValue}>€{arrSum(collabLines.map(l => arrSum(l.data)))}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={st.checkboxRow} 
+                onPress={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
+              >
+                <View style={[st.checkbox, excludeSpeseExtra && st.checkboxChecked]}>
+                  {excludeSpeseExtra && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                </View>
+                <Text style={st.checkboxLabel}>Spese Straordinarie</Text>
+                <Text style={st.checkboxValue}>€{arrSum(filteredData.map(g => g.spese_extra || 0))}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={st.checkboxRow} 
+                onPress={() => setExcludeInvenduto(!excludeInvenduto)}
+              >
+                <View style={[st.checkbox, excludeInvenduto && st.checkboxChecked]}>
+                  {excludeInvenduto && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                </View>
+                <Text style={st.checkboxLabel}>Invenduto</Text>
+                <Text style={st.checkboxValue}>€{arrSum(invendutoLines.map(l => arrSum(l.data)))}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={st.checkboxRow} 
+                onPress={() => setExcludeCarburante(!excludeCarburante)}
+              >
+                <View style={[st.checkbox, excludeCarburante && st.checkboxChecked]}>
+                  {excludeCarburante && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                </View>
+                <Text style={st.checkboxLabel}>Gestione Carburante</Text>
+                <Text style={st.checkboxValue}>€{arrSum(store.storicoCarburante.map(c => c.euro))}</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={st.modalDivider} />
+            
+            <View style={st.modalTotalRow}>
+              <Text style={st.modalTotalLabel}>NETTO:</Text>
+              <Text style={[st.modalTotalValue, { color: totNetto >= 0 ? PALETTE[1] : '#D46A6A' }]}>
+                €{totNetto.toFixed(0)}
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={st.modalCloseBtn} 
+              onPress={() => setShowNettoModal(false)}
+            >
+              <Text style={st.modalCloseBtnTxt}>CHIUDI</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -858,4 +952,108 @@ const st = StyleSheet.create({
   riepilogoValue: { fontSize: 12, fontWeight: '700', color: '#1A3535' },
 
   emptyText: { fontSize: 12, color: '#7A9090', fontStyle: 'italic', textAlign: 'center', paddingVertical: 10 },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#EDE8DA',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    // @ts-ignore
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#1A4040',
+    letterSpacing: 1,
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    color: '#5A7575',
+    marginBottom: 16,
+    fontWeight: '600',
+  },
+  checkboxList: {
+    gap: 12,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#D8EDE5',
+    borderRadius: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#1E7F85',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: '#1E7F85',
+    borderColor: '#1E7F85',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A4040',
+  },
+  checkboxValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#E8A060',
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#C0D0C8',
+    marginVertical: 16,
+  },
+  modalTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTotalLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A4040',
+  },
+  modalTotalValue: {
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  modalCloseBtn: {
+    backgroundColor: '#1E7F85',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalCloseBtnTxt: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
 });
