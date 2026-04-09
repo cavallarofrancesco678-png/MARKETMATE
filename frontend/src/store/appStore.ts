@@ -261,9 +261,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   removeCarburante: (index) => {
-    set((state) => ({
-      storicoCarburante: state.storicoCarburante.filter((_, i) => i !== index)
-    }));
+    set((state) => {
+      const newArr = [...state.storicoCarburante];
+      newArr.splice(index, 1);
+      return { storicoCarburante: newArr };
+    });
     get().saveToStorage();
   },
   

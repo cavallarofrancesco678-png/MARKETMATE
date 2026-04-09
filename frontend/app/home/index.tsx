@@ -73,7 +73,7 @@ export default function HomeScreen() {
   const [showBellModal, setShowBellModal] = useState(false);
   const [showInvendutoModal, setShowInvendutoModal] = useState(false);
   const [invendutoQty, setInvendutoQty] = useState<Record<string, string>>({});
-  const [chartMode, setChartMode] = useState<'mese' | 'anno' | 'confronto'>('anno');
+  const [chartMode, setChartMode] = useState<'mese' | 'anno' | 'annoprec'>('anno');
   const [fieraLuogo, setFieraLuogo] = useState('');
   const [fieraKm, setFieraKm] = useState('');
   const [fieraPlat, setFieraPlat] = useState('');
@@ -273,11 +273,10 @@ export default function HomeScreen() {
     const meseTot = calcTot(meseData);
     const annoTot = calcTot(annoData);
     const annoPrecTot = calcTot(annoPrecData);
-    const pct = annoPrecTot > 0 ? Math.round(((annoTot - annoPrecTot) / annoPrecTot) * 100) : 0;
 
-    if (chartMode === 'mese') return { totale: meseTot, media: calcMedia(meseData), giorni: meseData.length, pct: 0, label: 'questo mese' };
-    if (chartMode === 'confronto') return { totale: annoTot, media: calcMedia(annoData), giorni: annoData.length, pct, label: 'vs anno prec.' };
-    return { totale: annoTot, media: calcMedia(annoData), giorni: annoData.length, pct: 0, label: '12 mesi' };
+    if (chartMode === 'mese') return { totale: meseTot, media: calcMedia(meseData), giorni: meseData.length, label: 'questo mese' };
+    if (chartMode === 'annoprec') return { totale: annoPrecTot, media: calcMedia(annoPrecData), giorni: annoPrecData.length, label: 'anno prec.' };
+    return { totale: annoTot, media: calcMedia(annoData), giorni: annoData.length, label: 'quest\'anno' };
   }, [store.storicoGiornate, mercatoNome, chartMode, dataCorrente]);
 
   const collabNames = collaboratori.length > 0 ? collaboratori.map((c) => c.nome) : [];
@@ -355,10 +354,9 @@ export default function HomeScreen() {
     <View style={s.root}>
       {/* ═══ HEADER ═══ */}
       <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end' }]}>
-        <Text style={s.marketName}>{mercatoNome.toUpperCase()}</Text>
         <View style={s.badgeLeft}>
           <View style={s.badge}>
-            <Text style={s.badgeTxt}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
+            <Text style={s.badgeTxt} numberOfLines={1}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
           </View>
         </View>
         <View style={s.bellRight}>
@@ -373,12 +371,15 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
-          <View style={s.dateRow}>
-            <Ionicons name="calendar" size={18} color="#1E7F85" />
-            <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={{ marginTop: 28 }}>
+          <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase()}</Text>
+          <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
+            <View style={s.dateRow}>
+              <Ionicons name="calendar" size={18} color="#1E7F85" />
+              <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={{ height: GAP }} />
@@ -500,25 +501,91 @@ export default function HomeScreen() {
 
       <View style={{ height: GAP }} />
 
-      {/* ═══ STORICO MERCATO (dati reali) ═══ */}
+      {/* ═══ STORICO MERCATO (dati reali con grafico) ═══ */}
       <View style={[s.section, { height: STORICO_H }]}>
         <TouchableOpacity activeOpacity={0.85} style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4) }]}>
-          <View style={s.storicoL}><MiniLine /></View>
+          <View style={s.storicoL}>
+            {/* Grafico a barre per mesi */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 36, gap: 2 }}>
+              {(() => {
+                const gg = store.storicoGiornate || [];
+                const mNome = mercatoNome.toLowerCase();
+                const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome);
+                
+                let monthlyData: number[];
+                if (chartMode === 'annoprec') {
+                  monthlyData = Array(12).fill(0);
+                  filtered.filter((g) => new Date(g.data).getFullYear() === new Date().getFullYear() - 1)
+                    .forEach((g) => { monthlyData[new Date(g.data).getMonth()] += g.lordo || 0; });
+                } else if (chartMode === 'mese') {
+                  // Ultime 4 settimane
+                  monthlyData = Array(4).fill(0);
+                  filtered.filter((g) => {
+                    const d = new Date(g.data);
+                    return d.getMonth() === dataCorrente.getMonth() && d.getFullYear() === dataCorrente.getFullYear();
+                  }).forEach((g) => {
+                    const week = Math.min(Math.floor((new Date(g.data).getDate() - 1) / 7), 3);
+                    monthlyData[week] += g.lordo || 0;
+                  });
+                } else {
+                  monthlyData = Array(12).fill(0);
+                  filtered.filter((g) => new Date(g.data).getFullYear() === new Date().getFullYear())
+                    .forEach((g) => { monthlyData[new Date(g.data).getMonth()] += g.lordo || 0; });
+                }
+                
+                const maxVal = Math.max(...monthlyData, 1);
+                const barColors = ['#5CC0B8', '#E8A060', '#3A8AB0', '#5CC0B8', '#E8A060', '#3A8AB0', '#5CC0B8', '#E8A060', '#3A8AB0', '#5CC0B8', '#E8A060', '#3A8AB0'];
+                
+                return monthlyData.map((val, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      width: chartMode === 'mese' ? 12 : 5,
+                      height: Math.max(4, (val / maxVal) * 32),
+                      backgroundColor: barColors[i % barColors.length],
+                      borderRadius: 2,
+                    }}
+                  />
+                ));
+              })()}
+            </View>
+          </View>
           <View style={s.storicoC}>
             <Text style={s.storicoT}>{t('stats.income').toUpperCase()}</Text>
             <Text style={s.storicoDay}>del {giorno} · {storicoMercato.giorni} gg</Text>
-            <Text style={s.storicoVal}>{'\u20AC'}{storicoMercato.totale.toFixed(0)} {storicoMercato.pct !== 0 && <Text style={{ color: storicoMercato.pct >= 0 ? '#2AA090' : '#D44', fontSize: 10 }}>({storicoMercato.pct > 0 ? '+' : ''}{storicoMercato.pct}%)</Text>}</Text>
+            <Text style={s.storicoVal}>{'\u20AC'}{storicoMercato.totale.toFixed(0)}</Text>
             <Text style={s.storicoSub}>{t('stats.average')}: {'\u20AC'}{storicoMercato.media.toFixed(0)}/gg</Text>
           </View>
-          <View style={s.storicoR}><MiniBar /></View>
+          <View style={s.storicoR}>
+            {/* Mini grafico a linee */}
+            <Svg width="55" height="36" viewBox="0 0 60 40">
+              {(() => {
+                const gg = store.storicoGiornate || [];
+                const mNome = mercatoNome.toLowerCase();
+                const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome)
+                  .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
+                  .slice(-6);
+                
+                if (filtered.length < 2) return null;
+                
+                const maxVal = Math.max(...filtered.map(g => g.lordo || 0), 1);
+                const points = filtered.map((g, i) => {
+                  const x = 5 + (i * 50) / (filtered.length - 1);
+                  const y = 35 - ((g.lordo || 0) / maxVal) * 30;
+                  return `${x},${y}`;
+                }).join(' ');
+                
+                return <Path d={`M${points}`} stroke="#3A8AB0" strokeWidth="2.5" fill="none" />;
+              })()}
+            </Svg>
+          </View>
         </TouchableOpacity>
         <View style={s.filterRow}>
-          {([['mese', t('stats.month')], ['anno', t('stats.year'), '(12)'], ['confronto', t('stats.average'), '']] as [string, string, string?][]).map(([k, l, sub]) => {
+          {([['mese', 'MESE'], ['anno', 'ANNO'], ['annoprec', 'ANNO PREC.']] as [string, string][]).map(([k, l]) => {
             const on = chartMode === k;
             return (
               <TouchableOpacity key={k} style={[s.filterBtn, on && s.filterOn]} onPress={() => setChartMode(k as any)}>
                 <Text style={[s.filterTxt, on && { color: '#FFF' }]}>{l}</Text>
-                {sub && <Text style={[s.filterSub, on && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>}
               </TouchableOpacity>
             );
           })}
@@ -1039,7 +1106,7 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.5), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  filterTxt: { fontSize: 9, fontWeight: '800', color: '#4A3A2A', textAlign: 'center' },
+  filterTxt: { fontSize: 11, fontWeight: '900', color: '#4A3A2A', textAlign: 'center', letterSpacing: 0.5 },
   filterSub: { fontSize: 6, fontWeight: '600', color: '#7A6A5A', textAlign: 'center' },
 
   /* Salva */

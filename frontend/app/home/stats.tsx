@@ -723,41 +723,6 @@ export default function StatsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ═══ CLIENTI SERVITI ═══ */}
-        {(() => {
-          const clientiData = storicoGiornate
-            .filter((g) => g.mercato && (g.lordo || 0) > 0)
-            .map((g) => {
-              const mkt = store.agenda.find((a) => a.mercato === g.mercato);
-              const avgR = mkt?.mediaScontrino || 0;
-              return { ...g, persone: avgR > 0 ? Math.round((g.lordo || 0) / avgR) : 0 };
-            })
-            .filter((g) => g.persone > 0)
-            .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
-            .slice(0, 7);
-          
-          if (clientiData.length === 0) return null;
-          
-          return (
-            <View style={[st.card, { marginBottom: GAP }]}>
-              <Text style={st.sectionLabel}>{t('stats.customersServed')}</Text>
-              {clientiData.map((g, i) => {
-                const d = new Date(g.data);
-                return (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: i < clientiData.length - 1 ? 0.5 : 0, borderColor: '#D5DDD8' }}>
-                    <Ionicons name="people" size={16} color="#1E7F85" />
-                    <Text style={{ flex: 1, marginLeft: 8, fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
-                      {g.mercato} - {d.getDate()}/{d.getMonth() + 1}
-                    </Text>
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#E8A060' }}>{g.persone}</Text>
-                    <Text style={{ fontSize: 9, color: '#7A9090', marginLeft: 4 }}>{t('stats.peopleServed')}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          );
-        })()}
-
         <View style={{ height: 20 }} />
       </ScrollView>
 
