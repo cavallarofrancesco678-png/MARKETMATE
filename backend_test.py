@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 # Backend URL from environment
-BACKEND_URL = "https://fato-status-1.preview.emergentagent.com"
+BACKEND_URL = "https://mm-login-help.preview.emergentagent.com"
 FUEL_TIMEOUT = 30  # 30 seconds timeout for fuel API calls
 
 def test_health_check():
