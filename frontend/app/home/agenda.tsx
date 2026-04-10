@@ -5,133 +5,73 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
   Platform,
+  Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Appunto } from '../../src/store/appStore';
 import { CalendarModal } from '../../src/components/CalendarModal';
 import { useTranslation } from 'react-i18next';
 import { getMonthNames, getShortDayNames } from '../../src/i18n';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
-const isToday = (d: Date) => isSameDay(d, new Date());
-const isTomorrow = (d: Date) => { const t = new Date(); t.setDate(t.getDate() + 1); return isSameDay(d, t); };
 
 export default function AgendaScreen() {
-  const { agenda, appuntiAgenda, addAppunto, removeAppunto, storicoDiario, addDiario, removeDiario, getDiarioForDate } = useAppStore();
+  const { agenda, appuntiAgenda, addAppunto, removeAppunto, storicoDiario, addDiario, getDiarioForDate } = useAppStore();
   const { t } = useTranslation();
   const monthNames = getMonthNames();
   const shortDayNames = getShortDayNames();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [diarioText, setDiarioText] = useState('');
-  const [appuntoText, setAppuntoText] = useState('');
-  const [appuntoDate, setAppuntoDate] = useState(new Date());
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newAppuntoText, setNewAppuntoText] = useState('');
+  const [newAppuntoDate, setNewAppuntoDate] = useState(new Date());
   const [showAppuntoCalendar, setShowAppuntoCalendar] = useState(false);
+  const [editingAppunto, setEditingAppunto] = useState<Appunto | null>(null);
 
-  // Load existing diary entry when date changes
+  // Altezza disponibile
+  const contentH = height - insets.bottom - 70;
+
+  // Load diary on date change
   React.useEffect(() => {
     const existing = getDiarioForDate(selectedDate);
     setDiarioText(existing ? existing.testo : '');
   }, [selectedDate]);
 
-  /* ── Translated date formatter ── */
   const formattaData = (d: Date) => {
-    const dayIdx = (d.getDay() + 6) % 7; // 0=Mon ... 6=Sun
+    const dayIdx = (d.getDay() + 6) % 7;
     return `${shortDayNames[dayIdx]} ${d.getDate()} ${monthNames[d.getMonth()]}`;
   };
 
-  /* ── Short month for badge ── */
-  const shortMonth = (d: Date) => monthNames[d.getMonth()].substring(0, 3).toUpperCase();
-
-  /* ── Navigate date ── */
-  const cambiaData = (dir: number) => {
-    const nd = new Date(selectedDate);
-    nd.setDate(nd.getDate() + dir);
-    setSelectedDate(nd);
+  const handleSalvaDiario = () => {
+    if (diarioText.trim()) {
+      addDiario({ data: selectedDate, testo: diarioText.trim() });
+    }
   };
 
-  /* ── Market for selected day ── */
-  const dayIdx = selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1;
-  const mercatoGiorno = dayIdx < agenda.length && agenda[dayIdx].lavorativo && agenda[dayIdx].mercato
-    ? agenda[dayIdx].mercato
-    : t('agenda.noMarketPlanned');
-
-  /* ── Appunti for date ── */
-  const appuntiOggi = appuntiAgenda.filter((a) => isSameDay(new Date(a.data), selectedDate));
-
-  /* ── Upcoming ── */
-  const prossimi = appuntiAgenda
-    .filter((a) => new Date(a.data) >= new Date(new Date().setHours(0, 0, 0, 0)))
-    .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
-    .slice(0, 10);
-
-  /* ── Save diary entry ── */
-  const handleSalvaDiario = () => {
-    if (!diarioText.trim()) {
-      if (Platform.OS === 'web') window.alert(t('agenda.enterText'));
+  const handleSalvaAppunto = () => {
+    if (!newAppuntoText.trim()) {
+      if (Platform.OS === 'web') window.alert(t('agenda.enterText') || 'Inserisci il testo');
       else Alert.alert(t('common.error'), t('agenda.enterText'));
       return;
     }
-    addDiario({ data: selectedDate, testo: diarioText.trim() });
-    if (Platform.OS === 'web') window.alert(t('common.saved'));
-    else Alert.alert(t('common.saved'), t('agenda.diarySaved'));
+    addAppunto({ data: newAppuntoDate, testo: newAppuntoText.trim() });
+    setNewAppuntoText('');
+    setShowAddModal(false);
+    if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Appuntamento salvato');
+    else Alert.alert(t('common.saved'), t('agenda.noteSaved'));
   };
 
-  /* ── Delete diary entry ── */
-  const handleEliminaDiario = (data: Date) => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('agenda.deleteDiary'))) {
-        removeDiario(data);
-        // Clear text if deleting current date
-        if (new Date(data).toDateString() === selectedDate.toDateString()) {
-          setDiarioText('');
-        }
-      }
-    } else {
-      Alert.alert(t('common.delete'), t('agenda.deleteDiary'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('common.delete'), style: 'destructive', onPress: () => {
-          removeDiario(data);
-          if (new Date(data).toDateString() === selectedDate.toDateString()) {
-            setDiarioText('');
-          }
-        }},
-      ]);
-    }
-  };
-
-  /* ── Recent diary entries (latest 10) ── */
-  const recentDiario = [...storicoDiario]
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
-    .slice(0, 10);
-
-  /* ── Save appunto (works on web and native) ── */
-  const handleSalvaAppunto = () => {
-    if (!appuntoText.trim()) {
-      if (Platform.OS === 'web') {
-        window.alert(t('agenda.enterText'));
-      } else {
-        Alert.alert(t('common.error'), t('agenda.enterText'));
-      }
-      return;
-    }
-    addAppunto({ data: appuntoDate, testo: appuntoText.trim() });
-    setAppuntoText('');
-    if (Platform.OS === 'web') {
-      window.alert(t('agenda.noteSaved'));
-    } else {
-      Alert.alert(t('common.saved'), t('agenda.noteSaved'));
-    }
-  };
-
-  /* ── Delete appunto (works on web and native) ── */
   const handleElimina = (a: Appunto) => {
     if (Platform.OS === 'web') {
-      if (window.confirm(t('agenda.deleteNote'))) {
+      if (window.confirm(t('agenda.deleteNote') || 'Eliminare questo appuntamento?')) {
         removeAppunto(a.data, a.testo);
       }
     } else {
@@ -142,288 +82,459 @@ export default function AgendaScreen() {
     }
   };
 
+  // Appunti per data selezionata
+  const appuntiOggi = appuntiAgenda.filter((a) => isSameDay(new Date(a.data), selectedDate));
+
+  // Calendario mini - genera griglia
+  const renderMiniCalendar = () => {
+    const now = new Date();
+    const displayMonth = selectedDate;
+    const firstDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1);
+    const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0);
+    const startOffset = (firstDay.getDay() + 6) % 7;
+    
+    const days: (number | null)[] = [];
+    for (let i = 0; i < startOffset; i++) days.push(null);
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
+    while (days.length % 7 !== 0) days.push(null);
+    
+    const rows: (number | null)[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      rows.push(days.slice(i, i + 7));
+    }
+
+    // Trova appuntamenti del mese
+    const appuntiMese: { [day: number]: number } = {};
+    appuntiAgenda.forEach(a => {
+      const d = new Date(a.data);
+      if (d.getMonth() === displayMonth.getMonth() && d.getFullYear() === displayMonth.getFullYear()) {
+        appuntiMese[d.getDate()] = (appuntiMese[d.getDate()] || 0) + 1;
+      }
+    });
+
+    return (
+      <View style={s.miniCal}>
+        {/* Header mese */}
+        <View style={s.calMonthHeader}>
+          <TouchableOpacity onPress={() => {
+            const prev = new Date(displayMonth);
+            prev.setMonth(prev.getMonth() - 1);
+            setSelectedDate(prev);
+          }}>
+            <Ionicons name="chevron-back" size={20} color="#1E7F85" />
+          </TouchableOpacity>
+          <Text style={s.calMonthTxt}>{monthNames[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
+          <TouchableOpacity onPress={() => {
+            const next = new Date(displayMonth);
+            next.setMonth(next.getMonth() + 1);
+            setSelectedDate(next);
+          }}>
+            <Ionicons name="chevron-forward" size={20} color="#1E7F85" />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Header giorni */}
+        <View style={s.calRow}>
+          {['L', 'M', 'M', 'G', 'V', 'S', 'D'].map((d, i) => (
+            <Text key={i} style={s.calDayHeader}>{d}</Text>
+          ))}
+        </View>
+        
+        {/* Griglia */}
+        {rows.map((row, ri) => (
+          <View key={ri} style={s.calRow}>
+            {row.map((day, di) => {
+              const isSelected = day === selectedDate.getDate() && displayMonth.getMonth() === selectedDate.getMonth();
+              const isToday = day === now.getDate() && displayMonth.getMonth() === now.getMonth() && displayMonth.getFullYear() === now.getFullYear();
+              const hasAppunti = day && appuntiMese[day];
+              
+              return (
+                <TouchableOpacity
+                  key={di}
+                  style={[s.calDay, isSelected && s.calDaySelected, isToday && !isSelected && s.calDayToday]}
+                  disabled={!day}
+                  onPress={() => {
+                    if (day) {
+                      const newDate = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), day);
+                      setSelectedDate(newDate);
+                      // Se ci sono appunti, mostra popup
+                      if (hasAppunti) {
+                        const appuntiDay = appuntiAgenda.filter(a => {
+                          const d = new Date(a.data);
+                          return d.getDate() === day && d.getMonth() === displayMonth.getMonth();
+                        });
+                        if (appuntiDay.length > 0) {
+                          setEditingAppunto(appuntiDay[0]);
+                        }
+                      }
+                    }
+                  }}
+                >
+                  <Text style={[s.calDayTxt, isSelected && { color: '#FFF' }, isToday && !isSelected && { color: '#1E7F85', fontWeight: '900' }]}>
+                    {day || ''}
+                  </Text>
+                  {hasAppunti && <View style={[s.calDot, isSelected && { backgroundColor: '#FFF' }]} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   return (
-    <View style={s.root}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={s.pageTitle}>{t('agenda.title')}</Text>
+    <View style={[s.root, { height: contentH }]}>
+      {/* ═══ SEZIONE 1: NOTE RAPIDE DEL GIORNO ═══ */}
+      <View style={s.notesSection}>
+        <View style={s.notesHeader}>
+          <Ionicons name="document-text" size={18} color="#1E7F85" />
+          <Text style={s.sectionTitle}>{t('agenda.dayNotes') || 'NOTE DEL GIORNO'}</Text>
+          <Text style={s.dateLabel}>{formattaData(selectedDate).toUpperCase()}</Text>
+        </View>
+        <TextInput
+          style={s.notesInput}
+          placeholder={t('agenda.dayNotesPlaceholder') || 'Scrivi le note della giornata...'}
+          placeholderTextColor="#A0B5A8"
+          value={diarioText}
+          onChangeText={setDiarioText}
+          onBlur={handleSalvaDiario}
+          multiline
+          numberOfLines={2}
+        />
+      </View>
 
-        {/* Date navigator */}
-        <View style={s.card}>
-          <View style={s.dateNav}>
-            <TouchableOpacity onPress={() => cambiaData(-1)}>
-              <Ionicons name="chevron-back" size={22} color="#1E7F85" />
+      {/* ═══ SEZIONE 2: AGGIUNGI ORDINE/APPUNTAMENTO ═══ */}
+      <TouchableOpacity style={s.addBtn} onPress={() => {
+        setNewAppuntoDate(selectedDate);
+        setShowAddModal(true);
+      }} activeOpacity={0.8}>
+        <Ionicons name="add-circle" size={24} color="#FFF" />
+        <Text style={s.addBtnTxt}>{t('agenda.addNote') || 'AGGIUNGI ORDINE / APPUNTAMENTO'}</Text>
+      </TouchableOpacity>
+
+      {/* Lista appunti del giorno selezionato */}
+      {appuntiOggi.length > 0 && (
+        <View style={s.appuntiList}>
+          {appuntiOggi.slice(0, 3).map((a, i) => (
+            <View key={i} style={s.appuntoRow}>
+              <Ionicons name="calendar" size={14} color="#E8A060" />
+              <Text style={s.appuntoTxt} numberOfLines={1}>{a.testo}</Text>
+              <TouchableOpacity onPress={() => handleElimina(a)}>
+                <Ionicons name="close-circle" size={18} color="#D46A6A" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* ═══ SEZIONE 3: CALENDARIO INTERATTIVO ═══ */}
+      <View style={s.calendarSection}>
+        {renderMiniCalendar()}
+      </View>
+
+      {/* ═══ MODAL AGGIUNGI APPUNTAMENTO ═══ */}
+      <Modal visible={showAddModal} transparent animationType="fade" onRequestClose={() => setShowAddModal(false)}>
+        <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setShowAddModal(false)}>
+          <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
+            <Text style={s.modalTitle}>{t('agenda.addNote') || 'NUOVO APPUNTAMENTO'}</Text>
+            
+            <TouchableOpacity onPress={() => setShowAppuntoCalendar(true)} style={s.dateBtn}>
+              <Ionicons name="calendar" size={18} color="#1E7F85" />
+              <Text style={s.dateTxt}>{formattaData(newAppuntoDate).toUpperCase()}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowCalendar(true)}>
-              <Text style={s.dateNavTxt}>{formattaData(selectedDate).toUpperCase()}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => cambiaData(1)}>
-              <Ionicons name="chevron-forward" size={22} color="#1E7F85" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={s.divider} />
-
-          {/* Sede mercato */}
-          <View style={s.sedeRow}>
-            <Text style={s.labelSm}>{t('agenda.location')}:</Text>
-            <Text style={s.sedeValue}>{mercatoGiorno}</Text>
-          </View>
-
-          {/* Diario giornata */}
-          <Text style={[s.sectionTitle, { marginTop: 14 }]}>{t('agenda.dayNotes')}</Text>
-          <View style={s.inset}>
+            
             <TextInput
-              style={s.diarioInput}
-              placeholder={t('agenda.dayNotesPlaceholder')}
+              style={s.modalInput}
+              placeholder="Descrizione appuntamento..."
               placeholderTextColor="#A0B5A8"
-              value={diarioText}
-              onChangeText={setDiarioText}
+              value={newAppuntoText}
+              onChangeText={setNewAppuntoText}
               multiline
               numberOfLines={3}
             />
-          </View>
-
-          {/* Appunti del giorno selezionato */}
-          {appuntiOggi.length > 0 && (
-            <View style={{ marginTop: 14 }}>
-              <Text style={s.sectionTitle}>{t('agenda.dayOrders')}</Text>
-              {appuntiOggi.map((a, i) => (
-                <View key={i} style={s.appuntoRow}>
-                  <Ionicons name="document-text" size={16} color="#1E7F85" />
-                  <Text style={s.appuntoTxt}>{a.testo}</Text>
-                  <TouchableOpacity onPress={() => handleElimina(a)}>
-                    <Ionicons name="trash-outline" size={18} color="#D46A6A" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+            
+            <View style={s.modalBtns}>
+              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#B0A898' }]} onPress={() => setShowAddModal(false)}>
+                <Text style={s.modalBtnTxt}>ANNULLA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#1E7F85' }]} onPress={handleSalvaAppunto}>
+                <Ionicons name="save-outline" size={16} color="#FFF" />
+                <Text style={s.modalBtnTxt}>SALVA</Text>
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Salva diario verrà fatto dal tasto SALVA in fondo */}
-        </View>
-
-        {/* Aggiungi appunto */}
-        <Text style={s.sectionTitleOut}>{t('agenda.addOrder')}</Text>
-        <View style={s.card}>
-          <View style={s.inset}>
-            <TextInput
-              style={s.appuntoInput}
-              placeholder={t('agenda.orderPlaceholder')}
-              placeholderTextColor="#A0B5A8"
-              value={appuntoText}
-              onChangeText={setAppuntoText}
-            />
-          </View>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-            <TouchableOpacity style={s.datePick} onPress={() => setShowAppuntoCalendar(true)}>
-              <Text style={s.datePickTxt}>{t('agenda.forDate')}: {formattaData(appuntoDate)}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Prossimi impegni */}
-        <Text style={s.sectionTitleOut}>{t('agenda.upcoming')}</Text>
-        {prossimi.length === 0 ? (
-          <View style={s.card}>
-            <Text style={[s.labelSm, { textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' }]}>
-              {t('agenda.noAppointments')}
-            </Text>
-          </View>
-        ) : (
-          prossimi.map((a, i) => {
-            const d = new Date(a.data);
-            const label = isToday(d) ? t('common.today') : isTomorrow(d) ? t('common.tomorrow') : null;
-
-            return (
-              <View key={i} style={s.upcomingCard}>
-                <View style={[s.dateBadge, { backgroundColor: '#D46A6A' }]}>
-                  <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
-                  <Text style={s.dateBadgeMonth}>{shortMonth(d)}</Text>
-                </View>
-                {label && (
-                  <View style={[s.labelBadge, { backgroundColor: '#1E7F85' }]}>
-                    <Text style={s.labelBadgeTxt}>{label}</Text>
-                  </View>
-                )}
-                <Text style={s.upcomingTxt}>{a.testo}</Text>
-                <TouchableOpacity onPress={() => handleElimina(a)}>
-                  <Ionicons name="trash-outline" size={20} color="#D46A6A" />
-                </TouchableOpacity>
-              </View>
-            );
-          })
-        )}
-
-        {/* Tutte le annotazioni salvate (colore freddo - teal) */}
-        <Text style={s.sectionTitleOut}>{t('agenda.allNotes')}</Text>
-        {appuntiAgenda.length === 0 ? (
-          <View style={s.card}>
-            <Text style={[s.labelSm, { textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' }]}>
-              {t('agenda.noNotes')}
-            </Text>
-          </View>
-        ) : (
-          [...appuntiAgenda]
-            .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
-            .map((a, i) => {
-              const d = new Date(a.data);
-              const isPast = d < new Date(new Date().setHours(0, 0, 0, 0));
-              return (
-                <View key={i} style={[s.upcomingCard, { borderLeftWidth: 4, borderLeftColor: '#1E7F85' }]}>
-                  <View style={[s.dateBadge, { backgroundColor: isPast ? '#999' : isToday(d) ? '#1E7F85' : isTomorrow(d) ? '#E8A060' : '#D46A6A' }]}>
-                    <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
-                    <Text style={s.dateBadgeMonth}>{shortMonth(d)}</Text>
-                  </View>
-                  {isToday(d) && (
-                    <View style={[s.labelBadge, { backgroundColor: '#1E7F85' }]}>
-                      <Text style={s.labelBadgeTxt}>{t('common.today')}</Text>
-                    </View>
-                  )}
-                  {isTomorrow(d) && (
-                    <View style={[s.labelBadge, { backgroundColor: '#E8A060' }]}>
-                      <Text style={s.labelBadgeTxt}>{t('common.tomorrow')}</Text>
-                    </View>
-                  )}
-                  <Text style={[s.upcomingTxt, isPast && { color: '#999', textDecorationLine: 'line-through' }]}>{a.testo}</Text>
-                  <TouchableOpacity onPress={() => handleElimina(a)}>
-                    <Ionicons name="trash-outline" size={20} color="#D46A6A" />
-                  </TouchableOpacity>
-                </View>
-              );
-            })
-        )}
-
-        {/* Storico Diario (colore caldo - ambra/oro) */}
-        <Text style={s.sectionTitleOut}>{t('agenda.diaryHistory')}</Text>
-        {recentDiario.length === 0 ? (
-          <View style={s.card}>
-            <Text style={[s.labelSm, { textAlign: 'center', paddingVertical: 16, fontStyle: 'italic' }]}>
-              {t('agenda.noDiary')}
-            </Text>
-          </View>
-        ) : (
-          recentDiario.map((d, i) => {
-            const dt = new Date(d.data);
-            return (
-              <View key={i} style={[s.card, { marginBottom: 10, padding: 14, borderLeftWidth: 4, borderLeftColor: '#E8A060' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Ionicons name="book-outline" size={16} color="#E8A060" />
-                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 12, fontWeight: '800', color: '#8B6914' }}>
-                    {formattaData(dt).toUpperCase()}
-                  </Text>
-                  <TouchableOpacity onPress={() => handleEliminaDiario(d.data)}>
-                    <Ionicons name="trash-outline" size={18} color="#D46A6A" />
-                  </TouchableOpacity>
-                </View>
-                <Text style={{ fontSize: 13, color: '#1A4040', lineHeight: 18 }}>{d.testo}</Text>
-              </View>
-            );
-          })
-        )}
-
-        <View style={{ height: 10 }} />
-
-        {/* ═══ UNICO TASTO SALVA IN FONDO ═══ */}
-        <TouchableOpacity style={[s.saveBtn, { paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', gap: 8, borderRadius: 14, alignItems: 'center' }]} onPress={() => {
-          let saved = false;
-          if (diarioText.trim()) {
-            addDiario({ data: selectedDate, testo: diarioText.trim() });
-            saved = true;
-          }
-          if (appuntoText.trim()) {
-            addAppunto({ data: appuntoDate, testo: appuntoText.trim() });
-            setAppuntoText('');
-            saved = true;
-          }
-          if (saved) {
-            if (Platform.OS === 'web') window.alert(t('common.saved'));
-            else Alert.alert(t('common.saved'));
-          }
-        }}>
-          <Ionicons name="save-outline" size={18} color="#FFF" />
-          <Text style={[s.saveTxt, { fontSize: 14 }]}>{t('common.save').toUpperCase()}</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
+      </Modal>
 
-        <View style={{ height: 30 }} />
-      </ScrollView>
+      {/* ═══ MODAL MODIFICA/ELIMINA APPUNTAMENTO ═══ */}
+      <Modal visible={!!editingAppunto} transparent animationType="fade" onRequestClose={() => setEditingAppunto(null)}>
+        <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setEditingAppunto(null)}>
+          <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
+            <Text style={s.modalTitle}>GESTISCI APPUNTAMENTO</Text>
+            
+            {editingAppunto && (
+              <>
+                <View style={s.editAppuntoBox}>
+                  <Ionicons name="calendar" size={20} color="#1E7F85" />
+                  <Text style={s.editAppuntoTxt}>{editingAppunto.testo}</Text>
+                </View>
+                
+                <View style={s.modalBtns}>
+                  <TouchableOpacity 
+                    style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} 
+                    onPress={() => {
+                      handleElimina(editingAppunto);
+                      setEditingAppunto(null);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#FFF" />
+                    <Text style={s.modalBtnTxt}>ELIMINA</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#1E7F85' }]} onPress={() => setEditingAppunto(null)}>
+                    <Text style={s.modalBtnTxt}>CHIUDI</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
+      {/* Calendar Modals */}
       <CalendarModal
         visible={showCalendar}
         onClose={() => setShowCalendar(false)}
         onSelect={(date) => { setSelectedDate(date); setShowCalendar(false); }}
         initialDate={selectedDate}
-        themeColor="#1E7F85"
-        title={t('agenda.goToDate')}
       />
-
       <CalendarModal
         visible={showAppuntoCalendar}
         onClose={() => setShowAppuntoCalendar(false)}
-        onSelect={(date) => { setAppuntoDate(date); setShowAppuntoCalendar(false); }}
-        initialDate={appuntoDate}
-        themeColor="#1E7F85"
-        title={t('agenda.appointmentDate')}
+        onSelect={(date) => { setNewAppuntoDate(date); setShowAppuntoCalendar(false); }}
+        initialDate={newAppuntoDate}
       />
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#D8EDE5' },
-  scroll: { padding: 20, paddingTop: 50, paddingBottom: 40 },
-  pageTitle: { fontSize: 24, fontWeight: '900', color: '#1A4040', textAlign: 'center', letterSpacing: 1.5, marginBottom: 20 },
-
-  card: {
-    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 16, marginBottom: 14,
+  root: {
+    flex: 1,
+    backgroundColor: '#F5F0E6',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  // Sezione 1: Note rapide
+  notesSection: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 12,
     // @ts-ignore
-    boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
+    boxShadow: '2px 2px 8px rgba(0,0,0,0.08)',
   },
-
-  sectionTitle: { fontSize: 10, fontWeight: '800', color: '#5A7575', letterSpacing: 1.5, marginBottom: 8 },
-  sectionTitleOut: { fontSize: 10, fontWeight: '800', color: '#5A7575', letterSpacing: 1.5, marginBottom: 12 },
-  labelSm: { fontSize: 11, fontWeight: '600', color: '#5A7575' },
-
-  dateNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dateNavTxt: { fontSize: 13, fontWeight: '900', color: '#1A3535', textAlign: 'center' },
-
-  divider: { height: 1, backgroundColor: '#C5DDD4', marginVertical: 12 },
-
-  sedeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sedeValue: { fontSize: 14, fontWeight: '800', color: '#1E7F85' },
-
-  inset: {
-    backgroundColor: '#D8EDE5', borderRadius: 12, padding: 12,
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1A4040',
+    letterSpacing: 0.5,
+  },
+  dateLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#E8A060',
+  },
+  notesInput: {
+    backgroundColor: '#F5F0E6',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 13,
+    color: '#1A4040',
+    minHeight: 50,
+    textAlignVertical: 'top',
+  },
+  // Sezione 2: Aggiungi
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8A060',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 10,
+    marginTop: 10,
+  },
+  addBtnTxt: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  appuntiList: {
+    marginTop: 8,
+    gap: 6,
+  },
+  appuntoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+  },
+  appuntoTxt: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1A4040',
+    fontWeight: '600',
+  },
+  // Sezione 3: Calendario
+  calendarSection: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 10,
     // @ts-ignore
-    boxShadow: 'inset 2px 2px 6px rgba(130,150,140,0.3), inset -2px -2px 5px rgba(255,255,250,0.5)',
+    boxShadow: '2px 2px 8px rgba(0,0,0,0.08)',
   },
-  diarioInput: { fontSize: 14, color: '#1A3535', minHeight: 60, textAlignVertical: 'top', padding: 0 },
-  appuntoInput: { fontSize: 14, color: '#1A3535', padding: 0 },
-
-  appuntoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  appuntoTxt: { flex: 1, fontSize: 14, color: '#1A3535' },
-
-  datePick: {
-    flex: 1, borderWidth: 1.5, borderColor: '#1E7F85', borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+  miniCal: {},
+  calMonthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  datePickTxt: { fontSize: 11, fontWeight: '700', color: '#1E7F85' },
-
-  saveBtn: {
-    backgroundColor: '#1E7F85', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, justifyContent: 'center',
-    // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(15,55,60,0.5), -3px -3px 8px rgba(45,120,125,0.35)',
+  calMonthTxt: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A4040',
+    letterSpacing: 1,
   },
-  saveTxt: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-
-  upcomingCard: {
-    backgroundColor: '#EDE8DA', borderRadius: 12, padding: 14, marginBottom: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(160,150,130,0.4), -3px -3px 8px rgba(255,255,250,0.9)',
+  calRow: {
+    flexDirection: 'row',
   },
-  dateBadge: { borderRadius: 8, padding: 6, alignItems: 'center', minWidth: 40 },
-  dateBadgeDay: { fontSize: 16, fontWeight: '900', color: '#FFF' },
-  dateBadgeMonth: { fontSize: 9, fontWeight: '700', color: '#FFF' },
-  labelBadge: { borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3 },
-  labelBadgeTxt: { fontSize: 9, fontWeight: '800', color: '#FFF' },
-  upcomingTxt: { flex: 1, fontSize: 14, color: '#1A3535' },
+  calDayHeader: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#7A9090',
+    paddingVertical: 4,
+  },
+  calDay: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  calDaySelected: {
+    backgroundColor: '#1E7F85',
+  },
+  calDayToday: {
+    backgroundColor: '#E8F5F5',
+  },
+  calDayTxt: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1A4040',
+  },
+  calDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#E8A060',
+    marginTop: 2,
+  },
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 340,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#1A4040',
+    textAlign: 'center',
+    marginBottom: 16,
+    letterSpacing: 1,
+  },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#E8F5F5',
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  dateTxt: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E7F85',
+  },
+  modalInput: {
+    backgroundColor: '#F5F0E6',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    color: '#1A4040',
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  modalBtnTxt: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  editAppuntoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F5F0E6',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  editAppuntoTxt: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1A4040',
+    fontWeight: '600',
+  },
 });
