@@ -7,6 +7,7 @@
     "close": "CHIUDI",
     "error": "Errore",
     "saved": "Salvato",
+    "done": "Fatto",
     "yes": "Sì",
     "no": "No",
     "today": "OGGI",
@@ -157,7 +158,18 @@
     "phoneNumber": "Numero di telefono",
     "otpLogin": "Login con OTP",
     "otpDesc": "Ricevi un codice di verifica ad ogni accesso",
-    "marketsTitle": "MERCATI"
+    "marketsTitle": "MERCATI",
+    "dangerZone": "ZONA PERICOLOSA",
+    "resetWarning": "Queste azioni sono irreversibili",
+    "resetValues": "RESET VALORI",
+    "confirmResetValues": "Azzerare tutti i dati numerici (incassi, spese, carburante)?",
+    "valuesReset": "Valori numerici azzerati",
+    "resetValuesDesc": "Azzera solo incassi, spese e carburante. Mantiene mercati, fornitori e impostazioni.",
+    "fullReset": "RESET TOTALE",
+    "confirmFullReset": "ATTENZIONE! Eliminare TUTTO (mercati, fornitori, collaboratori, impostazioni) e ripristinare lo stato di fabbrica?",
+    "fullResetDone": "App ripristinata allo stato di fabbrica",
+    "fullResetDesc": "Elimina TUTTO: mercati, fornitori, collaboratori, impostazioni. Ripristina lo stato di fabbrica.",
+    "reset": "Reset"
   },
   "stats": {
     "title": "STATISTICHE",

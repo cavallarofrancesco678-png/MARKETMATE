@@ -774,6 +774,80 @@ export default function SettingsPage() {
         <Text style={s.saveAllTxt}>{t('settings.saveSettings')}</Text>
       </TouchableOpacity>
 
+      {/* ─── RESET ─── */}
+      <Text style={[s.secTitle, { marginTop: 24, color: '#D46A6A' }]}>{t('settings.dangerZone') || 'ZONA PERICOLOSA'}</Text>
+      <View style={[s.card, { borderWidth: 2, borderColor: '#D46A6A' }]}>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12, textAlign: 'center' }}>
+          {t('settings.resetWarning') || 'Queste azioni sono irreversibili'}
+        </Text>
+        
+        <TouchableOpacity
+          style={[s.resetBtn, { backgroundColor: '#E8A060' }]}
+          onPress={() => {
+            const doReset = () => {
+              // Reset only numeric values (incassi, spese)
+              store.setConfig({
+                storicoGiornate: [],
+                storicoCarburante: [],
+                storicoDiario: [],
+                storicoScontrini: [],
+              });
+              if (Platform.OS === 'web') window.alert(t('settings.valuesReset') || 'Valori numerici azzerati');
+              else Alert.alert(t('common.done') || 'Fatto', t('settings.valuesReset') || 'Valori numerici azzerati');
+            };
+            if (Platform.OS === 'web') {
+              if (window.confirm(t('settings.confirmResetValues') || 'Azzerare tutti i dati numerici (incassi, spese, carburante)?')) doReset();
+            } else {
+              Alert.alert(
+                t('settings.resetValues') || 'Reset Valori',
+                t('settings.confirmResetValues') || 'Azzerare tutti i dati numerici (incassi, spese, carburante)?',
+                [
+                  { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+                  { text: t('settings.reset') || 'Reset', style: 'destructive', onPress: doReset },
+                ]
+              );
+            }
+          }}
+        >
+          <Ionicons name="refresh" size={18} color="#FFF" />
+          <Text style={s.resetBtnTxt}>{t('settings.resetValues') || 'RESET VALORI'}</Text>
+        </TouchableOpacity>
+        
+        <Text style={{ fontSize: 10, color: '#7A9090', marginVertical: 8, textAlign: 'center' }}>
+          {t('settings.resetValuesDesc') || 'Azzera solo incassi, spese e carburante. Mantiene mercati, fornitori e impostazioni.'}
+        </Text>
+        
+        <TouchableOpacity
+          style={[s.resetBtn, { backgroundColor: '#D46A6A' }]}
+          onPress={() => {
+            const doFullReset = () => {
+              store.resetAll();
+              if (Platform.OS === 'web') window.alert(t('settings.fullResetDone') || 'App ripristinata allo stato di fabbrica');
+              else Alert.alert(t('common.done') || 'Fatto', t('settings.fullResetDone') || 'App ripristinata allo stato di fabbrica');
+            };
+            if (Platform.OS === 'web') {
+              if (window.confirm(t('settings.confirmFullReset') || 'ATTENZIONE! Eliminare TUTTO e ripristinare lo stato di fabbrica?')) doFullReset();
+            } else {
+              Alert.alert(
+                t('settings.fullReset') || 'RESET TOTALE',
+                t('settings.confirmFullReset') || 'ATTENZIONE! Eliminare TUTTO (mercati, fornitori, impostazioni) e ripristinare lo stato di fabbrica?',
+                [
+                  { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+                  { text: t('settings.fullReset') || 'RESET TOTALE', style: 'destructive', onPress: doFullReset },
+                ]
+              );
+            }
+          }}
+        >
+          <Ionicons name="trash" size={18} color="#FFF" />
+          <Text style={s.resetBtnTxt}>{t('settings.fullReset') || 'RESET TOTALE'}</Text>
+        </TouchableOpacity>
+        
+        <Text style={{ fontSize: 10, color: '#D46A6A', marginTop: 8, textAlign: 'center', fontWeight: '700' }}>
+          {t('settings.fullResetDesc') || 'Elimina TUTTO: mercati, fornitori, collaboratori, impostazioni. Ripristina lo stato di fabbrica.'}
+        </Text>
+      </View>
+
       <View style={{ height: 40 }} />
 
       {/* ─── OCR Loading Overlay ─── */}
@@ -1084,6 +1158,23 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: 1.5,
+  },
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 4,
+    // @ts-ignore
+    boxShadow: '3px 3px 8px rgba(0,0,0,0.2)',
+  },
+  resetBtnTxt: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   cameraBtn: {
     flexDirection: 'row',

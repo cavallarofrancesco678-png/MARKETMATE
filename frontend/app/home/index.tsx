@@ -389,12 +389,12 @@ export default function HomeScreen() {
         <View style={s.toggleRow}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsFiera(false)}>
             <View style={[s.toggle, !isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>{t('home.market')}</Text>
+              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]} numberOfLines={1} adjustsFontSizeToFit>{t('home.market')}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]}>Fiera</Text>
+              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]} numberOfLines={1} adjustsFontSizeToFit>{t('stats.fairs') || 'FIERE'}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
@@ -895,7 +895,7 @@ export default function HomeScreen() {
                 </View>
               </>
             )}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 14, marginTop: 16 }}>
               <TouchableOpacity style={[s.modalClose, { flex: 1, backgroundColor: '#B0A898' }]} onPress={() => setShowInvendutoModal(false)}>
                 <Text style={s.modalCloseTxt}>ANNULLA</Text>
               </TouchableOpacity>
@@ -1149,7 +1149,7 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 14, fontWeight: '700', color: '#4A3A2A' },
+  toggleTxt: { fontSize: 13, fontWeight: '700', color: '#4A3A2A', paddingHorizontal: 4 },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
     borderRadius: 8,
