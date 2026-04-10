@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,308 +12,265 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Appunto } from '../../src/store/appStore';
-import { CalendarModal } from '../../src/components/CalendarModal';
 import { useTranslation } from 'react-i18next';
-import { getMonthNames, getShortDayNames } from '../../src/i18n';
+import { getMonthNames } from '../../src/i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
 export default function AgendaScreen() {
-  const { agenda, appuntiAgenda, addAppunto, removeAppunto, storicoDiario, addDiario, getDiarioForDate } = useAppStore();
+  const { appuntiAgenda, addAppunto, removeAppunto, storicoDiario, addDiario, getDiarioForDate } = useAppStore();
   const { t } = useTranslation();
-  const monthNames = getMonthNames();
-  const shortDayNames = getShortDayNames();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showCalendar, setShowCalendar] = useState(false);
   const [diarioText, setDiarioText] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [displayMonth, setDisplayMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [showDayModal, setShowDayModal] = useState(false);
   const [newAppuntoText, setNewAppuntoText] = useState('');
-  const [newAppuntoDate, setNewAppuntoDate] = useState(new Date());
-  const [showAppuntoCalendar, setShowAppuntoCalendar] = useState(false);
-  const [editingAppunto, setEditingAppunto] = useState<Appunto | null>(null);
+  const [orderText, setOrderText] = useState('');
 
-  // Altezza disponibile
   const contentH = height - insets.bottom - 70;
 
-  // Load diary on date change
+  // Load diary per oggi
   React.useEffect(() => {
-    const existing = getDiarioForDate(selectedDate);
+    const today = new Date();
+    const existing = getDiarioForDate(today);
     setDiarioText(existing ? existing.testo : '');
-  }, [selectedDate]);
+  }, []);
 
-  const formattaData = (d: Date) => {
-    const dayIdx = (d.getDay() + 6) % 7;
-    return `${shortDayNames[dayIdx]} ${d.getDate()} ${monthNames[d.getMonth()]}`;
-  };
-
-  const handleSalvaDiario = () => {
+  const handleSaveDiario = () => {
     if (diarioText.trim()) {
-      addDiario({ data: selectedDate, testo: diarioText.trim() });
+      addDiario({ data: new Date(), testo: diarioText.trim() });
     }
   };
 
-  const handleSalvaAppunto = () => {
-    if (!newAppuntoText.trim()) {
-      if (Platform.OS === 'web') window.alert(t('agenda.enterText') || 'Inserisci il testo');
-      else Alert.alert(t('common.error'), t('agenda.enterText'));
+  const handleAddOrder = () => {
+    if (!orderText.trim()) {
+      if (Platform.OS === 'web') window.alert('Inserisci un testo');
+      else Alert.alert('Errore', 'Inserisci un testo');
       return;
     }
-    addAppunto({ data: newAppuntoDate, testo: newAppuntoText.trim() });
-    setNewAppuntoText('');
-    setShowAddModal(false);
-    if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Appuntamento salvato');
-    else Alert.alert(t('common.saved'), t('agenda.noteSaved'));
+    addAppunto({ data: new Date(), testo: orderText.trim() });
+    setOrderText('');
+    if (Platform.OS === 'web') window.alert('Appuntamento salvato!');
+    else Alert.alert('Salvato', 'Appuntamento aggiunto');
   };
 
-  const handleElimina = (a: Appunto) => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('agenda.deleteNote') || 'Eliminare questo appuntamento?')) {
-        removeAppunto(a.data, a.testo);
+  /* ═══ APPUNTAMENTI DEL MESE ═══ */
+  const appuntiMese = useMemo(() => {
+    const map: { [day: number]: Appunto[] } = {};
+    appuntiAgenda.forEach(a => {
+      const d = new Date(a.data);
+      if (d.getMonth() === displayMonth.getMonth() && d.getFullYear() === displayMonth.getFullYear()) {
+        const day = d.getDate();
+        if (!map[day]) map[day] = [];
+        map[day].push(a);
+      }
+    });
+    return map;
+  }, [appuntiAgenda, displayMonth]);
+
+  const handleDayPress = (day: number) => {
+    setSelectedDay(day);
+    const apps = appuntiMese[day];
+    if (apps && apps.length > 0) {
+      setNewAppuntoText(apps[0].testo);
+    } else {
+      setNewAppuntoText('');
+    }
+    setShowDayModal(true);
+  };
+
+  const handleSaveAppunto = () => {
+    if (!selectedDay) return;
+    if (!newAppuntoText.trim()) {
+      if (Platform.OS === 'web') window.alert('Inserisci un testo');
+      else Alert.alert('Errore', 'Inserisci un testo');
+      return;
+    }
+    // Rimuovi esistente se c'è
+    const existing = appuntiMese[selectedDay];
+    if (existing && existing.length > 0) {
+      removeAppunto(new Date(existing[0].data), existing[0].testo);
+    }
+    const newDate = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), selectedDay);
+    addAppunto({ data: newDate, testo: newAppuntoText.trim() });
+    setShowDayModal(false);
+    if (Platform.OS === 'web') window.alert('Salvato!');
+    else Alert.alert('Salvato', 'Appuntamento aggiornato');
+  };
+
+  const handleDeleteAppunto = () => {
+    if (!selectedDay) return;
+    const existing = appuntiMese[selectedDay];
+    if (existing && existing.length > 0) {
+      if (Platform.OS === 'web') {
+        if (window.confirm('Eliminare questo appuntamento?')) {
+          removeAppunto(new Date(existing[0].data), existing[0].testo);
+          setShowDayModal(false);
+        }
+      } else {
+        Alert.alert('Conferma', 'Eliminare questo appuntamento?', [
+          { text: 'Annulla', style: 'cancel' },
+          { text: 'Elimina', style: 'destructive', onPress: () => {
+            removeAppunto(new Date(existing[0].data), existing[0].testo);
+            setShowDayModal(false);
+          }}
+        ]);
       }
     } else {
-      Alert.alert(t('common.delete'), t('agenda.deleteNote'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('common.delete'), style: 'destructive', onPress: () => removeAppunto(a.data, a.testo) },
-      ]);
+      setShowDayModal(false);
     }
   };
 
-  // Appunti per data selezionata
-  const appuntiOggi = appuntiAgenda.filter((a) => isSameDay(new Date(a.data), selectedDate));
-
-  // Calendario mini - genera griglia
-  const renderMiniCalendar = () => {
-    const now = new Date();
-    const displayMonth = selectedDate;
+  /* ═══ GRIGLIA CALENDARIO ═══ */
+  const calendarGrid = useMemo(() => {
     const firstDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1);
     const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0);
     const startOffset = (firstDay.getDay() + 6) % 7;
-    
     const days: (number | null)[] = [];
     for (let i = 0; i < startOffset; i++) days.push(null);
     for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
     while (days.length % 7 !== 0) days.push(null);
-    
     const rows: (number | null)[][] = [];
-    for (let i = 0; i < days.length; i += 7) {
-      rows.push(days.slice(i, i + 7));
-    }
+    for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7));
+    return rows;
+  }, [displayMonth]);
 
-    // Trova appuntamenti del mese
-    const appuntiMese: { [day: number]: number } = {};
-    appuntiAgenda.forEach(a => {
-      const d = new Date(a.data);
-      if (d.getMonth() === displayMonth.getMonth() && d.getFullYear() === displayMonth.getFullYear()) {
-        appuntiMese[d.getDate()] = (appuntiMese[d.getDate()] || 0) + 1;
-      }
-    });
-
-    return (
-      <View style={s.miniCal}>
-        {/* Header mese */}
-        <View style={s.calMonthHeader}>
-          <TouchableOpacity onPress={() => {
-            const prev = new Date(displayMonth);
-            prev.setMonth(prev.getMonth() - 1);
-            setSelectedDate(prev);
-          }}>
-            <Ionicons name="chevron-back" size={20} color="#1E7F85" />
-          </TouchableOpacity>
-          <Text style={s.calMonthTxt}>{monthNames[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
-          <TouchableOpacity onPress={() => {
-            const next = new Date(displayMonth);
-            next.setMonth(next.getMonth() + 1);
-            setSelectedDate(next);
-          }}>
-            <Ionicons name="chevron-forward" size={20} color="#1E7F85" />
-          </TouchableOpacity>
-        </View>
-        
-        {/* Header giorni */}
-        <View style={s.calRow}>
-          {['L', 'M', 'M', 'G', 'V', 'S', 'D'].map((d, i) => (
-            <Text key={i} style={s.calDayHeader}>{d}</Text>
-          ))}
-        </View>
-        
-        {/* Griglia */}
-        {rows.map((row, ri) => (
-          <View key={ri} style={s.calRow}>
-            {row.map((day, di) => {
-              const isSelected = day === selectedDate.getDate() && displayMonth.getMonth() === selectedDate.getMonth();
-              const isToday = day === now.getDate() && displayMonth.getMonth() === now.getMonth() && displayMonth.getFullYear() === now.getFullYear();
-              const hasAppunti = day && appuntiMese[day];
-              
-              return (
-                <TouchableOpacity
-                  key={di}
-                  style={[s.calDay, isSelected && s.calDaySelected, isToday && !isSelected && s.calDayToday]}
-                  disabled={!day}
-                  onPress={() => {
-                    if (day) {
-                      const newDate = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), day);
-                      setSelectedDate(newDate);
-                      // Se ci sono appunti, mostra popup
-                      if (hasAppunti) {
-                        const appuntiDay = appuntiAgenda.filter(a => {
-                          const d = new Date(a.data);
-                          return d.getDate() === day && d.getMonth() === displayMonth.getMonth();
-                        });
-                        if (appuntiDay.length > 0) {
-                          setEditingAppunto(appuntiDay[0]);
-                        }
-                      }
-                    }
-                  }}
-                >
-                  <Text style={[s.calDayTxt, isSelected && { color: '#FFF' }, isToday && !isSelected && { color: '#1E7F85', fontWeight: '900' }]}>
-                    {day || ''}
-                  </Text>
-                  {hasAppunti && <View style={[s.calDot, isSelected && { backgroundColor: '#FFF' }]} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-    );
-  };
+  const today = new Date();
+  const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
 
   return (
     <View style={[s.root, { height: contentH }]}>
-      {/* ═══ SEZIONE 1: NOTE RAPIDE DEL GIORNO ═══ */}
-      <View style={s.notesSection}>
-        <View style={s.notesHeader}>
-          <Ionicons name="document-text" size={18} color="#1E7F85" />
-          <Text style={s.sectionTitle}>{t('agenda.dayNotes') || 'NOTE DEL GIORNO'}</Text>
-          <Text style={s.dateLabel}>{formattaData(selectedDate).toUpperCase()}</Text>
+      {/* ═══ TITOLO ═══ */}
+      <Text style={s.pageTitle}>APPUNTI E ORDINI</Text>
+
+      {/* ═══ SEZIONE 1: APPUNTI DEL GIORNO ═══ */}
+      <View style={s.section}>
+        <View style={s.sectionHeader}>
+          <Ionicons name="document-text" size={16} color="#1E7F85" />
+          <Text style={s.sectionTitle}>APPUNTI DEL GIORNO</Text>
         </View>
         <TextInput
           style={s.notesInput}
-          placeholder={t('agenda.dayNotesPlaceholder') || 'Scrivi le note della giornata...'}
+          placeholder="Scrivi gli appunti della giornata..."
           placeholderTextColor="#A0B5A8"
           value={diarioText}
           onChangeText={setDiarioText}
-          onBlur={handleSalvaDiario}
+          onBlur={handleSaveDiario}
           multiline
           numberOfLines={2}
         />
       </View>
 
-      {/* ═══ SEZIONE 2: AGGIUNGI ORDINE/APPUNTAMENTO ═══ */}
-      <TouchableOpacity style={s.addBtn} onPress={() => {
-        setNewAppuntoDate(selectedDate);
-        setShowAddModal(true);
-      }} activeOpacity={0.8}>
-        <Ionicons name="add-circle" size={24} color="#FFF" />
-        <Text style={s.addBtnTxt}>{t('agenda.addNote') || 'AGGIUNGI ORDINE / APPUNTAMENTO'}</Text>
-      </TouchableOpacity>
+      {/* ═══ SEZIONE 2: ORDINI/APPUNTAMENTI ═══ */}
+      <View style={s.section}>
+        <View style={s.sectionHeader}>
+          <Ionicons name="clipboard" size={16} color="#E8A060" />
+          <Text style={s.sectionTitle}>ORDINI / APPUNTAMENTI</Text>
+        </View>
+        <View style={s.orderRow}>
+          <TextInput
+            style={s.orderInput}
+            placeholder="Nuovo ordine o appuntamento..."
+            placeholderTextColor="#A0B5A8"
+            value={orderText}
+            onChangeText={setOrderText}
+          />
+          <TouchableOpacity style={s.addOrderBtn} onPress={handleAddOrder}>
+            <Ionicons name="add" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+        {/* Lista ultimi appuntamenti */}
+        {appuntiAgenda.slice(-3).reverse().map((a, i) => (
+          <View key={i} style={s.orderItem}>
+            <Ionicons name="ellipse" size={8} color="#E8A060" />
+            <Text style={s.orderItemTxt} numberOfLines={1}>{a.testo}</Text>
+            <TouchableOpacity onPress={() => removeAppunto(new Date(a.data), a.testo)}>
+              <Ionicons name="close-circle" size={16} color="#D46A6A" />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
 
-      {/* Lista appunti del giorno selezionato */}
-      {appuntiOggi.length > 0 && (
-        <View style={s.appuntiList}>
-          {appuntiOggi.slice(0, 3).map((a, i) => (
-            <View key={i} style={s.appuntoRow}>
-              <Ionicons name="calendar" size={14} color="#E8A060" />
-              <Text style={s.appuntoTxt} numberOfLines={1}>{a.testo}</Text>
-              <TouchableOpacity onPress={() => handleElimina(a)}>
-                <Ionicons name="close-circle" size={18} color="#D46A6A" />
-              </TouchableOpacity>
+      {/* ═══ SEZIONE 3: CALENDARIO ═══ */}
+      <View style={[s.section, { flex: 1 }]}>
+        <View style={s.calHeader}>
+          <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1))}>
+            <Ionicons name="chevron-back" size={20} color="#1E7F85" />
+          </TouchableOpacity>
+          <Text style={s.calMonthTxt}>{MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
+          <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1))}>
+            <Ionicons name="chevron-forward" size={20} color="#1E7F85" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={s.calWeekRow}>
+          {['L', 'M', 'M', 'G', 'V', 'S', 'D'].map((d, i) => <Text key={i} style={s.calWeekDay}>{d}</Text>)}
+        </View>
+        
+        <View style={{ flex: 1 }}>
+          {calendarGrid.map((row, ri) => (
+            <View key={ri} style={s.calRow}>
+              {row.map((day, di) => {
+                const hasApp = day && appuntiMese[day];
+                const isToday = isCurrentMonth && day === today.getDate();
+                return (
+                  <TouchableOpacity
+                    key={di}
+                    style={[s.calDay, hasApp && s.calDayActive, isToday && s.calDayToday]}
+                    disabled={!day}
+                    onPress={() => day && handleDayPress(day)}
+                  >
+                    <Text style={[s.calDayTxt, hasApp && { color: '#FFF', fontWeight: '800' }, isToday && !hasApp && { color: '#1E7F85' }]}>
+                      {day || ''}
+                    </Text>
+                    {hasApp && <View style={s.calDot} />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           ))}
         </View>
-      )}
-
-      {/* ═══ SEZIONE 3: CALENDARIO INTERATTIVO ═══ */}
-      <View style={s.calendarSection}>
-        {renderMiniCalendar()}
       </View>
 
-      {/* ═══ MODAL AGGIUNGI APPUNTAMENTO ═══ */}
-      <Modal visible={showAddModal} transparent animationType="fade" onRequestClose={() => setShowAddModal(false)}>
-        <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setShowAddModal(false)}>
+      {/* ═══ MODAL GIORNO ═══ */}
+      <Modal visible={showDayModal} transparent animationType="fade" onRequestClose={() => setShowDayModal(false)}>
+        <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setShowDayModal(false)}>
           <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
-            <Text style={s.modalTitle}>{t('agenda.addNote') || 'NUOVO APPUNTAMENTO'}</Text>
+            <Text style={s.modalTitle}>{selectedDay} {MESI[displayMonth.getMonth()]}</Text>
             
-            <TouchableOpacity onPress={() => setShowAppuntoCalendar(true)} style={s.dateBtn}>
-              <Ionicons name="calendar" size={18} color="#1E7F85" />
-              <Text style={s.dateTxt}>{formattaData(newAppuntoDate).toUpperCase()}</Text>
-            </TouchableOpacity>
-            
-            <TextInput
-              style={s.modalInput}
-              placeholder="Descrizione appuntamento..."
-              placeholderTextColor="#A0B5A8"
-              value={newAppuntoText}
-              onChangeText={setNewAppuntoText}
-              multiline
-              numberOfLines={3}
-            />
+            <View style={s.modalField}>
+              <Text style={s.modalLabel}>APPUNTAMENTO / NOTA</Text>
+              <TextInput
+                style={[s.modalInput, { minHeight: 80, textAlignVertical: 'top' }]}
+                placeholder="Descrizione..."
+                placeholderTextColor="#A0B5A8"
+                multiline
+                value={newAppuntoText}
+                onChangeText={setNewAppuntoText}
+              />
+            </View>
             
             <View style={s.modalBtns}>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#B0A898' }]} onPress={() => setShowAddModal(false)}>
+              {appuntiMese[selectedDay!] && (
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} onPress={handleDeleteAppunto}>
+                  <Ionicons name="trash" size={16} color="#FFF" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#B0A898', flex: 1 }]} onPress={() => setShowDayModal(false)}>
                 <Text style={s.modalBtnTxt}>ANNULLA</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#1E7F85' }]} onPress={handleSalvaAppunto}>
-                <Ionicons name="save-outline" size={16} color="#FFF" />
+              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1 }]} onPress={handleSaveAppunto}>
+                <Ionicons name="save" size={16} color="#FFF" />
                 <Text style={s.modalBtnTxt}>SALVA</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-
-      {/* ═══ MODAL MODIFICA/ELIMINA APPUNTAMENTO ═══ */}
-      <Modal visible={!!editingAppunto} transparent animationType="fade" onRequestClose={() => setEditingAppunto(null)}>
-        <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setEditingAppunto(null)}>
-          <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
-            <Text style={s.modalTitle}>GESTISCI APPUNTAMENTO</Text>
-            
-            {editingAppunto && (
-              <>
-                <View style={s.editAppuntoBox}>
-                  <Ionicons name="calendar" size={20} color="#1E7F85" />
-                  <Text style={s.editAppuntoTxt}>{editingAppunto.testo}</Text>
-                </View>
-                
-                <View style={s.modalBtns}>
-                  <TouchableOpacity 
-                    style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} 
-                    onPress={() => {
-                      handleElimina(editingAppunto);
-                      setEditingAppunto(null);
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#FFF" />
-                    <Text style={s.modalBtnTxt}>ELIMINA</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#1E7F85' }]} onPress={() => setEditingAppunto(null)}>
-                    <Text style={s.modalBtnTxt}>CHIUDI</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Calendar Modals */}
-      <CalendarModal
-        visible={showCalendar}
-        onClose={() => setShowCalendar(false)}
-        onSelect={(date) => { setSelectedDate(date); setShowCalendar(false); }}
-        initialDate={selectedDate}
-      />
-      <CalendarModal
-        visible={showAppuntoCalendar}
-        onClose={() => setShowAppuntoCalendar(false)}
-        onSelect={(date) => { setNewAppuntoDate(date); setShowAppuntoCalendar(false); }}
-        initialDate={newAppuntoDate}
-      />
     </View>
   );
 }
@@ -323,33 +280,35 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F0E6',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 10,
   },
-  // Sezione 1: Note rapide
-  notesSection: {
+  pageTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#1A4040',
+    letterSpacing: 1.5,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  section: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
+    marginBottom: 10,
     // @ts-ignore
-    boxShadow: '2px 2px 8px rgba(0,0,0,0.08)',
+    boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
   },
-  notesHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 8,
   },
   sectionTitle: {
-    flex: 1,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: '#1A4040',
     letterSpacing: 0.5,
-  },
-  dateLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#E8A060',
   },
   notesInput: {
     backgroundColor: '#F5F0E6',
@@ -360,88 +319,81 @@ const s = StyleSheet.create({
     minHeight: 50,
     textAlignVertical: 'top',
   },
-  // Sezione 2: Aggiungi
-  addBtn: {
+  // Ordini
+  orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8A060',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 10,
-    marginTop: 10,
-  },
-  addBtnTxt: {
-    flex: 1,
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  appuntiList: {
-    marginTop: 8,
-    gap: 6,
-  },
-  appuntoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    padding: 10,
     gap: 8,
   },
-  appuntoTxt: {
+  orderInput: {
+    flex: 1,
+    backgroundColor: '#F5F0E6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#1A4040',
+  },
+  addOrderBtn: {
+    backgroundColor: '#E8A060',
+    borderRadius: 10,
+    padding: 10,
+  },
+  orderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EBE0',
+  },
+  orderItemTxt: {
     flex: 1,
     fontSize: 12,
-    color: '#1A4040',
-    fontWeight: '600',
+    color: '#5A7575',
   },
-  // Sezione 3: Calendario
-  calendarSection: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 10,
-    marginBottom: 10,
-    // @ts-ignore
-    boxShadow: '2px 2px 8px rgba(0,0,0,0.08)',
-  },
-  miniCal: {},
-  calMonthHeader: {
+  // Calendario
+  calHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
   calMonthTxt: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#1A4040',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  calRow: {
+  calWeekRow: {
     flexDirection: 'row',
+    marginBottom: 6,
   },
-  calDayHeader: {
+  calWeekDay: {
     flex: 1,
     textAlign: 'center',
     fontSize: 10,
     fontWeight: '700',
     color: '#7A9090',
-    paddingVertical: 4,
+  },
+  calRow: {
+    flexDirection: 'row',
+    flex: 1,
   },
   calDay: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
     borderRadius: 8,
+    margin: 1,
+    minHeight: 32,
   },
-  calDaySelected: {
-    backgroundColor: '#1E7F85',
+  calDayActive: {
+    backgroundColor: '#E8A060',
   },
   calDayToday: {
-    backgroundColor: '#E8F5F5',
+    borderWidth: 2,
+    borderColor: '#1E7F85',
   },
   calDayTxt: {
     fontSize: 12,
@@ -449,10 +401,10 @@ const s = StyleSheet.create({
     color: '#1A4040',
   },
   calDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#E8A060',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FFF',
     marginTop: 2,
   },
   // Modal
@@ -468,73 +420,50 @@ const s = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 320,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '900',
     color: '#1A4040',
     textAlign: 'center',
     marginBottom: 16,
-    letterSpacing: 1,
   },
-  dateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#E8F5F5',
-    borderRadius: 10,
-    paddingVertical: 12,
+  modalField: {
     marginBottom: 12,
   },
-  dateTxt: {
-    fontSize: 14,
+  modalLabel: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#1E7F85',
+    color: '#7A9090',
+    marginBottom: 6,
   },
   modalInput: {
     backgroundColor: '#F5F0E6',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 14,
+    fontWeight: '600',
     color: '#1A4040',
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: 16,
   },
   modalBtns: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
+    marginTop: 8,
   },
   modalBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
   },
   modalBtnTxt: {
     color: '#FFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  editAppuntoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#F5F0E6',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  editAppuntoTxt: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1A4040',
-    fontWeight: '600',
   },
 });

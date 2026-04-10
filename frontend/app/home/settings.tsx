@@ -28,6 +28,9 @@ const InputModal = ({
   onSave,
   onClose,
   keyboardTypes,
+  collabName,
+  collabCodice,
+  onGenerateCodice,
 }: {
   visible: boolean;
   title: string;
@@ -35,13 +38,18 @@ const InputModal = ({
   onSave: (values: string[]) => void;
   onClose: () => void;
   keyboardTypes?: string[];
+  collabName?: string;
+  collabCodice?: any;
+  onGenerateCodice?: (tipo: 'A' | 'B', nome: string) => void;
 }) => {
   const [values, setValues] = useState<string[]>([]);
+  const [showInvite, setShowInvite] = useState(false);
 
   // Reset values EVERY time modal opens
   React.useEffect(() => {
     if (visible) {
       setValues(hints.map(() => ''));
+      setShowInvite(false);
     }
   }, [visible]);
 
@@ -61,6 +69,9 @@ const InputModal = ({
     onClose();
   };
 
+  // Check if this is a collaborator modal (based on title containing "collaborator")
+  const isCollabModal = title.toLowerCase().includes('collaborator') || title.toLowerCase().includes('collaboratore') || collabName !== undefined;
+
   if (!visible) return null;
 
   return (
@@ -70,38 +81,101 @@ const InputModal = ({
         style={ms.overlay}
         onPress={onClose}
       >
-        <TouchableOpacity activeOpacity={1} style={ms.modal} onPress={() => {}}>
-          <Text style={ms.modalTitle}>{title}</Text>
-          {hints.map((h, i) => (
-            <TextInput
-              key={`input-${i}-${title}`}
-              style={ms.modalInput}
-              placeholder={h}
-              placeholderTextColor="#A0A090"
-              value={values[i] || ''}
-              onChangeText={(txt) => {
-                setValues(prev => {
-                  const nv = [...prev];
-                  nv[i] = txt;
-                  return nv;
-                });
-              }}
-              keyboardType={
-                (keyboardTypes?.[i] === 'numeric' ? 'numeric' : 'default') as any
-              }
-              autoFocus={i === 0}
-              autoCapitalize="words"
-              returnKeyType={i === hints.length - 1 ? 'done' : 'next'}
-            />
-          ))}
-          <View style={ms.modalBtns}>
-            <TouchableOpacity onPress={onClose} style={ms.modalCancel}>
-              <Text style={ms.modalCancelTxt}>{(tModal('common.cancel') || 'Annulla').toUpperCase()}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} style={ms.modalSave}>
-              <Text style={ms.modalSaveTxt}>{tModal('common.save') || 'Salva'}</Text>
-            </TouchableOpacity>
-          </View>
+        <TouchableOpacity activeOpacity={1} style={[ms.modal, isCollabModal && { maxWidth: 360, maxHeight: '80%' }]} onPress={() => {}}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={ms.modalTitle}>{title}</Text>
+            {hints.map((h, i) => (
+              <TextInput
+                key={`input-${i}-${title}`}
+                style={ms.modalInput}
+                placeholder={h}
+                placeholderTextColor="#A0A090"
+                value={values[i] || ''}
+                onChangeText={(txt) => {
+                  setValues(prev => {
+                    const nv = [...prev];
+                    nv[i] = txt;
+                    return nv;
+                  });
+                }}
+                keyboardType={
+                  (keyboardTypes?.[i] === 'numeric' ? 'numeric' : 'default') as any
+                }
+                autoFocus={i === 0}
+                autoCapitalize="words"
+                returnKeyType={i === hints.length - 1 ? 'done' : 'next'}
+              />
+            ))}
+            
+            <View style={ms.modalBtns}>
+              <TouchableOpacity onPress={onClose} style={ms.modalCancel}>
+                <Text style={ms.modalCancelTxt}>{(tModal('common.cancel') || 'Annulla').toUpperCase()}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSave} style={ms.modalSave}>
+                <Text style={ms.modalSaveTxt}>{tModal('common.save') || 'Salva'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sezione INVITA per collaboratori */}
+            {isCollabModal && (
+              <>
+                <TouchableOpacity 
+                  style={[ms.inviteToggle, showInvite && { backgroundColor: '#E8A060' }]}
+                  onPress={() => setShowInvite(!showInvite)}
+                >
+                  <Ionicons name="key" size={16} color={showInvite ? '#FFF' : '#E8A060'} />
+                  <Text style={[ms.inviteToggleTxt, showInvite && { color: '#FFF' }]}>
+                    {showInvite ? 'NASCONDI INVITO' : 'INVITA'}
+                  </Text>
+                  <Ionicons name={showInvite ? 'chevron-up' : 'chevron-down'} size={16} color={showInvite ? '#FFF' : '#E8A060'} />
+                </TouchableOpacity>
+
+              {showInvite && (
+                <View style={ms.inviteSection}>
+                  {collabCodice ? (
+                    <View style={ms.existingCode}>
+                      <Text style={ms.existingCodeLabel}>CODICE ATTIVO:</Text>
+                      <Text style={ms.existingCodeValue}>{collabCodice.codice}</Text>
+                      <View style={[ms.codeBadge, { backgroundColor: collabCodice.tipo === 'A' ? '#E8A060' : '#1E7F85' }]}>
+                        <Text style={ms.codeBadgeTxt}>{collabCodice.tipo === 'A' ? 'OPERATIVO' : 'FULL'}</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={ms.inviteTitle}>GENERA CODICE INVITO</Text>
+                      <TouchableOpacity
+                        style={[ms.inviteBtn, { backgroundColor: '#E8A060' }]}
+                        onPress={() => {
+                          const nome = values[0] || collabName || 'Collaboratore';
+                          if (onGenerateCodice) onGenerateCodice('A', nome);
+                        }}
+                      >
+                        <Ionicons name="eye-off-outline" size={18} color="#FFF" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={ms.inviteBtnTxt}>TIPO A - OPERATIVO</Text>
+                          <Text style={ms.inviteBtnDesc}>Solo HOME, può inserire dati</Text>
+                        </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[ms.inviteBtn, { backgroundColor: '#1E7F85' }]}
+                        onPress={() => {
+                          const nome = values[0] || collabName || 'Collaboratore';
+                          if (onGenerateCodice) onGenerateCodice('B', nome);
+                        }}
+                      >
+                        <Ionicons name="eye-outline" size={18} color="#FFF" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={ms.inviteBtnTxt}>TIPO B - FULL ACCESS</Text>
+                          <Text style={ms.inviteBtnDesc}>Accesso completo a tutto</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              )}
+            </>
+          )}
+          </ScrollView>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -131,7 +205,12 @@ export default function SettingsPage() {
     hints: string[];
     keyboardTypes?: string[];
     onSave: (values: string[]) => void;
+    collabName?: string;
+    collabCodice?: any;
   }>({ visible: false, title: '', hints: [], onSave: () => {} });
+
+  // Stato per mostrare sezione INVITA nel modal
+  const [showInviteSection, setShowInviteSection] = useState(false);
 
   // Expanded state for agenda days
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
@@ -145,8 +224,9 @@ export default function SettingsPage() {
   const [showCollabModal, setShowCollabModal] = useState(false);
 
   const openModal = useCallback(
-    (title: string, hints: string[], onSave: (values: string[]) => void, keyboardTypes?: string[]) => {
-      setModalConfig({ visible: true, title, hints, keyboardTypes, onSave });
+    (title: string, hints: string[], onSave: (values: string[]) => void, keyboardTypes?: string[], collabName?: string, collabCodice?: any) => {
+      setShowInviteSection(false);
+      setModalConfig({ visible: true, title, hints, keyboardTypes, onSave, collabName, collabCodice });
     },
     []
   );
@@ -502,7 +582,6 @@ export default function SettingsPage() {
       {/* ─── SQUADRA COLLABORATORI ─── */}
       <Text style={s.secTitle}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
       {store.collaboratori.map((c, i) => {
-        // Trova il codice invito associato a questo collaboratore
         const codiceCollab = store.codiciInvito?.find(cod => cod.nome === c.nome);
         return (
           <View key={i} style={s.card}>
@@ -522,65 +601,24 @@ export default function SettingsPage() {
                     <View style={{ backgroundColor: codiceCollab.tipo === 'A' ? '#E8A060' : '#1E7F85', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
                       <Text style={{ fontSize: 7, fontWeight: '800', color: '#FFF' }}>{codiceCollab.tipo === 'A' ? 'OP' : 'FULL'}</Text>
                     </View>
+                    <TouchableOpacity onPress={() => store.toggleCodiceInvito(codiceCollab.codice)}>
+                      <Ionicons name={codiceCollab.attivo ? 'pause-circle' : 'play-circle'} size={16} color={codiceCollab.attivo ? '#E8A060' : '#1E7F85'} />
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
-              {/* Genera/Gestisci codice invito */}
-              <TouchableOpacity
-                onPress={() => {
-                  if (codiceCollab) {
-                    // Toggle attivo/disattivo
-                    store.toggleCodiceInvito(codiceCollab.codice);
-                  } else {
-                    // Genera nuovo codice - chiedi tipo
-                    if (Platform.OS === 'web') {
-                      const tipo = window.confirm('Tipo A (Operativo - solo HOME)?\n\nOK = Tipo A\nAnnulla = Tipo B (Full Access)') ? 'A' : 'B';
-                      const codice = store.generateCodiceInvito(tipo, c.nome);
-                      window.alert(`Codice ${tipo === 'A' ? 'OPERATIVO' : 'FULL'} generato:\n${codice}`);
-                    } else {
-                      Alert.alert(
-                        'Genera Codice Invito',
-                        `Scegli il tipo di accesso per ${c.nome}`,
-                        [
-                          { text: 'Annulla', style: 'cancel' },
-                          { text: 'Tipo A (Operativo)', onPress: () => {
-                            const codice = store.generateCodiceInvito('A', c.nome);
-                            Alert.alert('Codice Generato', `Codice OPERATIVO:\n${codice}\n\nAccesso solo HOME`);
-                          }},
-                          { text: 'Tipo B (Full)', onPress: () => {
-                            const codice = store.generateCodiceInvito('B', c.nome);
-                            Alert.alert('Codice Generato', `Codice FULL:\n${codice}\n\nAccesso completo`);
-                          }},
-                        ]
-                      );
-                    }
-                  }
-                }}
-                style={{ marginRight: 6 }}
-              >
-                <Ionicons 
-                  name={codiceCollab ? (codiceCollab.attivo ? 'pause-circle' : 'play-circle') : 'key-outline'} 
-                  size={20} 
-                  color={codiceCollab ? (codiceCollab.attivo ? '#E8A060' : '#1E7F85') : '#7A9090'} 
-                />
-              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() =>
                   openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
                     const updated = [...store.collaboratori];
-                    updated[i] = {
-                      nome: vals[0],
-                      costo: parseFloat(vals[1].replace(',', '.')) || 0,
-                      costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0,
-                    };
+                    updated[i] = { nome: vals[0], costo: parseFloat(vals[1].replace(',', '.')) || 0, costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0 };
                     store.setConfig({ collaboratori: updated });
-                  }, ['default', 'numeric', 'numeric'])
+                  }, ['default', 'numeric', 'numeric'], c.nome, codiceCollab)
                 }
               >
                 <Ionicons name="create-outline" size={18} color="#7A9090" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => {
-                // Rimuovi anche il codice invito associato
                 if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
                 store.removeCollaboratore(c.nome);
               }} style={{ marginLeft: 8 }}>
@@ -594,28 +632,12 @@ export default function SettingsPage() {
         style={s.addBtn}
         onPress={() =>
           openModal(t('settings.addCollaborator'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) =>
-            store.addCollaboratore({
-              nome: vals[0],
-              costo: parseFloat(vals[1].replace(',', '.')) || 0,
-              costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0,
-            }), ['default', 'numeric', 'numeric'])
+            store.addCollaboratore({ nome: vals[0], costo: parseFloat(vals[1].replace(',', '.')) || 0, costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0 }), ['default', 'numeric', 'numeric'])
         }
       >
         <Ionicons name="person-add" size={18} color="#1E7F85" />
         <Text style={s.addBtnTxt}>{t('settings.addCollaborator')}</Text>
       </TouchableOpacity>
-
-      {/* Legenda codici invito */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8, paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060' }} />
-          <Text style={{ fontSize: 9, color: '#7A9090' }}>Tipo A: Solo HOME</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85' }} />
-          <Text style={{ fontSize: 9, color: '#7A9090' }}>Tipo B: Full Access</Text>
-        </View>
-      </View>
 
       {/* ─── AGENDA MERCATI ─── */}
       <Text style={s.secTitle}>{t('settings.marketsTitle') || 'MERCATI'}</Text>
@@ -994,6 +1016,17 @@ export default function SettingsPage() {
         keyboardTypes={modalConfig.keyboardTypes}
         onSave={modalConfig.onSave}
         onClose={() => setModalConfig((p) => ({ ...p, visible: false }))}
+        collabName={modalConfig.collabName}
+        collabCodice={modalConfig.collabCodice}
+        onGenerateCodice={(tipo, nome) => {
+          const codice = store.generateCodiceInvito(tipo, nome);
+          if (Platform.OS === 'web') {
+            window.alert(`Codice ${tipo === 'A' ? 'OPERATIVO' : 'FULL'} generato:\n${codice}`);
+          } else {
+            Alert.alert('Codice Generato', `Codice ${tipo === 'A' ? 'OPERATIVO' : 'FULL'}:\n${codice}`);
+          }
+          setModalConfig((p) => ({ ...p, visible: false }));
+        }}
       />
     </ScrollView>
   );
@@ -1408,4 +1441,84 @@ const ms = StyleSheet.create({
     alignItems: 'center',
   },
   modalSaveTxt: { fontSize: 12, fontWeight: '800', color: '#FFF' },
+  // Stili per sezione INVITA
+  inviteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E8A060',
+    backgroundColor: 'transparent',
+  },
+  inviteToggleTxt: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#E8A060',
+    letterSpacing: 0.5,
+  },
+  inviteSection: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F5F0E6',
+    borderRadius: 12,
+  },
+  inviteTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7A9090',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  inviteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  inviteBtnTxt: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  inviteBtnDesc: {
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  existingCode: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  existingCodeLabel: {
+    fontSize: 10,
+    color: '#7A9090',
+    fontWeight: '600',
+  },
+  existingCodeValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#1A4040',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 1,
+  },
+  codeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  codeBadgeTxt: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFF',
+  },
 });

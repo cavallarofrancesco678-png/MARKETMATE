@@ -682,7 +682,7 @@ export default function HomeScreen() {
                       )}
                     </View>
                   ) : chartMode === 'mese' ? (
-                    // MESE - 4 barre
+                    // MESE - 4 barre CLICCABILI
                     <View style={{ flex: 1 }}>
                       {/* Valori sopra */}
                       <View style={{ flexDirection: 'row', height: 16, marginBottom: 2 }}>
@@ -695,12 +695,26 @@ export default function HomeScreen() {
                         ))}
                       </View>
                       
-                      {/* Barre */}
+                      {/* Barre - CLICCABILI */}
                       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
                           const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const settLabels = ['Settimana 1', 'Settimana 2', 'Settimana 3', 'Settimana 4'];
                           return (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 4 }}>
+                            <TouchableOpacity 
+                              key={i} 
+                              style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 4 }}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                if (val > 0) {
+                                  if (Platform.OS === 'web') {
+                                    window.alert(`${settLabels[i]}: €${Math.round(val)}`);
+                                  } else {
+                                    Alert.alert(settLabels[i], `Totale: €${Math.round(val)}`);
+                                  }
+                                }
+                              }}
+                            >
                               <View style={{
                                 width: 36,
                                 height: `${Math.max(h, 5)}%`,
@@ -708,7 +722,7 @@ export default function HomeScreen() {
                                 backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
                                 borderRadius: 5,
                               }} />
-                            </View>
+                            </TouchableOpacity>
                           );
                         })}
                       </View>
