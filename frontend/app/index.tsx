@@ -218,6 +218,7 @@ export default function LoginScreen() {
             <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
             <Text style={s.footerTxt}>Dati protetti e crittografati</Text>
           </View>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </View>

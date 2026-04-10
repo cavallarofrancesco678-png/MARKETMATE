@@ -101,3 +101,81 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Iterative improvements to MarketMate app - Fix chart bar scaling, collaborator invite code display, login ScrollView nesting, and status bar overlap."
+
+frontend:
+  - task: "Home chart bars scale dynamically with data"
+    implemented: true
+    working: true
+    file: "app/home/index.tsx"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User reported bars do not scale according to values"
+        - working: true
+          agent: "main"
+          comment: "Fixed: replaced percentage-based heights with pixel-based BAR_AREA_H calculations in all 3 chart modes (mese/anno/annoprec). Percentage heights with flex:1 parent were resolving to auto in React Native."
+
+  - task: "Collaborator invite code generation and display"
+    implemented: true
+    working: true
+    file: "app/home/settings.tsx"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User reported Genera Codice button does nothing visible"
+        - working: true
+          agent: "main"
+          comment: "Fixed: After generating code, modal now stays open and shows code inline (CODICE ATTIVO section auto-expands). Previously modal closed immediately and only showed Alert."
+
+  - task: "Login page ScrollView nesting"
+    implemented: true
+    working: true
+    file: "app/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Fixed missing </ScrollView> closing tag. Login page now properly scrolls."
+
+  - task: "Safe area padding on all pages"
+    implemented: true
+    working: true
+    file: "app/home/*.tsx"
+    stuck_count: 2
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "Content overlaps status bar on physical devices"
+        - working: true
+          agent: "main"
+          comment: "All pages use useSafeAreaInsets().top + 16 for topPad. Verified via screenshot."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Home chart bars scale dynamically with data"
+    - "Collaborator invite code generation and display"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: "Fixed 3 issues: (1) Chart bars now use pixel heights instead of percentage strings that were broken with flex:1 parents. (2) Collaborator invite code now shows inline in modal after generation. (3) Login page ScrollView properly closed."

@@ -384,6 +384,11 @@ export default function HomeScreen() {
   const normalRowH = unit * 0.8;
   const STORICO_H = unit * 3.2;  // Grafico grande e leggibile
 
+  // Altezza area barre in pixel (sottraendo filtri, padding, label sopra/sotto)
+  // STORICO_H = card storico + filter row; filter row ≈ 30px
+  // Card padding: 8*2=16; Values header: 16; Labels footer: 17
+  const BAR_AREA_H = Math.max(STORICO_H - 30 - Math.round(GAP * 0.4) - 16 - 16 - 17, 30);
+
   return (
     <View style={[s.root, { paddingTop: topPad }]}>
       {/* ═══ HEADER ═══ */}
@@ -659,18 +664,18 @@ export default function HomeScreen() {
                       </View>
                       
                       {/* Barre ANIMATE - TOUCHABLE */}
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                      <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
-                          const hPct = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
                           const meseNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
                           const animH = chartAnimRef.interpolate({
                             inputRange: [0, 1],
-                            outputRange: ['5%', `${Math.max(hPct, 5)}%`],
+                            outputRange: [4, Math.max(hPx, 4)],
                           });
                           return (
                             <TouchableOpacity 
                               key={i} 
-                              style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}
+                              style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end' }}
                               activeOpacity={0.7}
                               onPress={() => {
                                 if (val > 0) {
@@ -709,7 +714,7 @@ export default function HomeScreen() {
                           position: 'absolute',
                           left: 0,
                           right: 0,
-                          bottom: 14 + 3 + (media / maxVal) * 60,
+                          bottom: 14 + 3 + (media / maxVal) * BAR_AREA_H,
                           height: 1.5,
                           backgroundColor: '#1E7F85',
                           opacity: 0.5,
@@ -731,18 +736,18 @@ export default function HomeScreen() {
                       </View>
                       
                       {/* Barre ANIMATE */}
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                      <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
-                          const hPct = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
                           const settLabels = ['Settimana 1', 'Settimana 2', 'Settimana 3', 'Settimana 4'];
                           const animH = chartAnimRef.interpolate({
                             inputRange: [0, 1],
-                            outputRange: ['5%', `${Math.max(hPct, 5)}%`],
+                            outputRange: [4, Math.max(hPx, 4)],
                           });
                           return (
                             <TouchableOpacity 
                               key={i} 
-                              style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 4 }}
+                              style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end', paddingHorizontal: 4 }}
                               activeOpacity={0.7}
                               onPress={() => {
                                 if (val > 0) {
@@ -791,15 +796,15 @@ export default function HomeScreen() {
                       </View>
                       
                       {/* Barre ANIMATE */}
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10 }}>
+                      <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10 }}>
                         {chartData.map((val, i) => {
-                          const hPct = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
                           const animH = chartAnimRef.interpolate({
                             inputRange: [0, 1],
-                            outputRange: ['8%', `${Math.max(hPct, 8)}%`],
+                            outputRange: [6, Math.max(hPx, 6)],
                           });
                           return (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 8 }}>
+                            <View key={i} style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end', paddingHorizontal: 8 }}>
                               <Animated.View style={{
                                 width: 50,
                                 height: animH,

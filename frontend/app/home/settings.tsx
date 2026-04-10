@@ -59,11 +59,12 @@ const InputModal = ({
       } else {
         setValues(hints.map(() => ''));
       }
-      setShowInvite(false);
+      // Auto-expand invite section if a code already exists
+      setShowInvite(!!collabCodice);
       setInviteContact('');
       setGeneratedCode(null);
     }
-  }, [visible]);
+  }, [visible, collabCodice]);
 
   const { t: tModal } = useTranslation();
 
@@ -256,6 +257,7 @@ export default function SettingsPage() {
     onSave: (values: string[]) => void;
     collabName?: string;
     collabCodice?: any;
+    initialValues?: string[];
   }>({ visible: false, title: '', hints: [], onSave: () => {} });
 
   // Stato per mostrare sezione INVITA nel modal
@@ -1070,12 +1072,11 @@ export default function SettingsPage() {
         initialValues={modalConfig.initialValues}
         onGenerateCodice={(tipo, nome) => {
           const codice = store.generateCodiceInvito(tipo, nome);
-          if (Platform.OS === 'web') {
-            window.alert(`Codice ${tipo === 'A' ? 'OPERATIVO' : 'FULL'} generato:\n${codice}`);
-          } else {
-            Alert.alert('Codice Generato', `Codice ${tipo === 'A' ? 'OPERATIVO' : 'FULL'}:\n${codice}`);
-          }
-          setModalConfig((p) => ({ ...p, visible: false }));
+          // Aggiorna il modal per mostrare il codice generato inline (non chiudiamo il modal)
+          setModalConfig((p) => ({
+            ...p,
+            collabCodice: { codice, tipo, nome, attivo: true, dataCreazione: new Date().toISOString() },
+          }));
         }}
       />
     </ScrollView>
