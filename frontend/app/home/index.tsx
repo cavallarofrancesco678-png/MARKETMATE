@@ -385,7 +385,7 @@ export default function HomeScreen() {
   return (
     <View style={s.root}>
       {/* ═══ HEADER ═══ */}
-      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: Math.max(safeInsets.top + 8, 48) }]}>
+      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: 4 }]}>
         <View style={s.badgeLeft}>
           <View style={s.badge}>
             <Text style={s.badgeTxt} numberOfLines={1}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
@@ -408,8 +408,8 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-        <View style={{ marginTop: 24 }}>
-          <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase()}</Text>
+        <View style={{ marginTop: 6 }}>
+          <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || 'NESSUN MERCATO OGGI'}</Text>
           <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
             <View style={s.dateRow}>
               <Ionicons name="calendar" size={18} color="#1E7F85" />

@@ -201,17 +201,43 @@ export default function AgendaScreen() {
           multiline
           numberOfLines={2}
         />
-        <TouchableOpacity
-          style={s.orderBtn}
-          activeOpacity={0.8}
-          onPress={() => setShowCalendar(!showCalendar)}
-        >
-          <Ionicons name="calendar" size={16} color="#FFF" />
-          <Text style={s.orderBtnTxt}>
-            {showCalendar ? 'CHIUDI CALENDARIO' : 'ORDINA PER IL GIORNO:'}
-          </Text>
-          <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={16} color="#FFF" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+          <TouchableOpacity
+            style={[s.orderBtn, { flex: 1 }]}
+            activeOpacity={0.8}
+            onPress={() => setShowCalendar(!showCalendar)}
+          >
+            <Ionicons name="calendar" size={14} color="#FFF" />
+            <Text style={s.orderBtnTxt}>
+              {showCalendar ? 'CHIUDI' : 'SCEGLI GIORNO'}
+            </Text>
+            <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={14} color="#FFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.orderBtn, { backgroundColor: '#E8A060', paddingHorizontal: 18 }]}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (!orderText.trim()) {
+                if (Platform.OS === 'web') window.alert('Inserisci il dettaglio dell\'impegno');
+                else Alert.alert('Errore', 'Inserisci il dettaglio dell\'impegno');
+                return;
+              }
+              if (!showCalendar) {
+                setShowCalendar(true);
+                return;
+              }
+              // Se calendario aperto, salva su oggi
+              const todayDate = new Date();
+              addAppunto({ data: todayDate, testo: orderText.trim() });
+              setOrderText('');
+              if (Platform.OS === 'web') window.alert('Impegno salvato per oggi!');
+              else Alert.alert('Salvato', 'Impegno salvato per oggi');
+            }}
+          >
+            <Ionicons name="save" size={14} color="#FFF" />
+            <Text style={s.orderBtnTxt}>SALVA</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ═══ CALENDARIO (sempre visibile per mostrare pallini) ═══ */}

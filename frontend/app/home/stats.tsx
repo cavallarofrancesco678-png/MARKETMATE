@@ -871,8 +871,8 @@ export default function StatsScreen() {
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#D8EDE5' },
-  stickyHeader: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: '#D8EDE5', zIndex: 10, gap: 8 },
+  root: { flex: 1, backgroundColor: '#F5F0E6' },
+  stickyHeader: { paddingHorizontal: 20, paddingTop: 8, backgroundColor: '#F5F0E6', zIndex: 10, gap: 8 },
   scroll: { padding: 20, paddingTop: 10, paddingBottom: 40 },
   pageTitle: { fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', letterSpacing: 1.5 },
 

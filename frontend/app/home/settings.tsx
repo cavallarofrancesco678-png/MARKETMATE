@@ -31,6 +31,7 @@ const InputModal = ({
   collabName,
   collabCodice,
   onGenerateCodice,
+  initialValues,
 }: {
   visible: boolean;
   title: string;
@@ -41,16 +42,21 @@ const InputModal = ({
   collabName?: string;
   collabCodice?: any;
   onGenerateCodice?: (tipo: 'A' | 'B', nome: string) => void;
+  initialValues?: string[];
 }) => {
   const [values, setValues] = useState<string[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteContact, setInviteContact] = useState('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
-  // Reset values EVERY time modal opens
+  // Pre-fill values with initialValues or empty
   React.useEffect(() => {
     if (visible) {
-      setValues(hints.map(() => ''));
+      if (initialValues && initialValues.length > 0) {
+        setValues(hints.map((_, i) => initialValues[i] || ''));
+      } else {
+        setValues(hints.map(() => ''));
+      }
       setShowInvite(false);
       setInviteContact('');
       setGeneratedCode(null);
@@ -85,8 +91,8 @@ const InputModal = ({
         style={ms.overlay}
         onPress={onClose}
       >
-        <TouchableOpacity activeOpacity={1} style={[ms.modal, isCollabModal && { maxWidth: 360, maxHeight: '80%' }]} onPress={() => {}}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+        <TouchableOpacity activeOpacity={1} style={[ms.modal, isCollabModal && { maxWidth: 360 }]} onPress={() => {}}>
+          <View>
             <Text style={ms.modalTitle}>{title}</Text>
             {hints.map((h, i) => (
               <TextInput
@@ -214,7 +220,7 @@ const InputModal = ({
               )}
             </>
           )}
-          </ScrollView>
+          </View>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -263,9 +269,9 @@ export default function SettingsPage() {
   const [showCollabModal, setShowCollabModal] = useState(false);
 
   const openModal = useCallback(
-    (title: string, hints: string[], onSave: (values: string[]) => void, keyboardTypes?: string[], collabName?: string, collabCodice?: any) => {
+    (title: string, hints: string[], onSave: (values: string[]) => void, keyboardTypes?: string[], collabName?: string, collabCodice?: any, initVals?: string[]) => {
       setShowInviteSection(false);
-      setModalConfig({ visible: true, title, hints, keyboardTypes, onSave, collabName, collabCodice });
+      setModalConfig({ visible: true, title, hints, keyboardTypes, onSave, collabName, collabCodice, initialValues: initVals });
     },
     []
   );
@@ -652,7 +658,7 @@ export default function SettingsPage() {
                     const updated = [...store.collaboratori];
                     updated[i] = { nome: vals[0], costo: parseFloat(vals[1].replace(',', '.')) || 0, costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0 };
                     store.setConfig({ collaboratori: updated });
-                  }, ['default', 'numeric', 'numeric'], c.nome, codiceCollab)
+                  }, ['default', 'numeric', 'numeric'], c.nome, codiceCollab, [c.nome, String(c.costo || ''), String(c.costoAnnuo || '')])
                 }
               >
                 <Ionicons name="create-outline" size={18} color="#7A9090" />
@@ -1057,6 +1063,7 @@ export default function SettingsPage() {
         onClose={() => setModalConfig((p) => ({ ...p, visible: false }))}
         collabName={modalConfig.collabName}
         collabCodice={modalConfig.collabCodice}
+        initialValues={modalConfig.initialValues}
         onGenerateCodice={(tipo, nome) => {
           const codice = store.generateCodiceInvito(tipo, nome);
           if (Platform.OS === 'web') {
