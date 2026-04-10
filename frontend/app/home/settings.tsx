@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
@@ -19,6 +20,7 @@ import { LANGUAGES, changeLanguage, getDayNames } from '../../src/i18n';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /* ─── REUSABLE INPUT MODAL ─── */
 const InputModal = ({
@@ -231,6 +233,8 @@ const InputModal = ({
 export default function SettingsPage() {
   const store = useAppStore();
   const { t, i18n } = useTranslation();
+  const safeInsets = useSafeAreaInsets();
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
 
   // OCR state
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -468,7 +472,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <ScrollView style={s.root} contentContainerStyle={s.content}>
+    <ScrollView style={s.root} contentContainerStyle={[s.content, { paddingTop: topPad }]}>
       <Text style={s.title}>{t('settings.title')}</Text>
 
       {/* ─── LINGUA ─── */}

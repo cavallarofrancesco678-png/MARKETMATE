@@ -9,6 +9,7 @@ import {
   Platform,
   useWindowDimensions,
   Modal,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/appStore';
@@ -34,7 +35,8 @@ export default function GasScreen() {
   const [dayAmount, setDayAmount] = useState('');
   const [displayMonth, setDisplayMonth] = useState(new Date());
 
-  const contentH = height - insets.bottom - 70;
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
+  const contentH = height - insets.bottom - 70 - topPad;
 
   /* ═══ SALVA RIFORNIMENTO OGGI ═══ */
   const handleSalvaRifornimento = () => {
@@ -201,7 +203,7 @@ export default function GasScreen() {
   const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
 
   return (
-    <View style={[s.root, { height: contentH }]}>
+    <View style={[s.root, { height: contentH, paddingTop: topPad }]}>
       {/* ═══ TITOLO ═══ */}
       <Text style={s.pageTitle}>CARBURANTE</Text>
 

@@ -49,9 +49,6 @@ export default function TabLayout() {
   return (
     <Tabs
       sceneContainerStyle={{
-        paddingTop: Platform.OS === 'android' 
-          ? (StatusBar.currentHeight || 30) + 16 
-          : insets.top + 16,
         backgroundColor: '#F5F0E6',
       }}
       screenOptions={{

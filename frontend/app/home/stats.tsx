@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +19,7 @@ import Svg, { Path, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { MeteoStatsModal } from '../../src/components/MeteoStatsModal';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDayNames, getMonthNames, getShortDayNames } from '../../src/i18n';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -209,6 +211,8 @@ export default function StatsScreen() {
   const store = useAppStore();
   const { storicoGiornate, speseAnnue, collaboratori, fornitori, seedMockData } = store;
   const { height: screenH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
   const GAP = Math.round(1.5 * ((screenH - 80) / 100));
   const { t } = useTranslation();
 
@@ -629,7 +633,7 @@ export default function StatsScreen() {
   return (
     <View style={st.root}>
       {/* ═══ HEADER FISSO ═══ */}
-      <View style={st.stickyHeader}>
+      <View style={[st.stickyHeader, { paddingTop: topPad }]}>
         <Text style={st.pageTitle}>{t('stats.analysis')}</Text>
         {renderFilterBar(['Pers.', 'Ieri', 'Oggi', 'Sett.', 'Mese', 'Anno'], filtroTempo, setFiltroTempo, false, tempoLabel)}
         {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true, tipoLabel)}

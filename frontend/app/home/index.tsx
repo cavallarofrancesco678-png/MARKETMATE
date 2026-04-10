@@ -353,8 +353,8 @@ export default function HomeScreen() {
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
   // Use real safe area insets for accurate layout on all devices
   const TAB_BAR = 70 + Math.max(safeInsets.bottom, 10);
-  const layoutPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
-  const contentH = screenH - TAB_BAR - layoutPad;
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
+  const contentH = screenH - TAB_BAR - topPad;
   const vh = contentH / 100;
 
   // ★ STANDARD GAP — extracted from grid, used as universal spacer
@@ -385,7 +385,7 @@ export default function HomeScreen() {
   const STORICO_H = unit * 3.2;  // Grafico grande e leggibile
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, { paddingTop: topPad }]}>
       {/* ═══ HEADER ═══ */}
       <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: 4 }]}>
         <View style={s.badgeLeft}>

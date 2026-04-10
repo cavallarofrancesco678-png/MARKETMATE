@@ -10,6 +10,7 @@ import {
   Modal,
   useWindowDimensions,
   Animated,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/appStore';
@@ -28,7 +29,8 @@ export default function AgendaScreen() {
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
   const TAB_BAR = 70 + Math.max(insets.bottom, 10);
-  const contentH = screenH - TAB_BAR - insets.top;
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
+  const contentH = screenH - TAB_BAR - topPad;
 
   // ═══ ORDINI E APPUNTAMENTI ═══
   const [orderText, setOrderText] = useState('');
@@ -182,7 +184,7 @@ export default function AgendaScreen() {
   };
 
   return (
-    <View style={[s.root, { height: contentH }]}>
+    <View style={[s.root, { height: contentH, paddingTop: topPad }]}>
       {/* ═══ TITOLO ═══ */}
       <Text style={s.pageTitle}>ORDINI E APPUNTAMENTI</Text>
 

@@ -9,6 +9,8 @@ import {
   Platform,
   Alert,
   useWindowDimensions,
+  ScrollView,
+  StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -110,6 +112,10 @@ export default function LoginScreen() {
         style={{ flex: 1 }}
       >
         <View style={[s.content, { paddingTop: topSpacing }]}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ alignItems: 'center', paddingBottom: Math.max(insets.bottom + 20, 40) }}
+          >
           {/* ═══ LOGO ═══ */}
           <View style={s.logoWrap}>
             <Image
@@ -238,8 +244,8 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   logo: {
-    width: 280,
-    height: 280,
+    width: 240,
+    height: 240,
     borderRadius: 20,
   },
   // Testi benvenuto
