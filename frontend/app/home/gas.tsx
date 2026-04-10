@@ -46,8 +46,6 @@ export default function GasScreen() {
     }
     addCarburante({ data: new Date(), euro, nota: '' });
     setEuroText('');
-    // Forza refresh
-    store.saveToStorage();
     if (Platform.OS === 'web') window.alert(`Rifornimento di €${euro.toFixed(2)} salvato!`);
     else Alert.alert('Salvato', `Rifornimento di €${euro.toFixed(2)} registrato`);
   };
@@ -172,7 +170,6 @@ export default function GasScreen() {
     // Aggiungi nuovo
     const newDate = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), selectedDay, 12, 0, 0);
     addCarburante({ data: newDate, euro, nota: dayNote });
-    store.saveToStorage();
     setShowDayModal(false);
   };
 
@@ -182,7 +179,6 @@ export default function GasScreen() {
     if (existing && existing.length > 0) {
       const idx = findCarburanteIndex(existing[0].data, existing[0].euro);
       if (idx !== -1) removeCarburante(idx);
-      store.saveToStorage();
       setShowDayModal(false);
     }
   };

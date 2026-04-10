@@ -109,7 +109,6 @@ export default function AgendaScreen() {
     }
     const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), day, 12, 0, 0);
     addAppunto({ data: newDate, testo: text });
-    store.saveToStorage();
     if (dayModalType === 'new') {
       setOrderText('');
       setShowCalendar(false);
@@ -151,7 +150,6 @@ export default function AgendaScreen() {
       } else {
         removeOrdine(dDate, item.testo);
       }
-      store.saveToStorage();
       setShowDayModal(false);
     }
   };
@@ -171,7 +169,6 @@ export default function AgendaScreen() {
     }
     // Aggiungi nuovo
     addAppunto({ data: newDate, testo: dayModalText.trim() });
-    store.saveToStorage();
     setShowDayModal(false);
   };
 
@@ -363,7 +360,6 @@ export default function AgendaScreen() {
                     if (!dayModalText.trim()) return;
                     const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay!, 12, 0, 0);
                     addAppunto({ data: newDate, testo: dayModalText.trim() });
-                    store.saveToStorage();
                     setShowDayModal(false);
                   }
                 }}
