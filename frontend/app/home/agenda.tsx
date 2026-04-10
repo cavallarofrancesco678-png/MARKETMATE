@@ -8,36 +8,76 @@ import {
   Alert,
   Platform,
   Modal,
-  ScrollView,
+  useWindowDimensions,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppStore, Appunto, Ordine } from '../../src/store/appStore';
-import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../src/store/appStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+const GIORNI_SETT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
-/* ═══════════════════════════════════════════════════════
-   MINI CALENDARIO RIUTILIZZABILE
-   ═══════════════════════════════════════════════════════ */
-interface MiniCalendarProps {
-  title: string;
-  titleIcon: string;
-  titleColor: string;
-  dotColor: string;
-  displayMonth: Date;
-  setDisplayMonth: (d: Date) => void;
-  markedDays: { [day: number]: any[] };
-  onDayPress: (day: number) => void;
-}
+export default function AgendaScreen() {
+  const {
+    appuntiAgenda, addAppunto, removeAppunto,
+    ordiniAgenda, addOrdine, removeOrdine,
+    storicoDiario, addDiario, getDiarioForDate,
+  } = useAppStore();
+  const store = useAppStore();
+  const insets = useSafeAreaInsets();
+  const { height: screenH } = useWindowDimensions();
+  const TAB_BAR = 70 + Math.max(insets.bottom, 10);
+  const contentH = screenH - TAB_BAR - insets.top;
 
-const MiniCalendar = ({ title, titleIcon, titleColor, dotColor, displayMonth, setDisplayMonth, markedDays, onDayPress }: MiniCalendarProps) => {
-  const today = new Date();
-  const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
+  // ═══ ORDINI E APPUNTAMENTI ═══
+  const [orderText, setOrderText] = useState('');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calMonth, setCalMonth] = useState(new Date());
+  
+  // ═══ MODAL GIORNO (edit/delete) ═══
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [dayModalText, setDayModalText] = useState('');
+  const [dayModalType, setDayModalType] = useState<'new' | 'edit'>('new');
 
+  // ═══ NOTE DEL GIORNO ═══
+  const [noteText, setNoteText] = useState('');
+  const [showArchive, setShowArchive] = useState(false);
+
+  // Carica nota di oggi
+  React.useEffect(() => {
+    const today = new Date();
+    const existing = getDiarioForDate(today);
+    setNoteText(existing ? existing.testo : '');
+  }, []);
+
+  /* ═══ ORDINI + APPUNTAMENTI DEL MESE ═══ */
+  const impegniMese = useMemo(() => {
+    const map: { [day: number]: { testo: string; tipo: string }[] } = {};
+    (appuntiAgenda || []).forEach(a => {
+      const d = new Date(a.data);
+      if (d.getMonth() === calMonth.getMonth() && d.getFullYear() === calMonth.getFullYear()) {
+        const day = d.getDate();
+        if (!map[day]) map[day] = [];
+        map[day].push({ testo: a.testo, tipo: 'appuntamento' });
+      }
+    });
+    (ordiniAgenda || []).forEach(o => {
+      const d = new Date(o.data);
+      if (d.getMonth() === calMonth.getMonth() && d.getFullYear() === calMonth.getFullYear()) {
+        const day = d.getDate();
+        if (!map[day]) map[day] = [];
+        map[day].push({ testo: o.testo, tipo: 'ordine' });
+      }
+    });
+    return map;
+  }, [appuntiAgenda, ordiniAgenda, calMonth]);
+
+  /* ═══ CALENDARIO GRID ═══ */
   const calendarGrid = useMemo(() => {
-    const firstDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1);
-    const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0);
+    const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+    const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0);
     const startOffset = (firstDay.getDay() + 6) % 7;
     const days: (number | null)[] = [];
     for (let i = 0; i < startOffset; i++) days.push(null);
@@ -46,344 +86,296 @@ const MiniCalendar = ({ title, titleIcon, titleColor, dotColor, displayMonth, se
     const rows: (number | null)[][] = [];
     for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7));
     return rows;
-  }, [displayMonth]);
+  }, [calMonth]);
 
-  return (
-    <View style={s.calSection}>
-      {/* Header con titolo e navigazione mese */}
-      <View style={s.calSectionHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name={titleIcon as any} size={15} color={titleColor} />
-          <Text style={[s.calSectionTitle, { color: titleColor }]}>{title}</Text>
-        </View>
-      </View>
-      <View style={s.calHeader}>
-        <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="chevron-back" size={18} color={titleColor} />
-        </TouchableOpacity>
-        <Text style={s.calMonthTxt}>{MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
-        <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="chevron-forward" size={18} color={titleColor} />
-        </TouchableOpacity>
-      </View>
+  /* ═══ ARCHIVIO NOTE ═══ */
+  const noteArchive = useMemo(() => {
+    return (storicoDiario || [])
+      .map(d => ({ ...d, data: new Date(d.data) }))
+      .sort((a, b) => b.data.getTime() - a.data.getTime())
+      .slice(0, 15);
+  }, [storicoDiario]);
 
-      {/* Giorni settimana */}
-      <View style={s.calWeekRow}>
-        {['L', 'M', 'M', 'G', 'V', 'S', 'D'].map((d, i) => <Text key={i} style={s.calWeekDay}>{d}</Text>)}
-      </View>
+  const today = new Date();
+  const isCurrentMonth = calMonth.getMonth() === today.getMonth() && calMonth.getFullYear() === today.getFullYear();
 
-      {/* Griglia */}
-      {calendarGrid.map((row, ri) => (
-        <View key={ri} style={s.calRow}>
-          {row.map((day, di) => {
-            const hasItem = day ? markedDays[day] && markedDays[day].length > 0 : false;
-            const isToday = isCurrentMonth && day === today.getDate();
-            return (
-              <TouchableOpacity
-                key={di}
-                style={[s.calDay, hasItem && { backgroundColor: dotColor }, isToday && !hasItem && s.calDayToday]}
-                disabled={!day}
-                onPress={() => day && onDayPress(day)}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  s.calDayTxt,
-                  hasItem && { color: '#FFF', fontWeight: '800' },
-                  isToday && !hasItem && { color: '#1E7F85', fontWeight: '800' },
-                ]}>
-                  {day || ''}
-                </Text>
-                {hasItem && <View style={[s.calDot, { backgroundColor: '#FFF' }]} />}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      ))}
-    </View>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════
-   SCHERMATA AGENDA
-   ═══════════════════════════════════════════════════════ */
-export default function AgendaScreen() {
-  const {
-    appuntiAgenda, addAppunto, removeAppunto,
-    ordiniAgenda, addOrdine, removeOrdine,
-    storicoDiario, addDiario, getDiarioForDate,
-  } = useAppStore();
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-
-  // Note giornaliere
-  const [diarioText, setDiarioText] = useState('');
-
-  // Calendari separati
-  const [appMonth, setAppMonth] = useState(new Date());
-  const [ordMonth, setOrdMonth] = useState(new Date());
-
-  // Modal
-  const [modalType, setModalType] = useState<'appuntamento' | 'ordine' | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [modalMonth, setModalMonth] = useState(new Date());
-  const [modalText, setModalText] = useState('');
-
-  // Carica diario di oggi
-  React.useEffect(() => {
-    const today = new Date();
-    const existing = getDiarioForDate(today);
-    setDiarioText(existing ? existing.testo : '');
-  }, []);
-
-  const handleSaveDiario = () => {
-    if (diarioText.trim()) {
-      addDiario({ data: new Date(), testo: diarioText.trim() });
-    }
-  };
-
-  /* ═══ APPUNTAMENTI DEL MESE ═══ */
-  const appuntiMese = useMemo(() => {
-    const map: { [day: number]: Appunto[] } = {};
-    (appuntiAgenda || []).forEach(a => {
-      const d = new Date(a.data);
-      if (d.getMonth() === appMonth.getMonth() && d.getFullYear() === appMonth.getFullYear()) {
-        const day = d.getDate();
-        if (!map[day]) map[day] = [];
-        map[day].push(a);
-      }
-    });
-    return map;
-  }, [appuntiAgenda, appMonth]);
-
-  /* ═══ ORDINI DEL MESE ═══ */
-  const ordiniMese = useMemo(() => {
-    const map: { [day: number]: Ordine[] } = {};
-    (ordiniAgenda || []).forEach(o => {
-      const d = new Date(o.data);
-      if (d.getMonth() === ordMonth.getMonth() && d.getFullYear() === ordMonth.getFullYear()) {
-        const day = d.getDate();
-        if (!map[day]) map[day] = [];
-        map[day].push(o);
-      }
-    });
-    return map;
-  }, [ordiniAgenda, ordMonth]);
-
-  /* ═══ APRI MODAL ═══ */
-  const openAppModal = (day: number) => {
-    setModalType('appuntamento');
-    setSelectedDay(day);
-    setModalMonth(appMonth);
-    const existing = appuntiMese[day];
-    setModalText(existing && existing.length > 0 ? existing[0].testo : '');
-  };
-
-  const openOrdModal = (day: number) => {
-    setModalType('ordine');
-    setSelectedDay(day);
-    setModalMonth(ordMonth);
-    const existing = ordiniMese[day];
-    setModalText(existing && existing.length > 0 ? existing[0].testo : '');
-  };
-
-  /* ═══ SALVA ═══ */
-  const handleSaveModal = () => {
-    if (!selectedDay || !modalText.trim()) {
-      if (Platform.OS === 'web') window.alert('Inserisci un testo');
-      else Alert.alert('Errore', 'Inserisci un testo');
+  /* ═══ SALVA ORDINE SU GIORNO ═══ */
+  const handleSaveOrder = (day: number) => {
+    const text = dayModalType === 'new' ? orderText.trim() : dayModalText.trim();
+    if (!text) {
+      if (Platform.OS === 'web') window.alert('Inserisci il dettaglio');
+      else Alert.alert('Errore', 'Inserisci il dettaglio');
       return;
     }
-    const newDate = new Date(modalMonth.getFullYear(), modalMonth.getMonth(), selectedDay, 12, 0, 0);
-
-    if (modalType === 'appuntamento') {
-      // Rimuovi esistente
-      const existing = appuntiMese[selectedDay];
-      if (existing && existing.length > 0) {
-        removeAppunto(new Date(existing[0].data), existing[0].testo);
-      }
-      addAppunto({ data: newDate, testo: modalText.trim() });
+    const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), day, 12, 0, 0);
+    addAppunto({ data: newDate, testo: text });
+    store.saveToStorage();
+    if (dayModalType === 'new') {
+      setOrderText('');
+      setShowCalendar(false);
     } else {
-      // Ordine
-      const existing = ordiniMese[selectedDay];
-      if (existing && existing.length > 0) {
-        removeOrdine(new Date(existing[0].data), existing[0].testo);
-      }
-      addOrdine({ data: newDate, testo: modalText.trim() });
+      setShowDayModal(false);
     }
-
-    setModalType(null);
-    if (Platform.OS === 'web') window.alert('Salvato!');
-    else Alert.alert('Salvato', modalType === 'appuntamento' ? 'Appuntamento aggiornato' : 'Ordine aggiornato');
   };
 
-  /* ═══ ELIMINA ═══ */
-  const handleDeleteModal = () => {
+  /* ═══ CLICK SU GIORNO CALENDARIO ═══ */
+  const handleDayPress = (day: number) => {
+    const existing = impegniMese[day];
+    if (existing && existing.length > 0) {
+      // Giorno con impegno → apri modal per modificare/cancellare
+      setSelectedDay(day);
+      setDayModalText(existing[0].testo);
+      setDayModalType('edit');
+      setShowDayModal(true);
+    } else if (showCalendar && orderText.trim()) {
+      // Salva nuovo ordine su questo giorno
+      handleSaveOrder(day);
+    } else {
+      // Apri il giorno per un nuovo impegno
+      setSelectedDay(day);
+      setDayModalText('');
+      setDayModalType('new');
+      setShowDayModal(true);
+    }
+  };
+
+  /* ═══ ELIMINA IMPEGNO ═══ */
+  const handleDeleteImpegno = () => {
     if (!selectedDay) return;
-
-    const doDelete = () => {
-      if (modalType === 'appuntamento') {
-        const existing = appuntiMese[selectedDay];
-        if (existing && existing.length > 0) {
-          removeAppunto(new Date(existing[0].data), existing[0].testo);
-        }
+    const existing = impegniMese[selectedDay];
+    if (existing && existing.length > 0) {
+      const item = existing[0];
+      const dDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay, 12, 0, 0);
+      if (item.tipo === 'appuntamento') {
+        removeAppunto(dDate, item.testo);
       } else {
-        const existing = ordiniMese[selectedDay];
-        if (existing && existing.length > 0) {
-          removeOrdine(new Date(existing[0].data), existing[0].testo);
-        }
+        removeOrdine(dDate, item.testo);
       }
-      setModalType(null);
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm('Eliminare?')) doDelete();
-    } else {
-      Alert.alert('Conferma', 'Eliminare?', [
-        { text: 'Annulla', style: 'cancel' },
-        { text: 'Elimina', style: 'destructive', onPress: doDelete },
-      ]);
+      store.saveToStorage();
+      setShowDayModal(false);
     }
   };
 
-  const hasExistingItem = () => {
-    if (!selectedDay) return false;
-    if (modalType === 'appuntamento') return appuntiMese[selectedDay] && appuntiMese[selectedDay].length > 0;
-    return ordiniMese[selectedDay] && ordiniMese[selectedDay].length > 0;
+  /* ═══ MODIFICA IMPEGNO ═══ */
+  const handleEditImpegno = () => {
+    if (!selectedDay || !dayModalText.trim()) return;
+    const existing = impegniMese[selectedDay];
+    const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay, 12, 0, 0);
+    // Rimuovi esistente
+    if (existing && existing.length > 0) {
+      if (existing[0].tipo === 'appuntamento') {
+        removeAppunto(newDate, existing[0].testo);
+      } else {
+        removeOrdine(newDate, existing[0].testo);
+      }
+    }
+    // Aggiungi nuovo
+    addAppunto({ data: newDate, testo: dayModalText.trim() });
+    store.saveToStorage();
+    setShowDayModal(false);
+  };
+
+  /* ═══ SALVA NOTA ═══ */
+  const handleSaveNote = () => {
+    if (noteText.trim()) {
+      addDiario({ data: new Date(), testo: noteText.trim() });
+      if (Platform.OS === 'web') window.alert('Nota salvata!');
+      else Alert.alert('Salvato', 'Nota salvata nell\'archivio');
+    }
   };
 
   return (
-    <ScrollView style={s.root} contentContainerStyle={s.rootContent} showsVerticalScrollIndicator={false}>
+    <View style={[s.root, { height: contentH }]}>
       {/* ═══ TITOLO ═══ */}
-      <Text style={s.pageTitle}>APPUNTI E ORDINI</Text>
+      <Text style={s.pageTitle}>ORDINI E APPUNTAMENTI</Text>
 
-      {/* ═══ SEZIONE 1: NOTE DEL GIORNO ═══ */}
-      <View style={s.section}>
-        <View style={s.sectionHeader}>
-          <Ionicons name="document-text" size={16} color="#1E7F85" />
-          <Text style={s.sectionTitle}>NOTE DEL GIORNO</Text>
+      {/* ═══ SEZIONE ORDINI ═══ */}
+      <View style={s.card}>
+        <View style={s.cardHeader}>
+          <Ionicons name="calendar-outline" size={15} color="#1E7F85" />
+          <Text style={s.cardHeaderTxt}>DETTAGLI IMPEGNO</Text>
         </View>
         <TextInput
-          style={s.notesInput}
-          placeholder="Scrivi le tue note..."
-          placeholderTextColor="#A0B5A8"
-          value={diarioText}
-          onChangeText={setDiarioText}
-          onBlur={handleSaveDiario}
+          style={s.orderInput}
+          placeholder="Descrivi l'ordine o appuntamento..."
+          placeholderTextColor="#B0A898"
+          value={orderText}
+          onChangeText={setOrderText}
           multiline
-          numberOfLines={3}
+          numberOfLines={2}
         />
+        <TouchableOpacity
+          style={s.orderBtn}
+          activeOpacity={0.8}
+          onPress={() => setShowCalendar(!showCalendar)}
+        >
+          <Ionicons name="calendar" size={16} color="#FFF" />
+          <Text style={s.orderBtnTxt}>
+            {showCalendar ? 'CHIUDI CALENDARIO' : 'ORDINA PER IL GIORNO:'}
+          </Text>
+          <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={16} color="#FFF" />
+        </TouchableOpacity>
       </View>
 
-      {/* ═══ SEZIONE 2: CALENDARIO APPUNTAMENTI ═══ */}
-      <MiniCalendar
-        title="APPUNTAMENTI"
-        titleIcon="calendar"
-        titleColor="#1E7F85"
-        dotColor="#1E7F85"
-        displayMonth={appMonth}
-        setDisplayMonth={setAppMonth}
-        markedDays={appuntiMese}
-        onDayPress={openAppModal}
-      />
-
-      {/* Lista appuntamenti recenti */}
-      {(appuntiAgenda || []).length > 0 && (
-        <View style={s.recentList}>
-          {(appuntiAgenda || []).slice(-3).reverse().map((a, i) => (
-            <View key={`app-${i}`} style={s.recentItem}>
-              <View style={[s.recentDot, { backgroundColor: '#1E7F85' }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.recentDate}>{new Date(a.data).getDate()} {MESI[new Date(a.data).getMonth()]}</Text>
-                <Text style={s.recentTxt} numberOfLines={1}>{a.testo}</Text>
-              </View>
-              <TouchableOpacity onPress={() => removeAppunto(new Date(a.data), a.testo)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={18} color="#D46A6A" />
-              </TouchableOpacity>
-            </View>
-          ))}
+      {/* ═══ CALENDARIO (sempre visibile per mostrare pallini) ═══ */}
+      <View style={[s.calCard, !showCalendar && { maxHeight: 200 }]}>
+        {/* Nav mese */}
+        <View style={s.calNav}>
+          <TouchableOpacity onPress={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="chevron-back" size={18} color="#1E7F85" />
+          </TouchableOpacity>
+          <Text style={s.calMonthTxt}>{MESI[calMonth.getMonth()].toUpperCase()} {calMonth.getFullYear()}</Text>
+          <TouchableOpacity onPress={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="chevron-forward" size={18} color="#1E7F85" />
+          </TouchableOpacity>
         </View>
-      )}
 
-      {/* ═══ SEZIONE 3: CALENDARIO ORDINI ═══ */}
-      <MiniCalendar
-        title="CONSEGNE ORDINI"
-        titleIcon="cube"
-        titleColor="#E8A060"
-        dotColor="#E8A060"
-        displayMonth={ordMonth}
-        setDisplayMonth={setOrdMonth}
-        markedDays={ordiniMese}
-        onDayPress={openOrdModal}
-      />
-
-      {/* Lista ordini recenti */}
-      {(ordiniAgenda || []).length > 0 && (
-        <View style={s.recentList}>
-          {(ordiniAgenda || []).slice(-3).reverse().map((o, i) => (
-            <View key={`ord-${i}`} style={s.recentItem}>
-              <View style={[s.recentDot, { backgroundColor: '#E8A060' }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.recentDate}>{new Date(o.data).getDate()} {MESI[new Date(o.data).getMonth()]}</Text>
-                <Text style={s.recentTxt} numberOfLines={1}>{o.testo}</Text>
-              </View>
-              <TouchableOpacity onPress={() => removeOrdine(new Date(o.data), o.testo)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={18} color="#D46A6A" />
-              </TouchableOpacity>
-            </View>
-          ))}
+        {/* Giorni settimana */}
+        <View style={s.calWeekRow}>
+          {GIORNI_SETT.map((g, i) => <Text key={i} style={s.calWeekTxt}>{g}</Text>)}
         </View>
-      )}
 
-      <View style={{ height: 30 }} />
+        {/* Griglia */}
+        {calendarGrid.map((row, ri) => (
+          <View key={ri} style={s.calRow}>
+            {row.map((day, di) => {
+              const hasItem = day ? impegniMese[day] && impegniMese[day].length > 0 : false;
+              const isToday = isCurrentMonth && day === today.getDate();
+              const itemTypes = day && impegniMese[day] ? impegniMese[day].map(x => x.tipo) : [];
+              const hasApp = itemTypes.includes('appuntamento');
+              const hasOrd = itemTypes.includes('ordine');
+              const bgColor = hasApp && hasOrd ? '#1A4040' : hasOrd ? '#E8A060' : hasApp ? '#1E7F85' : 'transparent';
+              return (
+                <TouchableOpacity
+                  key={di}
+                  style={[
+                    s.calDay,
+                    hasItem && { backgroundColor: bgColor },
+                    isToday && !hasItem && s.calDayToday,
+                  ]}
+                  disabled={!day}
+                  onPress={() => day && handleDayPress(day)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    s.calDayTxt,
+                    hasItem && { color: '#FFF', fontWeight: '800' },
+                    isToday && !hasItem && { color: '#1E7F85', fontWeight: '800' },
+                  ]}>
+                    {day || ''}
+                  </Text>
+                  {hasItem && <View style={[s.calDot, { backgroundColor: '#FFF' }]} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+      </View>
 
-      {/* ═══ MODAL GIORNO ═══ */}
-      <Modal visible={modalType !== null} transparent animationType="fade" onRequestClose={() => setModalType(null)}>
-        <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setModalType(null)}>
+      {/* ═══ NOTE DEL GIORNO ═══ */}
+      <View style={[s.card, { flex: 1 }]}>
+        <View style={s.cardHeader}>
+          <Ionicons name="document-text" size={15} color="#E8A060" />
+          <Text style={[s.cardHeaderTxt, { color: '#E8A060' }]}>NOTE DEL GIORNO</Text>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={handleSaveNote} style={s.noteSaveBtn}>
+            <Ionicons name="save" size={14} color="#FFF" />
+            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>SALVA</Text>
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          style={s.noteInput}
+          placeholder="Scrivi le tue note del giorno..."
+          placeholderTextColor="#B0A898"
+          value={noteText}
+          onChangeText={setNoteText}
+          multiline
+        />
+        {/* Archivio a tendina */}
+        <TouchableOpacity
+          style={s.archiveToggle}
+          onPress={() => setShowArchive(!showArchive)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="archive" size={14} color="#7A9090" />
+          <Text style={s.archiveToggleTxt}>ARCHIVIO NOTE</Text>
+          <Ionicons name={showArchive ? 'chevron-up' : 'chevron-down'} size={14} color="#7A9090" />
+        </TouchableOpacity>
+        {showArchive && (
+          <View style={s.archiveList}>
+            {noteArchive.length === 0 ? (
+              <Text style={s.archiveEmpty}>Nessuna nota salvata</Text>
+            ) : (
+              noteArchive.map((n, i) => (
+                <View key={i} style={s.archiveItem}>
+                  <Text style={s.archiveDate}>
+                    {n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
+                  </Text>
+                  <Text style={s.archiveTxt} numberOfLines={2}>{n.testo}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* ═══ MODAL GIORNO (Modifica/Cancella) ═══ */}
+      <Modal visible={showDayModal} transparent animationType="fade" onRequestClose={() => setShowDayModal(false)}>
+        <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setShowDayModal(false)}>
           <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
             <View style={s.modalTitleRow}>
-              <Ionicons
-                name={modalType === 'appuntamento' ? 'calendar' : 'cube'}
-                size={20}
-                color={modalType === 'appuntamento' ? '#1E7F85' : '#E8A060'}
-              />
+              <Ionicons name="calendar" size={20} color="#1E7F85" />
               <Text style={s.modalTitle}>
-                {selectedDay} {MESI[modalMonth.getMonth()]}
+                {selectedDay} {MESI[calMonth.getMonth()]}
               </Text>
             </View>
-            <Text style={s.modalSubtitle}>
-              {modalType === 'appuntamento' ? 'APPUNTAMENTO' : 'CONSEGNA ORDINE'}
-            </Text>
+
+            {dayModalType === 'edit' && impegniMese[selectedDay!] ? (
+              <Text style={s.modalSubtitle}>
+                {impegniMese[selectedDay!][0].tipo === 'appuntamento' ? 'APPUNTAMENTO' : 'ORDINE'}
+              </Text>
+            ) : (
+              <Text style={s.modalSubtitle}>NUOVO IMPEGNO</Text>
+            )}
 
             <TextInput
-              style={[s.modalInput, { minHeight: 90, textAlignVertical: 'top' }]}
-              placeholder={modalType === 'appuntamento' ? 'Descrizione appuntamento...' : 'Descrizione ordine/consegna...'}
-              placeholderTextColor="#A0B5A8"
+              style={s.modalInput}
+              placeholder="Descrizione..."
+              placeholderTextColor="#B0A898"
+              value={dayModalText}
+              onChangeText={setDayModalText}
               multiline
-              value={modalText}
-              onChangeText={setModalText}
             />
 
             <View style={s.modalBtns}>
-              {hasExistingItem() && (
-                <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} onPress={handleDeleteModal}>
+              {dayModalType === 'edit' && (
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} onPress={handleDeleteImpegno}>
                   <Ionicons name="trash" size={16} color="#FFF" />
+                  <Text style={s.modalBtnTxt}>CANCELLA</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#B0A898', flex: 1 }]} onPress={() => setModalType(null)}>
-                <Text style={s.modalBtnTxt}>ANNULLA</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.modalBtn, { backgroundColor: modalType === 'appuntamento' ? '#1E7F85' : '#E8A060', flex: 1 }]}
-                onPress={handleSaveModal}
+              <TouchableOpacity 
+                style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1 }]} 
+                onPress={() => {
+                  if (dayModalType === 'edit') {
+                    handleEditImpegno();
+                  } else {
+                    if (!dayModalText.trim()) return;
+                    const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay!, 12, 0, 0);
+                    addAppunto({ data: newDate, testo: dayModalText.trim() });
+                    store.saveToStorage();
+                    setShowDayModal(false);
+                  }
+                }}
               >
-                <Ionicons name="save" size={16} color="#FFF" />
-                <Text style={s.modalBtnTxt}>SALVA</Text>
+                <Ionicons name={dayModalType === 'edit' ? 'create' : 'save'} size={16} color="#FFF" />
+                <Text style={s.modalBtnTxt}>{dayModalType === 'edit' ? 'MODIFICA' : 'SALVA'}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -391,87 +383,91 @@ const s = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#F5F0E6',
-    paddingHorizontal: 16,
-  },
-  rootContent: {
-    paddingTop: 10,
-    paddingBottom: 30,
+    paddingHorizontal: 14,
+    paddingTop: 8,
   },
   pageTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
     color: '#1A4040',
     letterSpacing: 2,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  // Sezione note
-  section: {
+  // Card generica
+  card: {
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 6,
     // @ts-ignore
     boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
   },
-  sectionHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 6,
+    marginBottom: 6,
   },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#1A4040',
-    letterSpacing: 0.5,
-  },
-  notesInput: {
-    backgroundColor: '#F5F0E6',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 13,
-    color: '#1A4040',
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  // Mini calendari
-  calSection: {
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    // @ts-ignore
-    boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
-  },
-  calSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  calSectionTitle: {
-    fontSize: 11,
+  cardHeaderTxt: {
+    fontSize: 10,
     fontWeight: '900',
+    color: '#1E7F85',
     letterSpacing: 1,
   },
-  calHeader: {
+  // Ordini
+  orderInput: {
+    backgroundColor: '#F5F0E6',
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 12,
+    color: '#1A4040',
+    minHeight: 36,
+    textAlignVertical: 'top',
+  },
+  orderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1E7F85',
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 6,
+  },
+  orderBtnTxt: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  // Calendario
+  calCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    padding: 8,
+    marginBottom: 6,
+    overflow: 'hidden',
+    // @ts-ignore
+    boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
+  },
+  calNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   calMonthTxt: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: '#1A4040',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   calWeekRow: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  calWeekDay: {
+  calWeekTxt: {
     flex: 1,
     textAlign: 'center',
     fontSize: 9,
@@ -485,52 +481,93 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 7,
     margin: 1,
-    minHeight: 32,
+    minHeight: 28,
   },
   calDayToday: {
     borderWidth: 2,
     borderColor: '#1E7F85',
   },
   calDayTxt: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: '#1A4040',
   },
   calDot: {
-    width: 4,
-    height: 4,
+    width: 3,
+    height: 3,
     borderRadius: 2,
-    marginTop: 2,
+    marginTop: 1,
   },
-  // Lista recenti
-  recentList: {
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E3D5',
-  },
-  recentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  recentDate: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#7A9090',
-  },
-  recentTxt: {
+  // Note
+  noteInput: {
+    backgroundColor: '#F5F0E6',
+    borderRadius: 10,
+    padding: 10,
     fontSize: 12,
     color: '#1A4040',
+    minHeight: 32,
+    textAlignVertical: 'top',
+  },
+  noteSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E8A060',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  // Archivio a tendina
+  archiveToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 6,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E3D5',
+  },
+  archiveToggleTxt: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#7A9090',
+    letterSpacing: 1,
+  },
+  archiveList: {
+    paddingTop: 4,
+  },
+  archiveEmpty: {
+    fontSize: 11,
+    color: '#B0A898',
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
+  archiveItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EBE1',
+  },
+  archiveDate: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#7A9090',
+    backgroundColor: '#F5F0E6',
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: 'hidden',
+  },
+  archiveTxt: {
+    fontSize: 11,
+    color: '#1A4040',
     fontWeight: '600',
+    flex: 1,
   },
   // Modal
   modalOverlay: {
@@ -567,7 +604,7 @@ const s = StyleSheet.create({
     color: '#7A9090',
     textAlign: 'center',
     letterSpacing: 1,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   modalInput: {
     backgroundColor: '#F5F0E6',
@@ -577,11 +614,13 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A4040',
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   modalBtns: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 16,
+    marginTop: 14,
   },
   modalBtn: {
     flexDirection: 'row',

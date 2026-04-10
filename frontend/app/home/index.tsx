@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ScrollView,
   Switch,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
@@ -55,7 +56,7 @@ const MiniBar = () => (
 );
 
 export default function HomeScreen() {
-  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto } = useAppStore();
+  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
   const dayNames = getDayNames();
@@ -121,8 +122,35 @@ export default function HomeScreen() {
     });
   }, [appuntiAgenda, dataCorrente]);
 
-  /* ── Conteggio notifiche totale (solo appuntamenti/ordini, NO diario) ── */
-  const notificheCount = appuntiProssimi.length;
+  /* ── Ordini prossimi 2 giorni per notifiche campanello ── */
+  const ordiniProssimi = useMemo(() => {
+    const oggi = new Date(dataCorrente);
+    oggi.setHours(0, 0, 0, 0);
+    const fra2gg = new Date(oggi);
+    fra2gg.setDate(fra2gg.getDate() + 2);
+    fra2gg.setHours(23, 59, 59, 999);
+    return (ordiniAgenda || []).filter((o) => {
+      const d = new Date(o.data);
+      return d >= oggi && d <= fra2gg;
+    });
+  }, [ordiniAgenda, dataCorrente]);
+
+  /* ── Conteggio notifiche totale (appuntamenti + ordini, NO diario) ── */
+  const notificheCount = appuntiProssimi.length + ordiniProssimi.length;
+
+  /* ── Animazione barre grafico ── */
+  const chartAnimRef = useRef(new Animated.Value(0)).current;
+  const [chartReady, setChartReady] = useState(false);
+  
+  useEffect(() => {
+    chartAnimRef.setValue(0);
+    setChartReady(false);
+    Animated.timing(chartAnimRef, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: false,
+    }).start(() => setChartReady(true));
+  }, [chartMode, mercatoNome]);
 
   /* ── All products from all fornitori ── */
   const tuttiProdotti = useMemo(() => {
@@ -348,11 +376,11 @@ export default function HomeScreen() {
   // Available space for grid rows + storico
   const fixedH = HEADER_H + TOGGLE_H + WEATHER_H + COLLAB_H + SALVA_H + TOTAL_GAPS + gridInternalGaps;
   const availableH = contentH - fixedH;
-  // Weight units: LORDO=1.2, 3×normal=0.8 each, STORICO=2.5 → total 6.1 (aumentato storico)
-  const unit = availableH / 6.1;
+  // Weight units: LORDO=1.2, 3×normal=0.8 each, STORICO=3.2 → total 6.8
+  const unit = availableH / 6.8;
   const lordoRowH = unit * 1.2;
   const normalRowH = unit * 0.8;
-  const STORICO_H = unit * 2.5;  // Aumentato da 2.0 a 2.5 per grafico più grande
+  const STORICO_H = unit * 3.2;  // Grafico grande e leggibile
 
   return (
     <View style={s.root}>
@@ -615,9 +643,9 @@ export default function HomeScreen() {
                 {/* DESTRA - Grafico a BARRE */}
                 <View style={{ flex: 1, justifyContent: 'center' }}>
                   {chartMode === 'anno' ? (
-                    // ANNO - Layout speciale per allineamento perfetto con TOOLTIP
+                    // ANNO - Layout con barre ANIMATE
                     <View style={{ flex: 1 }}>
-                      {/* Valori sopra - nascosti fino al touch */}
+                      {/* Valori sopra */}
                       <View style={{ flexDirection: 'row', height: 14, marginBottom: 2 }}>
                         {chartData.map((val, i) => (
                           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
@@ -628,11 +656,15 @@ export default function HomeScreen() {
                         ))}
                       </View>
                       
-                      {/* Barre - TOUCHABLE */}
+                      {/* Barre ANIMATE - TOUCHABLE */}
                       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
-                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPct = maxVal > 0 ? (val / maxVal) * 100 : 0;
                           const meseNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+                          const animH = chartAnimRef.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['5%', `${Math.max(hPct, 5)}%`],
+                          });
                           return (
                             <TouchableOpacity 
                               key={i} 
@@ -648,12 +680,12 @@ export default function HomeScreen() {
                                 }
                               }}
                             >
-                              <View style={{
-                                width: 14,
-                                height: `${Math.max(h, 5)}%`,
+                              <Animated.View style={{
+                                width: 16,
+                                height: animH,
                                 minHeight: 4,
                                 backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
-                                borderRadius: 3,
+                                borderRadius: 4,
                               }} />
                             </TouchableOpacity>
                           );
@@ -675,17 +707,15 @@ export default function HomeScreen() {
                           position: 'absolute',
                           left: 0,
                           right: 0,
-                          top: 14 + 2 + (1 - media / maxVal) * 50,
+                          bottom: 14 + 3 + (media / maxVal) * 60,
                           height: 1.5,
                           backgroundColor: '#1E7F85',
                           opacity: 0.5,
-                          // @ts-ignore
-                          borderStyle: 'dashed',
                         }} />
                       )}
                     </View>
                   ) : chartMode === 'mese' ? (
-                    // MESE - 4 barre CLICCABILI
+                    // MESE - 4 barre ANIMATE CLICCABILI
                     <View style={{ flex: 1 }}>
                       {/* Valori sopra */}
                       <View style={{ flexDirection: 'row', height: 16, marginBottom: 2 }}>
@@ -698,11 +728,15 @@ export default function HomeScreen() {
                         ))}
                       </View>
                       
-                      {/* Barre - CLICCABILI */}
+                      {/* Barre ANIMATE */}
                       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
-                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPct = maxVal > 0 ? (val / maxVal) * 100 : 0;
                           const settLabels = ['Settimana 1', 'Settimana 2', 'Settimana 3', 'Settimana 4'];
+                          const animH = chartAnimRef.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['5%', `${Math.max(hPct, 5)}%`],
+                          });
                           return (
                             <TouchableOpacity 
                               key={i} 
@@ -718,12 +752,12 @@ export default function HomeScreen() {
                                 }
                               }}
                             >
-                              <View style={{
-                                width: 36,
-                                height: `${Math.max(h, 5)}%`,
+                              <Animated.View style={{
+                                width: 40,
+                                height: animH,
                                 minHeight: 4,
                                 backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
-                                borderRadius: 5,
+                                borderRadius: 6,
                               }} />
                             </TouchableOpacity>
                           );
@@ -740,7 +774,7 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   ) : (
-                    // ANNO PREC - 2 barre confronto
+                    // ANNO PREC - 2 barre ANIMATE confronto
                     <View style={{ flex: 1 }}>
                       {/* Labels anni + valori */}
                       <View style={{ flexDirection: 'row', height: 28, marginBottom: 4 }}>
@@ -754,15 +788,19 @@ export default function HomeScreen() {
                         ))}
                       </View>
                       
-                      {/* Barre */}
+                      {/* Barre ANIMATE */}
                       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10 }}>
                         {chartData.map((val, i) => {
-                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPct = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const animH = chartAnimRef.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['8%', `${Math.max(hPct, 8)}%`],
+                          });
                           return (
                             <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 8 }}>
-                              <View style={{
+                              <Animated.View style={{
                                 width: 50,
-                                height: `${Math.max(h, 8)}%`,
+                                height: animH,
                                 minHeight: 6,
                                 backgroundColor: i === 0 ? '#7A9090' : '#1E7F85',
                                 borderRadius: 6,
@@ -803,26 +841,50 @@ export default function HomeScreen() {
       <Modal visible={showBellModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>{t('home.upcomingAppointments') || 'Appuntamenti prossimi'}</Text>
-            <Text style={s.modalSub}>{t('home.next2days') || 'Prossimi 2 giorni'}</Text>
+            <Text style={s.modalTitle}>{'Riepilogo Impegni'}</Text>
+            <Text style={s.modalSub}>{'Prossimi 2 giorni'}</Text>
             <ScrollView style={{ maxHeight: 350 }}>
-              {/* Appuntamenti e ordini prossimi 2 giorni (NO diario) */}
+              {/* APPUNTAMENTI prossimi */}
               {appuntiProssimi.length > 0 && (
                 <View style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6 }}>{t('agenda.dayOrders').toUpperCase()}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6, letterSpacing: 1 }}>APPUNTAMENTI</Text>
                   {appuntiProssimi.map((a, i) => {
                     const d = new Date(a.data);
                     const isToday = d.toDateString() === dataCorrente.toDateString();
                     const dateLabel = isToday ? 'OGGI' : `${d.getDate()}/${d.getMonth() + 1}`;
                     return (
-                      <View key={i} style={s.modalRow}>
-                        <View style={{ backgroundColor: isToday ? '#1E7F85' : '#E8A060', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
+                      <View key={`app-${i}`} style={s.modalRow}>
+                        <View style={{ backgroundColor: isToday ? '#1E7F85' : '#7A9090', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
                           <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
                         </View>
-                        <Ionicons name="document-text" size={18} color="#1E7F85" />
-                        <Text style={[s.modalLabel, { flex: 1 }]}>{a.testo}</Text>
+                        <Ionicons name="calendar" size={16} color="#1E7F85" />
+                        <Text style={[s.modalLabel, { flex: 1 }]} numberOfLines={2}>{a.testo}</Text>
                         <TouchableOpacity onPress={() => { removeAppunto(a.data, a.testo); }}>
-                          <Ionicons name="close-circle" size={22} color="#D46A6A" />
+                          <Ionicons name="close-circle" size={20} color="#D46A6A" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* ORDINI prossimi */}
+              {ordiniProssimi.length > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#E8A060', marginBottom: 6, letterSpacing: 1 }}>CONSEGNE ORDINI</Text>
+                  {ordiniProssimi.map((o, i) => {
+                    const d = new Date(o.data);
+                    const isToday = d.toDateString() === dataCorrente.toDateString();
+                    const dateLabel = isToday ? 'OGGI' : `${d.getDate()}/${d.getMonth() + 1}`;
+                    return (
+                      <View key={`ord-${i}`} style={s.modalRow}>
+                        <View style={{ backgroundColor: isToday ? '#E8A060' : '#B0A898', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
+                          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
+                        </View>
+                        <Ionicons name="cube" size={16} color="#E8A060" />
+                        <Text style={[s.modalLabel, { flex: 1 }]} numberOfLines={2}>{o.testo}</Text>
+                        <TouchableOpacity onPress={() => { removeOrdine(o.data, o.testo); }}>
+                          <Ionicons name="close-circle" size={20} color="#D46A6A" />
                         </TouchableOpacity>
                       </View>
                     );
@@ -831,7 +893,7 @@ export default function HomeScreen() {
               )}
 
               {notificheCount === 0 && (
-                <Text style={s.modalEmpty}>{t('home.noNotifications')}</Text>
+                <Text style={s.modalEmpty}>{'Nessun impegno nei prossimi 2 giorni'}</Text>
               )}
             </ScrollView>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowBellModal(false)}>
