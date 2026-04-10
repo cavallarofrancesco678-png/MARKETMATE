@@ -12,6 +12,7 @@ import {
   Switch,
   Platform,
   Animated,
+  StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
@@ -352,7 +353,8 @@ export default function HomeScreen() {
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
   // Use real safe area insets for accurate layout on all devices
   const TAB_BAR = 70 + Math.max(safeInsets.bottom, 10);
-  const contentH = screenH - TAB_BAR - safeInsets.top;
+  const layoutPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
+  const contentH = screenH - TAB_BAR - layoutPad;
   const vh = contentH / 100;
 
   // ★ STANDARD GAP — extracted from grid, used as universal spacer

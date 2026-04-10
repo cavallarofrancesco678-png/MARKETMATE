@@ -1002,7 +1002,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#D8EDE5',
+    backgroundColor: '#E8E3D5',
     borderRadius: 10,
   },
   checkbox: {

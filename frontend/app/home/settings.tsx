@@ -1080,7 +1080,7 @@ export default function SettingsPage() {
 
 /* ─── STYLES ─── */
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#D8EDE5' },
+  root: { flex: 1, backgroundColor: '#F5F0E6' },
   content: { paddingHorizontal: 16, paddingTop: 50, paddingBottom: 30, gap: 10 },
 
   title: {

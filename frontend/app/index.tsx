@@ -115,7 +115,7 @@ export default function LoginScreen() {
             <Image
               source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
               style={s.logo}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
 
@@ -193,19 +193,24 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={handleConfigura} style={s.configBtn}>
             <Ionicons name="settings-outline" size={16} color="#1E7F85" />
             <Text style={s.configTxt}>
-              {isConfigured ? (t('login.reconfigure') || 'Riconfigura App') : (t('login.firstTime') || 'Prima configurazione')}
+              {isConfigured ? (t('login.reconfigure') || 'Riconfigura App') : 'Prima volta? Configura la App'}
             </Text>
           </TouchableOpacity>
+
+          {/* ═══ TESTO RASSICURANTE ═══ */}
+          <View style={s.reassureBox}>
+            <Text style={s.reassureTxt}>
+              Benvenuto su MarketMade. Finalmente hai tutto sotto controllo: i tuoi conti, i mercati e il lavoro della tua squadra, tutto in un unico posto. I tuoi dati sono custoditi nel nostro cloud protetto e crittografato, accessibili solo a te e a chi deciderai di invitare con i tuoi codici personali. Massima trasparenza, dati sempre al sicuro e zero pensieri.
+            </Text>
+          </View>
 
           {/* ═══ SPACER ═══ */}
           <View style={{ flex: 1 }} />
 
-          {/* ═══ FOOTER AMICHEVOLE ═══ */}
+          {/* ═══ FOOTER ═══ */}
           <View style={[s.footer, { paddingBottom: Math.max(insets.bottom + 10, topSpacing) }]}>
-            <Ionicons name="heart" size={14} color="#E8A060" />
-            <Text style={s.footerTxt}>
-              I tuoi dati sono protetti e restano sul tuo dispositivo
-            </Text>
+            <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
+            <Text style={s.footerTxt}>Dati protetti e crittografati</Text>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -233,8 +238,8 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   logo: {
-    width: 180,
-    height: 180,
+    width: 280,
+    height: 280,
     borderRadius: 20,
   },
   // Testi benvenuto
@@ -343,6 +348,23 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#B0A898',
+    textAlign: 'center',
+  },
+  // Testo rassicurante
+  reassureBox: {
+    marginTop: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(30,127,133,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(30,127,133,0.1)',
+  },
+  reassureTxt: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#5A7A7A',
+    lineHeight: 17,
     textAlign: 'center',
   },
 });
