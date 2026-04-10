@@ -438,12 +438,35 @@ export default function StatsScreen() {
     if (lines.length === 0) return null;
     const activeLine = activeChartLine[chartKey] ?? null;
     const currentTooltip = tooltipInfo && tooltipInfo.chartKey === chartKey ? tooltipInfo : null;
+    const hasActiveFilter = activeLine !== null;
     return (
       <View style={[st.card, { marginBottom: GAP }]}>
         <View style={st.chartHeader}>
-          <Text style={st.sectionLabel}>{title}</Text>
+          <TouchableOpacity 
+            onPress={() => {
+              // Reset to show all lines when clicking on section title
+              if (hasActiveFilter) {
+                setActiveChartLine((prev) => ({ ...prev, [chartKey]: null }));
+                setTooltipInfo(null);
+              }
+            }}
+            activeOpacity={hasActiveFilter ? 0.6 : 1}
+          >
+            <Text style={[st.sectionLabel, hasActiveFilter && { textDecorationLine: 'underline', color: '#E8A060' }]}>{title}</Text>
+          </TouchableOpacity>
           <Text style={st.sectionTotal}>TOTALE: {'\u20AC'}{totalSection.toFixed(0)}</Text>
         </View>
+        {hasActiveFilter && (
+          <TouchableOpacity 
+            style={{ alignSelf: 'flex-start', marginBottom: 6, backgroundColor: '#E8A060', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}
+            onPress={() => {
+              setActiveChartLine((prev) => ({ ...prev, [chartKey]: null }));
+              setTooltipInfo(null);
+            }}
+          >
+            <Text style={{ fontSize: 9, color: '#FFF', fontWeight: '800' }}>← MOSTRA TUTTO</Text>
+          </TouchableOpacity>
+        )}
         {currentTooltip && (
           <View style={st.tooltipBanner}>
             <View style={[st.tooltipDot, { backgroundColor: lines[currentTooltip.lineIdx]?.color }]} />

@@ -141,6 +141,9 @@ export default function SettingsPage() {
   // Expanded state for spese annuali
   const [expandedSpese, setExpandedSpese] = useState(false);
 
+  // Modal collaboratori con codici invito
+  const [showCollabModal, setShowCollabModal] = useState(false);
+
   const openModal = useCallback(
     (title: string, hints: string[], onSave: (values: string[]) => void, keyboardTypes?: string[]) => {
       setModalConfig({ visible: true, title, hints, keyboardTypes, onSave });
@@ -544,88 +547,116 @@ export default function SettingsPage() {
         <Text style={s.addBtnTxt}>{t('settings.addCollaborator')}</Text>
       </TouchableOpacity>
 
-      {/* ─── CODICI INVITO COLLABORATORI ─── */}
-      <View style={[s.card, { marginTop: 16 }]}>
-        <View style={s.itemRow}>
-          <Ionicons name="key-outline" size={20} color="#E8A060" />
-          <View style={s.itemInfo}>
-            <Text style={[s.itemLabel, { fontWeight: '800', color: '#1A4040' }]}>
-              {t('settings.inviteCodes') || 'CODICI INVITO'}
-            </Text>
-            <Text style={{ fontSize: 10, color: '#7A9090' }}>
-              {t('settings.inviteCodesDesc') || 'Crea codici per i tuoi collaboratori'}
-            </Text>
-          </View>
-        </View>
-        
-        {/* Lista codici esistenti */}
-        {store.codiciInvito && store.codiciInvito.length > 0 && (
-          <View style={{ marginTop: 12 }}>
-            {store.codiciInvito.map((codice, idx) => (
-              <View key={idx} style={[s.codeItem, !codice.attivo && { opacity: 0.5 }]}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={s.codeText}>{codice.codice}</Text>
-                    <View style={[s.codeBadge, codice.tipo === 'A' ? { backgroundColor: '#E8A060' } : { backgroundColor: '#1E7F85' }]}>
-                      <Text style={s.codeBadgeText}>{codice.tipo === 'A' ? 'OPERATIVO' : 'FULL'}</Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 10, color: '#7A9090', marginTop: 2 }}>{codice.nome}</Text>
-                </View>
-                <TouchableOpacity onPress={() => store.toggleCodiceInvito(codice.codice)} style={{ marginRight: 8 }}>
-                  <Ionicons name={codice.attivo ? 'pause-circle' : 'play-circle'} size={22} color={codice.attivo ? '#E8A060' : '#1E7F85'} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => store.removeCodiceInvito(codice.codice)}>
-                  <Ionicons name="trash-outline" size={18} color="#D46A6A" />
+      {/* ─── PULSANTE INVITA COLLABORATORI ─── */}
+      <TouchableOpacity
+        style={[s.addBtn, { backgroundColor: '#E8A060', marginTop: 10 }]}
+        onPress={() => setShowCollabModal(true)}
+      >
+        <Ionicons name="key-outline" size={18} color="#FFF" />
+        <Text style={[s.addBtnTxt, { color: '#FFF' }]}>{t('settings.inviteCodes') || 'CODICI INVITO'}</Text>
+      </TouchableOpacity>
+
+      {/* ─── MODAL CODICI INVITO ─── */}
+      <Modal visible={showCollabModal} transparent animationType="fade" onRequestClose={() => setShowCollabModal(false)}>
+        <TouchableOpacity activeOpacity={1} style={ms.overlay} onPress={() => setShowCollabModal(false)}>
+          <TouchableOpacity activeOpacity={1} style={[ms.modal, { maxWidth: 380, maxHeight: '85%' }]} onPress={() => {}}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={ms.modalTitle}>{t('settings.inviteCodes') || 'CODICI INVITO'}</Text>
+                <TouchableOpacity onPress={() => setShowCollabModal(false)}>
+                  <Ionicons name="close-circle" size={24} color="#7A9090" />
                 </TouchableOpacity>
               </View>
-            ))}
-          </View>
-        )}
-        
-        {/* Pulsanti genera codice */}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-          <TouchableOpacity
-            style={[s.inviteBtn, { backgroundColor: '#E8A060' }]}
-            onPress={() => {
-              const nome = prompt(t('settings.collaboratorName') || 'Nome collaboratore') || 'Collaboratore';
-              if (nome) {
-                const codice = store.generateCodiceInvito('A', nome);
-                if (Platform.OS === 'web') {
-                  window.alert(`Codice OPERATIVO generato:\n${codice}\n\nAccesso limitato solo alla HOME`);
-                } else {
-                  Alert.alert('Codice Generato', `Codice OPERATIVO:\n${codice}\n\nAccesso limitato solo alla HOME`);
-                }
-              }
-            }}
-          >
-            <Ionicons name="eye-off-outline" size={16} color="#FFF" />
-            <Text style={s.inviteBtnTxt}>{t('settings.codeTypeA') || 'TIPO A'}</Text>
+              
+              {/* Lista codici esistenti */}
+              {store.codiciInvito && store.codiciInvito.length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#7A9090', marginBottom: 8 }}>CODICI ATTIVI</Text>
+                  {store.codiciInvito.map((codice, idx) => (
+                    <View key={idx} style={[s.codeItem, !codice.attivo && { opacity: 0.5 }]}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={s.codeText}>{codice.codice}</Text>
+                          <View style={[s.codeBadge, codice.tipo === 'A' ? { backgroundColor: '#E8A060' } : { backgroundColor: '#1E7F85' }]}>
+                            <Text style={s.codeBadgeText}>{codice.tipo === 'A' ? 'OPERATIVO' : 'FULL'}</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 10, color: '#7A9090', marginTop: 2 }}>{codice.nome}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => store.toggleCodiceInvito(codice.codice)} style={{ marginRight: 8 }}>
+                        <Ionicons name={codice.attivo ? 'pause-circle' : 'play-circle'} size={22} color={codice.attivo ? '#E8A060' : '#1E7F85'} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => store.removeCodiceInvito(codice.codice)}>
+                        <Ionicons name="trash-outline" size={18} color="#D46A6A" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+              
+              {/* Sezione genera nuovo codice */}
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#7A9090', marginBottom: 12 }}>GENERA NUOVO CODICE</Text>
+              
+              <View style={{ gap: 12 }}>
+                <TouchableOpacity
+                  style={[s.inviteBtn, { backgroundColor: '#E8A060', paddingVertical: 16 }]}
+                  onPress={() => {
+                    const nome = prompt(t('settings.collaboratorName') || 'Nome collaboratore') || 'Collaboratore';
+                    if (nome) {
+                      const codice = store.generateCodiceInvito('A', nome);
+                      if (Platform.OS === 'web') {
+                        window.alert(`Codice OPERATIVO generato:\n${codice}\n\nAccesso limitato solo alla HOME`);
+                      } else {
+                        Alert.alert('Codice Generato', `Codice OPERATIVO:\n${codice}\n\nAccesso limitato solo alla HOME`);
+                      }
+                    }
+                  }}
+                >
+                  <Ionicons name="eye-off-outline" size={20} color="#FFF" />
+                  <Text style={[s.inviteBtnTxt, { fontSize: 14 }]}>{t('settings.codeTypeA') || 'TIPO A - OPERATIVO'}</Text>
+                </TouchableOpacity>
+                
+                <View style={{ backgroundColor: '#FFF5E6', borderRadius: 10, padding: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#B87A30', fontWeight: '700', lineHeight: 18 }}>
+                    {t('settings.codeTypeADesc') || 'Accesso limitato SOLO alla HOME.\nIl collaboratore può inserire dati ma NON può vedere STATISTICHE o costi sensibili.'}
+                  </Text>
+                </View>
+                
+                <TouchableOpacity
+                  style={[s.inviteBtn, { backgroundColor: '#1E7F85', paddingVertical: 16, marginTop: 8 }]}
+                  onPress={() => {
+                    const nome = prompt(t('settings.collaboratorName') || 'Nome collaboratore') || 'Collaboratore';
+                    if (nome) {
+                      const codice = store.generateCodiceInvito('B', nome);
+                      if (Platform.OS === 'web') {
+                        window.alert(`Codice FULL generato:\n${codice}\n\nAccesso completo a tutte le funzioni`);
+                      } else {
+                        Alert.alert('Codice Generato', `Codice FULL:\n${codice}\n\nAccesso completo a tutte le funzioni`);
+                      }
+                    }
+                  }}
+                >
+                  <Ionicons name="eye-outline" size={20} color="#FFF" />
+                  <Text style={[s.inviteBtnTxt, { fontSize: 14 }]}>{t('settings.codeTypeB') || 'TIPO B - FULL ACCESS'}</Text>
+                </TouchableOpacity>
+                
+                <View style={{ backgroundColor: '#E6F5F5', borderRadius: 10, padding: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#156565', fontWeight: '700', lineHeight: 18 }}>
+                    {t('settings.codeTypeBDesc') || 'Accesso COMPLETO a tutte le funzioni.\nIl collaboratore può vedere statistiche, costi e modificare impostazioni.'}
+                  </Text>
+                </View>
+              </View>
+              
+              <TouchableOpacity
+                style={[ms.modalSave, { marginTop: 20 }]}
+                onPress={() => setShowCollabModal(false)}
+              >
+                <Text style={ms.modalSaveTxt}>CHIUDI</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.inviteBtn, { backgroundColor: '#1E7F85' }]}
-            onPress={() => {
-              const nome = prompt(t('settings.collaboratorName') || 'Nome collaboratore') || 'Collaboratore';
-              if (nome) {
-                const codice = store.generateCodiceInvito('B', nome);
-                if (Platform.OS === 'web') {
-                  window.alert(`Codice FULL generato:\n${codice}\n\nAccesso completo a tutte le funzioni`);
-                } else {
-                  Alert.alert('Codice Generato', `Codice FULL:\n${codice}\n\nAccesso completo a tutte le funzioni`);
-                }
-              }
-            }}
-          >
-            <Ionicons name="eye-outline" size={16} color="#FFF" />
-            <Text style={s.inviteBtnTxt}>{t('settings.codeTypeB') || 'TIPO B'}</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <Text style={{ fontSize: 9, color: '#7A9090', marginTop: 10, textAlign: 'center', lineHeight: 14 }}>
-          {t('settings.codeTypeADesc') || 'Tipo A: Solo HOME, può inserire dati'}{'\n'}
-          {t('settings.codeTypeBDesc') || 'Tipo B: Accesso completo'}
-        </Text>
-      </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ─── AGENDA MERCATI ─── */}
       <Text style={s.secTitle}>{t('settings.marketsTitle') || 'MERCATI'}</Text>

@@ -353,7 +353,7 @@ export default function HomeScreen() {
   return (
     <View style={s.root}>
       {/* ═══ HEADER ═══ */}
-      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end' }]}>
+      <View style={[s.section, { height: HEADER_H + 20, justifyContent: 'flex-end', paddingTop: Math.max(safeInsets.top + 16, 56) }]}>
         <View style={s.badgeLeft}>
           <View style={s.badge}>
             <Text style={s.badgeTxt} numberOfLines={1}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
@@ -371,7 +371,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-        <View style={{ marginTop: 28 }}>
+        <View style={{ marginTop: 32 }}>
           <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase()}</Text>
           <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
             <View style={s.dateRow}>
@@ -453,7 +453,7 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity style={[s.card, { height: lordoRowH }]} activeOpacity={0.7} onPress={() => setShowUtileModal(true)}>
           <Text style={s.cardBold}>{t('home.profit')}</Text>
-          <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>{'\u20AC'}{utile.toFixed(2)}</Text>
+          <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>{'\u20AC'}{Math.round(utile)}</Text>
         </TouchableOpacity>
       </View>
 
@@ -565,7 +565,7 @@ export default function HomeScreen() {
                 {/* SINISTRA - Numeri */}
                 <View style={{ width: chartMode === 'annoprec' ? 100 : 80, justifyContent: 'center', paddingRight: 6 }}>
                   <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A4040' }}>
-                    €{totale >= 1000 ? `${(totale/1000).toFixed(1)}k` : totale.toFixed(0)}
+                    €{Math.round(totale)}
                   </Text>
                   <Text style={{ fontSize: 9, color: '#7A9090', fontWeight: '600', marginTop: 2 }}>{giorniCount} giornate</Text>
                   
@@ -606,25 +606,39 @@ export default function HomeScreen() {
                 {/* DESTRA - Grafico a BARRE */}
                 <View style={{ flex: 1, justifyContent: 'center' }}>
                   {chartMode === 'anno' ? (
-                    // ANNO - Layout speciale per allineamento perfetto
+                    // ANNO - Layout speciale per allineamento perfetto con TOOLTIP
                     <View style={{ flex: 1 }}>
-                      {/* Valori sopra */}
+                      {/* Valori sopra - nascosti fino al touch */}
                       <View style={{ flexDirection: 'row', height: 14, marginBottom: 2 }}>
                         {chartData.map((val, i) => (
                           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
                             <Text style={{ fontSize: 7, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
-                              {val > 0 ? (val >= 1000 ? `${(val/1000).toFixed(0)}k` : val.toFixed(0)) : '-'}
+                              {val > 0 ? `€${Math.round(val)}` : '-'}
                             </Text>
                           </View>
                         ))}
                       </View>
                       
-                      {/* Barre */}
+                      {/* Barre - TOUCHABLE */}
                       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
                           const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const meseNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
                           return (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                            <TouchableOpacity 
+                              key={i} 
+                              style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                if (val > 0) {
+                                  if (Platform.OS === 'web') {
+                                    window.alert(`${meseNomi[i]}: €${Math.round(val)}`);
+                                  } else {
+                                    Alert.alert(meseNomi[i], `Totale: €${Math.round(val)}`);
+                                  }
+                                }
+                              }}
+                            >
                               <View style={{
                                 width: 14,
                                 height: `${Math.max(h, 5)}%`,
@@ -632,7 +646,7 @@ export default function HomeScreen() {
                                 backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
                                 borderRadius: 3,
                               }} />
-                            </View>
+                            </TouchableOpacity>
                           );
                         })}
                       </View>
@@ -669,7 +683,7 @@ export default function HomeScreen() {
                         {chartData.map((val, i) => (
                           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
                             <Text style={{ fontSize: 10, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
-                              {val > 0 ? (val >= 1000 ? `${(val/1000).toFixed(1)}k` : `€${val.toFixed(0)}`) : '-'}
+                              {val > 0 ? `€${Math.round(val)}` : '-'}
                             </Text>
                           </View>
                         ))}
@@ -711,7 +725,7 @@ export default function HomeScreen() {
                           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
                             <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090' }}>{chartLabels[i]}</Text>
                             <Text style={{ fontSize: 12, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
-                              €{val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toFixed(0)}
+                              €{Math.round(val)}
                             </Text>
                           </View>
                         ))}
@@ -1083,7 +1097,7 @@ const s = StyleSheet.create({
   },
   badgeLeft: {
     position: 'absolute',
-    top: 0,
+    top: 28,
     left: 0,
   },
   badge: {
@@ -1097,7 +1111,7 @@ const s = StyleSheet.create({
   badgeTxt: { color: '#FFF', fontSize: 10, fontWeight: '700' },
   bellRight: {
     position: 'absolute',
-    top: 14,
+    top: 28,
     right: 0,
   },
   bell: {
