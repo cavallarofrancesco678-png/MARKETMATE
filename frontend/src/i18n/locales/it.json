@@ -169,7 +169,14 @@
     "confirmFullReset": "ATTENZIONE! Eliminare TUTTO (mercati, fornitori, collaboratori, impostazioni) e ripristinare lo stato di fabbrica?",
     "fullResetDone": "App ripristinata allo stato di fabbrica",
     "fullResetDesc": "Elimina TUTTO: mercati, fornitori, collaboratori, impostazioni. Ripristina lo stato di fabbrica.",
-    "reset": "Reset"
+    "reset": "Reset",
+    "inviteCodes": "CODICI INVITO",
+    "inviteCodesDesc": "Crea codici per i tuoi collaboratori",
+    "collaboratorName": "Nome collaboratore",
+    "codeTypeA": "TIPO A",
+    "codeTypeB": "TIPO B",
+    "codeTypeADesc": "Tipo A (Operativo): Solo HOME, può inserire dati",
+    "codeTypeBDesc": "Tipo B (Full): Accesso completo a tutte le funzioni"
   },
   "stats": {
     "title": "STATISTICHE",

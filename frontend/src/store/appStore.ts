@@ -72,6 +72,16 @@ export interface ScontrinoRecord {
   mediaScontrino: number;
 }
 
+// Sistema Collaboratori con codici invito
+export interface CodiceInvito {
+  codice: string;
+  tipo: 'A' | 'B'; // A = Operativo (solo HOME), B = Full access
+  nome: string;
+  attivo: boolean;
+  dataCreazione: string;
+  ultimoAccesso?: string;
+}
+
 interface AppState {
   // Config
   isConfigured: boolean;
@@ -90,6 +100,7 @@ interface AppState {
   otpEnabled: boolean;
   speseFisseDisabilitate: string[];
   speseAnnueDisabilitate: string[];
+  codiciInvito: CodiceInvito[];
   
   // Data
   collaboratori: Collaboratore[];
@@ -126,6 +137,11 @@ interface AppState {
   removeSpeseExtraTag: (tag: string) => void;
   addScontrino: (s: ScontrinoRecord) => void;
   getScontriniForMercato: (mercato: string) => ScontrinoRecord[];
+  // Codici invito collaboratori
+  addCodiceInvito: (c: CodiceInvito) => void;
+  removeCodiceInvito: (codice: string) => void;
+  toggleCodiceInvito: (codice: string) => void;
+  generateCodiceInvito: (tipo: 'A' | 'B', nome: string) => string;
   seedMockData: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
@@ -160,6 +176,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   otpEnabled: false,
   speseFisseDisabilitate: [],
   speseAnnueDisabilitate: [],
+  codiciInvito: [],
   
   collaboratori: [],
   fornitori: [],
@@ -346,6 +363,51 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getScontriniForMercato: (mercato) => {
     return get().storicoScontrini.filter(s => s.mercato === mercato);
+  },
+
+  // Codici invito collaboratori
+  generateCodiceInvito: (tipo, nome) => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let codice = tipo === 'A' ? 'OP-' : 'FL-'; // OP = Operativo, FL = Full
+    for (let i = 0; i < 6; i++) {
+      codice += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    const nuovoCodice: CodiceInvito = {
+      codice,
+      tipo,
+      nome,
+      attivo: true,
+      dataCreazione: new Date().toISOString(),
+    };
+    
+    set((state) => ({
+      codiciInvito: [...state.codiciInvito, nuovoCodice]
+    }));
+    get().saveToStorage();
+    
+    return codice;
+  },
+
+  addCodiceInvito: (c) => {
+    set((state) => ({ codiciInvito: [...state.codiciInvito, c] }));
+    get().saveToStorage();
+  },
+
+  removeCodiceInvito: (codice) => {
+    set((state) => ({
+      codiciInvito: state.codiciInvito.filter(c => c.codice !== codice)
+    }));
+    get().saveToStorage();
+  },
+
+  toggleCodiceInvito: (codice) => {
+    set((state) => ({
+      codiciInvito: state.codiciInvito.map(c => 
+        c.codice === codice ? { ...c, attivo: !c.attivo } : c
+      )
+    }));
+    get().saveToStorage();
   },
   
   seedMockData: () => {
