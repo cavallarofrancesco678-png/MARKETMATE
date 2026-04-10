@@ -24,6 +24,7 @@ import { BuongiornoModal } from '../../src/components/BuongiornoModal';
 import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { playNotificationSound } from '../../src/utils/soundUtils';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
@@ -335,32 +336,37 @@ export default function HomeScreen() {
   const TOGGLE_H = 5 * vh;
   const WEATHER_H = Math.max(WEATHER_SIZE + 6, 5 * vh);
   const COLLAB_H = 4.5 * vh;
-  const SALVA_H = 5 * vh;
+  const SALVA_H = 4.5 * vh;  // Ridotto per avvicinare al bottom
 
   // 9 uniform gaps between 10 vertical blocks
-  const TOTAL_GAPS = 9 * GAP;
+  const TOTAL_GAPS = 8 * GAP;  // Ridotto da 9 a 8 per meno spazio
   const gridInternalGaps = 3 * GAP;
 
   // Available space for grid rows + storico
   const fixedH = HEADER_H + TOGGLE_H + WEATHER_H + COLLAB_H + SALVA_H + TOTAL_GAPS + gridInternalGaps;
   const availableH = contentH - fixedH;
-  // Weight units: LORDO=1.2, 3×normal=0.8 each, STORICO=2.0 → total 5.6
-  const unit = availableH / 5.6;
+  // Weight units: LORDO=1.2, 3×normal=0.8 each, STORICO=2.5 → total 6.1 (aumentato storico)
+  const unit = availableH / 6.1;
   const lordoRowH = unit * 1.2;
   const normalRowH = unit * 0.8;
-  const STORICO_H = unit * 2.0;
+  const STORICO_H = unit * 2.5;  // Aumentato da 2.0 a 2.5 per grafico più grande
 
   return (
     <View style={s.root}>
       {/* ═══ HEADER ═══ */}
-      <View style={[s.section, { height: HEADER_H + 20, justifyContent: 'flex-end', paddingTop: Math.max(safeInsets.top + 16, 56) }]}>
+      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: Math.max(safeInsets.top + 8, 48) }]}>
         <View style={s.badgeLeft}>
           <View style={s.badge}>
             <Text style={s.badgeTxt} numberOfLines={1}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
           </View>
         </View>
         <View style={s.bellRight}>
-          <TouchableOpacity onPress={() => setShowBellModal(true)} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => {
+            if (notificheCount > 0) {
+              playNotificationSound();
+            }
+            setShowBellModal(true);
+          }} activeOpacity={0.7}>
             <View style={s.bell}>
               <Ionicons name="notifications" size={20} color="#FFF" />
               {notificheCount > 0 && (
@@ -371,7 +377,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-        <View style={{ marginTop: 32 }}>
+        <View style={{ marginTop: 24 }}>
           <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase()}</Text>
           <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
             <View style={s.dateRow}>

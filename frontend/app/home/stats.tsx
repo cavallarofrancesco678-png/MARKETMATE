@@ -305,7 +305,15 @@ export default function StatsScreen() {
     const shortMonths = monthNames.map(m => m.substring(0, 3).toUpperCase());
     const shortDays = getShortDayNames();
     if (filtroTempo === 'Anno') return shortMonths;
-    if (filtroTempo === 'Mese') return ['S1', 'S2', 'S3', 'S4'];
+    if (filtroTempo === 'Mese') {
+      // Supporto per mesi a 5 settimane
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const numWeeks = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
+      const weeksCount = Math.min(numWeeks, 5);
+      return Array.from({ length: weeksCount }, (_, i) => `S${i + 1}`);
+    }
     return shortDays;
   }, [filtroTempo, t]);
 
@@ -316,9 +324,19 @@ export default function StatsScreen() {
       return months;
     }
     if (filtroTempo === 'Mese') {
-      const weeks = Array(4).fill(0);
+      // Supporto per mesi a 5 settimane
+      // Calcola il numero di settimane nel mese corrente
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const numWeeks = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
+      const weeksCount = Math.min(numWeeks, 5); // Max 5 settimane
+      
+      const weeks = Array(weeksCount).fill(0);
       data.forEach((g) => {
-        const weekIdx = Math.min(Math.floor((new Date(g.data).getDate() - 1) / 7), 3);
+        const date = new Date(g.data);
+        const dayOfMonth = date.getDate();
+        const weekIdx = Math.min(Math.floor((dayOfMonth - 1) / 7), weeksCount - 1);
         weeks[weekIdx] += field(g);
       });
       return weeks;
