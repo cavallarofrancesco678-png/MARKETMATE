@@ -548,6 +548,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         storicoDiario: state.storicoDiario,
         speseExtraTags: state.speseExtraTags,
         storicoScontrini: state.storicoScontrini,
+        codiciInvito: state.codiciInvito || [],
       };
       await storage.setItem('marketmate_data', JSON.stringify(dataToSave));
     } catch (e) {

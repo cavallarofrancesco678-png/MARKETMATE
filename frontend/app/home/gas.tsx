@@ -9,7 +9,6 @@ import {
   Platform,
   useWindowDimensions,
   Modal,
-  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/appStore';
@@ -112,7 +111,8 @@ export default function GasScreen() {
         const d = new Date(c.data);
         const diff = Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
         if (diff >= 0 && diff < 7) {
-          days[6 - diff] += c.euro || 0;
+          const dayOfWeek = (d.getDay() + 6) % 7; // Lun=0, Dom=6
+          days[dayOfWeek] += c.euro || 0;
         }
       });
       return { values: days, labels: dayLabels };
@@ -205,7 +205,7 @@ export default function GasScreen() {
   const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
 
   return (
-    <ScrollView style={s.root} contentContainerStyle={s.rootContent} showsVerticalScrollIndicator={false}>
+    <View style={[s.root, { height: contentH }]}>
       {/* ═══ TITOLO ═══ */}
       <Text style={s.pageTitle}>CARBURANTE</Text>
 
@@ -358,7 +358,7 @@ export default function GasScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -367,10 +367,7 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F0E6',
     paddingHorizontal: 16,
-  },
-  rootContent: {
     paddingTop: 8,
-    paddingBottom: 30,
   },
   pageTitle: {
     fontSize: 16,
@@ -473,8 +470,8 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 14,
     padding: 10,
-    marginTop: 10,
-    minHeight: 160,
+    marginTop: 6,
+    flex: 1,
     // @ts-ignore
     boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
   },
@@ -516,7 +513,8 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 14,
     padding: 10,
-    marginTop: 10,
+    marginTop: 6,
+    flex: 1.5,
     // @ts-ignore
     boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
   },
