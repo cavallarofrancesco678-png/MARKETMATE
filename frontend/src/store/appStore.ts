@@ -1,6 +1,61 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { generateAllMockData } from '../utils/mockData';
+
+// Storage wrapper che funziona sia su web che su native
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    try {
+      if (Platform.OS === 'web') {
+        return localStorage.getItem(key);
+      }
+      return await AsyncStorage.getItem(key);
+    } catch (e) {
+      console.warn('Storage getItem error:', e);
+      // Fallback to web storage on error
+      try {
+        if (typeof localStorage !== 'undefined') {
+          return localStorage.getItem(key);
+        }
+      } catch {}
+      return null;
+    }
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.setItem(key, value);
+        return;
+      }
+      await AsyncStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('Storage setItem error:', e);
+      // Fallback to web storage on error
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(key, value);
+        }
+      } catch {}
+    }
+  },
+  async removeItem(key: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.removeItem(key);
+        return;
+      }
+      await AsyncStorage.removeItem(key);
+    } catch (e) {
+      console.warn('Storage removeItem error:', e);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(key);
+        }
+      } catch {}
+    }
+  }
+};
 
 export interface Collaboratore {
   nome: string;
@@ -59,6 +114,11 @@ export interface Appunto {
   testo: string;
 }
 
+export interface Ordine {
+  data: Date;
+  testo: string;
+}
+
 export interface DiarioEntry {
   data: Date;
   testo: string;
@@ -110,6 +170,7 @@ interface AppState {
   storicoGiornate: Giornata[];
   storicoCarburante: Carburante[];
   appuntiAgenda: Appunto[];
+  ordiniAgenda: Ordine[];
   storicoDiario: DiarioEntry[];
   speseExtraTags: string[];
   storicoScontrini: ScontrinoRecord[];
@@ -130,6 +191,8 @@ interface AppState {
   removeCarburante: (index: number) => void;
   addAppunto: (a: Appunto) => void;
   removeAppunto: (data: Date, testo: string) => void;
+  addOrdine: (o: Ordine) => void;
+  removeOrdine: (data: Date, testo: string) => void;
   addDiario: (d: DiarioEntry) => void;
   removeDiario: (data: Date) => void;
   getDiarioForDate: (data: Date) => DiarioEntry | undefined;
@@ -185,6 +248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   storicoGiornate: [],
   storicoCarburante: [],
   appuntiAgenda: [],
+  ordiniAgenda: [],
   storicoDiario: [],
   speseExtraTags: [],
   storicoScontrini: [],
@@ -310,6 +374,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     get().saveToStorage();
   },
+
+  addOrdine: (o) => {
+    set((state) => ({ ordiniAgenda: [...(state.ordiniAgenda || []), o] }));
+    get().saveToStorage();
+  },
+
+  removeOrdine: (data, testo) => {
+    set((state) => {
+      let removed = false;
+      return {
+        ordiniAgenda: (state.ordiniAgenda || []).filter(o => {
+          if (!removed && o.testo === testo) {
+            const oDate = new Date(o.data).toDateString();
+            const targetDate = new Date(data).toDateString();
+            if (oDate === targetDate) {
+              removed = true;
+              return false;
+            }
+          }
+          return true;
+        })
+      };
+    });
+    get().saveToStorage();
+  },
   
   addDiario: (d) => {
     set((state) => {
@@ -418,13 +507,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadFromStorage: async () => {
     try {
-      const data = await AsyncStorage.getItem('marketmate_data');
+      const data = await storage.getItem('marketmate_data');
       if (data) {
         const parsed = JSON.parse(data);
         set(parsed);
       }
     } catch (e) {
-      console.error('Error loading data:', e);
+      console.warn('Error loading data:', e);
     }
   },
   
@@ -455,13 +544,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         storicoGiornate: state.storicoGiornate,
         storicoCarburante: state.storicoCarburante,
         appuntiAgenda: state.appuntiAgenda,
+        ordiniAgenda: state.ordiniAgenda || [],
         storicoDiario: state.storicoDiario,
         speseExtraTags: state.speseExtraTags,
         storicoScontrini: state.storicoScontrini,
       };
-      await AsyncStorage.setItem('marketmate_data', JSON.stringify(dataToSave));
+      await storage.setItem('marketmate_data', JSON.stringify(dataToSave));
     } catch (e) {
-      console.error('Error saving data:', e);
+      console.warn('Error saving data:', e);
     }
   },
   
@@ -488,10 +578,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       storicoGiornate: [],
       storicoCarburante: [],
       appuntiAgenda: [],
+      ordiniAgenda: [],
       storicoDiario: [],
       speseExtraTags: [],
       storicoScontrini: [],
     });
-    AsyncStorage.removeItem('marketmate_data');
+    storage.removeItem('marketmate_data');
   },
 }));

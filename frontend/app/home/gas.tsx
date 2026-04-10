@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppStore, CarburanteRecord } from '../../src/store/appStore';
+import { useAppStore } from '../../src/store/appStore';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,7 +21,8 @@ const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Lug
 const MESI_SHORT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
 export default function GasScreen() {
-  const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante, updateCarburante } = useAppStore();
+  const store = useAppStore();
+  const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante } = store;
   const { t } = useTranslation();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -32,13 +33,11 @@ export default function GasScreen() {
   const [showDayModal, setShowDayModal] = useState(false);
   const [dayNote, setDayNote] = useState('');
   const [dayAmount, setDayAmount] = useState('');
-  
-  // Mese visualizzato nel calendario
   const [displayMonth, setDisplayMonth] = useState(new Date());
 
   const contentH = height - insets.bottom - 70;
 
-  /* ═══ SALVA RIFORNIMENTO ═══ */
+  /* ═══ SALVA RIFORNIMENTO OGGI ═══ */
   const handleSalvaRifornimento = () => {
     const euro = parseFloat(euroText.replace(',', '.'));
     if (!euro || euro <= 0) {
@@ -48,8 +47,10 @@ export default function GasScreen() {
     }
     addCarburante({ data: new Date(), euro, nota: '' });
     setEuroText('');
-    if (Platform.OS === 'web') window.alert('Rifornimento salvato!');
-    else Alert.alert('Salvato', 'Rifornimento registrato');
+    // Forza refresh
+    store.saveToStorage();
+    if (Platform.OS === 'web') window.alert(`Rifornimento di €${euro.toFixed(2)} salvato!`);
+    else Alert.alert('Salvato', `Rifornimento di €${euro.toFixed(2)} registrato`);
   };
 
   /* ═══ STATISTICHE FILTRATE ═══ */
@@ -59,23 +60,20 @@ export default function GasScreen() {
     let filteredGiornate = [...storicoGiornate];
 
     if (filtro === 'SETT.') {
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      filtered = storicoCarburante.filter(c => new Date(c.data) >= weekAgo);
-      filteredGiornate = storicoGiornate.filter(g => new Date(g.data) >= weekAgo);
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filtered = storicoCarburante.filter(c => new Date(c.data).getTime() >= weekAgo.getTime());
+      filteredGiornate = storicoGiornate.filter(g => new Date(g.data).getTime() >= weekAgo.getTime());
     } else if (filtro === 'MESE') {
-      const monthAgo = new Date(now);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      filtered = storicoCarburante.filter(c => new Date(c.data) >= monthAgo);
-      filteredGiornate = storicoGiornate.filter(g => new Date(g.data) >= monthAgo);
+      const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      filtered = storicoCarburante.filter(c => new Date(c.data).getTime() >= monthAgo.getTime());
+      filteredGiornate = storicoGiornate.filter(g => new Date(g.data).getTime() >= monthAgo.getTime());
     } else if (filtro === 'ANNO') {
-      const yearAgo = new Date(now);
-      yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-      filtered = storicoCarburante.filter(c => new Date(c.data) >= yearAgo);
-      filteredGiornate = storicoGiornate.filter(g => new Date(g.data) >= yearAgo);
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      filtered = storicoCarburante.filter(c => new Date(c.data).getTime() >= yearStart.getTime());
+      filteredGiornate = storicoGiornate.filter(g => new Date(g.data).getTime() >= yearStart.getTime());
     }
 
-    const totale = filtered.reduce((s, c) => s + c.euro, 0);
+    const totale = filtered.reduce((s, c) => s + (c.euro || 0), 0);
     const km = filteredGiornate.reduce((s, g) => s + (g.km || 0), 0);
     const euroKm = km > 0 ? totale / km : 0;
 
@@ -90,46 +88,48 @@ export default function GasScreen() {
       storicoCarburante.forEach(c => {
         const d = new Date(c.data);
         if (d.getFullYear() === now.getFullYear()) {
-          months[d.getMonth()] += c.euro;
+          months[d.getMonth()] += c.euro || 0;
         }
       });
       return { values: months, labels: MESI_SHORT };
     } else if (filtro === 'MESE') {
-      const weeks = Array(4).fill(0);
-      const monthAgo = new Date(now);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      const weeks = [0, 0, 0, 0];
+      const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
       storicoCarburante.forEach(c => {
         const d = new Date(c.data);
-        if (d >= monthAgo) {
-          const diff = Math.floor((now.getTime() - d.getTime()) / (7 * 24 * 60 * 60 * 1000));
-          weeks[Math.min(3, diff)] += c.euro;
+        if (d.getTime() >= monthAgo.getTime()) {
+          const weekNum = Math.floor((now.getTime() - d.getTime()) / (7 * 24 * 60 * 60 * 1000));
+          if (weekNum >= 0 && weekNum < 4) {
+            weeks[3 - weekNum] += c.euro || 0;
+          }
         }
       });
-      return { values: weeks.reverse(), labels: ['S1', 'S2', 'S3', 'S4'] };
+      return { values: weeks, labels: ['S1', 'S2', 'S3', 'S4'] };
     } else {
-      const days = Array(7).fill(0);
+      const days = [0, 0, 0, 0, 0, 0, 0];
+      const dayLabels = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
       storicoCarburante.forEach(c => {
         const d = new Date(c.data);
         const diff = Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
         if (diff >= 0 && diff < 7) {
-          days[6 - diff] += c.euro;
+          days[6 - diff] += c.euro || 0;
         }
       });
-      return { values: days, labels: ['L', 'M', 'M', 'G', 'V', 'S', 'D'] };
+      return { values: days, labels: dayLabels };
     }
   }, [storicoCarburante, filtro]);
 
   const maxChart = Math.max(...chartData.values, 1);
 
-  /* ═══ CALENDARIO - RIFORNIMENTI DEL MESE ═══ */
+  /* ═══ RIFORNIMENTI DEL MESE ═══ */
   const rifornimentiMese = useMemo(() => {
-    const map: { [day: number]: CarburanteRecord[] } = {};
+    const map: { [day: number]: { euro: number; nota?: string; data: Date }[] } = {};
     storicoCarburante.forEach(c => {
       const d = new Date(c.data);
       if (d.getMonth() === displayMonth.getMonth() && d.getFullYear() === displayMonth.getFullYear()) {
         const day = d.getDate();
         if (!map[day]) map[day] = [];
-        map[day].push(c);
+        map[day].push({ euro: c.euro, nota: (c as any).nota, data: d });
       }
     });
     return map;
@@ -139,14 +139,20 @@ export default function GasScreen() {
     setSelectedDay(day);
     const rifs = rifornimentiMese[day];
     if (rifs && rifs.length > 0) {
-      const r = rifs[0];
-      setDayAmount(r.euro.toString());
-      setDayNote((r as any).nota || '');
+      setDayAmount(rifs[0].euro.toFixed(2));
+      setDayNote(rifs[0].nota || '');
     } else {
       setDayAmount('');
       setDayNote('');
     }
     setShowDayModal(true);
+  };
+
+  /* Trova indice reale in storicoCarburante dato un rifornimento */
+  const findCarburanteIndex = (data: Date, euro: number): number => {
+    return storicoCarburante.findIndex(c =>
+      new Date(c.data).toDateString() === new Date(data).toDateString() && c.euro === euro
+    );
   };
 
   const handleSaveDayRifornimento = () => {
@@ -157,40 +163,31 @@ export default function GasScreen() {
       else Alert.alert('Errore', 'Importo non valido');
       return;
     }
+    // Rimuovi esistente
     const existing = rifornimentiMese[selectedDay];
     if (existing && existing.length > 0) {
-      // Rimuovi il vecchio e aggiungi il nuovo
-      removeCarburante(new Date(existing[0].data), existing[0].euro);
+      const idx = findCarburanteIndex(existing[0].data, existing[0].euro);
+      if (idx !== -1) removeCarburante(idx);
     }
-    const newDate = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), selectedDay);
+    // Aggiungi nuovo
+    const newDate = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), selectedDay, 12, 0, 0);
     addCarburante({ data: newDate, euro, nota: dayNote });
+    store.saveToStorage();
     setShowDayModal(false);
-    if (Platform.OS === 'web') window.alert('Salvato!');
-    else Alert.alert('Salvato', 'Rifornimento aggiornato');
   };
 
   const handleDeleteDayRifornimento = () => {
     if (!selectedDay) return;
     const existing = rifornimentiMese[selectedDay];
     if (existing && existing.length > 0) {
-      if (Platform.OS === 'web') {
-        if (window.confirm('Eliminare questo rifornimento?')) {
-          removeCarburante(new Date(existing[0].data), existing[0].euro);
-          setShowDayModal(false);
-        }
-      } else {
-        Alert.alert('Conferma', 'Eliminare questo rifornimento?', [
-          { text: 'Annulla', style: 'cancel' },
-          { text: 'Elimina', style: 'destructive', onPress: () => {
-            removeCarburante(new Date(existing[0].data), existing[0].euro);
-            setShowDayModal(false);
-          }}
-        ]);
-      }
+      const idx = findCarburanteIndex(existing[0].data, existing[0].euro);
+      if (idx !== -1) removeCarburante(idx);
+      store.saveToStorage();
+      setShowDayModal(false);
     }
   };
 
-  /* ═══ GENERA GRIGLIA CALENDARIO ═══ */
+  /* ═══ GRIGLIA CALENDARIO ═══ */
   const calendarGrid = useMemo(() => {
     const firstDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1);
     const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0);
@@ -208,35 +205,31 @@ export default function GasScreen() {
   const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
 
   return (
-    <View style={[s.root, { height: contentH }]}>
-      {/* ═══ TITOLO + INPUT RIFORNIMENTO ═══ */}
-      <View style={s.inputSection}>
-        <Text style={s.title}>CARBURANTE</Text>
-        <View style={s.inputRow}>
-          <TextInput
-            style={s.euroInput}
-            placeholder="€ 0.00"
-            placeholderTextColor="#A0B5A8"
-            keyboardType="numeric"
-            value={euroText}
-            onChangeText={setEuroText}
-            selectTextOnFocus
-          />
-          <TouchableOpacity style={s.saveBtn} onPress={handleSalvaRifornimento}>
-            <Ionicons name="add-circle" size={22} color="#FFF" />
-            <Text style={s.saveBtnTxt}>SEGNA</Text>
-          </TouchableOpacity>
-        </View>
+    <ScrollView style={s.root} contentContainerStyle={s.rootContent} showsVerticalScrollIndicator={false}>
+      {/* ═══ TITOLO ═══ */}
+      <Text style={s.pageTitle}>CARBURANTE</Text>
+
+      {/* ═══ INPUT GRANDE + SALVA ═══ */}
+      <View style={s.inputCard}>
+        <TextInput
+          style={s.bigInput}
+          placeholder="€ 0.00"
+          placeholderTextColor="#B0A898"
+          keyboardType="numeric"
+          value={euroText}
+          onChangeText={setEuroText}
+          selectTextOnFocus
+        />
+        <TouchableOpacity style={s.saveBtn} onPress={handleSalvaRifornimento}>
+          <Ionicons name="save" size={20} color="#FFF" />
+          <Text style={s.saveBtnTxt}>SALVA</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ═══ FILTRI ═══ */}
       <View style={s.filterRow}>
         {(['SETT.', 'MESE', 'ANNO', 'PERS.'] as Filtro[]).map(f => (
-          <TouchableOpacity
-            key={f}
-            style={[s.filterBtn, filtro === f && s.filterOn]}
-            onPress={() => setFiltro(f)}
-          >
+          <TouchableOpacity key={f} style={[s.filterBtn, filtro === f && s.filterOn]} onPress={() => setFiltro(f)}>
             <Text style={[s.filterTxt, filtro === f && { color: '#FFF' }]}>{f}</Text>
           </TouchableOpacity>
         ))}
@@ -245,17 +238,17 @@ export default function GasScreen() {
       {/* ═══ KPI ═══ */}
       <View style={s.kpiRow}>
         <View style={s.kpiCard}>
-          <Ionicons name="speedometer" size={18} color="#1E7F85" />
+          <Ionicons name="speedometer-outline" size={16} color="#1E7F85" />
           <Text style={s.kpiLabel}>KM</Text>
           <Text style={s.kpiValue}>{stats.km.toFixed(0)}</Text>
         </View>
-        <View style={[s.kpiCard, { backgroundColor: '#E8A060' }]}>
-          <Ionicons name="wallet" size={18} color="#FFF" />
+        <View style={[s.kpiCard, s.kpiCardMain]}>
+          <Ionicons name="wallet-outline" size={16} color="#FFF" />
           <Text style={[s.kpiLabel, { color: '#FFF' }]}>TOTALE</Text>
           <Text style={[s.kpiValue, { color: '#FFF' }]}>€{stats.totale.toFixed(0)}</Text>
         </View>
         <View style={s.kpiCard}>
-          <Ionicons name="analytics" size={18} color="#1E7F85" />
+          <Ionicons name="calculator-outline" size={16} color="#1E7F85" />
           <Text style={s.kpiLabel}>€/KM</Text>
           <Text style={s.kpiValue}>€{stats.euroKm.toFixed(2)}</Text>
         </View>
@@ -267,19 +260,15 @@ export default function GasScreen() {
           {chartData.values.map((val, i) => {
             const h = maxChart > 0 ? (val / maxChart) * 100 : 5;
             return (
-              <TouchableOpacity
-                key={i}
-                style={s.barCol}
-                onPress={() => {
-                  if (val > 0) {
-                    if (Platform.OS === 'web') window.alert(`${chartData.labels[i]}: €${Math.round(val)}`);
-                    else Alert.alert(chartData.labels[i], `Totale: €${Math.round(val)}`);
-                  }
-                }}
-              >
+              <TouchableOpacity key={i} style={s.barCol} onPress={() => {
+                if (val > 0) {
+                  if (Platform.OS === 'web') window.alert(`${chartData.labels[i]}: €${Math.round(val)}`);
+                  else Alert.alert(chartData.labels[i], `Totale: €${Math.round(val)}`);
+                }
+              }}>
                 <Text style={s.barValue}>{val > 0 ? `€${Math.round(val)}` : ''}</Text>
                 <View style={s.barWrap}>
-                  <View style={[s.bar, { height: `${Math.max(h, 8)}%`, backgroundColor: val > 0 ? '#1E7F85' : '#D0D0D0' }]} />
+                  <View style={[s.bar, { height: `${Math.max(h, 8)}%`, backgroundColor: val > 0 ? '#1E7F85' : '#D8D0C0' }]} />
                 </View>
                 <Text style={s.barLabel}>{chartData.labels[i]}</Text>
               </TouchableOpacity>
@@ -292,11 +281,11 @@ export default function GasScreen() {
       <View style={s.calCard}>
         <View style={s.calHeader}>
           <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1))}>
-            <Ionicons name="chevron-back" size={20} color="#1E7F85" />
+            <Ionicons name="chevron-back" size={18} color="#1E7F85" />
           </TouchableOpacity>
           <Text style={s.calMonthTxt}>{MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
           <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1))}>
-            <Ionicons name="chevron-forward" size={20} color="#1E7F85" />
+            <Ionicons name="chevron-forward" size={18} color="#1E7F85" />
           </TouchableOpacity>
         </View>
         <View style={s.calWeekRow}>
@@ -305,18 +294,20 @@ export default function GasScreen() {
         {calendarGrid.map((row, ri) => (
           <View key={ri} style={s.calRow}>
             {row.map((day, di) => {
-              const hasRif = day && rifornimentiMese[day];
+              const rif = day ? rifornimentiMese[day] : null;
+              const hasRif = rif && rif.length > 0;
               const isToday = isCurrentMonth && day === today.getDate();
               return (
                 <TouchableOpacity
                   key={di}
-                  style={[s.calDay, hasRif && s.calDayActive, isToday && s.calDayToday]}
+                  style={[s.calDay, hasRif && s.calDayActive, isToday && !hasRif && s.calDayToday]}
                   disabled={!day}
                   onPress={() => day && handleDayPress(day)}
                 >
-                  <Text style={[s.calDayTxt, hasRif && { color: '#FFF', fontWeight: '800' }, isToday && !hasRif && { color: '#1E7F85' }]}>
+                  <Text style={[s.calDayTxt, hasRif && { color: '#FFF', fontWeight: '900' }, isToday && !hasRif && { color: '#1E7F85', fontWeight: '900' }]}>
                     {day || ''}
                   </Text>
+                  {hasRif && <Text style={s.calDayAmount}>€{Math.round(rif[0].euro)}</Text>}
                 </TouchableOpacity>
               );
             })}
@@ -330,40 +321,36 @@ export default function GasScreen() {
           <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
             <Text style={s.modalTitle}>{selectedDay} {MESI[displayMonth.getMonth()]}</Text>
             
-            <View style={s.modalField}>
-              <Text style={s.modalLabel}>IMPORTO</Text>
-              <TextInput
-                style={s.modalInput}
-                placeholder="€ 0.00"
-                placeholderTextColor="#A0B5A8"
-                keyboardType="numeric"
-                value={dayAmount}
-                onChangeText={setDayAmount}
-              />
-            </View>
+            <Text style={s.modalLabel}>IMPORTO RIFORNIMENTO</Text>
+            <TextInput
+              style={s.modalInput}
+              placeholder="€ 0.00"
+              placeholderTextColor="#B0A898"
+              keyboardType="numeric"
+              value={dayAmount}
+              onChangeText={setDayAmount}
+            />
             
-            <View style={s.modalField}>
-              <Text style={s.modalLabel}>NOTA (es. distributore)</Text>
-              <TextInput
-                style={[s.modalInput, { minHeight: 60, textAlignVertical: 'top' }]}
-                placeholder="Distributore, luogo..."
-                placeholderTextColor="#A0B5A8"
-                multiline
-                value={dayNote}
-                onChangeText={setDayNote}
-              />
-            </View>
+            <Text style={s.modalLabel}>NOTA (distributore, luogo...)</Text>
+            <TextInput
+              style={[s.modalInput, s.modalInputMulti]}
+              placeholder="Es: Distributore Settimo Milanese"
+              placeholderTextColor="#B0A898"
+              multiline
+              value={dayNote}
+              onChangeText={setDayNote}
+            />
             
             <View style={s.modalBtns}>
-              {rifornimentiMese[selectedDay!] && (
-                <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} onPress={handleDeleteDayRifornimento}>
-                  <Ionicons name="trash" size={16} color="#FFF" />
+              {rifornimentiMese[selectedDay!] && rifornimentiMese[selectedDay!].length > 0 && (
+                <TouchableOpacity style={s.modalBtnDelete} onPress={handleDeleteDayRifornimento}>
+                  <Ionicons name="trash" size={18} color="#FFF" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#B0A898', flex: 1 }]} onPress={() => setShowDayModal(false)}>
+              <TouchableOpacity style={s.modalBtnCancel} onPress={() => setShowDayModal(false)}>
                 <Text style={s.modalBtnTxt}>ANNULLA</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1 }]} onPress={handleSaveDayRifornimento}>
+              <TouchableOpacity style={s.modalBtnSave} onPress={handleSaveDayRifornimento}>
                 <Ionicons name="save" size={16} color="#FFF" />
                 <Text style={s.modalBtnTxt}>SALVA</Text>
               </TouchableOpacity>
@@ -371,7 +358,7 @@ export default function GasScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -380,50 +367,54 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F0E6',
     paddingHorizontal: 16,
-    paddingTop: 10,
   },
-  title: {
-    fontSize: 12,
-    fontWeight: '800',
+  rootContent: {
+    paddingTop: 8,
+    paddingBottom: 30,
+  },
+  pageTitle: {
+    fontSize: 16,
+    fontWeight: '900',
     color: '#1A4040',
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 10,
   },
-  // Input
-  inputSection: {
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 14,
-    // @ts-ignore
-    boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
-  },
-  inputRow: {
+  // Input grande
+  inputCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 12,
+    // @ts-ignore
+    boxShadow: '4px 4px 12px rgba(0,0,0,0.12)',
   },
-  euroInput: {
-    flex: 1,
-    backgroundColor: '#F5F0E6',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 18,
-    fontWeight: '800',
+  bigInput: {
+    width: '65%',
+    fontSize: 28,
+    fontWeight: '900',
     color: '#1A4040',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F5F0E6',
+    borderRadius: 12,
+    textAlign: 'center',
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#1E7F85',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginLeft: 10,
+    justifyContent: 'center',
   },
   saveBtnTxt: {
     color: '#FFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
   },
   // Filtri
@@ -435,7 +426,7 @@ const s = StyleSheet.create({
   filterBtn: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: '#E8E3D5',
     alignItems: 'center',
   },
@@ -446,6 +437,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: '#5A7575',
+    letterSpacing: 0.5,
   },
   // KPI
   kpiRow: {
@@ -456,11 +448,14 @@ const s = StyleSheet.create({
   kpiCard: {
     flex: 1,
     backgroundColor: '#FFF',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 10,
     alignItems: 'center',
     // @ts-ignore
-    boxShadow: '2px 2px 6px rgba(0,0,0,0.08)',
+    boxShadow: '2px 2px 8px rgba(0,0,0,0.08)',
+  },
+  kpiCardMain: {
+    backgroundColor: '#E8A060',
   },
   kpiLabel: {
     fontSize: 8,
@@ -469,25 +464,24 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   kpiValue: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     color: '#1A4040',
   },
   // Grafico
   chartCard: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 10,
     marginTop: 10,
-    flex: 0.5,
-    minHeight: 100,
+    minHeight: 160,
     // @ts-ignore
-    boxShadow: '2px 2px 8px rgba(0,0,0,0.08)',
+    boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
   },
   chartArea: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
+    height: 120,
   },
   barCol: {
     flex: 1,
@@ -495,8 +489,8 @@ const s = StyleSheet.create({
   },
   barValue: {
     fontSize: 7,
-    fontWeight: '700',
-    color: '#5A7575',
+    fontWeight: '800',
+    color: '#1E7F85',
     marginBottom: 2,
   },
   barWrap: {
@@ -507,25 +501,24 @@ const s = StyleSheet.create({
     minHeight: 40,
   },
   bar: {
-    width: 16,
-    borderRadius: 4,
+    width: 18,
+    borderRadius: 5,
     minHeight: 4,
   },
   barLabel: {
     fontSize: 8,
     color: '#7A9090',
     marginTop: 3,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   // Calendario
   calCard: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 10,
     marginTop: 10,
-    flex: 0.8,
     // @ts-ignore
-    boxShadow: '2px 2px 8px rgba(0,0,0,0.08)',
+    boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
   },
   calHeader: {
     flexDirection: 'row',
@@ -535,9 +528,9 @@ const s = StyleSheet.create({
   },
   calMonthTxt: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#1A4040',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   calWeekRow: {
     flexDirection: 'row',
@@ -556,9 +549,11 @@ const s = StyleSheet.create({
   calDay: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 6,
-    borderRadius: 6,
+    justifyContent: 'center',
+    paddingVertical: 4,
+    borderRadius: 8,
     margin: 1,
+    minHeight: 36,
   },
   calDayActive: {
     backgroundColor: '#E8A060',
@@ -572,6 +567,12 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: '#1A4040',
   },
+  calDayAmount: {
+    fontSize: 7,
+    fontWeight: '800',
+    color: '#FFF',
+    marginTop: 1,
+  },
   // Modal
   modalOverlay: {
     flex: 1,
@@ -582,53 +583,72 @@ const s = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 340,
+    // @ts-ignore
+    boxShadow: '0px 10px 30px rgba(0,0,0,0.25)',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
     color: '#1A4040',
     textAlign: 'center',
-    marginBottom: 16,
-  },
-  modalField: {
-    marginBottom: 12,
+    marginBottom: 20,
   },
   modalLabel: {
     fontSize: 10,
     fontWeight: '700',
     color: '#7A9090',
     marginBottom: 6,
+    marginTop: 8,
   },
   modalInput: {
     backgroundColor: '#F5F0E6',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    fontWeight: '600',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: '700',
     color: '#1A4040',
+  },
+  modalInputMulti: {
+    minHeight: 70,
+    textAlignVertical: 'top',
   },
   modalBtns: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 8,
+    marginTop: 20,
   },
-  modalBtn: {
-    flexDirection: 'row',
+  modalBtnDelete: {
+    backgroundColor: '#D46A6A',
+    borderRadius: 12,
+    padding: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalBtnCancel: {
+    flex: 1,
+    backgroundColor: '#B0A898',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  modalBtnSave: {
+    flex: 1,
+    flexDirection: 'row',
     gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    backgroundColor: '#1E7F85',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalBtnTxt: {
     color: '#FFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
   },
 });

@@ -88,6 +88,9 @@ export default function HomeScreen() {
   const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
+  
+  // Tooltip elegante per il grafico
+  const [chartTooltip, setChartTooltip] = useState<{visible: boolean; label: string; value: number} | null>(null);
 
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');

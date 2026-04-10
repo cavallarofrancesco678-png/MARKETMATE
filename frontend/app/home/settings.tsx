@@ -44,12 +44,16 @@ const InputModal = ({
 }) => {
   const [values, setValues] = useState<string[]>([]);
   const [showInvite, setShowInvite] = useState(false);
+  const [inviteContact, setInviteContact] = useState('');
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
   // Reset values EVERY time modal opens
   React.useEffect(() => {
     if (visible) {
       setValues(hints.map(() => ''));
       setShowInvite(false);
+      setInviteContact('');
+      setGeneratedCode(null);
     }
   }, [visible]);
 
@@ -124,9 +128,7 @@ const InputModal = ({
                   onPress={() => setShowInvite(!showInvite)}
                 >
                   <Ionicons name="key" size={16} color={showInvite ? '#FFF' : '#E8A060'} />
-                  <Text style={[ms.inviteToggleTxt, showInvite && { color: '#FFF' }]}>
-                    {showInvite ? 'NASCONDI INVITO' : 'INVITA'}
-                  </Text>
+                  <Text style={[ms.inviteToggleTxt, showInvite && { color: '#FFF' }]}>INVITA</Text>
                   <Ionicons name={showInvite ? 'chevron-up' : 'chevron-down'} size={16} color={showInvite ? '#FFF' : '#E8A060'} />
                 </TouchableOpacity>
 
@@ -139,10 +141,47 @@ const InputModal = ({
                       <View style={[ms.codeBadge, { backgroundColor: collabCodice.tipo === 'A' ? '#E8A060' : '#1E7F85' }]}>
                         <Text style={ms.codeBadgeTxt}>{collabCodice.tipo === 'A' ? 'OPERATIVO' : 'FULL'}</Text>
                       </View>
+                      <View style={{ width: '100%', marginTop: 12 }}>
+                        <TextInput
+                          style={ms.inviteContactInput}
+                          placeholder="Email o telefono per inviare"
+                          placeholderTextColor="#A0A090"
+                          value={inviteContact}
+                          onChangeText={setInviteContact}
+                          keyboardType="email-address"
+                        />
+                        <TouchableOpacity 
+                          style={ms.sendInviteBtn}
+                          onPress={() => {
+                            if (!inviteContact.trim()) {
+                              if (Platform.OS === 'web') window.alert('Inserisci email o telefono');
+                              else Alert.alert('Attenzione', 'Inserisci email o telefono');
+                              return;
+                            }
+                            const msg = `Ciao! Ecco il tuo codice per MarketMate: ${collabCodice.codice} (${collabCodice.tipo === 'A' ? 'Accesso Operativo' : 'Accesso Completo'})`;
+                            if (Platform.OS === 'web') {
+                              window.alert(`Inviato a ${inviteContact}:\n\n${msg}`);
+                            } else {
+                              Alert.alert('Invito Inviato', `Inviato a ${inviteContact}:\n\n${msg}`);
+                            }
+                          }}
+                        >
+                          <Ionicons name="send" size={16} color="#FFF" />
+                          <Text style={ms.sendInviteBtnTxt}>INVIA CODICE</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ) : (
                     <>
                       <Text style={ms.inviteTitle}>GENERA CODICE INVITO</Text>
+                      <TextInput
+                        style={[ms.inviteContactInput, { marginBottom: 12 }]}
+                        placeholder="Email o telefono destinatario"
+                        placeholderTextColor="#A0A090"
+                        value={inviteContact}
+                        onChangeText={setInviteContact}
+                        keyboardType="email-address"
+                      />
                       <TouchableOpacity
                         style={[ms.inviteBtn, { backgroundColor: '#E8A060' }]}
                         onPress={() => {
@@ -1518,6 +1557,31 @@ const ms = StyleSheet.create({
   },
   codeBadgeTxt: {
     fontSize: 9,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  inviteContactInput: {
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 13,
+    color: '#1A4040',
+    borderWidth: 1,
+    borderColor: '#E0D8C8',
+  },
+  sendInviteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1E7F85',
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 10,
+  },
+  sendInviteBtnTxt: {
+    fontSize: 12,
     fontWeight: '800',
     color: '#FFF',
   },
