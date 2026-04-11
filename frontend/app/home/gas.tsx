@@ -259,10 +259,7 @@ export default function GasScreen() {
             const h = maxChart > 0 ? (val / maxChart) * 100 : 5;
             return (
               <TouchableOpacity key={i} style={s.barCol} onPress={() => {
-                if (val > 0) {
-                  if (Platform.OS === 'web') window.alert(`${chartData.labels[i]}: €${Math.round(val)}`);
-                  else Alert.alert(chartData.labels[i], `Totale: €${Math.round(val)}`);
-                }
+                hapticTap();
               }}>
                 <Text style={s.barValue}>{val > 0 ? `€${Math.round(val)}` : ''}</Text>
                 <View style={s.barWrap}>

@@ -193,7 +193,8 @@
     "typeAOperative": "TYPE A - OPÉRATIONNEL",
     "typeBFull": "TYPE B - ACCÈS COMPLET",
     "enterEmailOrPhone": "Entrez email ou téléphone",
-    "enterPhoneFirst": "Entrez d'abord le numéro de téléphone"
+    "enterPhoneFirst": "Entrez d'abord le numéro de téléphone",
+    "type": "TYPE"
   },
   "stats": {
     "title": "STATISTIQUES",
@@ -235,7 +236,14 @@
     "trend": "Tendance",
     "customersServed": "CLIENTS SERVIS",
     "avgReceipt": "Ticket moyen",
-    "peopleServed": "Personnes servies"
+    "peopleServed": "Personnes servies",
+    "overview": "Résumé",
+    "fuel": "Carburant",
+    "dailyAvg": "Moy/jour",
+    "dailyDetail": "Détail Journalier",
+    "generatedOn": "Généré le",
+    "shareReport": "Partager Rapport",
+    "cash": "Espèces"
   },
   "gas": {
     "title": "GESTION CARBURANT",

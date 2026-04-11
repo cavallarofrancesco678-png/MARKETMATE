@@ -193,7 +193,8 @@
     "typeAOperative": "TYP A - OPERATIV",
     "typeBFull": "TYP B - VOLLZUGRIFF",
     "enterEmailOrPhone": "E-Mail oder Telefon eingeben",
-    "enterPhoneFirst": "Zuerst die Telefonnummer eingeben"
+    "enterPhoneFirst": "Zuerst die Telefonnummer eingeben",
+    "type": "TYP"
   },
   "stats": {
     "title": "STATISTIKEN",
@@ -235,7 +236,14 @@
     "trend": "Trend",
     "customersServed": "BEDIENTE KUNDEN",
     "avgReceipt": "Durchschn. Bon",
-    "peopleServed": "Bediente Personen"
+    "peopleServed": "Bediente Personen",
+    "overview": "Überblick",
+    "fuel": "Kraftstoff",
+    "dailyAvg": "Tages-Ø",
+    "dailyDetail": "Tagesdetail",
+    "generatedOn": "Erstellt am",
+    "shareReport": "Bericht teilen",
+    "cash": "Bargeld"
   },
   "gas": {
     "title": "KRAFTSTOFFVERWALTUNG",

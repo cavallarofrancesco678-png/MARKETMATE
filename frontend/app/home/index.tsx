@@ -30,12 +30,12 @@ import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
-const WEATHER_ICONS: Array<{ icon: string; labelKey: string; color: string }> = [
-  { icon: 'weather-sunny', labelKey: 'home.sun', color: '#F5A623' },
-  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud', color: '#8899AA' },
-  { icon: 'weather-rainy', labelKey: 'home.rain', color: '#5A90C0' },
-  { icon: 'weather-lightning', labelKey: 'home.snow', color: '#7A60BB' },
-  { icon: 'weather-windy', labelKey: 'home.wind', color: '#60B0A0' },
+const WEATHER_ICONS: Array<{ icon: string; labelKey: string; color: string; bg: string }> = [
+  { icon: 'weather-sunny', labelKey: 'home.sun', color: '#FF8C00', bg: '#FFF3E0' },
+  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud', color: '#7A8A9A', bg: '#ECEFF1' },
+  { icon: 'weather-rainy', labelKey: 'home.rain', color: '#4A90D9', bg: '#E3F2FD' },
+  { icon: 'weather-lightning', labelKey: 'home.snow', color: '#FFB300', bg: '#FFF8E1' },
+  { icon: 'weather-windy', labelKey: 'home.wind', color: '#26A69A', bg: '#E0F2F1' },
 ];
 
 /* ─── Mini charts ─── */
@@ -397,31 +397,29 @@ export default function HomeScreen() {
         {nomeAttivita ? (
           <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
         ) : null}
-        {/* Bell a destra */}
-        <View style={s.bellRight}>
-          <TouchableOpacity onPress={() => {
-            hapticTap();
-            setShowBellModal(true);
-          }} activeOpacity={0.7}>
-            <View style={[s.bell, notificheCount > 0 && { backgroundColor: '#E44' }]}>
-              <Ionicons name="notifications" size={20} color="#FFF" />
-              {notificheCount > 0 && (
-                <View style={s.bellBadge}>
-                  <Text style={s.bellBadgeTxt}>{notificheCount}</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
-        <View style={{ marginTop: 2 }}>
-          <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
-          <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7}>
-            <View style={s.dateRow}>
-              <Ionicons name="calendar" size={18} color="#1E7F85" />
-              <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        {/* Bell a destra - ZONA SEPARATA con area di tocco grande */}
+        <TouchableOpacity 
+          onPress={() => { hapticTap(); setShowBellModal(true); }} 
+          activeOpacity={0.7}
+          style={s.bellTouchArea}
+          hitSlop={{ top: 10, bottom: 10, left: 15, right: 15 }}
+        >
+          <View style={[s.bell, notificheCount > 0 && { backgroundColor: '#E44' }]}>
+            <Ionicons name="notifications" size={20} color="#FFF" />
+            {notificheCount > 0 && (
+              <View style={s.bellBadge}>
+                <Text style={s.bellBadgeTxt}>{notificheCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+        <Text style={[s.marketName, { paddingRight: 54 }]} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
+        <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7}>
+          <View style={s.dateRow}>
+            <Ionicons name="calendar" size={18} color="#1E7F85" />
+            <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: GAP }} />
@@ -456,8 +454,8 @@ export default function HomeScreen() {
             const wLabel = t(w.labelKey);
             const sel = meteo === wLabel;
             return (
-              <TouchableOpacity key={i} onPress={() => setMeteo(wLabel)} activeOpacity={0.7}>
-                <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2 }, sel && s.meteoOn]}>
+              <TouchableOpacity key={i} onPress={() => { hapticTap(); setMeteo(wLabel); }} activeOpacity={0.7}>
+                <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2, backgroundColor: sel ? w.color : w.bg }, sel && { borderWidth: 2, borderColor: w.color }]}>
                   <MaterialCommunityIcons name={w.icon as any} size={WEATHER_ICON} color={sel ? '#FFF' : w.color} />
                 </View>
               </TouchableOpacity>
@@ -859,7 +857,7 @@ export default function HomeScreen() {
                         <View style={{ backgroundColor: isToday ? '#1E7F85' : '#7A9090', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
                           <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
                         </View>
-                        <Ionicons name="calendar" size={16} color="#1E7F85" />
+                        <Ionicons name="time" size={16} color="#1E7F85" />
                         <Text style={[s.modalLabel, { flex: 1 }]} numberOfLines={2}>{a.testo}</Text>
                         <TouchableOpacity onPress={() => { removeAppunto(a.data, a.testo); }}>
                           <Ionicons name="close-circle" size={20} color="#D46A6A" />
@@ -1208,6 +1206,13 @@ const s = StyleSheet.create({
     position: 'absolute',
     top: 28,
     right: 0,
+  },
+  bellTouchArea: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    zIndex: 10,
+    padding: 4,
   },
   bell: {
     width: 36,

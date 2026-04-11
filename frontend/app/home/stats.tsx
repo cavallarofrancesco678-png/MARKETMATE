@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDayNames, getMonthNames, getShortDayNames } from '../../src/i18n';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 
 const { width: screenW } = Dimensions.get('window');
@@ -209,7 +210,7 @@ const PieChart = ({ items, size = 120 }: { items: { label: string; value: number
 /* ══════════════════════════════════════════════════════ */
 export default function StatsScreen() {
   const store = useAppStore();
-  const { storicoGiornate, speseAnnue, collaboratori, fornitori, seedMockData } = store;
+  const { storicoGiornate, storicoCarburante, speseAnnue, collaboratori, fornitori, seedMockData } = store;
   const { height: screenH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
@@ -581,6 +582,15 @@ export default function StatsScreen() {
     const totL = arrSum(giorni.map((g) => g.lordo || 0));
     const totN = arrSum(giorni.map((g) => g.netto || 0));
     const totKm = arrSum(giorni.map((g) => g.km || 0));
+    const totCash = arrSum(giorni.map((g) => g.contanti || 0));
+    const totPos = arrSum(giorni.map((g) => g.pos || 0));
+    const totSpFisse = arrSum(giorni.map((g) => g.speseFisse || 0));
+    const totSpExtra = arrSum(giorni.map((g) => g.speseExtra || 0));
+    const totCarb = arrSum(storicoCarburante.filter((c) => {
+      const d = new Date(c.data);
+      return d.getMonth() === pdfMonth && d.getFullYear() === year;
+    }).map(c => c.euro));
+    
     const rows = giorni.map((g) => {
       const d = new Date(g.data);
       return `<tr>
@@ -588,33 +598,56 @@ export default function StatsScreen() {
         <td>${g.mercato}</td>
         <td style="text-align:right">\u20AC${(g.lordo || 0).toFixed(0)}</td>
         <td style="text-align:right">\u20AC${(g.netto || 0).toFixed(0)}</td>
+        <td style="text-align:right">\u20AC${(g.contanti || 0).toFixed(0)}</td>
+        <td style="text-align:right">\u20AC${(g.pos || 0).toFixed(0)}</td>
         <td style="text-align:right">${g.km || 0}</td>
       </tr>`;
     }).join('');
 
-    const html = `<html><head><style>
-      body{font-family:sans-serif;padding:20px;font-size:11px}
-      h1{color:#1E7F85;font-size:16px;margin-bottom:4px}
-      h2{color:#333;font-size:13px;margin-bottom:10px}
-      table{width:100%;border-collapse:collapse;margin:10px 0}
-      th{background:#1E7F85;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
-      td{padding:5px 8px;border-bottom:1px solid #E0E0E0;font-size:10px}
-      tr:nth-child(even){background:#F5F5F0}
-      .summary{display:flex;gap:16px;margin:12px 0}
-      .box{background:#F0EDE4;padding:10px;border-radius:8px;flex:1;text-align:center}
-      .box .val{font-size:16px;font-weight:bold;color:#1E7F85}
-      .box .lbl{font-size:9px;color:#666}
+    const html = `<html><head><meta charset="utf-8"><style>
+      @page{size:A4;margin:15mm}
+      body{font-family:Helvetica,Arial,sans-serif;padding:0;font-size:11px;color:#333}
+      h1{color:#1E7F85;font-size:20px;margin:0 0 2px 0;border-bottom:3px solid #1E7F85;padding-bottom:6px}
+      h3{color:#1E7F85;font-size:12px;margin:14px 0 6px 0;text-transform:uppercase;letter-spacing:1px}
+      .subtitle{color:#666;font-size:11px;margin-bottom:12px}
+      .grid{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px 0}
+      .box{background:#F0EDE4;padding:12px 10px;border-radius:10px;flex:1;min-width:100px;text-align:center}
+      .box .val{font-size:18px;font-weight:bold;color:#1E7F85}
+      .box .lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
+      .box.warn .val{color:#E8A060}
+      table{width:100%;border-collapse:collapse;margin:8px 0;font-size:10px}
+      th{background:#1E7F85;color:#fff;padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px}
+      td{padding:6px 8px;border-bottom:1px solid #E8E8E0}
+      tr:nth-child(even){background:#FAFAF5}
+      .footer{margin-top:20px;text-align:center;font-size:9px;color:#AAA;border-top:1px solid #E0E0E0;padding-top:8px}
     </style></head><body>
-      <h1>MarketMate - Report ${month} ${year}</h1>
-      <div class="summary">
+      <h1>MarketMate</h1>
+      <div class="subtitle">${t('stats.pdfReport')} — ${month} ${year}</div>
+      
+      <h3>${t('stats.overview') || 'Riepilogo'}</h3>
+      <div class="grid">
         <div class="box"><div class="val">\u20AC${totL.toFixed(0)}</div><div class="lbl">${t('stats.gross')}</div></div>
         <div class="box"><div class="val">\u20AC${totN.toFixed(0)}</div><div class="lbl">${t('stats.net')}</div></div>
-        <div class="box"><div class="val">${giorni.length}</div><div class="lbl">${t('stats.workingDays')}</div></div>
+        <div class="box"><div class="val">\u20AC${totCash.toFixed(0)}</div><div class="lbl">${t('stats.cash')}</div></div>
+        <div class="box"><div class="val">\u20AC${totPos.toFixed(0)}</div><div class="lbl">POS</div></div>
+      </div>
+      <div class="grid">
+        <div class="box warn"><div class="val">\u20AC${totSpFisse.toFixed(0)}</div><div class="lbl">${t('stats.fixedExpenses')}</div></div>
+        <div class="box warn"><div class="val">\u20AC${totSpExtra.toFixed(0)}</div><div class="lbl">${t('stats.extraExpenses')}</div></div>
+        <div class="box warn"><div class="val">\u20AC${totCarb.toFixed(0)}</div><div class="lbl">${t('stats.fuel') || 'Carburante'}</div></div>
         <div class="box"><div class="val">${totKm.toFixed(0)} km</div><div class="lbl">${t('stats.totalKm')}</div></div>
       </div>
-      <table><thead><tr><th>Data</th><th>Mercato</th><th>${t('stats.gross')}</th><th>${t('stats.net')}</th><th>Km</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:20px">' + t('stats.noFairs') + '</td></tr>'}</tbody>
+      <div class="grid">
+        <div class="box"><div class="val">${giorni.length}</div><div class="lbl">${t('stats.workingDays')}</div></div>
+        <div class="box"><div class="val">\u20AC${giorni.length > 0 ? (totL / giorni.length).toFixed(0) : 0}</div><div class="lbl">${t('stats.dailyAvg') || 'Media/gg'}</div></div>
+      </div>
+
+      <h3>${t('stats.dailyDetail') || 'Dettaglio Giornaliero'}</h3>
+      <table><thead><tr><th>Data</th><th>Mercato</th><th>${t('stats.gross')}</th><th>${t('stats.net')}</th><th>${t('stats.cash')}</th><th>POS</th><th>Km</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;padding:20px">' + t('stats.noFairs') + '</td></tr>'}</tbody>
       </table>
+      
+      <div class="footer">MarketMate \u00A9 ${year} — ${t('stats.generatedOn') || 'Generato il'} ${new Date().toLocaleDateString()}</div>
     </body></html>`;
 
     try {
@@ -622,11 +655,11 @@ export default function StatsScreen() {
         const w = window.open('', '_blank');
         if (w) { w.document.write(html); w.document.close(); w.print(); }
       } else {
-        const { uri } = await Print.printToFileAsync({ html });
-        await Sharing.shareAsync(uri);
+        const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: t('stats.shareReport') || 'Condividi Report' });
       }
     } catch (e) {
-      Alert.alert('Error', 'PDF generation failed');
+      playSuccess();
     }
   };
 
@@ -749,24 +782,6 @@ export default function StatsScreen() {
             <Text style={st.pdfBtnTxt}>{t('stats.pdfReport')}</Text>
           </LinearGradient>
         </TouchableOpacity>
-        {/* Selettore mese/anno per PDF */}
-        <View style={[st.card, { marginBottom: GAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 10 }]}>
-          <TouchableOpacity onPress={() => setPdfMonth(m => m === 0 ? 11 : m - 1)}>
-            <Ionicons name="chevron-back" size={20} color="#1E7F85" />
-          </TouchableOpacity>
-          <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A4040' }}>
-            {getMonthNames()[pdfMonth]} {pdfYear}
-          </Text>
-          <TouchableOpacity onPress={() => setPdfMonth(m => m === 11 ? 0 : m + 1)}>
-            <Ionicons name="chevron-forward" size={20} color="#1E7F85" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setPdfYear(y => y - 1)} style={{ marginLeft: 10 }}>
-            <Text style={{ fontSize: 11, color: '#7A9090' }}>{pdfYear - 1}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setPdfYear(y => y + 1)}>
-            <Text style={{ fontSize: 11, color: '#7A9090' }}>{pdfYear + 1}</Text>
-          </TouchableOpacity>
-        </View>
 
         <View style={{ height: 20 }} />
       </ScrollView>

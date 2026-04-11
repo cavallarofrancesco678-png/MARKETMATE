@@ -193,7 +193,8 @@
     "typeAOperative": "TYPE A - OPERATIVE",
     "typeBFull": "TYPE B - FULL ACCESS",
     "enterEmailOrPhone": "Enter email or phone",
-    "enterPhoneFirst": "Enter the phone number first"
+    "enterPhoneFirst": "Enter the phone number first",
+    "type": "TYPE"
   },
   "stats": {
     "title": "STATISTICS",
@@ -235,7 +236,14 @@
     "trend": "Trend",
     "customersServed": "CUSTOMERS SERVED",
     "avgReceipt": "Avg receipt",
-    "peopleServed": "People served"
+    "peopleServed": "People served",
+    "overview": "Overview",
+    "fuel": "Fuel",
+    "dailyAvg": "Daily Avg",
+    "dailyDetail": "Daily Detail",
+    "generatedOn": "Generated on",
+    "shareReport": "Share Report",
+    "cash": "Cash"
   },
   "gas": {
     "title": "FUEL MANAGEMENT",

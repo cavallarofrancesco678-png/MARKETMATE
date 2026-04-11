@@ -162,18 +162,20 @@ const InputModal = ({
                         />
                         <TouchableOpacity 
                           style={ms.sendInviteBtn}
-                          onPress={() => {
+                          onPress={async () => {
                             if (!inviteContact.trim()) {
                               if (Platform.OS === 'web') window.alert('Inserisci email o telefono');
                               else Alert.alert('Attenzione', 'Inserisci email o telefono');
                               return;
                             }
                             const msg = `Ciao! Ecco il tuo codice per MarketMate: ${collabCodice.codice} (${collabCodice.tipo === 'A' ? 'Accesso Operativo' : 'Accesso Completo'})`;
-                            if (Platform.OS === 'web') {
-                              window.alert(`Inviato a ${inviteContact}:\n\n${msg}`);
-                            } else {
-                              Alert.alert('Invito Inviato', `Inviato a ${inviteContact}:\n\n${msg}`);
+                            if (Platform.OS !== 'web') {
+                              try {
+                                const { Share } = require('react-native');
+                                await Share.share({ message: msg });
+                              } catch (_e) {}
                             }
+                            playSuccess();
                           }}
                         >
                           <Ionicons name="send" size={16} color="#FFF" />
@@ -638,27 +640,21 @@ export default function SettingsPage() {
         return (
           <View key={i} style={s.card}>
             <View style={s.itemRow}>
-              <Ionicons name="person-circle" size={22} color="#1E7F85" />
-              <View style={s.itemInfo}>
-                <Text style={s.itemVal}>{c.nome}</Text>
-                <Text style={[s.itemLabel, { color: '#1E7F85' }]}>
-                  GG: €{c.costo} · {t('common.annual')}: €{c.costoAnnuo || 0}
-                </Text>
-                {codiceCollab && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 }}>
-                    <Ionicons name="key" size={12} color={codiceCollab.attivo ? '#E8A060' : '#AAA'} />
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: codiceCollab.attivo ? '#1A4040' : '#AAA', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
-                      {codiceCollab.codice}
-                    </Text>
-                    <View style={{ backgroundColor: codiceCollab.tipo === 'A' ? '#E8A060' : '#1E7F85', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
-                      <Text style={{ fontSize: 7, fontWeight: '800', color: '#FFF' }}>{codiceCollab.tipo === 'A' ? 'OP' : 'FULL'}</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => store.toggleCodiceInvito(codiceCollab.codice)}>
-                      <Ionicons name={codiceCollab.attivo ? 'pause-circle' : 'play-circle'} size={16} color={codiceCollab.attivo ? '#E8A060' : '#1E7F85'} />
-                    </TouchableOpacity>
-                  </View>
-                )}
+              <Ionicons name="person-circle" size={28} color="#1E7F85" />
+              <View style={[s.itemInfo, { flex: 1 }]}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#1A4040' }}>{c.nome}</Text>
               </View>
+              {codiceCollab ? (
+                <View style={{ backgroundColor: codiceCollab.tipo === 'A' ? '#E8A060' : '#1E7F85', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginRight: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 1 }}>
+                    {t('settings.type') || 'TIPO'} {codiceCollab.tipo}
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ backgroundColor: '#D0D0D0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginRight: 8 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>—</Text>
+                </View>
+              )}
               <TouchableOpacity
                 onPress={() =>
                   openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
