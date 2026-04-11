@@ -90,7 +90,8 @@ export default function GasScreen() {
           months[d.getMonth()] += c.euro || 0;
         }
       });
-      return { values: months, labels: MESI_SHORT };
+      const translatedShort = t('gas.monthsShort', { returnObjects: true }) as string[];
+      return { values: months, labels: Array.isArray(translatedShort) ? translatedShort : MESI_SHORT };
     } else if (filtro === 'MESE') {
       const weeks = [0, 0, 0, 0];
       const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
@@ -106,7 +107,7 @@ export default function GasScreen() {
       return { values: weeks, labels: ['S1', 'S2', 'S3', 'S4'] };
     } else {
       const days = [0, 0, 0, 0, 0, 0, 0];
-      const dayLabels = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+      const dayLabels = [t('gas.mon'), t('gas.tue'), t('gas.wed'), t('gas.thu'), t('gas.fri'), t('gas.sat'), t('gas.sun')];
       storicoCarburante.forEach(c => {
         const d = new Date(c.data);
         const diff = Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
@@ -117,7 +118,7 @@ export default function GasScreen() {
       });
       return { values: days, labels: dayLabels };
     }
-  }, [storicoCarburante, filtro]);
+  }, [storicoCarburante, filtro, t]);
 
   const maxChart = Math.max(...chartData.values, 1);
 
@@ -348,11 +349,11 @@ export default function GasScreen() {
                 </TouchableOpacity>
               )}
               <TouchableOpacity style={s.modalBtnCancel} onPress={() => setShowDayModal(false)}>
-                <Text style={s.modalBtnTxt}>ANNULLA</Text>
+                <Text style={s.modalBtnTxt}>{t('gas.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.modalBtnSave} onPress={handleSaveDayRifornimento}>
                 <Ionicons name="save" size={16} color="#FFF" />
-                <Text style={s.modalBtnTxt}>SALVA</Text>
+                <Text style={s.modalBtnTxt}>{t('gas.save')}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>

@@ -81,7 +81,18 @@
     "appointments": "COMPROMISSOS",
     "orderDeliveries": "ENTREGAS DE PEDIDOS",
     "today": "HOJE",
-    "noCommitmentsNext2days": "Sem compromissos nos próximos 2 dias"
+    "noCommitmentsNext2days": "Sem compromissos nos próximos 2 dias",
+    "noProductRegistered": "Nenhum produto registado. Vá a Definições → Fornecedores para adicionar produtos.",
+    "orEnterManually": "Ou insira manualmente:",
+    "amountPlaceholder": "Valor €",
+    "reasonPlaceholder": "Motivo (ex: camisola danificada)",
+    "lossPricePlaceholder": "Preço perda €",
+    "dailyFixedExpenses": "DESPESAS FIXAS DIÁRIAS",
+    "disableExpensesHint": "Desative os itens a excluir do cálculo de LUCRO",
+    "noFixedExpenses": "Nenhuma despesa fixa configurada. Vá a Definições.",
+    "fairStandFee": "Taxa de Stand Feira",
+    "totalActive": "TOTAL ATIVO",
+    "selectDate": "SELECIONAR DATA"
   },
   "welcome": {
     "identity": "IDENTIDADE",
@@ -285,6 +296,7 @@
     "fri": "S",
     "sat": "S",
     "sun": "D",
+    "monthsShort": ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
     "months": [
       "Janeiro",
       "Fevereiro",

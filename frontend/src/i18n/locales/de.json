@@ -81,7 +81,18 @@
     "appointments": "TERMINE",
     "orderDeliveries": "BESTELLLIEFERUNGEN",
     "today": "HEUTE",
-    "noCommitmentsNext2days": "Keine Termine in den nächsten 2 Tagen"
+    "noCommitmentsNext2days": "Keine Termine in den nächsten 2 Tagen",
+    "noProductRegistered": "Keine Produkte registriert. Gehen Sie zu Einstellungen → Lieferanten, um Produkte hinzuzufügen.",
+    "orEnterManually": "Oder manuell eingeben:",
+    "amountPlaceholder": "Betrag €",
+    "reasonPlaceholder": "Grund (z.B.: beschädigter Pullover)",
+    "lossPricePlaceholder": "Verlustpreis €",
+    "dailyFixedExpenses": "TÄGLICHE FIXKOSTEN",
+    "disableExpensesHint": "Deaktivieren Sie Posten, die aus der GEWINN-Berechnung ausgeschlossen werden sollen",
+    "noFixedExpenses": "Keine Fixkosten konfiguriert. Gehen Sie zu Einstellungen.",
+    "fairStandFee": "Messestandgebühr",
+    "totalActive": "GESAMT AKTIV",
+    "selectDate": "DATUM WÄHLEN"
   },
   "welcome": {
     "identity": "IDENTITÄT",
@@ -285,6 +296,7 @@
     "fri": "F",
     "sat": "S",
     "sun": "S",
+    "monthsShort": ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
     "months": [
       "Januar",
       "Februar",

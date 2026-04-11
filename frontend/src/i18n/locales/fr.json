@@ -81,7 +81,18 @@
     "appointments": "RENDEZ-VOUS",
     "orderDeliveries": "LIVRAISONS COMMANDES",
     "today": "AUJOURD'HUI",
-    "noCommitmentsNext2days": "Aucun engagement dans les 2 prochains jours"
+    "noCommitmentsNext2days": "Aucun engagement dans les 2 prochains jours",
+    "noProductRegistered": "Aucun produit enregistré. Allez dans Paramètres → Fournisseurs pour ajouter des produits.",
+    "orEnterManually": "Ou saisissez manuellement :",
+    "amountPlaceholder": "Montant €",
+    "reasonPlaceholder": "Motif (ex : pull troué)",
+    "lossPricePlaceholder": "Prix de perte €",
+    "dailyFixedExpenses": "CHARGES FIXES JOURNALIÈRES",
+    "disableExpensesHint": "Désactivez les postes à exclure du calcul BÉNÉFICE",
+    "noFixedExpenses": "Aucune charge fixe configurée. Allez dans Paramètres.",
+    "fairStandFee": "Droit de place Foire",
+    "totalActive": "TOTAL ACTIF",
+    "selectDate": "SÉLECTIONNER DATE"
   },
   "welcome": {
     "identity": "IDENTITÉ",
@@ -285,6 +296,7 @@
     "fri": "V",
     "sat": "S",
     "sun": "D",
+    "monthsShort": ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"],
     "months": [
       "Janvier",
       "Février",

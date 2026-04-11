@@ -81,7 +81,18 @@
     "appointments": "APPUNTAMENTI",
     "orderDeliveries": "CONSEGNE ORDINI",
     "today": "OGGI",
-    "noCommitmentsNext2days": "Nessun impegno nei prossimi 2 giorni"
+    "noCommitmentsNext2days": "Nessun impegno nei prossimi 2 giorni",
+    "noProductRegistered": "Nessun prodotto registrato. Vai in Impostazioni → Fornitori per aggiungere i prodotti.",
+    "orEnterManually": "Oppure inserisci manualmente:",
+    "amountPlaceholder": "Importo €",
+    "reasonPlaceholder": "Motivo (es: maglione bucato)",
+    "lossPricePlaceholder": "Prezzo perdita €",
+    "dailyFixedExpenses": "SPESE FISSE GIORNALIERE",
+    "disableExpensesHint": "Disabilita le voci da escludere dal calcolo UTILE",
+    "noFixedExpenses": "Nessuna spesa fissa configurata. Vai in Impostazioni.",
+    "fairStandFee": "Plateatico Fiera",
+    "totalActive": "TOTALE ATTIVO",
+    "selectDate": "SELEZIONA DATA"
   },
   "welcome": {
     "identity": "IDENTITÀ",
@@ -285,6 +296,7 @@
     "fri": "V",
     "sat": "S",
     "sun": "D",
+    "monthsShort": ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"],
     "months": [
       "Gennaio",
       "Febbraio",

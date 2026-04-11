@@ -910,18 +910,18 @@ export default function HomeScreen() {
             <Text style={s.modalTitle}>{perditaLabel}</Text>
             <Text style={s.modalSub}>
               {isAlimentare
-                ? 'Inserisci la quantità invenduta per prodotto'
-                : 'Inserisci le perdite per fornitore con motivo'}
+                ? t('home.enterUnsoldQty')
+                : t('home.enterLossDetail')}
             </Text>
             <ScrollView style={{ maxHeight: 320 }}>
               {tuttiProdotti.length === 0 ? (
                 <View>
-                  <Text style={s.modalEmpty}>Nessun prodotto registrato. Vai in Impostazioni → Fornitori per aggiungere i prodotti.</Text>
+                  <Text style={s.modalEmpty}>{t('home.noProductRegistered')}</Text>
                   <View style={s.modalDivider} />
-                  <Text style={[s.modalSub, { marginBottom: 8 }]}>Oppure inserisci manualmente:</Text>
+                  <Text style={[s.modalSub, { marginBottom: 8 }]}>{t('home.orEnterManually')}</Text>
                   <TextInput
                     style={s.manualInput}
-                    placeholder="Importo €"
+                    placeholder={t('home.amountPlaceholder')}
                     placeholderTextColor="#A0B5A8"
                     keyboardType="numeric"
                     value={invenduto}
@@ -966,14 +966,14 @@ export default function HomeScreen() {
                       </View>
                       <TextInput
                         style={[s.manualInput, { fontSize: 12, paddingVertical: 6, marginBottom: 4 }]}
-                        placeholder="Motivo (es: maglione bucato)"
+                        placeholder={t('home.reasonPlaceholder')}
                         placeholderTextColor="#B0B5A8"
                         value={invendutoQty[`${key}_motivo`] || ''}
                         onChangeText={(t) => setInvendutoQty((prev) => ({ ...prev, [`${key}_motivo`]: t }))}
                       />
                       <TextInput
                         style={[s.manualInput, { fontSize: 14, paddingVertical: 8 }]}
-                        placeholder="Prezzo perdita €"
+                        placeholder={t('home.lossPricePlaceholder')}
                         placeholderTextColor="#B0B5A8"
                         keyboardType="numeric"
                         value={invendutoQty[key] || ''}
@@ -989,17 +989,17 @@ export default function HomeScreen() {
               <>
                 <View style={s.modalDivider} />
                 <View style={s.modalTotalRow}>
-                  <Text style={s.modalTotalLabel}>TOTALE {perditaLabel}</Text>
+                  <Text style={s.modalTotalLabel}>{t('common.total')} {perditaLabel}</Text>
                   <Text style={s.modalTotalVal}>{'\u20AC'}{invendutoCalcolato.toFixed(2)}</Text>
                 </View>
               </>
             )}
             <View style={{ flexDirection: 'row', gap: 14, marginTop: 16 }}>
               <TouchableOpacity style={[s.modalClose, { flex: 1, backgroundColor: '#B0A898' }]} onPress={() => setShowInvendutoModal(false)}>
-                <Text style={s.modalCloseTxt}>ANNULLA</Text>
+                <Text style={s.modalCloseTxt}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.modalClose, { flex: 1 }]} onPress={confermaInvenduto}>
-                <Text style={s.modalCloseTxt}>CONFERMA</Text>
+                <Text style={s.modalCloseTxt}>{t('common.confirm')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1010,11 +1010,11 @@ export default function HomeScreen() {
       <Modal visible={showSpeseFisseModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>SPESE FISSE GIORNALIERE</Text>
-            <Text style={s.modalSub}>Disabilita le voci da escludere dal calcolo UTILE</Text>
+            <Text style={s.modalTitle}>{t('home.dailyFixedExpenses')}</Text>
+            <Text style={s.modalSub}>{t('home.disableExpensesHint')}</Text>
             <ScrollView style={{ maxHeight: 340 }}>
               {speseFisseOggi.length === 0 ? (
-                <Text style={s.modalEmpty}>Nessuna spesa fissa configurata. Vai in Impostazioni.</Text>
+                <Text style={s.modalEmpty}>{t('home.noFixedExpenses')}</Text>
               ) : (
                 speseFisseOggi.map((it) => {
                   const disabled = (speseFisseDisabilitate || []).includes(it.id);
@@ -1036,13 +1036,13 @@ export default function HomeScreen() {
             {isFiera && fieraPlatNum > 0 && (
               <View style={[s.modalRow, { backgroundColor: '#E8DCC8', marginBottom: 8 }]}>
                 <Ionicons name="star" size={16} color="#D4AF37" />
-                <Text style={s.modalLabel}>Plateatico Fiera</Text>
+                <Text style={s.modalLabel}>{t('home.fairStandFee')}</Text>
                 <Text style={s.modalVal}>{'\u20AC'}{fieraPlatNum.toFixed(2)}</Text>
               </View>
             )}
             <View style={s.modalDivider} />
             <View style={s.modalTotalRow}>
-              <Text style={s.modalTotalLabel}>TOTALE ATTIVO</Text>
+              <Text style={s.modalTotalLabel}>{t('home.totalActive')}</Text>
               <Text style={s.modalTotalVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
             </View>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowSpeseFisseModal(false)}>
@@ -1059,7 +1059,7 @@ export default function HomeScreen() {
         onSelect={(date) => { setDataCorrente(date); setShowCalendar(false); }}
         initialDate={dataCorrente}
         themeColor="#1E7F85"
-        title="SELEZIONA DATA"
+        title={t('home.selectDate')}
       />
 
       {/* Fiera Modal */}

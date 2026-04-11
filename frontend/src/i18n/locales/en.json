@@ -81,7 +81,18 @@
     "appointments": "APPOINTMENTS",
     "orderDeliveries": "ORDER DELIVERIES",
     "today": "TODAY",
-    "noCommitmentsNext2days": "No commitments in the next 2 days"
+    "noCommitmentsNext2days": "No commitments in the next 2 days",
+    "noProductRegistered": "No products registered. Go to Settings → Suppliers to add products.",
+    "orEnterManually": "Or enter manually:",
+    "amountPlaceholder": "Amount €",
+    "reasonPlaceholder": "Reason (e.g.: damaged sweater)",
+    "lossPricePlaceholder": "Loss price €",
+    "dailyFixedExpenses": "DAILY FIXED EXPENSES",
+    "disableExpensesHint": "Disable items to exclude from PROFIT calculation",
+    "noFixedExpenses": "No fixed expenses set. Go to Settings.",
+    "fairStandFee": "Fair Stand Fee",
+    "totalActive": "TOTAL ACTIVE",
+    "selectDate": "SELECT DATE"
   },
   "welcome": {
     "identity": "IDENTITY",
@@ -285,6 +296,7 @@
     "fri": "F",
     "sat": "S",
     "sun": "S",
+    "monthsShort": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "months": [
       "January",
       "February",
