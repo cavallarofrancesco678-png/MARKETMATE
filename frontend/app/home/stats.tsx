@@ -420,8 +420,8 @@ export default function StatsScreen() {
       return Object.values(g.dettaglio_invenduto).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
     }));
     return [
-      { label: 'SPESE EXTRA', value: totSpeseExtra, color: PALETTE[1] },
-      { label: 'INVENDUTO', value: totInvenduto, color: PALETTE[3] },
+      { label: t('stats.extraExpenses'), value: totSpeseExtra, color: PALETTE[1] },
+      { label: t('stats.unsold'), value: totInvenduto, color: PALETTE[3] },
     ].filter((i) => i.value > 0);
   }, [filteredData]);
 

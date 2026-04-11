@@ -205,7 +205,9 @@
     "typeBFull": "TYPE B - FULL ACCESS",
     "enterEmailOrPhone": "Enter email or phone",
     "enterPhoneFirst": "Enter the phone number first",
-    "type": "TYPE"
+    "type": "TYPE",
+    "exitApp": "EXIT APP",
+    "exitAppConfirm": "Do you want to close MarketMate?"
   },
   "stats": {
     "title": "STATISTICS",

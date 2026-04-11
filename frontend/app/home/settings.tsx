@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
@@ -990,6 +991,35 @@ export default function SettingsPage() {
           {t('settings.fullResetDesc') || 'Elimina TUTTO: mercati, fornitori, collaboratori, impostazioni. Ripristina lo stato di fabbrica.'}
         </Text>
       </View>
+
+      {/* ─── ESCI DALL'APP ─── */}
+      <TouchableOpacity
+        style={{ backgroundColor: '#1A4040', borderRadius: 14, padding: 16, marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+        onPress={() => {
+          const doExit = () => {
+            if (Platform.OS === 'web') {
+              window.close();
+            } else {
+              BackHandler.exitApp();
+            }
+          };
+          if (Platform.OS === 'web') {
+            doExit();
+          } else {
+            Alert.alert(
+              t('settings.exitApp'),
+              t('settings.exitAppConfirm'),
+              [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('settings.exitApp'), onPress: doExit },
+              ]
+            );
+          }
+        }}
+      >
+        <Ionicons name="exit-outline" size={20} color="#FFF" />
+        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 1 }}>{t('settings.exitApp')}</Text>
+      </TouchableOpacity>
 
       <View style={{ height: 40 }} />
 

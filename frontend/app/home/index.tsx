@@ -110,6 +110,59 @@ export default function HomeScreen() {
     setPresenze(p);
   }, [collaboratori]);
 
+  /* ── Carica dati salvati quando cambia la data ── */
+  useEffect(() => {
+    const saved = store.storicoGiornate.find(
+      (g) => new Date(g.data).toDateString() === dataCorrente.toDateString()
+    );
+    if (saved) {
+      setLordo(saved.lordo > 0 ? saved.lordo.toString() : '');
+      setContanti(saved.contanti > 0 ? saved.contanti.toString() : '');
+      setPos(saved.pos > 0 ? saved.pos.toString() : '');
+      setMeteo(saved.meteo || 'SOLE');
+      const invTot = saved.dettaglio_invenduto?.totale;
+      setInvenduto(invTot && invTot > 0 ? invTot.toString() : '0');
+      // Ripristina presenze collaboratori
+      if (saved.dettaglio_staff && typeof saved.dettaglio_staff === 'object') {
+        const p: Record<string, boolean> = {};
+        collaboratori.forEach((c) => {
+          p[c.nome] = saved.dettaglio_staff[c.nome] === true;
+        });
+        setPresenze(p);
+      }
+      // Ripristina spese extra fornitori
+      if (saved.dettaglio_fornitori && Object.keys(saved.dettaglio_fornitori).length > 0) {
+        const fornData: Record<string, { importo: string; periodo: string }> = {};
+        Object.entries(saved.dettaglio_fornitori).forEach(([nome, val]) => {
+          fornData[nome] = { importo: (val as number).toString(), periodo: 'giornaliero' };
+        });
+        setSpeseExtraFornitore(fornData);
+      } else {
+        setSpeseExtraFornitore({});
+      }
+      // Ripristina spese extra (valore aggregato)
+      if (saved.spese_extra > 0) {
+        // spese_extra è il totale salvato, già gestito dai fornitori sopra
+      }
+      // Controlla se era una fiera
+      if (saved.mercato?.toLowerCase() === 'fiera') {
+        setIsFiera(true);
+      }
+    } else {
+      // Resetta i campi per una giornata non ancora salvata
+      setLordo('');
+      setContanti('');
+      setPos('');
+      setInvenduto('0');
+      setSpeseExtraFornitore({});
+      setVociGeneriche([]);
+      const p: Record<string, boolean> = {};
+      collaboratori.forEach((c) => { p[c.nome] = false; });
+      setPresenze(p);
+      setIsFiera(false);
+    }
+  }, [dataCorrente]);
+
   /* ── Appunti prossimi 2 giorni per notifiche campanello ── */
   const appuntiProssimi = useMemo(() => {
     const oggi = new Date(dataCorrente);
