@@ -16,7 +16,9 @@
     "daily": "Giornaliero",
     "weekly": "Settimanale",
     "monthly": "Mensile",
-    "annual": "Annuale"
+    "annual": "Annuale",
+    "attention": "Attenzione",
+    "edit": "MODIFICA"
   },
   "login": {
     "title": "ACCESSO RAPIDO",
@@ -72,7 +74,9 @@
     "upcomingAppointments": "Appuntamenti in arrivo",
     "next2days": "Prossimi 2 giorni",
     "fuelCost": "Carburante",
-    "noMarketToday": "NESSUN MERCATO OGGI"
+    "noMarketToday": "NESSUN MERCATO OGGI",
+    "enterUnsoldQty": "Inserisci la quantità invenduta per prodotto",
+    "enterLossDetail": "Inserisci le perdite per fornitore con motivo"
   },
   "welcome": {
     "identity": "IDENTITÀ",
@@ -182,7 +186,9 @@
     "activeCode": "CODICE ATTIVO",
     "sendCode": "INVIA CODICE",
     "typeAOperative": "TIPO A - OPERATIVO",
-    "typeBFull": "TIPO B - FULL ACCESS"
+    "typeBFull": "TIPO B - FULL ACCESS",
+    "enterEmailOrPhone": "Inserisci email o telefono",
+    "enterPhoneFirst": "Inserisci prima il numero di telefono"
   },
   "stats": {
     "title": "STATISTICHE",
@@ -241,8 +247,13 @@
     "costPerMarket": "COSTO CARBURANTE PER MERCATO",
     "days": "gg",
     "avgPerDay": "media",
-    "invalidAmount": "Inserisci un importo valido",
-    "refuelDate": "DATA RIFORNIMENTO"
+    "invalidAmount": "Importo non valido",
+    "refuelDate": "DATA RIFORNIMENTO",
+    "enterValidAmount": "Inserisci un importo valido",
+    "week": "SETT.",
+    "month": "MESE",
+    "year": "ANNO",
+    "custom": "PERS."
   },
   "agenda": {
     "title": "DIARIO E APPUNTAMENTI",
@@ -257,7 +268,7 @@
     "allNotes": "TUTTE LE ANNOTAZIONI",
     "noNotes": "Nessuna annotazione salvata.",
     "deleteNote": "Eliminare questo appunto?",
-    "noteSaved": "Appunto aggiunto",
+    "noteSaved": "Nota salvata!",
     "enterText": "Inserisci un testo",
     "location": "Sede",
     "noMarketPlanned": "Nessun mercato in programma",
@@ -266,7 +277,23 @@
     "diaryHistory": "STORICO DIARIO",
     "noDiary": "Nessun appunto del diario",
     "diarySaved": "Appunto del diario salvato",
-    "deleteDiary": "Eliminare questo appunto del diario?"
+    "deleteDiary": "Eliminare questo appunto del diario?",
+    "enterDetail": "Inserisci il dettaglio",
+    "noteSavedArchive": "Nota salvata nell'archivio",
+    "enterAppointmentDetail": "Inserisci il dettaglio dell'impegno",
+    "appointmentSavedToday": "Impegno salvato per oggi",
+    "ordersAndAppointments": "ORDINI E APPUNTAMENTI",
+    "commitmentDetails": "DETTAGLI IMPEGNO",
+    "describeOrder": "Descrivi l'ordine o appuntamento...",
+    "close": "CHIUDI",
+    "chooseDay": "SCEGLI GIORNO",
+    "save": "SALVA",
+    "commitmentSaved": "Impegno salvato per oggi!",
+    "notes": "NOTE PERSONALI",
+    "notePlaceholder": "Scrivi una nota...",
+    "saveNote": "SALVA NOTA",
+    "archive": "ARCHIVIO",
+    "noteArchive": "ARCHIVIO NOTE"
   },
   "modals": {
     "market": "FIERA / MERCATO",

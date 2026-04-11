@@ -16,7 +16,9 @@
     "weekly": "Weekly",
     "monthly": "Monthly",
     "annual": "Annual",
-    "done": "Done"
+    "done": "Done",
+    "attention": "Attention",
+    "edit": "EDIT"
   },
   "login": {
     "title": "QUICK ACCESS",
@@ -72,7 +74,9 @@
     "fuelCost": "Fuel",
     "next2days": "Next 2 days",
     "upcomingAppointments": "Upcoming appointments",
-    "noMarketToday": "NO MARKET TODAY"
+    "noMarketToday": "NO MARKET TODAY",
+    "enterUnsoldQty": "Enter the unsold quantity per product",
+    "enterLossDetail": "Enter losses per supplier with reason"
   },
   "welcome": {
     "identity": "IDENTITY",
@@ -182,7 +186,9 @@
     "activeCode": "ACTIVE CODE",
     "sendCode": "SEND CODE",
     "typeAOperative": "TYPE A - OPERATIVE",
-    "typeBFull": "TYPE B - FULL ACCESS"
+    "typeBFull": "TYPE B - FULL ACCESS",
+    "enterEmailOrPhone": "Enter email or phone",
+    "enterPhoneFirst": "Enter the phone number first"
   },
   "stats": {
     "title": "STATISTICS",
@@ -241,8 +247,13 @@
     "costPerMarket": "FUEL COST PER MARKET",
     "days": "days",
     "avgPerDay": "avg",
-    "invalidAmount": "Enter a valid amount",
-    "refuelDate": "REFUEL DATE"
+    "invalidAmount": "Invalid amount",
+    "refuelDate": "REFUEL DATE",
+    "enterValidAmount": "Enter a valid amount",
+    "week": "WEEK",
+    "month": "MONTH",
+    "year": "YEAR",
+    "custom": "CUST."
   },
   "agenda": {
     "title": "DIARY & APPOINTMENTS",
@@ -257,7 +268,7 @@
     "allNotes": "ALL NOTES",
     "noNotes": "No notes saved.",
     "deleteNote": "Delete this note?",
-    "noteSaved": "Note added",
+    "noteSaved": "Note saved!",
     "enterText": "Enter text",
     "location": "Location",
     "noMarketPlanned": "No market planned",
@@ -266,7 +277,23 @@
     "diaryHistory": "DIARY HISTORY",
     "noDiary": "No diary entries",
     "diarySaved": "Diary entry saved",
-    "deleteDiary": "Delete this diary entry?"
+    "deleteDiary": "Delete this diary entry?",
+    "enterDetail": "Enter the detail",
+    "noteSavedArchive": "Note saved to archive",
+    "enterAppointmentDetail": "Enter the appointment detail",
+    "appointmentSavedToday": "Appointment saved for today",
+    "ordersAndAppointments": "ORDERS AND APPOINTMENTS",
+    "commitmentDetails": "COMMITMENT DETAILS",
+    "describeOrder": "Describe the order or appointment...",
+    "close": "CLOSE",
+    "chooseDay": "CHOOSE DAY",
+    "save": "SAVE",
+    "commitmentSaved": "Commitment saved for today!",
+    "notes": "PERSONAL NOTES",
+    "notePlaceholder": "Write a note...",
+    "saveNote": "SAVE NOTE",
+    "archive": "ARCHIVE",
+    "noteArchive": "NOTES ARCHIVE"
   },
   "modals": {
     "market": "FAIR / MARKET",

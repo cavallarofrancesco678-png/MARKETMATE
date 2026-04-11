@@ -6,7 +6,7 @@
     "confirm": "CONFIRMAR",
     "close": "FECHAR",
     "error": "Erro",
-    "saved": "Guardado",
+    "saved": "Salvo",
     "yes": "Sim",
     "no": "Não",
     "today": "HOJE",
@@ -16,7 +16,9 @@
     "weekly": "Semanal",
     "monthly": "Mensal",
     "annual": "Anual",
-    "done": "Feito"
+    "done": "Feito",
+    "attention": "Atenção",
+    "edit": "EDITAR"
   },
   "login": {
     "title": "ACESSO RÁPIDO",
@@ -72,7 +74,9 @@
     "fuelCost": "Combustível",
     "next2days": "Próximos 2 dias",
     "upcomingAppointments": "Compromissos próximos",
-    "noMarketToday": "NENHUM MERCADO HOJE"
+    "noMarketToday": "NENHUM MERCADO HOJE",
+    "enterUnsoldQty": "Insira a quantidade não vendida por produto",
+    "enterLossDetail": "Insira as perdas por fornecedor com motivo"
   },
   "welcome": {
     "identity": "IDENTIDADE",
@@ -182,7 +186,9 @@
     "activeCode": "CÓDIGO ATIVO",
     "sendCode": "ENVIAR CÓDIGO",
     "typeAOperative": "TIPO A - OPERATIVO",
-    "typeBFull": "TIPO B - ACESSO COMPLETO"
+    "typeBFull": "TIPO B - ACESSO COMPLETO",
+    "enterEmailOrPhone": "Insira email ou telefone",
+    "enterPhoneFirst": "Insira primeiro o número de telefone"
   },
   "stats": {
     "title": "ESTATÍSTICAS",
@@ -241,8 +247,13 @@
     "costPerMarket": "CUSTO COMBUSTÍVEL POR MERCADO",
     "days": "dias",
     "avgPerDay": "média",
-    "invalidAmount": "Introduza um valor válido",
-    "refuelDate": "DATA ABASTECIMENTO"
+    "invalidAmount": "Valor inválido",
+    "refuelDate": "DATA ABASTECIMENTO",
+    "enterValidAmount": "Insira um valor válido",
+    "week": "SEM.",
+    "month": "MÊS",
+    "year": "ANO",
+    "custom": "PERS."
   },
   "agenda": {
     "title": "DIÁRIO E COMPROMISSOS",
@@ -257,7 +268,7 @@
     "allNotes": "TODAS AS ANOTAÇÕES",
     "noNotes": "Nenhuma anotação guardada.",
     "deleteNote": "Eliminar esta nota?",
-    "noteSaved": "Nota adicionada",
+    "noteSaved": "Nota salva!",
     "enterText": "Introduza um texto",
     "location": "Local",
     "noMarketPlanned": "Nenhum mercado previsto",
@@ -266,7 +277,23 @@
     "diaryHistory": "HISTÓRICO DIÁRIO",
     "noDiary": "Sem entradas de diário",
     "diarySaved": "Entrada de diário guardada",
-    "deleteDiary": "Eliminar esta entrada?"
+    "deleteDiary": "Eliminar esta entrada?",
+    "enterDetail": "Insira o detalhe",
+    "noteSavedArchive": "Nota salva no arquivo",
+    "enterAppointmentDetail": "Insira o detalhe do compromisso",
+    "appointmentSavedToday": "Compromisso salvo para hoje",
+    "ordersAndAppointments": "PEDIDOS E COMPROMISSOS",
+    "commitmentDetails": "DETALHES DO COMPROMISSO",
+    "describeOrder": "Descreva o pedido ou compromisso...",
+    "close": "FECHAR",
+    "chooseDay": "ESCOLHER DIA",
+    "save": "SALVAR",
+    "commitmentSaved": "Compromisso salvo para hoje!",
+    "notes": "NOTAS PESSOAIS",
+    "notePlaceholder": "Escreva uma nota...",
+    "saveNote": "SALVAR NOTA",
+    "archive": "ARQUIVO",
+    "noteArchive": "ARQUIVO DE NOTAS"
   },
   "modals": {
     "market": "FEIRA / MERCADO",

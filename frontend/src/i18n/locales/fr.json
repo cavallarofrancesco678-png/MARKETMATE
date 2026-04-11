@@ -16,7 +16,9 @@
     "weekly": "Hebdomadaire",
     "monthly": "Mensuel",
     "annual": "Annuel",
-    "done": "Terminé"
+    "done": "Terminé",
+    "attention": "Attention",
+    "edit": "MODIFIER"
   },
   "login": {
     "title": "ACCÈS RAPIDE",
@@ -72,7 +74,9 @@
     "fuelCost": "Carburant",
     "next2days": "Prochains 2 jours",
     "upcomingAppointments": "Rendez-vous à venir",
-    "noMarketToday": "PAS DE MARCHÉ AUJOURD'HUI"
+    "noMarketToday": "PAS DE MARCHÉ AUJOURD'HUI",
+    "enterUnsoldQty": "Entrez la quantité invendue par produit",
+    "enterLossDetail": "Entrez les pertes par fournisseur avec raison"
   },
   "welcome": {
     "identity": "IDENTITÉ",
@@ -182,7 +186,9 @@
     "activeCode": "CODE ACTIF",
     "sendCode": "ENVOYER CODE",
     "typeAOperative": "TYPE A - OPÉRATIONNEL",
-    "typeBFull": "TYPE B - ACCÈS COMPLET"
+    "typeBFull": "TYPE B - ACCÈS COMPLET",
+    "enterEmailOrPhone": "Entrez email ou téléphone",
+    "enterPhoneFirst": "Entrez d'abord le numéro de téléphone"
   },
   "stats": {
     "title": "STATISTIQUES",
@@ -241,8 +247,13 @@
     "costPerMarket": "COÛT CARBURANT PAR MARCHÉ",
     "days": "jrs",
     "avgPerDay": "moy",
-    "invalidAmount": "Entrez un montant valide",
-    "refuelDate": "DATE DU PLEIN"
+    "invalidAmount": "Montant invalide",
+    "refuelDate": "DATE DU PLEIN",
+    "enterValidAmount": "Entrez un montant valide",
+    "week": "SEM.",
+    "month": "MOIS",
+    "year": "ANNÉE",
+    "custom": "PERS."
   },
   "agenda": {
     "title": "JOURNAL ET RENDEZ-VOUS",
@@ -257,7 +268,7 @@
     "allNotes": "TOUTES LES ANNOTATIONS",
     "noNotes": "Aucune annotation enregistrée.",
     "deleteNote": "Supprimer cette note ?",
-    "noteSaved": "Note ajoutée",
+    "noteSaved": "Note sauvegardée !",
     "enterText": "Entrez un texte",
     "location": "Lieu",
     "noMarketPlanned": "Aucun marché prévu",
@@ -266,7 +277,23 @@
     "diaryHistory": "HISTORIQUE JOURNAL",
     "noDiary": "Aucune entrée de journal",
     "diarySaved": "Entrée de journal enregistrée",
-    "deleteDiary": "Supprimer cette entrée?"
+    "deleteDiary": "Supprimer cette entrée?",
+    "enterDetail": "Entrez le détail",
+    "noteSavedArchive": "Note sauvegardée dans les archives",
+    "enterAppointmentDetail": "Entrez le détail du rendez-vous",
+    "appointmentSavedToday": "Rendez-vous enregistré pour aujourd'hui",
+    "ordersAndAppointments": "COMMANDES ET RENDEZ-VOUS",
+    "commitmentDetails": "DÉTAILS DU RENDEZ-VOUS",
+    "describeOrder": "Décrivez la commande ou le rendez-vous...",
+    "close": "FERMER",
+    "chooseDay": "CHOISIR JOUR",
+    "save": "SAUVER",
+    "commitmentSaved": "Rendez-vous enregistré pour aujourd'hui !",
+    "notes": "NOTES PERSONNELLES",
+    "notePlaceholder": "Écrire une note...",
+    "saveNote": "SAUVER NOTE",
+    "archive": "ARCHIVES",
+    "noteArchive": "ARCHIVES DES NOTES"
   },
   "modals": {
     "market": "FOIRE / MARCHÉ",

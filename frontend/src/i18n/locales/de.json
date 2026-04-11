@@ -16,7 +16,9 @@
     "weekly": "Wöchentlich",
     "monthly": "Monatlich",
     "annual": "Jährlich",
-    "done": "Fertig"
+    "done": "Fertig",
+    "attention": "Achtung",
+    "edit": "BEARBEITEN"
   },
   "login": {
     "title": "SCHNELLZUGANG",
@@ -72,7 +74,9 @@
     "fuelCost": "Kraftstoff",
     "next2days": "Nächste 2 Tage",
     "upcomingAppointments": "Anstehende Termine",
-    "noMarketToday": "KEIN MARKT HEUTE"
+    "noMarketToday": "KEIN MARKT HEUTE",
+    "enterUnsoldQty": "Unverkaufte Menge pro Produkt eingeben",
+    "enterLossDetail": "Verluste pro Lieferant mit Grund eingeben"
   },
   "welcome": {
     "identity": "IDENTITÄT",
@@ -182,7 +186,9 @@
     "activeCode": "AKTIVER CODE",
     "sendCode": "CODE SENDEN",
     "typeAOperative": "TYP A - OPERATIV",
-    "typeBFull": "TYP B - VOLLZUGRIFF"
+    "typeBFull": "TYP B - VOLLZUGRIFF",
+    "enterEmailOrPhone": "E-Mail oder Telefon eingeben",
+    "enterPhoneFirst": "Zuerst die Telefonnummer eingeben"
   },
   "stats": {
     "title": "STATISTIKEN",
@@ -241,8 +247,13 @@
     "costPerMarket": "KRAFTSTOFFKOSTEN PRO MARKT",
     "days": "Tg",
     "avgPerDay": "Durchschn.",
-    "invalidAmount": "Geben Sie einen gültigen Betrag ein",
-    "refuelDate": "TANKDATUM"
+    "invalidAmount": "Ungültiger Betrag",
+    "refuelDate": "TANKDATUM",
+    "enterValidAmount": "Gültigen Betrag eingeben",
+    "week": "WOCHE",
+    "month": "MONAT",
+    "year": "JAHR",
+    "custom": "PERS."
   },
   "agenda": {
     "title": "TAGEBUCH UND TERMINE",
@@ -257,7 +268,7 @@
     "allNotes": "ALLE NOTIZEN",
     "noNotes": "Keine Notizen gespeichert.",
     "deleteNote": "Diese Notiz löschen?",
-    "noteSaved": "Notiz hinzugefügt",
+    "noteSaved": "Notiz gespeichert!",
     "enterText": "Text eingeben",
     "location": "Standort",
     "noMarketPlanned": "Kein Markt geplant",
@@ -266,7 +277,23 @@
     "diaryHistory": "TAGEBUCH-VERLAUF",
     "noDiary": "Keine Tagebucheinträge",
     "diarySaved": "Tagebucheintrag gespeichert",
-    "deleteDiary": "Diesen Eintrag löschen?"
+    "deleteDiary": "Diesen Eintrag löschen?",
+    "enterDetail": "Detail eingeben",
+    "noteSavedArchive": "Notiz im Archiv gespeichert",
+    "enterAppointmentDetail": "Termindetail eingeben",
+    "appointmentSavedToday": "Termin für heute gespeichert",
+    "ordersAndAppointments": "BESTELLUNGEN UND TERMINE",
+    "commitmentDetails": "TERMINDETAILS",
+    "describeOrder": "Bestellung oder Termin beschreiben...",
+    "close": "SCHLIESSEN",
+    "chooseDay": "TAG WÄHLEN",
+    "save": "SPEICHERN",
+    "commitmentSaved": "Termin für heute gespeichert!",
+    "notes": "PERSÖNLICHE NOTIZEN",
+    "notePlaceholder": "Notiz schreiben...",
+    "saveNote": "NOTIZ SPEICHERN",
+    "archive": "ARCHIV",
+    "noteArchive": "NOTIZEN-ARCHIV"
   },
   "modals": {
     "market": "MESSE / MARKT",

@@ -15,11 +15,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/appStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const GIORNI_SETT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
 export default function AgendaScreen() {
+  const { t } = useTranslation();
   const {
     appuntiAgenda, addAppunto, removeAppunto,
     ordiniAgenda, addOrdine, removeOrdine,
@@ -105,8 +107,8 @@ export default function AgendaScreen() {
   const handleSaveOrder = (day: number) => {
     const text = dayModalType === 'new' ? orderText.trim() : dayModalText.trim();
     if (!text) {
-      if (Platform.OS === 'web') window.alert('Inserisci il dettaglio');
-      else Alert.alert('Errore', 'Inserisci il dettaglio');
+      if (Platform.OS === 'web') window.alert(t('agenda.enterDetail') || 'Inserisci il dettaglio');
+      else Alert.alert(t('common.error') || 'Errore', t('agenda.enterDetail') || 'Inserisci il dettaglio');
       return;
     }
     const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), day, 12, 0, 0);
@@ -178,25 +180,25 @@ export default function AgendaScreen() {
   const handleSaveNote = () => {
     if (noteText.trim()) {
       addDiario({ data: new Date(), testo: noteText.trim() });
-      if (Platform.OS === 'web') window.alert('Nota salvata!');
-      else Alert.alert('Salvato', 'Nota salvata nell\'archivio');
+      if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Nota salvata!');
+      else Alert.alert(t('common.saved') || 'Salvato', t('agenda.noteSavedArchive') || 'Nota salvata nell\'archivio');
     }
   };
 
   return (
     <View style={[s.root, { height: contentH, paddingTop: topPad }]}>
       {/* ═══ TITOLO ═══ */}
-      <Text style={s.pageTitle}>ORDINI E APPUNTAMENTI</Text>
+      <Text style={s.pageTitle}>{t('agenda.ordersAndAppointments') || 'ORDINI E APPUNTAMENTI'}</Text>
 
       {/* ═══ SEZIONE ORDINI ═══ */}
       <View style={s.card}>
         <View style={s.cardHeader}>
           <Ionicons name="calendar-outline" size={15} color="#1E7F85" />
-          <Text style={s.cardHeaderTxt}>DETTAGLI IMPEGNO</Text>
+          <Text style={s.cardHeaderTxt}>{t('agenda.commitmentDetails') || 'DETTAGLI IMPEGNO'}</Text>
         </View>
         <TextInput
           style={s.orderInput}
-          placeholder="Descrivi l'ordine o appuntamento..."
+          placeholder={t('agenda.describeOrder') || "Descrivi l'ordine o appuntamento..."}
           placeholderTextColor="#B0A898"
           value={orderText}
           onChangeText={setOrderText}
@@ -211,7 +213,7 @@ export default function AgendaScreen() {
           >
             <Ionicons name="calendar" size={14} color="#FFF" />
             <Text style={s.orderBtnTxt}>
-              {showCalendar ? 'CHIUDI' : 'SCEGLI GIORNO'}
+              {showCalendar ? (t('agenda.close') || 'CHIUDI') : (t('agenda.chooseDay') || 'SCEGLI GIORNO')}
             </Text>
             <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={14} color="#FFF" />
           </TouchableOpacity>
@@ -220,8 +222,8 @@ export default function AgendaScreen() {
             activeOpacity={0.8}
             onPress={() => {
               if (!orderText.trim()) {
-                if (Platform.OS === 'web') window.alert('Inserisci il dettaglio dell\'impegno');
-                else Alert.alert('Errore', 'Inserisci il dettaglio dell\'impegno');
+                if (Platform.OS === 'web') window.alert(t('agenda.enterAppointmentDetail') || 'Inserisci il dettaglio dell\'impegno');
+                else Alert.alert(t('common.error') || 'Errore', t('agenda.enterAppointmentDetail') || 'Inserisci il dettaglio dell\'impegno');
                 return;
               }
               if (!showCalendar) {
@@ -232,12 +234,12 @@ export default function AgendaScreen() {
               const todayDate = new Date();
               addAppunto({ data: todayDate, testo: orderText.trim() });
               setOrderText('');
-              if (Platform.OS === 'web') window.alert('Impegno salvato per oggi!');
-              else Alert.alert('Salvato', 'Impegno salvato per oggi');
+              if (Platform.OS === 'web') window.alert(t('agenda.commitmentSaved') || 'Impegno salvato per oggi!');
+              else Alert.alert(t('common.saved') || 'Salvato', t('agenda.appointmentSavedToday') || 'Impegno salvato per oggi');
             }}
           >
             <Ionicons name="save" size={14} color="#FFF" />
-            <Text style={s.orderBtnTxt}>SALVA</Text>
+            <Text style={s.orderBtnTxt}>{t('agenda.save') || 'SALVA'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -323,7 +325,7 @@ export default function AgendaScreen() {
           activeOpacity={0.8}
         >
           <Ionicons name="archive" size={14} color="#7A9090" />
-          <Text style={s.archiveToggleTxt}>ARCHIVIO NOTE</Text>
+          <Text style={s.archiveToggleTxt}>{t('agenda.noteArchive') || 'ARCHIVIO NOTE'}</Text>
           <Ionicons name={showArchive ? 'chevron-up' : 'chevron-down'} size={14} color="#7A9090" />
         </TouchableOpacity>
         {showArchive && (
@@ -393,7 +395,7 @@ export default function AgendaScreen() {
                 }}
               >
                 <Ionicons name={dayModalType === 'edit' ? 'create' : 'save'} size={16} color="#FFF" />
-                <Text style={s.modalBtnTxt}>{dayModalType === 'edit' ? 'MODIFICA' : 'SALVA'}</Text>
+                <Text style={s.modalBtnTxt}>{dayModalType === 'edit' ? (t('common.edit') || 'MODIFICA') : (t('agenda.save') || 'SALVA')}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>

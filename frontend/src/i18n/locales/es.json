@@ -16,7 +16,9 @@
     "weekly": "Semanal",
     "monthly": "Mensual",
     "annual": "Anual",
-    "done": "Hecho"
+    "done": "Hecho",
+    "attention": "Atención",
+    "edit": "EDITAR"
   },
   "login": {
     "title": "ACCESO RÁPIDO",
@@ -72,7 +74,9 @@
     "fuelCost": "Combustible",
     "next2days": "Próximos 2 días",
     "upcomingAppointments": "Citas próximas",
-    "noMarketToday": "NINGÚN MERCADO HOY"
+    "noMarketToday": "NINGÚN MERCADO HOY",
+    "enterUnsoldQty": "Ingrese la cantidad no vendida por producto",
+    "enterLossDetail": "Ingrese las pérdidas por proveedor con motivo"
   },
   "welcome": {
     "identity": "IDENTIDAD",
@@ -182,7 +186,9 @@
     "activeCode": "CÓDIGO ACTIVO",
     "sendCode": "ENVIAR CÓDIGO",
     "typeAOperative": "TIPO A - OPERATIVO",
-    "typeBFull": "TIPO B - ACCESO COMPLETO"
+    "typeBFull": "TIPO B - ACCESO COMPLETO",
+    "enterEmailOrPhone": "Ingrese email o teléfono",
+    "enterPhoneFirst": "Ingrese primero el número de teléfono"
   },
   "stats": {
     "title": "ESTADÍSTICAS",
@@ -241,8 +247,13 @@
     "costPerMarket": "COSTE COMBUSTIBLE POR MERCADO",
     "days": "días",
     "avgPerDay": "media",
-    "invalidAmount": "Introduce un importe válido",
-    "refuelDate": "FECHA REPOSTAJE"
+    "invalidAmount": "Monto inválido",
+    "refuelDate": "FECHA REPOSTAJE",
+    "enterValidAmount": "Ingrese un monto válido",
+    "week": "SEM.",
+    "month": "MES",
+    "year": "AÑO",
+    "custom": "PERS."
   },
   "agenda": {
     "title": "DIARIO Y CITAS",
@@ -257,7 +268,7 @@
     "allNotes": "TODAS LAS NOTAS",
     "noNotes": "No hay notas guardadas.",
     "deleteNote": "¿Eliminar esta nota?",
-    "noteSaved": "Nota añadida",
+    "noteSaved": "¡Nota guardada!",
     "enterText": "Introduce un texto",
     "location": "Ubicación",
     "noMarketPlanned": "No hay mercado previsto",
@@ -266,7 +277,23 @@
     "diaryHistory": "HISTORIAL DIARIO",
     "noDiary": "Sin entradas de diario",
     "diarySaved": "Entrada de diario guardada",
-    "deleteDiary": "Eliminar esta entrada?"
+    "deleteDiary": "Eliminar esta entrada?",
+    "enterDetail": "Ingrese el detalle",
+    "noteSavedArchive": "Nota guardada en el archivo",
+    "enterAppointmentDetail": "Ingrese el detalle de la cita",
+    "appointmentSavedToday": "Cita guardada para hoy",
+    "ordersAndAppointments": "PEDIDOS Y CITAS",
+    "commitmentDetails": "DETALLES DEL COMPROMISO",
+    "describeOrder": "Describe el pedido o cita...",
+    "close": "CERRAR",
+    "chooseDay": "ELEGIR DÍA",
+    "save": "GUARDAR",
+    "commitmentSaved": "¡Compromiso guardado para hoy!",
+    "notes": "NOTAS PERSONALES",
+    "notePlaceholder": "Escribe una nota...",
+    "saveNote": "GUARDAR NOTA",
+    "archive": "ARCHIVO",
+    "noteArchive": "ARCHIVO DE NOTAS"
   },
   "modals": {
     "market": "FERIA / MERCADO",

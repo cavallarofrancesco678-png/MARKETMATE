@@ -42,8 +42,8 @@ export default function GasScreen() {
   const handleSalvaRifornimento = () => {
     const euro = parseFloat(euroText.replace(',', '.'));
     if (!euro || euro <= 0) {
-      if (Platform.OS === 'web') window.alert('Inserisci un importo valido');
-      else Alert.alert('Errore', 'Inserisci un importo valido');
+      if (Platform.OS === 'web') window.alert(t('gas.enterValidAmount') || 'Inserisci un importo valido');
+      else Alert.alert(t('common.error') || 'Errore', t('gas.enterValidAmount') || 'Inserisci un importo valido');
       return;
     }
     addCarburante({ data: new Date(), euro, nota: '' });
@@ -159,8 +159,8 @@ export default function GasScreen() {
     if (!selectedDay) return;
     const euro = parseFloat(dayAmount.replace(',', '.'));
     if (!euro || euro <= 0) {
-      if (Platform.OS === 'web') window.alert('Importo non valido');
-      else Alert.alert('Errore', 'Importo non valido');
+      if (Platform.OS === 'web') window.alert(t('gas.invalidAmount') || 'Importo non valido');
+      else Alert.alert(t('common.error') || 'Errore', t('gas.invalidAmount') || 'Importo non valido');
       return;
     }
     // Rimuovi esistente
