@@ -205,7 +205,7 @@ export default function GasScreen() {
   return (
     <View style={[s.root, { height: contentH, paddingTop: topPad }]}>
       {/* ═══ TITOLO ═══ */}
-      <Text style={s.pageTitle}>CARBURANTE</Text>
+      <Text style={s.pageTitle}>{t('gas.title')}</Text>
 
       {/* ═══ INPUT GRANDE + SALVA ═══ */}
       <View style={s.inputCard}>
@@ -220,15 +220,20 @@ export default function GasScreen() {
         />
         <TouchableOpacity style={s.saveBtn} onPress={handleSalvaRifornimento}>
           <Ionicons name="save" size={20} color="#FFF" />
-          <Text style={s.saveBtnTxt}>SALVA</Text>
+          <Text style={s.saveBtnTxt}>{t('gas.save')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* ═══ FILTRI ═══ */}
       <View style={s.filterRow}>
-        {(['SETT.', 'MESE', 'ANNO', 'PERS.'] as Filtro[]).map(f => (
-          <TouchableOpacity key={f} style={[s.filterBtn, filtro === f && s.filterOn]} onPress={() => setFiltro(f)}>
-            <Text style={[s.filterTxt, filtro === f && { color: '#FFF' }]}>{f}</Text>
+        {([
+          { key: 'SETT.' as Filtro, label: t('gas.weekFilter') },
+          { key: 'MESE' as Filtro, label: t('gas.monthFilter') },
+          { key: 'ANNO' as Filtro, label: t('gas.yearFilter') },
+          { key: 'PERS.' as Filtro, label: t('gas.customFilter') },
+        ]).map(f => (
+          <TouchableOpacity key={f.key} style={[s.filterBtn, filtro === f.key && s.filterOn]} onPress={() => setFiltro(f.key)}>
+            <Text style={[s.filterTxt, filtro === f.key && { color: '#FFF' }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -242,7 +247,7 @@ export default function GasScreen() {
         </View>
         <View style={[s.kpiCard, s.kpiCardMain]}>
           <Ionicons name="wallet-outline" size={16} color="#FFF" />
-          <Text style={[s.kpiLabel, { color: '#FFF' }]}>TOTALE</Text>
+          <Text style={[s.kpiLabel, { color: '#FFF' }]}>{t('gas.total')}</Text>
           <Text style={[s.kpiValue, { color: '#FFF' }]}>€{stats.totale.toFixed(0)}</Text>
         </View>
         <View style={s.kpiCard}>
@@ -278,13 +283,13 @@ export default function GasScreen() {
           <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1))}>
             <Ionicons name="chevron-back" size={18} color="#1E7F85" />
           </TouchableOpacity>
-          <Text style={s.calMonthTxt}>{MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
+          <Text style={s.calMonthTxt}>{(t('gas.months', { returnObjects: true }) as string[])?.[displayMonth.getMonth()]?.toUpperCase() || MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
           <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1))}>
             <Ionicons name="chevron-forward" size={18} color="#1E7F85" />
           </TouchableOpacity>
         </View>
         <View style={s.calWeekRow}>
-          {['L', 'M', 'M', 'G', 'V', 'S', 'D'].map((d, i) => <Text key={i} style={s.calWeekDay}>{d}</Text>)}
+          {[t('gas.mon'), t('gas.tue'), t('gas.wed'), t('gas.thu'), t('gas.fri'), t('gas.sat'), t('gas.sun')].map((d, i) => <Text key={i} style={s.calWeekDay}>{d}</Text>)}
         </View>
         {calendarGrid.map((row, ri) => (
           <View key={ri} style={s.calRow}>
@@ -314,9 +319,9 @@ export default function GasScreen() {
       <Modal visible={showDayModal} transparent animationType="fade" onRequestClose={() => setShowDayModal(false)}>
         <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setShowDayModal(false)}>
           <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
-            <Text style={s.modalTitle}>{selectedDay} {MESI[displayMonth.getMonth()]}</Text>
+            <Text style={s.modalTitle}>{selectedDay} {(t('gas.months', { returnObjects: true }) as string[])?.[displayMonth.getMonth()] || MESI[displayMonth.getMonth()]}</Text>
             
-            <Text style={s.modalLabel}>IMPORTO RIFORNIMENTO</Text>
+            <Text style={s.modalLabel}>{t('gas.refuelAmount')}</Text>
             <TextInput
               style={s.modalInput}
               placeholder="€ 0.00"
@@ -326,10 +331,10 @@ export default function GasScreen() {
               onChangeText={setDayAmount}
             />
             
-            <Text style={s.modalLabel}>NOTA (distributore, luogo...)</Text>
+            <Text style={s.modalLabel}>{t('gas.noteLabel')}</Text>
             <TextInput
               style={[s.modalInput, s.modalInputMulti]}
-              placeholder="Es: Distributore Settimo Milanese"
+              placeholder={t('gas.notePlaceholder')}
               placeholderTextColor="#B0A898"
               multiline
               value={dayNote}
