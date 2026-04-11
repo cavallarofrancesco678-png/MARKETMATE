@@ -76,7 +76,12 @@
     "fuelCost": "Carburante",
     "noMarketToday": "NESSUN MERCATO OGGI",
     "enterUnsoldQty": "Inserisci la quantità invenduta per prodotto",
-    "enterLossDetail": "Inserisci le perdite per fornitore con motivo"
+    "enterLossDetail": "Inserisci le perdite per fornitore con motivo",
+    "commitmentSummary": "Riepilogo Impegni",
+    "appointments": "APPUNTAMENTI",
+    "orderDeliveries": "CONSEGNE ORDINI",
+    "today": "OGGI",
+    "noCommitmentsNext2days": "Nessun impegno nei prossimi 2 giorni"
   },
   "welcome": {
     "identity": "IDENTITÀ",

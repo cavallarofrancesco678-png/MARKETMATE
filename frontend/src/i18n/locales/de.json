@@ -76,7 +76,12 @@
     "upcomingAppointments": "Anstehende Termine",
     "noMarketToday": "KEIN MARKT HEUTE",
     "enterUnsoldQty": "Unverkaufte Menge pro Produkt eingeben",
-    "enterLossDetail": "Verluste pro Lieferant mit Grund eingeben"
+    "enterLossDetail": "Verluste pro Lieferant mit Grund eingeben",
+    "commitmentSummary": "Terminübersicht",
+    "appointments": "TERMINE",
+    "orderDeliveries": "BESTELLLIEFERUNGEN",
+    "today": "HEUTE",
+    "noCommitmentsNext2days": "Keine Termine in den nächsten 2 Tagen"
   },
   "welcome": {
     "identity": "IDENTITÄT",

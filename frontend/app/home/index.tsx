@@ -26,7 +26,7 @@ import { BuongiornoModal } from '../../src/components/BuongiornoModal';
 import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { playNotificationSound } from '../../src/utils/soundUtils';
+import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
@@ -347,7 +347,7 @@ export default function HomeScreen() {
       dettaglio_invenduto: { totale: invendutoNum },
       dettaglio_fornitori: dettaglioForn,
     } as any);
-    Alert.alert(t('common.saved'), t('home.daySaved'));
+    playSuccess(); // Conferma sonora + aptica, nessun popup
   };
 
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
@@ -393,19 +393,17 @@ export default function HomeScreen() {
     <View style={[s.root, { paddingTop: topPad }]}>
       {/* ═══ HEADER ═══ */}
       <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: 4 }]}>
-        <View style={s.badgeLeft}>
-          <View style={s.badge}>
-            <Text style={s.badgeTxt} numberOfLines={1}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
-          </View>
-        </View>
+        {/* Nome attività piccolo sopra il mercato */}
+        {nomeAttivita ? (
+          <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
+        ) : null}
+        {/* Bell a destra */}
         <View style={s.bellRight}>
           <TouchableOpacity onPress={() => {
-            if (notificheCount > 0) {
-              playNotificationSound();
-            }
+            hapticTap();
             setShowBellModal(true);
           }} activeOpacity={0.7}>
-            <View style={s.bell}>
+            <View style={[s.bell, notificheCount > 0 && { backgroundColor: '#E44' }]}>
               <Ionicons name="notifications" size={20} color="#FFF" />
               {notificheCount > 0 && (
                 <View style={s.bellBadge}>
@@ -415,9 +413,9 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-        <View style={{ marginTop: 6 }}>
+        <View style={{ marginTop: 2 }}>
           <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
-          <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7}>
             <View style={s.dateRow}>
               <Ionicons name="calendar" size={18} color="#1E7F85" />
               <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
@@ -652,16 +650,17 @@ export default function HomeScreen() {
                   {chartMode === 'anno' ? (
                     // ANNO - Layout con barre ANIMATE
                     <View style={{ flex: 1 }}>
-                      {/* Valori sopra */}
-                      <View style={{ flexDirection: 'row', height: 14, marginBottom: 2 }}>
-                        {chartData.map((val, i) => (
-                          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-                            <Text style={{ fontSize: 7, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
-                              {val > 0 ? `€${Math.round(val)}` : '-'}
+                      {/* Tooltip elegante on-tap (no numeri fissi sopra) */}
+                      {chartTooltip?.visible && (
+                        <View style={{ alignItems: 'center', height: 18, marginBottom: 2 }}>
+                          <View style={{ backgroundColor: '#1A4040', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF' }}>
+                              {chartTooltip.label}: €{Math.round(chartTooltip.value)}
                             </Text>
                           </View>
-                        ))}
-                      </View>
+                        </View>
+                      )}
+                      {!chartTooltip?.visible && <View style={{ height: 18, marginBottom: 2 }} />}
                       
                       {/* Barre ANIMATE - TOUCHABLE */}
                       <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -678,12 +677,10 @@ export default function HomeScreen() {
                               style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end' }}
                               activeOpacity={0.7}
                               onPress={() => {
+                                hapticTap();
                                 if (val > 0) {
-                                  if (Platform.OS === 'web') {
-                                    window.alert(`${meseNomi[i]}: €${Math.round(val)}`);
-                                  } else {
-                                    Alert.alert(meseNomi[i], `Totale: €${Math.round(val)}`);
-                                  }
+                                  setChartTooltip({ visible: true, label: meseNomi[i], value: val });
+                                  setTimeout(() => setChartTooltip(null), 2500);
                                 }
                               }}
                             >
@@ -750,12 +747,10 @@ export default function HomeScreen() {
                               style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end', paddingHorizontal: 4 }}
                               activeOpacity={0.7}
                               onPress={() => {
+                                hapticTap();
                                 if (val > 0) {
-                                  if (Platform.OS === 'web') {
-                                    window.alert(`${settLabels[i]}: €${Math.round(val)}`);
-                                  } else {
-                                    Alert.alert(settLabels[i], `Totale: €${Math.round(val)}`);
-                                  }
+                                  setChartTooltip({ visible: true, label: settLabels[i], value: val });
+                                  setTimeout(() => setChartTooltip(null), 2500);
                                 }
                               }}
                             >
@@ -848,17 +843,17 @@ export default function HomeScreen() {
       <Modal visible={showBellModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>{'Riepilogo Impegni'}</Text>
-            <Text style={s.modalSub}>{'Prossimi 2 giorni'}</Text>
+            <Text style={s.modalTitle}>{t('home.commitmentSummary')}</Text>
+            <Text style={s.modalSub}>{t('home.next2days')}</Text>
             <ScrollView style={{ maxHeight: 350 }}>
               {/* APPUNTAMENTI prossimi */}
               {appuntiProssimi.length > 0 && (
                 <View style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6, letterSpacing: 1 }}>APPUNTAMENTI</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6, letterSpacing: 1 }}>{t('home.appointments')}</Text>
                   {appuntiProssimi.map((a, i) => {
                     const d = new Date(a.data);
                     const isToday = d.toDateString() === dataCorrente.toDateString();
-                    const dateLabel = isToday ? 'OGGI' : `${d.getDate()}/${d.getMonth() + 1}`;
+                    const dateLabel = isToday ? t('home.today') : `${d.getDate()}/${d.getMonth() + 1}`;
                     return (
                       <View key={`app-${i}`} style={s.modalRow}>
                         <View style={{ backgroundColor: isToday ? '#1E7F85' : '#7A9090', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
@@ -878,11 +873,11 @@ export default function HomeScreen() {
               {/* ORDINI prossimi */}
               {ordiniProssimi.length > 0 && (
                 <View style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#E8A060', marginBottom: 6, letterSpacing: 1 }}>CONSEGNE ORDINI</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#E8A060', marginBottom: 6, letterSpacing: 1 }}>{t('home.orderDeliveries')}</Text>
                   {ordiniProssimi.map((o, i) => {
                     const d = new Date(o.data);
                     const isToday = d.toDateString() === dataCorrente.toDateString();
-                    const dateLabel = isToday ? 'OGGI' : `${d.getDate()}/${d.getMonth() + 1}`;
+                    const dateLabel = isToday ? t('home.today') : `${d.getDate()}/${d.getMonth() + 1}`;
                     return (
                       <View key={`ord-${i}`} style={s.modalRow}>
                         <View style={{ backgroundColor: isToday ? '#E8A060' : '#B0A898', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
@@ -900,7 +895,7 @@ export default function HomeScreen() {
               )}
 
               {notificheCount === 0 && (
-                <Text style={s.modalEmpty}>{'Nessun impegno nei prossimi 2 giorni'}</Text>
+                <Text style={s.modalEmpty}>{t('home.noCommitmentsNext2days')}</Text>
               )}
             </ScrollView>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowBellModal(false)}>
@@ -1180,6 +1175,14 @@ const s = StyleSheet.create({
   },
 
   /* Header */
+  activityNameSmall: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1E7F85',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
   marketName: {
     fontSize: 24,
     fontWeight: '900',

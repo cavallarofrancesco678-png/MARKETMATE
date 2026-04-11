@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/appStore';
 import { useTranslation } from 'react-i18next';
+import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Filtro = 'SETT.' | 'MESE' | 'ANNO' | 'PERS.';
@@ -48,8 +49,7 @@ export default function GasScreen() {
     }
     addCarburante({ data: new Date(), euro, nota: '' });
     setEuroText('');
-    if (Platform.OS === 'web') window.alert(`Rifornimento di €${euro.toFixed(2)} salvato!`);
-    else Alert.alert('Salvato', `Rifornimento di €${euro.toFixed(2)} registrato`);
+    playSuccess(); // Conferma sonora + aptica, nessun popup
   };
 
   /* ═══ STATISTICHE FILTRATE ═══ */

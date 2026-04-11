@@ -76,7 +76,12 @@
     "upcomingAppointments": "Citas próximas",
     "noMarketToday": "NINGÚN MERCADO HOY",
     "enterUnsoldQty": "Ingrese la cantidad no vendida por producto",
-    "enterLossDetail": "Ingrese las pérdidas por proveedor con motivo"
+    "enterLossDetail": "Ingrese las pérdidas por proveedor con motivo",
+    "commitmentSummary": "Resumen de compromisos",
+    "appointments": "CITAS",
+    "orderDeliveries": "ENTREGAS DE PEDIDOS",
+    "today": "HOY",
+    "noCommitmentsNext2days": "Sin compromisos en los próximos 2 días"
   },
   "welcome": {
     "identity": "IDENTIDAD",

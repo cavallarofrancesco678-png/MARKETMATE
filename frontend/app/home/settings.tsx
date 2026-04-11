@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
+import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage, getDayNames } from '../../src/i18n';
 import * as ImagePicker from 'expo-image-picker';
@@ -145,7 +146,7 @@ const InputModal = ({
                 <View style={ms.inviteSection}>
                   {collabCodice ? (
                     <View style={ms.existingCode}>
-                      <Text style={ms.existingCodeLabel}>{t('settings.activeCode') || 'CODICE ATTIVO'}:</Text>
+                      <Text style={ms.existingCodeLabel}>{tModal('settings.activeCode') || 'CODICE ATTIVO'}:</Text>
                       <Text style={ms.existingCodeValue}>{collabCodice.codice}</Text>
                       <View style={[ms.codeBadge, { backgroundColor: collabCodice.tipo === 'A' ? '#E8A060' : '#1E7F85' }]}>
                         <Text style={ms.codeBadgeTxt}>{collabCodice.tipo === 'A' ? 'OPERATIVO' : 'FULL'}</Text>
@@ -176,7 +177,7 @@ const InputModal = ({
                           }}
                         >
                           <Ionicons name="send" size={16} color="#FFF" />
-                          <Text style={ms.sendInviteBtnTxt}>{t('settings.sendCode') || 'INVIA CODICE'}</Text>
+                          <Text style={ms.sendInviteBtnTxt}>{tModal('settings.sendCode') || 'INVIA CODICE'}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -200,7 +201,7 @@ const InputModal = ({
                       >
                         <Ionicons name="eye-off-outline" size={18} color="#FFF" />
                         <View style={{ flex: 1 }}>
-                          <Text style={ms.inviteBtnTxt}>{t('settings.typeAOperative') || 'TIPO A - OPERATIVO'}</Text>
+                          <Text style={ms.inviteBtnTxt}>{tModal('settings.typeAOperative') || 'TIPO A - OPERATIVO'}</Text>
                           <Text style={ms.inviteBtnDesc}>Solo HOME, può inserire dati</Text>
                         </View>
                       </TouchableOpacity>
@@ -213,7 +214,7 @@ const InputModal = ({
                       >
                         <Ionicons name="eye-outline" size={18} color="#FFF" />
                         <View style={{ flex: 1 }}>
-                          <Text style={ms.inviteBtnTxt}>{t('settings.typeBFull') || 'TIPO B - FULL ACCESS'}</Text>
+                          <Text style={ms.inviteBtnTxt}>{tModal('settings.typeBFull') || 'TIPO B - FULL ACCESS'}</Text>
                           <Text style={ms.inviteBtnDesc}>Accesso completo a tutto</Text>
                         </View>
                       </TouchableOpacity>

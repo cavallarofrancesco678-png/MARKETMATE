@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/appStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const GIORNI_SETT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -181,7 +182,7 @@ export default function AgendaScreen() {
     if (noteText.trim()) {
       addDiario({ data: new Date(), testo: noteText.trim() });
       if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Nota salvata!');
-      else Alert.alert(t('common.saved') || 'Salvato', t('agenda.noteSavedArchive') || 'Nota salvata nell\'archivio');
+      else playSuccess(); // Conferma sonora, nessun popup
     }
   };
 
@@ -235,7 +236,7 @@ export default function AgendaScreen() {
               addAppunto({ data: todayDate, testo: orderText.trim() });
               setOrderText('');
               if (Platform.OS === 'web') window.alert(t('agenda.commitmentSaved') || 'Impegno salvato per oggi!');
-              else Alert.alert(t('common.saved') || 'Salvato', t('agenda.appointmentSavedToday') || 'Impegno salvato per oggi');
+              else playSuccess(); // Conferma sonora, nessun popup
             }}
           >
             <Ionicons name="save" size={14} color="#FFF" />

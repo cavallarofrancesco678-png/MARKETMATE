@@ -76,7 +76,12 @@
     "upcomingAppointments": "Rendez-vous à venir",
     "noMarketToday": "PAS DE MARCHÉ AUJOURD'HUI",
     "enterUnsoldQty": "Entrez la quantité invendue par produit",
-    "enterLossDetail": "Entrez les pertes par fournisseur avec raison"
+    "enterLossDetail": "Entrez les pertes par fournisseur avec raison",
+    "commitmentSummary": "Résumé des engagements",
+    "appointments": "RENDEZ-VOUS",
+    "orderDeliveries": "LIVRAISONS COMMANDES",
+    "today": "AUJOURD'HUI",
+    "noCommitmentsNext2days": "Aucun engagement dans les 2 prochains jours"
   },
   "welcome": {
     "identity": "IDENTITÉ",

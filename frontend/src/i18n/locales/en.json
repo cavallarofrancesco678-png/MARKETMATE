@@ -76,7 +76,12 @@
     "upcomingAppointments": "Upcoming appointments",
     "noMarketToday": "NO MARKET TODAY",
     "enterUnsoldQty": "Enter the unsold quantity per product",
-    "enterLossDetail": "Enter losses per supplier with reason"
+    "enterLossDetail": "Enter losses per supplier with reason",
+    "commitmentSummary": "Commitments Summary",
+    "appointments": "APPOINTMENTS",
+    "orderDeliveries": "ORDER DELIVERIES",
+    "today": "TODAY",
+    "noCommitmentsNext2days": "No commitments in the next 2 days"
   },
   "welcome": {
     "identity": "IDENTITY",
