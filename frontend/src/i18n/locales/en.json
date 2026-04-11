@@ -15,7 +15,8 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
-    "annual": "Annual"
+    "annual": "Annual",
+    "done": "Done"
   },
   "login": {
     "title": "QUICK ACCESS",
@@ -33,7 +34,8 @@
     "secureData": "Your data is protected and encrypted",
     "securityLine1": "Your data stays ONLY on your device.",
     "securityLine2": "No external server can ever access it.",
-    "securityLine3": "Your privacy is fully guaranteed."
+    "securityLine3": "Your privacy is fully guaranteed.",
+    "dataProtected": "Data protected and encrypted"
   },
   "tabs": {
     "home": "HOME",
@@ -66,7 +68,11 @@
     "todayAppointments": "Today's appointments",
     "wind": "WIND",
     "profitDetail": "PROFIT DETAIL",
-    "deductions": "Deductions"
+    "deductions": "Deductions",
+    "fuelCost": "Fuel",
+    "next2days": "Next 2 days",
+    "upcomingAppointments": "Upcoming appointments",
+    "noMarketToday": "NO MARKET TODAY"
   },
   "welcome": {
     "identity": "IDENTITY",
@@ -147,7 +153,36 @@
     "numReceipts": "No. Receipts",
     "saveResult": "Save Result",
     "receiptsAnalyzed": "receipts analyzed",
-    "fuelType": "Fuel Type"
+    "fuelType": "Fuel Type",
+    "codeTypeA": "TYPE A",
+    "codeTypeADesc": "Type A (Operative): HOME only, can enter data",
+    "codeTypeB": "TYPE B",
+    "codeTypeBDesc": "Type B (Full): Full access to all functions",
+    "collaboratorName": "Collaborator name",
+    "collaboratorsTitle": "COLLABORATORS",
+    "confirmFullReset": "WARNING! Delete EVERYTHING (markets, suppliers, collaborators, settings) and restore factory state?",
+    "confirmResetValues": "Reset all numerical data (earnings, expenses, fuel)?",
+    "dangerZone": "DANGER ZONE",
+    "fullReset": "FULL RESET",
+    "fullResetDesc": "Delete EVERYTHING: markets, suppliers, collaborators, settings. Restore factory state.",
+    "fullResetDone": "App restored to factory state",
+    "inviteCodes": "INVITE CODES",
+    "inviteCodesDesc": "Create codes for your collaborators",
+    "marketsTitle": "MARKETS",
+    "otpDesc": "Receive a verification code at each login",
+    "otpLogin": "Login with OTP",
+    "phoneNumber": "Phone number",
+    "reset": "Reset",
+    "resetValues": "RESET VALUES",
+    "resetValuesDesc": "Reset only earnings, expenses and fuel. Keeps markets, suppliers and settings.",
+    "resetWarning": "These actions are irreversible",
+    "securityTitle": "SECURITY",
+    "suppliersTitle": "SUPPLIERS",
+    "valuesReset": "Numerical values reset",
+    "activeCode": "ACTIVE CODE",
+    "sendCode": "SEND CODE",
+    "typeAOperative": "TYPE A - OPERATIVE",
+    "typeBFull": "TYPE B - FULL ACCESS"
   },
   "stats": {
     "title": "STATISTICS",

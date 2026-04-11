@@ -15,7 +15,8 @@
     "daily": "Diario",
     "weekly": "Semanal",
     "monthly": "Mensual",
-    "annual": "Anual"
+    "annual": "Anual",
+    "done": "Hecho"
   },
   "login": {
     "title": "ACCESO RÁPIDO",
@@ -33,7 +34,8 @@
     "secureData": "Tus datos están protegidos y encriptados",
     "securityLine1": "Tus datos permanecen SOLO en tu dispositivo.",
     "securityLine2": "Ningún servidor externo puede acceder, nunca.",
-    "securityLine3": "Tu privacidad está totalmente garantizada."
+    "securityLine3": "Tu privacidad está totalmente garantizada.",
+    "dataProtected": "Datos protegidos y encriptados"
   },
   "tabs": {
     "home": "INICIO",
@@ -54,7 +56,7 @@
     "unsold": "NO VENDIDO",
     "profit": "BENEFICIO",
     "collaborators": "COLAB.",
-    "saveDay": "GUARDAR DÍA",
+    "saveDay": "GUARDAR JORNADA",
     "daySaved": "Día guardado con éxito.",
     "noMarket": "Sin mercado",
     "sun": "SOL",
@@ -66,7 +68,11 @@
     "todayAppointments": "Citas de hoy",
     "wind": "VIENTO",
     "profitDetail": "DETALLE BENEFICIO",
-    "deductions": "Deducciones"
+    "deductions": "Deducciones",
+    "fuelCost": "Combustible",
+    "next2days": "Próximos 2 días",
+    "upcomingAppointments": "Citas próximas",
+    "noMarketToday": "NINGÚN MERCADO HOY"
   },
   "welcome": {
     "identity": "IDENTIDAD",
@@ -147,7 +153,36 @@
     "numReceipts": "Nº Tickets",
     "saveResult": "Guardar resultado",
     "receiptsAnalyzed": "tickets analizados",
-    "fuelType": "Tipo de combustible"
+    "fuelType": "Tipo de combustible",
+    "codeTypeA": "TIPO A",
+    "codeTypeADesc": "Tipo A (Operativo): Solo HOME, puede ingresar datos",
+    "codeTypeB": "TIPO B",
+    "codeTypeBDesc": "Tipo B (Completo): Acceso completo a todas las funciones",
+    "collaboratorName": "Nombre del colaborador",
+    "collaboratorsTitle": "COLABORADORES",
+    "confirmFullReset": "¡ATENCIÓN! ¿Eliminar TODO (mercados, proveedores, colaboradores, configuración) y restaurar el estado de fábrica?",
+    "confirmResetValues": "¿Restablecer todos los datos numéricos (ingresos, gastos, combustible)?",
+    "dangerZone": "ZONA PELIGROSA",
+    "fullReset": "RESET TOTAL",
+    "fullResetDesc": "Eliminar TODO: mercados, proveedores, colaboradores, configuración. Restaurar estado de fábrica.",
+    "fullResetDone": "App restaurada al estado de fábrica",
+    "inviteCodes": "CÓDIGOS DE INVITACIÓN",
+    "inviteCodesDesc": "Crear códigos para tus colaboradores",
+    "marketsTitle": "MERCADOS",
+    "otpDesc": "Recibir un código de verificación en cada inicio de sesión",
+    "otpLogin": "Login con OTP",
+    "phoneNumber": "Número de teléfono",
+    "reset": "Restablecer",
+    "resetValues": "RESTABLECER VALORES",
+    "resetValuesDesc": "Restablecer solo ingresos, gastos y combustible. Mantiene mercados, proveedores y configuración.",
+    "resetWarning": "Estas acciones son irreversibles",
+    "securityTitle": "SEGURIDAD",
+    "suppliersTitle": "PROVEEDORES",
+    "valuesReset": "Valores numéricos restablecidos",
+    "activeCode": "CÓDIGO ACTIVO",
+    "sendCode": "ENVIAR CÓDIGO",
+    "typeAOperative": "TIPO A - OPERATIVO",
+    "typeBFull": "TIPO B - ACCESO COMPLETO"
   },
   "stats": {
     "title": "ESTADÍSTICAS",

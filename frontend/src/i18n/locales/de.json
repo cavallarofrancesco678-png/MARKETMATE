@@ -15,7 +15,8 @@
     "daily": "Täglich",
     "weekly": "Wöchentlich",
     "monthly": "Monatlich",
-    "annual": "Jährlich"
+    "annual": "Jährlich",
+    "done": "Fertig"
   },
   "login": {
     "title": "SCHNELLZUGANG",
@@ -33,7 +34,8 @@
     "secureData": "Ihre Daten sind geschützt und verschlüsselt",
     "securityLine1": "Ihre Daten bleiben NUR auf Ihrem Gerät.",
     "securityLine2": "Kein externer Server kann darauf zugreifen.",
-    "securityLine3": "Ihre Privatsphäre ist vollständig garantiert."
+    "securityLine3": "Ihre Privatsphäre ist vollständig garantiert.",
+    "dataProtected": "Geschützte und verschlüsselte Daten"
   },
   "tabs": {
     "home": "START",
@@ -66,7 +68,11 @@
     "todayAppointments": "Heutige Termine",
     "wind": "WIND",
     "profitDetail": "GEWINNDETAILS",
-    "deductions": "Abzüge"
+    "deductions": "Abzüge",
+    "fuelCost": "Kraftstoff",
+    "next2days": "Nächste 2 Tage",
+    "upcomingAppointments": "Anstehende Termine",
+    "noMarketToday": "KEIN MARKT HEUTE"
   },
   "welcome": {
     "identity": "IDENTITÄT",
@@ -147,7 +153,36 @@
     "numReceipts": "Anz. Bons",
     "saveResult": "Ergebnis speichern",
     "receiptsAnalyzed": "Bons analysiert",
-    "fuelType": "Kraftstoffart"
+    "fuelType": "Kraftstoffart",
+    "codeTypeA": "TYP A",
+    "codeTypeADesc": "Typ A (Operativ): Nur HOME, kann Daten eingeben",
+    "codeTypeB": "TYP B",
+    "codeTypeBDesc": "Typ B (Voll): Vollständiger Zugang zu allen Funktionen",
+    "collaboratorName": "Name des Mitarbeiters",
+    "collaboratorsTitle": "MITARBEITER",
+    "confirmFullReset": "ACHTUNG! ALLES löschen (Märkte, Lieferanten, Mitarbeiter, Einstellungen) und Werkszustand wiederherstellen?",
+    "confirmResetValues": "Alle Zahlenwerte zurücksetzen (Einnahmen, Ausgaben, Kraftstoff)?",
+    "dangerZone": "GEFAHRENZONE",
+    "fullReset": "VOLLSTÄNDIGER RESET",
+    "fullResetDesc": "ALLES löschen: Märkte, Lieferanten, Mitarbeiter, Einstellungen. Werkszustand wiederherstellen.",
+    "fullResetDone": "App auf Werkszustand zurückgesetzt",
+    "inviteCodes": "EINLADUNGSCODES",
+    "inviteCodesDesc": "Codes für Ihre Mitarbeiter erstellen",
+    "marketsTitle": "MÄRKTE",
+    "otpDesc": "Bei jedem Login einen Bestätigungscode erhalten",
+    "otpLogin": "Login mit OTP",
+    "phoneNumber": "Telefonnummer",
+    "reset": "Zurücksetzen",
+    "resetValues": "WERTE ZURÜCKSETZEN",
+    "resetValuesDesc": "Nur Einnahmen, Ausgaben und Kraftstoff zurücksetzen. Märkte, Lieferanten und Einstellungen bleiben erhalten.",
+    "resetWarning": "Diese Aktionen sind unwiderruflich",
+    "securityTitle": "SICHERHEIT",
+    "suppliersTitle": "LIEFERANTEN",
+    "valuesReset": "Zahlenwerte zurückgesetzt",
+    "activeCode": "AKTIVER CODE",
+    "sendCode": "CODE SENDEN",
+    "typeAOperative": "TYP A - OPERATIV",
+    "typeBFull": "TYP B - VOLLZUGRIFF"
   },
   "stats": {
     "title": "STATISTIKEN",

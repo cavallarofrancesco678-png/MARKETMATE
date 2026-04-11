@@ -30,12 +30,12 @@ import { playNotificationSound } from '../../src/utils/soundUtils';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
-const WEATHER_ICONS: Array<{ icon: string; labelKey: string }> = [
-  { icon: 'weather-sunny', labelKey: 'home.sun' },
-  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud' },
-  { icon: 'weather-rainy', labelKey: 'home.rain' },
-  { icon: 'weather-lightning', labelKey: 'home.snow' },
-  { icon: 'weather-windy', labelKey: 'home.wind' },
+const WEATHER_ICONS: Array<{ icon: string; labelKey: string; color: string }> = [
+  { icon: 'weather-sunny', labelKey: 'home.sun', color: '#F5A623' },
+  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud', color: '#8899AA' },
+  { icon: 'weather-rainy', labelKey: 'home.rain', color: '#5A90C0' },
+  { icon: 'weather-lightning', labelKey: 'home.snow', color: '#7A60BB' },
+  { icon: 'weather-windy', labelKey: 'home.wind', color: '#60B0A0' },
 ];
 
 /* ─── Mini charts ─── */
@@ -416,7 +416,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         <View style={{ marginTop: 6 }}>
-          <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || 'NESSUN MERCATO OGGI'}</Text>
+          <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
           <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
             <View style={s.dateRow}>
               <Ionicons name="calendar" size={18} color="#1E7F85" />

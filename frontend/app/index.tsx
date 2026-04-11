@@ -216,7 +216,7 @@ export default function LoginScreen() {
           {/* ═══ FOOTER ═══ */}
           <View style={[s.footer, { paddingBottom: Math.max(insets.bottom + 10, topSpacing) }]}>
             <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
-            <Text style={s.footerTxt}>Dati protetti e crittografati</Text>
+            <Text style={s.footerTxt}>{t('login.dataProtected') || 'Dati protetti e crittografati'}</Text>
           </View>
           </ScrollView>
         </View>

@@ -34,7 +34,8 @@
     "secureData": "I tuoi dati sono protetti e criptati",
     "securityLine1": "I tuoi dati restano SOLO sul tuo dispositivo.",
     "securityLine2": "Nessun server esterno può accedervi, mai.",
-    "securityLine3": "La tua privacy è totalmente garantita."
+    "securityLine3": "La tua privacy è totalmente garantita.",
+    "dataProtected": "Dati protetti e crittografati"
   },
   "tabs": {
     "home": "HOME",
@@ -70,7 +71,8 @@
     "deductions": "Deduzioni",
     "upcomingAppointments": "Appuntamenti in arrivo",
     "next2days": "Prossimi 2 giorni",
-    "fuelCost": "Carburante"
+    "fuelCost": "Carburante",
+    "noMarketToday": "NESSUN MERCATO OGGI"
   },
   "welcome": {
     "identity": "IDENTITÀ",
@@ -176,7 +178,11 @@
     "codeTypeA": "TIPO A",
     "codeTypeB": "TIPO B",
     "codeTypeADesc": "Tipo A (Operativo): Solo HOME, può inserire dati",
-    "codeTypeBDesc": "Tipo B (Full): Accesso completo a tutte le funzioni"
+    "codeTypeBDesc": "Tipo B (Full): Accesso completo a tutte le funzioni",
+    "activeCode": "CODICE ATTIVO",
+    "sendCode": "INVIA CODICE",
+    "typeAOperative": "TIPO A - OPERATIVO",
+    "typeBFull": "TIPO B - FULL ACCESS"
   },
   "stats": {
     "title": "STATISTICHE",
