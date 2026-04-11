@@ -392,7 +392,7 @@ export default function HomeScreen() {
   return (
     <View style={[s.root, { paddingTop: topPad }]}>
       {/* ═══ HEADER ═══ */}
-      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: 4 }]}>
+      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: 4, alignItems: 'center' }]}>
         {/* Nome attività piccolo sopra il mercato */}
         {nomeAttivita ? (
           <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
@@ -413,7 +413,7 @@ export default function HomeScreen() {
             )}
           </View>
         </TouchableOpacity>
-        <Text style={[s.marketName, { paddingRight: 54 }]} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
+        <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
         <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7}>
           <View style={s.dateRow}>
             <Ionicons name="calendar" size={18} color="#1E7F85" />

@@ -323,7 +323,8 @@
     "typeMessage": "Écrivez un message...",
     "thinking": "Je réfléchis...",
     "askSomething": "Posez une question...",
-    "close": "FERMER"
+    "close": "FERMER",
+    "moreDateMorePrecise": "Plus vous entrez de données dans l'app, plus les réponses seront précises et personnalisées."
   },
   "days": {
     "monday": "Lundi",
