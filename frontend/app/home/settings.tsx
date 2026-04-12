@@ -913,7 +913,7 @@ export default function SettingsPage() {
       </View>
 
       {/* ─── SALVA TUTTO ─── */}
-      <TouchableOpacity style={s.saveAll} onPress={() => Alert.alert(t('common.saved'), t('settings.settingsSaved'))}>
+      <TouchableOpacity style={s.saveAll} onPress={() => { store.forceFlushSave(); playSuccess(); }}>
         <Ionicons name="save" size={18} color="#FFF" />
         <Text style={s.saveAllTxt}>{t('settings.saveSettings')}</Text>
       </TouchableOpacity>

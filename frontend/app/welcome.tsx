@@ -124,6 +124,18 @@ export default function WelcomeScreen() {
   };
 
   const handleFinish = () => {
+    if (!pin || pin.length < 4) {
+      if (Platform.OS === 'web') window.alert('Inserisci un PIN di almeno 4 cifre');
+      else Alert.alert('PIN Obbligatorio', 'Inserisci un PIN di almeno 4 cifre');
+      setCurrentPage(4);
+      return;
+    }
+    if (!nomeAttivita.trim()) {
+      if (Platform.OS === 'web') window.alert('Inserisci il nome dell\'attività');
+      else Alert.alert('Dati Mancanti', 'Inserisci il nome dell\'attività');
+      setCurrentPage(3);
+      return;
+    }
     setConfig({
       isConfigured: true,
       lingua,
@@ -140,11 +152,13 @@ export default function WelcomeScreen() {
 
   const canGoNext = () => {
     if (currentPage === 0) return otpVerified;
+    if (currentPage === 3) return nomeAttivita.trim().length > 0;
+    if (currentPage === 4) return pin.length >= 4;
     return true;
   };
 
   const handleNext = () => {
-    if (currentPage === 0 && !otpVerified) return;
+    if (!canGoNext()) return;
     if (currentPage < TOTAL_PAGES - 1) setCurrentPage(currentPage + 1);
   };
 

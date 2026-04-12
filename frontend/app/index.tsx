@@ -41,6 +41,13 @@ export default function LoginScreen() {
     init();
   }, []);
 
+  // Auto-login: se già configurato con PIN, vai direttamente alla Home
+  useEffect(() => {
+    if (!isLoading && isConfigured && savedPin) {
+      router.replace('/home');
+    }
+  }, [isLoading, isConfigured, savedPin]);
+
   useEffect(() => {
     if (attempts >= 5) {
       setLocked(true);
@@ -64,18 +71,12 @@ export default function LoginScreen() {
       router.push('/welcome');
       return;
     }
-    if (!savedPin || pin === savedPin) {
-      setPin('');
-      if (otpEnabled && phoneNumber) {
-        generateOtp();
-      } else {
-        router.replace('/home');
-      }
+    // Se configurato con PIN → vai direttamente
+    if (savedPin) {
+      router.replace('/home');
     } else {
-      setAttempts(prev => prev + 1);
-      if (Platform.OS === 'web') window.alert(t('login.wrongPin'));
-      else Alert.alert(t('login.error'), t('login.wrongPin'));
-      setPin('');
+      // Nessun PIN configurato → forza la configurazione
+      router.push('/welcome');
     }
   };
 
