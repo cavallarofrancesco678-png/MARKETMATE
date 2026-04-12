@@ -13,6 +13,7 @@ import {
   Platform,
   Animated,
   StatusBar,
+  BackHandler,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
@@ -450,6 +451,30 @@ export default function HomeScreen() {
         {nomeAttivita ? (
           <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
         ) : null}
+        {/* Power off a sinistra */}
+        <TouchableOpacity
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              window.close();
+            } else {
+              Alert.alert(
+                t('settings.exitApp') || "ESCI DALL'APP",
+                t('settings.exitAppConfirm') || 'Vuoi chiudere MarketMate?',
+                [
+                  { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+                  { text: t('settings.exitApp') || 'ESCI', onPress: () => BackHandler.exitApp() },
+                ]
+              );
+            }
+          }}
+          activeOpacity={0.7}
+          style={{ position: 'absolute', left: 4, top: 4, zIndex: 10, padding: 4 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#B0A898', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="power" size={16} color="#FFF" />
+          </View>
+        </TouchableOpacity>
         {/* Bell a destra - ZONA SEPARATA con area di tocco grande */}
         <TouchableOpacity 
           onPress={() => { hapticTap(); setShowBellModal(true); }} 
