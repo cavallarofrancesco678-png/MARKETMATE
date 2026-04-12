@@ -197,56 +197,13 @@ export default function AgendaScreen() {
           <Ionicons name="calendar-outline" size={15} color="#1E7F85" />
           <Text style={s.cardHeaderTxt}>{t('agenda.commitmentDetails') || 'DETTAGLI IMPEGNO'}</Text>
         </View>
-        <TextInput
-          style={s.orderInput}
-          placeholder={t('agenda.describeOrder') || "Descrivi l'ordine o appuntamento..."}
-          placeholderTextColor="#B0A898"
-          value={orderText}
-          onChangeText={setOrderText}
-          multiline
-          numberOfLines={2}
-        />
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-          <TouchableOpacity
-            style={[s.orderBtn, { flex: 1 }]}
-            activeOpacity={0.8}
-            onPress={() => setShowCalendar(!showCalendar)}
-          >
-            <Ionicons name="calendar" size={14} color="#FFF" />
-            <Text style={s.orderBtnTxt}>
-              {showCalendar ? (t('agenda.close') || 'CHIUDI') : (t('agenda.chooseDay') || 'SCEGLI GIORNO')}
-            </Text>
-            <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={14} color="#FFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.orderBtn, { backgroundColor: '#E8A060', paddingHorizontal: 18 }]}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (!orderText.trim()) {
-                if (Platform.OS === 'web') window.alert(t('agenda.enterAppointmentDetail') || 'Inserisci il dettaglio dell\'impegno');
-                else Alert.alert(t('common.error') || 'Errore', t('agenda.enterAppointmentDetail') || 'Inserisci il dettaglio dell\'impegno');
-                return;
-              }
-              if (!showCalendar) {
-                setShowCalendar(true);
-                return;
-              }
-              // Se calendario aperto, salva su oggi
-              const todayDate = new Date();
-              addAppunto({ data: todayDate, testo: orderText.trim() });
-              setOrderText('');
-              if (Platform.OS === 'web') window.alert(t('agenda.commitmentSaved') || 'Impegno salvato per oggi!');
-              else playSuccess(); // Conferma sonora, nessun popup
-            }}
-          >
-            <Ionicons name="save" size={14} color="#FFF" />
-            <Text style={s.orderBtnTxt}>{t('agenda.save') || 'SALVA'}</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={{ fontSize: 12, color: '#7A9090', fontWeight: '700', marginTop: 4 }}>
+          Appunto per il giorno:
+        </Text>
       </View>
 
-      {/* ═══ CALENDARIO (sempre visibile per mostrare pallini) ═══ */}
-      <View style={[s.calCard, !showCalendar && { maxHeight: 200 }]}>
+      {/* ═══ CALENDARIO (sempre visibile) ═══ */}
+      <View style={s.calCard}>
         {/* Nav mese */}
         <View style={s.calNav}>
           <TouchableOpacity onPress={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

@@ -287,7 +287,7 @@ export default function HomeScreen() {
     });
   }, [speseFisseConCarburante, mercatoOggi]);
 
-  const speseFisse = speseFisseOggi
+  const speseFisse = !isInPiazza ? 0 : speseFisseOggi
     .filter((it) => !(speseFisseDisabilitate || []).includes(it.id))
     .reduce((s, it) => s + it.importoGG, 0);
 
@@ -491,8 +491,8 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
-            <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#D55' }]}>
-              <Text style={s.piazzaTxt}>{isInPiazza ? t('home.market') : '---'}</Text>
+            <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#CC3333' }]}>
+              <Text style={s.piazzaTxt}>{isInPiazza ? t('home.market') : 'A CASA'}</Text>
             </View>
           </TouchableOpacity>
         </View>
