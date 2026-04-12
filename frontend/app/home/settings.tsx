@@ -720,10 +720,20 @@ export default function SettingsPage() {
                     <Ionicons name="checkmark-circle" size={16} color="#1D8348" />
                   ) : null}
                 </View>
-                <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.kmRoundTrip'), [t('settings.km')], (v) => updateMercato(idx, 'km', parseFloat(v[0].replace(',', '.')) || 0))}>
-                  <Text style={s.itemLabel}>{t('settings.kmRoundTrip')}</Text>
-                  <Text style={s.agendaVal}>{m.km || '---'}</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TouchableOpacity style={[s.agendaItem, { flex: 1 }]} onPress={() => openModal(t('settings.kmRoundTrip'), [t('settings.km')], (v) => updateMercato(idx, 'km', parseFloat(v[0].replace(',', '.')) || 0))}>
+                    <Text style={s.itemLabel}>{t('settings.kmRoundTrip')}</Text>
+                    <Text style={s.agendaVal}>{m.km || '---'}</Text>
+                  </TouchableOpacity>
+                  {store.partenzaDa && m.mercato ? (
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#1E7F85', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, marginLeft: 4 }}
+                      onPress={() => autoCalculateKm(idx, store.partenzaDa, m.mercato)}
+                    >
+                      <Ionicons name="navigate" size={14} color="#FFF" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
                 <TouchableOpacity style={s.agendaItem} onPress={() => openModal(t('settings.avgReceipt'), [`${t('settings.amount')}`], (v) => updateMercato(idx, 'mediaScontrino', parseFloat(v[0].replace(',', '.')) || 0))}>
                   <Text style={s.itemLabel}>{t('settings.avgReceipt')}</Text>
                   <Text style={s.agendaVal}>{m.mediaScontrino ? `€${m.mediaScontrino}` : '---'}</Text>

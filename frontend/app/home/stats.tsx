@@ -442,6 +442,32 @@ export default function StatsScreen() {
   }, [filteredByTime]);
   const totFiere = arrSum(fiereDays.map((g) => g.lordo || 0));
 
+  /* ── Giorni lavorati vs non lavorati (per grafico) ── */
+  const giorniLavoroData = useMemo(() => {
+    const giorniLavorativi = store.agenda.filter(m => m.lavorativo).length || 5;
+    
+    if (filtroTempo === 'Sett.') {
+      // Settimana corrente: 7 giorni, quanti lavorati
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+      weekStart.setHours(0,0,0,0);
+      const lavorati = filteredData.length;
+      const totGiorni = 7;
+      return { lavorati, nonLavorati: Math.max(0, totGiorni - lavorati), totale: totGiorni };
+    } else if (filtroTempo === 'Mese') {
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const settimane = Math.ceil(daysInMonth / 7);
+      const giorniPrevisti = settimane * giorniLavorativi;
+      const lavorati = filteredData.length;
+      return { lavorati, nonLavorati: Math.max(0, giorniPrevisti - lavorati), totale: giorniPrevisti };
+    } else {
+      // Anno
+      const giorniPrevisti = 48 * giorniLavorativi;
+      const lavorati = filteredData.length;
+      return { lavorati, nonLavorati: Math.max(0, giorniPrevisti - lavorati), totale: giorniPrevisti };
+    }
+  }, [filteredData, filtroTempo, store.agenda]);
+
   const renderFilterBar = (options: string[], selected: string, onSelect: (v: any) => void, mini = false, labelFn?: (key: string) => string) => (
     <View style={[st.filterRow, { gap: mini ? 4 : 6 }]}>
       {options.map((opt) => {
@@ -700,6 +726,50 @@ export default function StatsScreen() {
 
         {renderChartBox(t('stats.economic'), economicoLines, 'economico')}
         {renderChartBox(t('stats.income'), incassiLines, 'incassi')}
+
+        {/* ─── GIORNI LAVORATI VS NON LAVORATI ─── */}
+        <View style={[st.card, { marginBottom: GAP }]}>
+          <View style={st.chartHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="calendar-outline" size={16} color="#1E7F85" />
+              <Text style={st.sectionLabel}>{t('stats.workingDays')}</Text>
+            </View>
+            <Text style={st.sectionTotal}>{giorniLavoroData.lavorati}/{giorniLavoroData.totale}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, marginTop: 10, gap: 12, paddingHorizontal: 10 }}>
+            {/* Barra giorni lavorati */}
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E7F85' }}>{giorniLavoroData.lavorati}</Text>
+              <View style={{
+                width: '100%',
+                height: Math.max(giorniLavoroData.totale > 0 ? (giorniLavoroData.lavorati / giorniLavoroData.totale) * 50 : 4, 4),
+                backgroundColor: '#1E7F85',
+                borderRadius: 6,
+                marginTop: 4,
+              }} />
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090', marginTop: 4 }}>LAVORATI</Text>
+            </View>
+            {/* Barra giorni non lavorati */}
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: '#CC3333' }}>{giorniLavoroData.nonLavorati}</Text>
+              <View style={{
+                width: '100%',
+                height: Math.max(giorniLavoroData.totale > 0 ? (giorniLavoroData.nonLavorati / giorniLavoroData.totale) * 50 : 4, 4),
+                backgroundColor: '#CC3333',
+                borderRadius: 6,
+                marginTop: 4,
+              }} />
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090', marginTop: 4 }}>NON LAVORATI</Text>
+            </View>
+            {/* Percentuale */}
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: '#1A4040' }}>
+                {giorniLavoroData.totale > 0 ? Math.round((giorniLavoroData.lavorati / giorniLavoroData.totale) * 100) : 0}%
+              </Text>
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>PRESENZA</Text>
+            </View>
+          </View>
+        </View>
 
         {/* ─── AREOGRAMMI ─── */}
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
