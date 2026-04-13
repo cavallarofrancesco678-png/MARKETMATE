@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -111,10 +112,10 @@ export default function HomeScreen() {
     setPresenze(p);
   }, [collaboratori]);
 
-  /* ── Carica dati salvati quando cambia la data ── */
-  useEffect(() => {
+  /* ── Funzione per caricare i dati salvati di una data ── */
+  const loadSavedData = useCallback((targetDate: Date) => {
     const saved = store.storicoGiornate.find(
-      (g) => new Date(g.data).toDateString() === dataCorrente.toDateString()
+      (g) => new Date(g.data).toDateString() === targetDate.toDateString()
     );
     if (saved) {
       setLordo(saved.lordo > 0 ? saved.lordo.toString() : '');
@@ -141,10 +142,6 @@ export default function HomeScreen() {
       } else {
         setSpeseExtraFornitore({});
       }
-      // Ripristina spese extra (valore aggregato)
-      if (saved.spese_extra > 0) {
-        // spese_extra è il totale salvato, già gestito dai fornitori sopra
-      }
       // Controlla se era una fiera
       if (saved.mercato?.toLowerCase() === 'fiera') {
         setIsFiera(true);
@@ -162,7 +159,19 @@ export default function HomeScreen() {
       setPresenze(p);
       setIsFiera(false);
     }
-  }, [dataCorrente]);
+  }, [store.storicoGiornate, collaboratori]);
+
+  /* ── Carica dati salvati quando cambia la data ── */
+  useEffect(() => {
+    loadSavedData(dataCorrente);
+  }, [dataCorrente, loadSavedData]);
+
+  /* ── Ricarica dati quando il tab torna in focus ── */
+  useFocusEffect(
+    useCallback(() => {
+      loadSavedData(dataCorrente);
+    }, [dataCorrente, loadSavedData])
+  );
 
   /* ── Appunti prossimi 2 giorni per notifiche campanello ── */
   const appuntiProssimi = useMemo(() => {
@@ -379,7 +388,7 @@ export default function HomeScreen() {
     if (lordoNum > 0) setContanti(Math.max(0, Math.round(lordoNum - p)).toString());
   };
 
-  const handleSalva = () => {
+  const handleSalva = useCallback(() => {
     // Build dettaglio_fornitori from speseExtraFornitore
     const dettaglioForn: Record<string, number> = {};
     Object.entries(speseExtraFornitore).forEach(([nome, v]) => {
@@ -401,7 +410,26 @@ export default function HomeScreen() {
       dettaglio_invenduto: { totale: invendutoNum },
       dettaglio_fornitori: dettaglioForn,
     } as any);
-    playSuccess(); // Conferma sonora + aptica, nessun popup
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, invendutoNum, speseExtraFornitore, salvaGiornata]);
+
+  /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    // Auto-salva solo se c'è almeno il lordo inserito
+    if (lordoNum > 0) {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => {
+        handleSalva();
+      }, 1500); // Salva dopo 1.5 secondi di inattività
+    }
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze]);
+
+  const handleSalvaManuale = () => {
+    handleSalva();
+    playSuccess(); // Conferma sonora + aptica solo su salvataggio manuale
   };
 
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
@@ -910,7 +938,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ SALVA GIORNATA ═══ */}
-      <TouchableOpacity onPress={handleSalva} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
+      <TouchableOpacity onPress={handleSalvaManuale} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
