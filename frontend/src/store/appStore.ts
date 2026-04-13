@@ -1,6 +1,61 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { generateAllMockData } from '../utils/mockData';
+
+// Storage wrapper che funziona sia su web che su native
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    try {
+      if (Platform.OS === 'web') {
+        return localStorage.getItem(key);
+      }
+      return await AsyncStorage.getItem(key);
+    } catch (e) {
+      console.warn('Storage getItem error:', e);
+      // Fallback to web storage on error
+      try {
+        if (typeof localStorage !== 'undefined') {
+          return localStorage.getItem(key);
+        }
+      } catch {}
+      return null;
+    }
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.setItem(key, value);
+        return;
+      }
+      await AsyncStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('Storage setItem error:', e);
+      // Fallback to web storage on error
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(key, value);
+        }
+      } catch {}
+    }
+  },
+  async removeItem(key: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.removeItem(key);
+        return;
+      }
+      await AsyncStorage.removeItem(key);
+    } catch (e) {
+      console.warn('Storage removeItem error:', e);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(key);
+        }
+      } catch {}
+    }
+  }
+};
 
 export interface Collaboratore {
   nome: string;
@@ -59,6 +114,11 @@ export interface Appunto {
   testo: string;
 }
 
+export interface Ordine {
+  data: Date;
+  testo: string;
+}
+
 export interface DiarioEntry {
   data: Date;
   testo: string;
@@ -70,6 +130,16 @@ export interface ScontrinoRecord {
   totale: number;
   numScontrini: number;
   mediaScontrino: number;
+}
+
+// Sistema Collaboratori con codici invito
+export interface CodiceInvito {
+  codice: string;
+  tipo: 'A' | 'B'; // A = Operativo (solo HOME), B = Full access
+  nome: string;
+  attivo: boolean;
+  dataCreazione: string;
+  ultimoAccesso?: string;
 }
 
 interface AppState {
@@ -90,6 +160,7 @@ interface AppState {
   otpEnabled: boolean;
   speseFisseDisabilitate: string[];
   speseAnnueDisabilitate: string[];
+  codiciInvito: CodiceInvito[];
   
   // Data
   collaboratori: Collaboratore[];
@@ -99,6 +170,7 @@ interface AppState {
   storicoGiornate: Giornata[];
   storicoCarburante: Carburante[];
   appuntiAgenda: Appunto[];
+  ordiniAgenda: Ordine[];
   storicoDiario: DiarioEntry[];
   speseExtraTags: string[];
   storicoScontrini: ScontrinoRecord[];
@@ -119,6 +191,8 @@ interface AppState {
   removeCarburante: (index: number) => void;
   addAppunto: (a: Appunto) => void;
   removeAppunto: (data: Date, testo: string) => void;
+  addOrdine: (o: Ordine) => void;
+  removeOrdine: (data: Date, testo: string) => void;
   addDiario: (d: DiarioEntry) => void;
   removeDiario: (data: Date) => void;
   getDiarioForDate: (data: Date) => DiarioEntry | undefined;
@@ -126,6 +200,11 @@ interface AppState {
   removeSpeseExtraTag: (tag: string) => void;
   addScontrino: (s: ScontrinoRecord) => void;
   getScontriniForMercato: (mercato: string) => ScontrinoRecord[];
+  // Codici invito collaboratori
+  addCodiceInvito: (c: CodiceInvito) => void;
+  removeCodiceInvito: (codice: string) => void;
+  toggleCodiceInvito: (codice: string) => void;
+  generateCodiceInvito: (tipo: 'A' | 'B', nome: string) => string;
   seedMockData: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
@@ -160,6 +239,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   otpEnabled: false,
   speseFisseDisabilitate: [],
   speseAnnueDisabilitate: [],
+  codiciInvito: [],
   
   collaboratori: [],
   fornitori: [],
@@ -168,6 +248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   storicoGiornate: [],
   storicoCarburante: [],
   appuntiAgenda: [],
+  ordiniAgenda: [],
   storicoDiario: [],
   speseExtraTags: [],
   storicoScontrini: [],
@@ -293,6 +374,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     get().saveToStorage();
   },
+
+  addOrdine: (o) => {
+    set((state) => ({ ordiniAgenda: [...(state.ordiniAgenda || []), o] }));
+    get().saveToStorage();
+  },
+
+  removeOrdine: (data, testo) => {
+    set((state) => {
+      let removed = false;
+      return {
+        ordiniAgenda: (state.ordiniAgenda || []).filter(o => {
+          if (!removed && o.testo === testo) {
+            const oDate = new Date(o.data).toDateString();
+            const targetDate = new Date(data).toDateString();
+            if (oDate === targetDate) {
+              removed = true;
+              return false;
+            }
+          }
+          return true;
+        })
+      };
+    });
+    get().saveToStorage();
+  },
   
   addDiario: (d) => {
     set((state) => {
@@ -347,6 +453,51 @@ export const useAppStore = create<AppState>((set, get) => ({
   getScontriniForMercato: (mercato) => {
     return get().storicoScontrini.filter(s => s.mercato === mercato);
   },
+
+  // Codici invito collaboratori
+  generateCodiceInvito: (tipo, nome) => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let codice = tipo === 'A' ? 'OP-' : 'FL-'; // OP = Operativo, FL = Full
+    for (let i = 0; i < 6; i++) {
+      codice += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    const nuovoCodice: CodiceInvito = {
+      codice,
+      tipo,
+      nome,
+      attivo: true,
+      dataCreazione: new Date().toISOString(),
+    };
+    
+    set((state) => ({
+      codiciInvito: [...state.codiciInvito, nuovoCodice]
+    }));
+    get().saveToStorage();
+    
+    return codice;
+  },
+
+  addCodiceInvito: (c) => {
+    set((state) => ({ codiciInvito: [...state.codiciInvito, c] }));
+    get().saveToStorage();
+  },
+
+  removeCodiceInvito: (codice) => {
+    set((state) => ({
+      codiciInvito: state.codiciInvito.filter(c => c.codice !== codice)
+    }));
+    get().saveToStorage();
+  },
+
+  toggleCodiceInvito: (codice) => {
+    set((state) => ({
+      codiciInvito: state.codiciInvito.map(c => 
+        c.codice === codice ? { ...c, attivo: !c.attivo } : c
+      )
+    }));
+    get().saveToStorage();
+  },
   
   seedMockData: () => {
     const mock = generateAllMockData();
@@ -356,13 +507,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadFromStorage: async () => {
     try {
-      const data = await AsyncStorage.getItem('marketmate_data');
+      const data = await storage.getItem('marketmate_data');
       if (data) {
         const parsed = JSON.parse(data);
         set(parsed);
       }
     } catch (e) {
-      console.error('Error loading data:', e);
+      console.warn('Error loading data:', e);
     }
   },
   
@@ -393,13 +544,15 @@ export const useAppStore = create<AppState>((set, get) => ({
         storicoGiornate: state.storicoGiornate,
         storicoCarburante: state.storicoCarburante,
         appuntiAgenda: state.appuntiAgenda,
+        ordiniAgenda: state.ordiniAgenda || [],
         storicoDiario: state.storicoDiario,
         speseExtraTags: state.speseExtraTags,
         storicoScontrini: state.storicoScontrini,
+        codiciInvito: state.codiciInvito || [],
       };
-      await AsyncStorage.setItem('marketmate_data', JSON.stringify(dataToSave));
+      await storage.setItem('marketmate_data', JSON.stringify(dataToSave));
     } catch (e) {
-      console.error('Error saving data:', e);
+      console.warn('Error saving data:', e);
     }
   },
   
@@ -426,10 +579,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       storicoGiornate: [],
       storicoCarburante: [],
       appuntiAgenda: [],
+      ordiniAgenda: [],
       storicoDiario: [],
       speseExtraTags: [],
       storicoScontrini: [],
     });
-    AsyncStorage.removeItem('marketmate_data');
+    storage.removeItem('marketmate_data');
   },
 }));

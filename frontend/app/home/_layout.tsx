@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
@@ -49,8 +49,7 @@ export default function TabLayout() {
   return (
     <Tabs
       sceneContainerStyle={{
-        paddingTop: insets.top,
-        backgroundColor: '#D8EDE5',
+        backgroundColor: '#F5F0E6',
       }}
       screenOptions={{
         headerShown: false,

@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,9 +19,11 @@ import Svg, { Path, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { MeteoStatsModal } from '../../src/components/MeteoStatsModal';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDayNames, getMonthNames, getShortDayNames } from '../../src/i18n';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 
 const { width: screenW } = Dimensions.get('window');
@@ -207,8 +210,10 @@ const PieChart = ({ items, size = 120 }: { items: { label: string; value: number
 /* ══════════════════════════════════════════════════════ */
 export default function StatsScreen() {
   const store = useAppStore();
-  const { storicoGiornate, speseAnnue, collaboratori, fornitori, seedMockData } = store;
+  const { storicoGiornate, storicoCarburante, speseAnnue, collaboratori, fornitori, seedMockData } = store;
   const { height: screenH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
   const GAP = Math.round(1.5 * ((screenH - 80) / 100));
   const { t } = useTranslation();
 
@@ -305,7 +310,15 @@ export default function StatsScreen() {
     const shortMonths = monthNames.map(m => m.substring(0, 3).toUpperCase());
     const shortDays = getShortDayNames();
     if (filtroTempo === 'Anno') return shortMonths;
-    if (filtroTempo === 'Mese') return ['S1', 'S2', 'S3', 'S4'];
+    if (filtroTempo === 'Mese') {
+      // Supporto per mesi a 5 settimane
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const numWeeks = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
+      const weeksCount = Math.min(numWeeks, 5);
+      return Array.from({ length: weeksCount }, (_, i) => `S${i + 1}`);
+    }
     return shortDays;
   }, [filtroTempo, t]);
 
@@ -316,9 +329,19 @@ export default function StatsScreen() {
       return months;
     }
     if (filtroTempo === 'Mese') {
-      const weeks = Array(4).fill(0);
+      // Supporto per mesi a 5 settimane
+      // Calcola il numero di settimane nel mese corrente
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const numWeeks = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
+      const weeksCount = Math.min(numWeeks, 5); // Max 5 settimane
+      
+      const weeks = Array(weeksCount).fill(0);
       data.forEach((g) => {
-        const weekIdx = Math.min(Math.floor((new Date(g.data).getDate() - 1) / 7), 3);
+        const date = new Date(g.data);
+        const dayOfMonth = date.getDate();
+        const weekIdx = Math.min(Math.floor((dayOfMonth - 1) / 7), weeksCount - 1);
         weeks[weekIdx] += field(g);
       });
       return weeks;
@@ -397,8 +420,8 @@ export default function StatsScreen() {
       return Object.values(g.dettaglio_invenduto).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
     }));
     return [
-      { label: 'SPESE EXTRA', value: totSpeseExtra, color: PALETTE[1] },
-      { label: 'INVENDUTO', value: totInvenduto, color: PALETTE[3] },
+      { label: t('stats.extraExpenses'), value: totSpeseExtra, color: PALETTE[1] },
+      { label: t('stats.unsold'), value: totInvenduto, color: PALETTE[3] },
     ].filter((i) => i.value > 0);
   }, [filteredData]);
 
@@ -419,6 +442,32 @@ export default function StatsScreen() {
   }, [filteredByTime]);
   const totFiere = arrSum(fiereDays.map((g) => g.lordo || 0));
 
+  /* ── Giorni lavorati vs non lavorati (per grafico) ── */
+  const giorniLavoroData = useMemo(() => {
+    const giorniLavorativi = store.agenda.filter(m => m.lavorativo).length || 5;
+    
+    if (filtroTempo === 'Sett.') {
+      // Settimana corrente: 7 giorni, quanti lavorati
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+      weekStart.setHours(0,0,0,0);
+      const lavorati = filteredData.length;
+      const totGiorni = 7;
+      return { lavorati, nonLavorati: Math.max(0, totGiorni - lavorati), totale: totGiorni };
+    } else if (filtroTempo === 'Mese') {
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const settimane = Math.ceil(daysInMonth / 7);
+      const giorniPrevisti = settimane * giorniLavorativi;
+      const lavorati = filteredData.length;
+      return { lavorati, nonLavorati: Math.max(0, giorniPrevisti - lavorati), totale: giorniPrevisti };
+    } else {
+      // Anno
+      const giorniPrevisti = 48 * giorniLavorativi;
+      const lavorati = filteredData.length;
+      return { lavorati, nonLavorati: Math.max(0, giorniPrevisti - lavorati), totale: giorniPrevisti };
+    }
+  }, [filteredData, filtroTempo, store.agenda]);
+
   const renderFilterBar = (options: string[], selected: string, onSelect: (v: any) => void, mini = false, labelFn?: (key: string) => string) => (
     <View style={[st.filterRow, { gap: mini ? 4 : 6 }]}>
       {options.map((opt) => {
@@ -438,12 +487,35 @@ export default function StatsScreen() {
     if (lines.length === 0) return null;
     const activeLine = activeChartLine[chartKey] ?? null;
     const currentTooltip = tooltipInfo && tooltipInfo.chartKey === chartKey ? tooltipInfo : null;
+    const hasActiveFilter = activeLine !== null;
     return (
       <View style={[st.card, { marginBottom: GAP }]}>
         <View style={st.chartHeader}>
-          <Text style={st.sectionLabel}>{title}</Text>
+          <TouchableOpacity 
+            onPress={() => {
+              // Reset to show all lines when clicking on section title
+              if (hasActiveFilter) {
+                setActiveChartLine((prev) => ({ ...prev, [chartKey]: null }));
+                setTooltipInfo(null);
+              }
+            }}
+            activeOpacity={hasActiveFilter ? 0.6 : 1}
+          >
+            <Text style={[st.sectionLabel, hasActiveFilter && { textDecorationLine: 'underline', color: '#E8A060' }]}>{title}</Text>
+          </TouchableOpacity>
           <Text style={st.sectionTotal}>TOTALE: {'\u20AC'}{totalSection.toFixed(0)}</Text>
         </View>
+        {hasActiveFilter && (
+          <TouchableOpacity 
+            style={{ alignSelf: 'flex-start', marginBottom: 6, backgroundColor: '#E8A060', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}
+            onPress={() => {
+              setActiveChartLine((prev) => ({ ...prev, [chartKey]: null }));
+              setTooltipInfo(null);
+            }}
+          >
+            <Text style={{ fontSize: 9, color: '#FFF', fontWeight: '800' }}>← MOSTRA TUTTO</Text>
+          </TouchableOpacity>
+        )}
         {currentTooltip && (
           <View style={st.tooltipBanner}>
             <View style={[st.tooltipDot, { backgroundColor: lines[currentTooltip.lineIdx]?.color }]} />
@@ -536,6 +608,15 @@ export default function StatsScreen() {
     const totL = arrSum(giorni.map((g) => g.lordo || 0));
     const totN = arrSum(giorni.map((g) => g.netto || 0));
     const totKm = arrSum(giorni.map((g) => g.km || 0));
+    const totCash = arrSum(giorni.map((g) => g.contanti || 0));
+    const totPos = arrSum(giorni.map((g) => g.pos || 0));
+    const totSpFisse = arrSum(giorni.map((g) => g.speseFisse || 0));
+    const totSpExtra = arrSum(giorni.map((g) => g.speseExtra || 0));
+    const totCarb = arrSum(storicoCarburante.filter((c) => {
+      const d = new Date(c.data);
+      return d.getMonth() === pdfMonth && d.getFullYear() === year;
+    }).map(c => c.euro));
+    
     const rows = giorni.map((g) => {
       const d = new Date(g.data);
       return `<tr>
@@ -543,33 +624,56 @@ export default function StatsScreen() {
         <td>${g.mercato}</td>
         <td style="text-align:right">\u20AC${(g.lordo || 0).toFixed(0)}</td>
         <td style="text-align:right">\u20AC${(g.netto || 0).toFixed(0)}</td>
+        <td style="text-align:right">\u20AC${(g.contanti || 0).toFixed(0)}</td>
+        <td style="text-align:right">\u20AC${(g.pos || 0).toFixed(0)}</td>
         <td style="text-align:right">${g.km || 0}</td>
       </tr>`;
     }).join('');
 
-    const html = `<html><head><style>
-      body{font-family:sans-serif;padding:20px;font-size:11px}
-      h1{color:#1E7F85;font-size:16px;margin-bottom:4px}
-      h2{color:#333;font-size:13px;margin-bottom:10px}
-      table{width:100%;border-collapse:collapse;margin:10px 0}
-      th{background:#1E7F85;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
-      td{padding:5px 8px;border-bottom:1px solid #E0E0E0;font-size:10px}
-      tr:nth-child(even){background:#F5F5F0}
-      .summary{display:flex;gap:16px;margin:12px 0}
-      .box{background:#F0EDE4;padding:10px;border-radius:8px;flex:1;text-align:center}
-      .box .val{font-size:16px;font-weight:bold;color:#1E7F85}
-      .box .lbl{font-size:9px;color:#666}
+    const html = `<html><head><meta charset="utf-8"><style>
+      @page{size:A4;margin:15mm}
+      body{font-family:Helvetica,Arial,sans-serif;padding:0;font-size:11px;color:#333}
+      h1{color:#1E7F85;font-size:20px;margin:0 0 2px 0;border-bottom:3px solid #1E7F85;padding-bottom:6px}
+      h3{color:#1E7F85;font-size:12px;margin:14px 0 6px 0;text-transform:uppercase;letter-spacing:1px}
+      .subtitle{color:#666;font-size:11px;margin-bottom:12px}
+      .grid{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px 0}
+      .box{background:#F0EDE4;padding:12px 10px;border-radius:10px;flex:1;min-width:100px;text-align:center}
+      .box .val{font-size:18px;font-weight:bold;color:#1E7F85}
+      .box .lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
+      .box.warn .val{color:#E8A060}
+      table{width:100%;border-collapse:collapse;margin:8px 0;font-size:10px}
+      th{background:#1E7F85;color:#fff;padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px}
+      td{padding:6px 8px;border-bottom:1px solid #E8E8E0}
+      tr:nth-child(even){background:#FAFAF5}
+      .footer{margin-top:20px;text-align:center;font-size:9px;color:#AAA;border-top:1px solid #E0E0E0;padding-top:8px}
     </style></head><body>
-      <h1>MarketMate - Report ${month} ${year}</h1>
-      <div class="summary">
+      <h1>MarketMate</h1>
+      <div class="subtitle">${t('stats.pdfReport')} — ${month} ${year}</div>
+      
+      <h3>${t('stats.overview') || 'Riepilogo'}</h3>
+      <div class="grid">
         <div class="box"><div class="val">\u20AC${totL.toFixed(0)}</div><div class="lbl">${t('stats.gross')}</div></div>
         <div class="box"><div class="val">\u20AC${totN.toFixed(0)}</div><div class="lbl">${t('stats.net')}</div></div>
-        <div class="box"><div class="val">${giorni.length}</div><div class="lbl">${t('stats.workingDays')}</div></div>
+        <div class="box"><div class="val">\u20AC${totCash.toFixed(0)}</div><div class="lbl">${t('stats.cash')}</div></div>
+        <div class="box"><div class="val">\u20AC${totPos.toFixed(0)}</div><div class="lbl">POS</div></div>
+      </div>
+      <div class="grid">
+        <div class="box warn"><div class="val">\u20AC${totSpFisse.toFixed(0)}</div><div class="lbl">${t('stats.fixedExpenses')}</div></div>
+        <div class="box warn"><div class="val">\u20AC${totSpExtra.toFixed(0)}</div><div class="lbl">${t('stats.extraExpenses')}</div></div>
+        <div class="box warn"><div class="val">\u20AC${totCarb.toFixed(0)}</div><div class="lbl">${t('stats.fuel') || 'Carburante'}</div></div>
         <div class="box"><div class="val">${totKm.toFixed(0)} km</div><div class="lbl">${t('stats.totalKm')}</div></div>
       </div>
-      <table><thead><tr><th>Data</th><th>Mercato</th><th>${t('stats.gross')}</th><th>${t('stats.net')}</th><th>Km</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:20px">' + t('stats.noFairs') + '</td></tr>'}</tbody>
+      <div class="grid">
+        <div class="box"><div class="val">${giorni.length}</div><div class="lbl">${t('stats.workingDays')}</div></div>
+        <div class="box"><div class="val">\u20AC${giorni.length > 0 ? (totL / giorni.length).toFixed(0) : 0}</div><div class="lbl">${t('stats.dailyAvg') || 'Media/gg'}</div></div>
+      </div>
+
+      <h3>${t('stats.dailyDetail') || 'Dettaglio Giornaliero'}</h3>
+      <table><thead><tr><th>Data</th><th>Mercato</th><th>${t('stats.gross')}</th><th>${t('stats.net')}</th><th>${t('stats.cash')}</th><th>POS</th><th>Km</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;padding:20px">' + t('stats.noFairs') + '</td></tr>'}</tbody>
       </table>
+      
+      <div class="footer">MarketMate \u00A9 ${year} — ${t('stats.generatedOn') || 'Generato il'} ${new Date().toLocaleDateString()}</div>
     </body></html>`;
 
     try {
@@ -577,18 +681,18 @@ export default function StatsScreen() {
         const w = window.open('', '_blank');
         if (w) { w.document.write(html); w.document.close(); w.print(); }
       } else {
-        const { uri } = await Print.printToFileAsync({ html });
-        await Sharing.shareAsync(uri);
+        const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: t('stats.shareReport') || 'Condividi Report' });
       }
     } catch (e) {
-      Alert.alert('Error', 'PDF generation failed');
+      playSuccess();
     }
   };
 
   return (
     <View style={st.root}>
       {/* ═══ HEADER FISSO ═══ */}
-      <View style={st.stickyHeader}>
+      <View style={[st.stickyHeader, { paddingTop: topPad }]}>
         <Text style={st.pageTitle}>{t('stats.analysis')}</Text>
         {renderFilterBar(['Pers.', 'Ieri', 'Oggi', 'Sett.', 'Mese', 'Anno'], filtroTempo, setFiltroTempo, false, tempoLabel)}
         {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true, tipoLabel)}
@@ -622,6 +726,50 @@ export default function StatsScreen() {
 
         {renderChartBox(t('stats.economic'), economicoLines, 'economico')}
         {renderChartBox(t('stats.income'), incassiLines, 'incassi')}
+
+        {/* ─── GIORNI LAVORATI VS NON LAVORATI ─── */}
+        <View style={[st.card, { marginBottom: GAP }]}>
+          <View style={st.chartHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="calendar-outline" size={16} color="#1E7F85" />
+              <Text style={st.sectionLabel}>{t('stats.workingDays')}</Text>
+            </View>
+            <Text style={st.sectionTotal}>{giorniLavoroData.lavorati}/{giorniLavoroData.totale}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, marginTop: 10, gap: 12, paddingHorizontal: 10 }}>
+            {/* Barra giorni lavorati */}
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E7F85' }}>{giorniLavoroData.lavorati}</Text>
+              <View style={{
+                width: '100%',
+                height: Math.max(giorniLavoroData.totale > 0 ? (giorniLavoroData.lavorati / giorniLavoroData.totale) * 50 : 4, 4),
+                backgroundColor: '#1E7F85',
+                borderRadius: 6,
+                marginTop: 4,
+              }} />
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090', marginTop: 4 }}>LAVORATI</Text>
+            </View>
+            {/* Barra giorni non lavorati */}
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: '#CC3333' }}>{giorniLavoroData.nonLavorati}</Text>
+              <View style={{
+                width: '100%',
+                height: Math.max(giorniLavoroData.totale > 0 ? (giorniLavoroData.nonLavorati / giorniLavoroData.totale) * 50 : 4, 4),
+                backgroundColor: '#CC3333',
+                borderRadius: 6,
+                marginTop: 4,
+              }} />
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090', marginTop: 4 }}>NON LAVORATI</Text>
+            </View>
+            {/* Percentuale */}
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: '#1A4040' }}>
+                {giorniLavoroData.totale > 0 ? Math.round((giorniLavoroData.lavorati / giorniLavoroData.totale) * 100) : 0}%
+              </Text>
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>PRESENZA</Text>
+            </View>
+          </View>
+        </View>
 
         {/* ─── AREOGRAMMI ─── */}
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
@@ -704,24 +852,6 @@ export default function StatsScreen() {
             <Text style={st.pdfBtnTxt}>{t('stats.pdfReport')}</Text>
           </LinearGradient>
         </TouchableOpacity>
-        {/* Selettore mese/anno per PDF */}
-        <View style={[st.card, { marginBottom: GAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 10 }]}>
-          <TouchableOpacity onPress={() => setPdfMonth(m => m === 0 ? 11 : m - 1)}>
-            <Ionicons name="chevron-back" size={20} color="#1E7F85" />
-          </TouchableOpacity>
-          <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A4040' }}>
-            {getMonthNames()[pdfMonth]} {pdfYear}
-          </Text>
-          <TouchableOpacity onPress={() => setPdfMonth(m => m === 11 ? 0 : m + 1)}>
-            <Ionicons name="chevron-forward" size={20} color="#1E7F85" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setPdfYear(y => y - 1)} style={{ marginLeft: 10 }}>
-            <Text style={{ fontSize: 11, color: '#7A9090' }}>{pdfYear - 1}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setPdfYear(y => y + 1)}>
-            <Text style={{ fontSize: 11, color: '#7A9090' }}>{pdfYear + 1}</Text>
-          </TouchableOpacity>
-        </View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
@@ -830,8 +960,8 @@ export default function StatsScreen() {
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#D8EDE5' },
-  stickyHeader: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: '#D8EDE5', zIndex: 10, gap: 8 },
+  root: { flex: 1, backgroundColor: '#F5F0E6' },
+  stickyHeader: { paddingHorizontal: 20, paddingTop: 8, backgroundColor: '#F5F0E6', zIndex: 10, gap: 8 },
   scroll: { padding: 20, paddingTop: 10, paddingBottom: 40 },
   pageTitle: { fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', letterSpacing: 1.5 },
 
@@ -961,7 +1091,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#D8EDE5',
+    backgroundColor: '#E8E3D5',
     borderRadius: 10,
   },
   checkbox: {

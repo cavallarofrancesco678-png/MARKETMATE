@@ -220,6 +220,14 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
             <View style={{ width: 80 }} />
           </View>
 
+          {/* Tip: più dati = più precisione */}
+          {messages.length === 0 && (
+            <View style={st.tipBar}>
+              <Ionicons name="bulb-outline" size={14} color="#D4AF37" />
+              <Text style={st.tipText}>{t('modals.moreDateMorePrecise') || 'Più dati inserisci nella app, più le risposte saranno precise e personalizzate.'}</Text>
+            </View>
+          )}
+
           {/* Messages */}
           <ScrollView
             ref={scrollRef}
@@ -305,6 +313,13 @@ const st = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   closeTxt: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+
+  tipBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#F5F0E0', borderRadius: 12, marginHorizontal: 16, marginTop: 10,
+    paddingHorizontal: 12, paddingVertical: 8,
+  },
+  tipText: { fontSize: 11, color: '#7A7050', flex: 1, lineHeight: 15 },
 
   chatArea: { flex: 1, padding: 16 },
 

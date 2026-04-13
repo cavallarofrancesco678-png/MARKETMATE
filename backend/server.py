@@ -116,32 +116,29 @@ async def ai_chat(req: ChatRequest):
     try:
         sid = req.session_id or "default"
         if sid not in chat_sessions:
-            system_msg = f"""Sei MarketMate AI, un assistente intelligente per ambulanti e venditori ai mercati.
-Rispondi SEMPRE nella lingua usata dall'utente nel messaggio. Sei amichevole, professionale e conciso.
+            system_msg = f"""Sei MarketMate AI, l'assistente personale per ambulanti e venditori ai mercati.
+Rispondi SEMPRE nella lingua usata dall'utente. Sei diretto, concreto e parli come un collega esperto.
 
-QUANDO L'UTENTE TI SALUTA O DICE "BUONGIORNO", rispondi OBBLIGATORIAMENTE seguendo questa struttura ESATTA (5 sezioni, niente di più):
+QUANDO L'UTENTE TI SALUTA O DICE "BUONGIORNO", rispondi con ESATTAMENTE queste 4 sezioni, senza etichette tipo "SALUTO" o "SEZIONE":
 
-1. **SALUTO PERSONALIZZATO**: Saluta il titolare per nome usando i dati del contesto. Sii caloroso e motivante.
+1. Saluta il titolare PER NOME in modo caloroso e diretto (es. "Buongiorno Marco! Oggi sei al mercato di..."). Non scrivere "Saluto personalizzato" — scrivi direttamente il saluto.
 
-2. **METEO OGGI**: Riporta semplicemente le condizioni meteo del giorno (temperatura, cielo, vento). Solo i dati, NON dare consigli.
+2. METEO: Riporta il meteo del giorno basandoti sui dati nel contesto. Indica le condizioni (sereno/nuvoloso/pioggia/ecc.) e dai un'idea della temperatura tipica per la stagione e zona. Se il meteo è "Sole" scrivi ad esempio "Oggi cielo sereno, temperature nella norma per la stagione". NON inventare temperature precise se non le hai.
 
-3. **INCASSO SETTIMANA PRECEDENTE**: Mostra l'incasso del mercato di oggi nella settimana precedente (totale lordo, giorni lavorati, media giornaliera) e la media scontrino se disponibile. Se non ci sono dati specifici per questo mercato, usa i dati generali disponibili.
+3. INCASSO: Mostra i dati della settimana precedente (lordo, netto, giorni lavorati, media giornaliera) e la media scontrino se disponibile. Se non ci sono dati, scrivi "Non ho ancora dati della settimana precedente — inserisci i dati giornalieri per avere statistiche precise."
 
-4. **BENZINA**: Se nel contesto ci sono PREZZI CARBURANTE REALI, riportali direttamente indicando il distributore più economico con nome, indirizzo e prezzo al litro. Se non ci sono dati reali, indica semplicemente che non hai informazioni sui prezzi nella zona. NON consigliare app o siti web. Sii rapido e diretto.
+4. BENZINA: Se hai i PREZZI CARBURANTE REALI nel contesto, riporta SOLO il distributore più economico con nome, indirizzo, prezzo al litro e distanza. Se non hai dati, scrivi "Non ho trovato prezzi carburante per il tuo tragitto."
 
-5. **PROMEMORIA SCONTRINO**: Ricorda brevemente che a fine giornata può fotografare la chiusura fiscale per calcolare automaticamente la media scontrino.
+CHIUDI con "Hai bisogno di altro?" o simile.
 
-CHIUDI SEMPRE con una frase tipo: "Vuoi altre informazioni?" o "Posso aiutarti con altro?"
-
-REGOLE IMPORTANTI:
-- NON dare consigli di nessun tipo
-- NON dare notizie del giorno
-- NON aggiungere sezioni extra
-- Sii conciso e diretto
-- Usa emoji dove appropriato
-- Formatta con titoletti in grassetto per ogni sezione
-
-Per le domande successive, rispondi normalmente come assistente esperto di mercati ambulanti.
+REGOLE FONDAMENTALI:
+- NON scrivere mai etichette come "SALUTO PERSONALIZZATO", "SEZIONE 1", ecc.
+- NON dare consigli non richiesti
+- NON inventare dati che non hai nel contesto
+- Se l'utente fa una domanda specifica, rispondi SOLO a quella domanda in modo diretto e preciso
+- Se non hai abbastanza dati per rispondere, dillo chiaramente
+- Sii conciso: massimo 3-4 righe per sezione
+- Usa emoji solo dove naturale (☀️ 🌧️ ⛽ 💰)
 
 CONTESTO ATTIVITA:
 {req.context}"""
@@ -331,37 +328,57 @@ async def find_cheapest_fuel(req: FuelRequest):
         if not dest_geo:
             return FuelResponse(success=False, message=f"Non trovo la città: {req.destinazione}")
 
-        # Calculate midpoint for search
-        mid_lat = (dep_geo["lat"] + dest_geo["lat"]) / 2
-        mid_lon = (dep_geo["lon"] + dest_geo["lon"]) / 2
+        # Calculate distance between the two points
+        import math
+        dlat = math.radians(dest_geo["lat"] - dep_geo["lat"])
+        dlon = math.radians(dest_geo["lon"] - dep_geo["lon"])
+        a = math.sin(dlat/2)**2 + math.cos(math.radians(dep_geo["lat"])) * math.cos(math.radians(dest_geo["lat"])) * math.sin(dlon/2)**2
+        route_km = 6371 * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        
+        # Search radius = half the route distance + 3km buffer, min 3km, max 12km
+        search_radius = max(3, min(int(route_km / 2) + 3, 12))
+        
+        # Search at 3 points along the route: 25%, 50%, 75%
+        search_points = []
+        for frac in [0.25, 0.5, 0.75]:
+            lat = dep_geo["lat"] + (dest_geo["lat"] - dep_geo["lat"]) * frac
+            lon = dep_geo["lon"] + (dest_geo["lon"] - dep_geo["lon"]) * frac
+            search_points.append((lat, lon))
 
         # Detect country from departure
         country = detect_country(dep_geo.get("country", ""))
 
-        stations = []
-        if country == "IT":
-            # Try midpoint first, then departure
-            stations = await search_fuel_italy(mid_lat, mid_lon, req.tipo_carburante, 15)
-            if not stations:
-                stations = await search_fuel_italy(dep_geo["lat"], dep_geo["lon"], req.tipo_carburante, 10)
-        elif country == "FR":
-            stations = await search_fuel_france(mid_lat, mid_lon, req.tipo_carburante)
-            if not stations:
-                stations = await search_fuel_france(dep_geo["lat"], dep_geo["lon"], req.tipo_carburante)
-        else:
-            return FuelResponse(
-                success=False,
-                country=country,
-                message=f"Prezzi carburante in tempo reale non disponibili per questo paese. Usa il costo/km impostato nelle settings."
-            )
+        all_stations = []
+        seen_names = set()
+        
+        for lat, lon in search_points:
+            if country == "IT":
+                stations = await search_fuel_italy(lat, lon, req.tipo_carburante, search_radius)
+            elif country == "FR":
+                stations = await search_fuel_france(lat, lon, req.tipo_carburante)
+            else:
+                return FuelResponse(
+                    success=False,
+                    country=country,
+                    message=f"Prezzi carburante in tempo reale non disponibili per questo paese."
+                )
+            for s in stations:
+                key = f"{s.nome}_{s.indirizzo}"
+                if key not in seen_names:
+                    seen_names.add(key)
+                    all_stations.append(s)
+        
+        # Sort by price and take top 3
+        all_stations.sort(key=lambda x: x.prezzo if x.prezzo > 0 else 999)
+        top_stations = all_stations[:3]
 
-        if stations:
-            return FuelResponse(success=True, country=country, stations=stations)
+        if top_stations:
+            return FuelResponse(success=True, country=country, stations=top_stations)
         else:
             return FuelResponse(
                 success=False,
                 country=country,
-                message="Nessun distributore trovato nelle vicinanze del tragitto."
+                message="Nessun distributore trovato lungo il tragitto."
             )
 
     except Exception as e:

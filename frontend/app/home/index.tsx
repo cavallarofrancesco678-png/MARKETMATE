@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
   ScrollView,
   Switch,
   Platform,
+  Animated,
+  StatusBar,
+  BackHandler,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
@@ -24,15 +27,16 @@ import { BuongiornoModal } from '../../src/components/BuongiornoModal';
 import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
-const WEATHER_ICONS: Array<{ icon: string; labelKey: string }> = [
-  { icon: 'weather-sunny', labelKey: 'home.sun' },
-  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud' },
-  { icon: 'weather-rainy', labelKey: 'home.rain' },
-  { icon: 'weather-lightning', labelKey: 'home.snow' },
-  { icon: 'weather-windy', labelKey: 'home.wind' },
+const WEATHER_ICONS: Array<{ icon: string; labelKey: string; color: string; bg: string }> = [
+  { icon: 'weather-sunny', labelKey: 'home.sun', color: '#FF8C00', bg: '#FFF3E0' },
+  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud', color: '#7A8A9A', bg: '#ECEFF1' },
+  { icon: 'weather-rainy', labelKey: 'home.rain', color: '#4A90D9', bg: '#E3F2FD' },
+  { icon: 'weather-lightning', labelKey: 'home.snow', color: '#FFB300', bg: '#FFF8E1' },
+  { icon: 'weather-windy', labelKey: 'home.wind', color: '#26A69A', bg: '#E0F2F1' },
 ];
 
 /* ─── Mini charts ─── */
@@ -54,7 +58,7 @@ const MiniBar = () => (
 );
 
 export default function HomeScreen() {
-  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto } = useAppStore();
+  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
   const dayNames = getDayNames();
@@ -87,6 +91,9 @@ export default function HomeScreen() {
   const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
+  
+  // Tooltip elegante per il grafico
+  const [chartTooltip, setChartTooltip] = useState<{visible: boolean; label: string; value: number} | null>(null);
 
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');
@@ -104,6 +111,59 @@ export default function HomeScreen() {
     setPresenze(p);
   }, [collaboratori]);
 
+  /* ── Carica dati salvati quando cambia la data ── */
+  useEffect(() => {
+    const saved = store.storicoGiornate.find(
+      (g) => new Date(g.data).toDateString() === dataCorrente.toDateString()
+    );
+    if (saved) {
+      setLordo(saved.lordo > 0 ? saved.lordo.toString() : '');
+      setContanti(saved.contanti > 0 ? saved.contanti.toString() : '');
+      setPos(saved.pos > 0 ? saved.pos.toString() : '');
+      setMeteo(saved.meteo || 'SOLE');
+      const invTot = saved.dettaglio_invenduto?.totale;
+      setInvenduto(invTot && invTot > 0 ? invTot.toString() : '0');
+      // Ripristina presenze collaboratori
+      if (saved.dettaglio_staff && typeof saved.dettaglio_staff === 'object') {
+        const p: Record<string, boolean> = {};
+        collaboratori.forEach((c) => {
+          p[c.nome] = saved.dettaglio_staff[c.nome] === true;
+        });
+        setPresenze(p);
+      }
+      // Ripristina spese extra fornitori
+      if (saved.dettaglio_fornitori && Object.keys(saved.dettaglio_fornitori).length > 0) {
+        const fornData: Record<string, { importo: string; periodo: string }> = {};
+        Object.entries(saved.dettaglio_fornitori).forEach(([nome, val]) => {
+          fornData[nome] = { importo: (val as number).toString(), periodo: 'giornaliero' };
+        });
+        setSpeseExtraFornitore(fornData);
+      } else {
+        setSpeseExtraFornitore({});
+      }
+      // Ripristina spese extra (valore aggregato)
+      if (saved.spese_extra > 0) {
+        // spese_extra è il totale salvato, già gestito dai fornitori sopra
+      }
+      // Controlla se era una fiera
+      if (saved.mercato?.toLowerCase() === 'fiera') {
+        setIsFiera(true);
+      }
+    } else {
+      // Resetta i campi per una giornata non ancora salvata
+      setLordo('');
+      setContanti('');
+      setPos('');
+      setInvenduto('0');
+      setSpeseExtraFornitore({});
+      setVociGeneriche([]);
+      const p: Record<string, boolean> = {};
+      collaboratori.forEach((c) => { p[c.nome] = false; });
+      setPresenze(p);
+      setIsFiera(false);
+    }
+  }, [dataCorrente]);
+
   /* ── Appunti prossimi 2 giorni per notifiche campanello ── */
   const appuntiProssimi = useMemo(() => {
     const oggi = new Date(dataCorrente);
@@ -117,8 +177,35 @@ export default function HomeScreen() {
     });
   }, [appuntiAgenda, dataCorrente]);
 
-  /* ── Conteggio notifiche totale (solo appuntamenti/ordini, NO diario) ── */
-  const notificheCount = appuntiProssimi.length;
+  /* ── Ordini prossimi 2 giorni per notifiche campanello ── */
+  const ordiniProssimi = useMemo(() => {
+    const oggi = new Date(dataCorrente);
+    oggi.setHours(0, 0, 0, 0);
+    const fra2gg = new Date(oggi);
+    fra2gg.setDate(fra2gg.getDate() + 2);
+    fra2gg.setHours(23, 59, 59, 999);
+    return (ordiniAgenda || []).filter((o) => {
+      const d = new Date(o.data);
+      return d >= oggi && d <= fra2gg;
+    });
+  }, [ordiniAgenda, dataCorrente]);
+
+  /* ── Conteggio notifiche totale (appuntamenti + ordini, NO diario) ── */
+  const notificheCount = appuntiProssimi.length + ordiniProssimi.length;
+
+  /* ── Animazione barre grafico ── */
+  const chartAnimRef = useRef(new Animated.Value(0)).current;
+  const [chartReady, setChartReady] = useState(false);
+  
+  useEffect(() => {
+    chartAnimRef.setValue(0);
+    setChartReady(false);
+    Animated.timing(chartAnimRef, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: false,
+    }).start(() => setChartReady(true));
+  }, [chartMode, mercatoNome]);
 
   /* ── All products from all fornitori ── */
   const tuttiProdotti = useMemo(() => {
@@ -201,7 +288,7 @@ export default function HomeScreen() {
     });
   }, [speseFisseConCarburante, mercatoOggi]);
 
-  const speseFisse = speseFisseOggi
+  const speseFisse = !isInPiazza ? 0 : speseFisseOggi
     .filter((it) => !(speseFisseDisabilitate || []).includes(it.id))
     .reduce((s, it) => s + it.importoGG, 0);
 
@@ -314,13 +401,14 @@ export default function HomeScreen() {
       dettaglio_invenduto: { totale: invendutoNum },
       dettaglio_fornitori: dettaglioForn,
     } as any);
-    Alert.alert(t('common.saved'), t('home.daySaved'));
+    playSuccess(); // Conferma sonora + aptica, nessun popup
   };
 
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
   // Use real safe area insets for accurate layout on all devices
   const TAB_BAR = 70 + Math.max(safeInsets.bottom, 10);
-  const contentH = screenH - TAB_BAR - safeInsets.top;
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
+  const contentH = screenH - TAB_BAR - topPad;
   const vh = contentH / 100;
 
   // ★ STANDARD GAP — extracted from grid, used as universal spacer
@@ -335,51 +423,81 @@ export default function HomeScreen() {
   const TOGGLE_H = 5 * vh;
   const WEATHER_H = Math.max(WEATHER_SIZE + 6, 5 * vh);
   const COLLAB_H = 4.5 * vh;
-  const SALVA_H = 5 * vh;
+  const SALVA_H = 4.5 * vh;  // Ridotto per avvicinare al bottom
 
   // 9 uniform gaps between 10 vertical blocks
-  const TOTAL_GAPS = 9 * GAP;
+  const TOTAL_GAPS = 8 * GAP;  // Ridotto da 9 a 8 per meno spazio
   const gridInternalGaps = 3 * GAP;
 
   // Available space for grid rows + storico
   const fixedH = HEADER_H + TOGGLE_H + WEATHER_H + COLLAB_H + SALVA_H + TOTAL_GAPS + gridInternalGaps;
   const availableH = contentH - fixedH;
-  // Weight units: LORDO=1.2, 3×normal=0.8 each, STORICO=2.0 → total 5.6
-  const unit = availableH / 5.6;
+  // Weight units: LORDO=1.2, 3×normal=0.8 each, STORICO=3.2 → total 6.8
+  const unit = availableH / 6.8;
   const lordoRowH = unit * 1.2;
   const normalRowH = unit * 0.8;
-  const STORICO_H = unit * 2.0;
+  const STORICO_H = unit * 3.2;  // Grafico grande e leggibile
+
+  // Altezza area barre in pixel (sottraendo filtri, padding, label sopra/sotto)
+  // STORICO_H = card storico + filter row; filter row ≈ 30px
+  // Card padding: 8*2=16; Values header: 16; Labels footer: 17
+  const BAR_AREA_H = Math.max(STORICO_H - 30 - Math.round(GAP * 0.4) - 16 - 16 - 17, 30);
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, { paddingTop: topPad }]}>
       {/* ═══ HEADER ═══ */}
-      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end' }]}>
-        <View style={s.badgeLeft}>
-          <View style={s.badge}>
-            <Text style={s.badgeTxt} numberOfLines={1}>{(nomeAttivita || t('home.market')).toUpperCase()}</Text>
+      <View style={[s.section, { height: HEADER_H, justifyContent: 'flex-end', paddingTop: 4, alignItems: 'center' }]}>
+        {/* Nome attività piccolo sopra il mercato */}
+        {nomeAttivita ? (
+          <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
+        ) : null}
+        {/* Power off a sinistra */}
+        <TouchableOpacity
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              window.close();
+            } else {
+              Alert.alert(
+                t('settings.exitApp') || "ESCI DALL'APP",
+                t('settings.exitAppConfirm') || 'Vuoi chiudere MarketMate?',
+                [
+                  { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+                  { text: t('settings.exitApp') || 'ESCI', onPress: () => BackHandler.exitApp() },
+                ]
+              );
+            }
+          }}
+          activeOpacity={0.7}
+          style={{ position: 'absolute', left: 4, top: 4, zIndex: 10, padding: 4 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#B0A898', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="power" size={16} color="#FFF" />
           </View>
-        </View>
-        <View style={s.bellRight}>
-          <TouchableOpacity onPress={() => setShowBellModal(true)} activeOpacity={0.7}>
-            <View style={s.bell}>
-              <Ionicons name="notifications" size={20} color="#FFF" />
-              {notificheCount > 0 && (
-                <View style={s.bellBadge}>
-                  <Text style={s.bellBadgeTxt}>{notificheCount}</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
-        <View style={{ marginTop: 28 }}>
-          <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase()}</Text>
-          <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.7}>
-            <View style={s.dateRow}>
-              <Ionicons name="calendar" size={18} color="#1E7F85" />
-              <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
+        {/* Bell a destra - ZONA SEPARATA con area di tocco grande */}
+        <TouchableOpacity 
+          onPress={() => { hapticTap(); setShowBellModal(true); }} 
+          activeOpacity={0.7}
+          style={s.bellTouchArea}
+          hitSlop={{ top: 10, bottom: 10, left: 15, right: 15 }}
+        >
+          <View style={[s.bell, notificheCount > 0 && { backgroundColor: '#E44' }]}>
+            <Ionicons name="notifications" size={20} color="#FFF" />
+            {notificheCount > 0 && (
+              <View style={s.bellBadge}>
+                <Text style={s.bellBadgeTxt}>{notificheCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+        <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
+        <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7}>
+          <View style={s.dateRow}>
+            <Ionicons name="calendar" size={18} color="#1E7F85" />
+            <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: GAP }} />
@@ -389,17 +507,17 @@ export default function HomeScreen() {
         <View style={s.toggleRow}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsFiera(false)}>
             <View style={[s.toggle, !isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>{t('home.market')}</Text>
+              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]} numberOfLines={1} adjustsFontSizeToFit>{t('home.market')}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]}>Fiera</Text>
+              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]} numberOfLines={1} adjustsFontSizeToFit>{t('stats.fairs') || 'FIERE'}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
-            <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#D55' }]}>
-              <Text style={s.piazzaTxt}>{isInPiazza ? t('home.market') : '---'}</Text>
+            <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#CC3333' }]}>
+              <Text style={s.piazzaTxt}>{isInPiazza ? t('home.market') : 'A CASA'}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -414,8 +532,8 @@ export default function HomeScreen() {
             const wLabel = t(w.labelKey);
             const sel = meteo === wLabel;
             return (
-              <TouchableOpacity key={i} onPress={() => setMeteo(wLabel)} activeOpacity={0.7}>
-                <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2 }, sel && s.meteoOn]}>
+              <TouchableOpacity key={i} onPress={() => { hapticTap(); setMeteo(wLabel); }} activeOpacity={0.7}>
+                <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2, backgroundColor: sel ? w.color : w.bg }, sel && { borderWidth: 2, borderColor: w.color }]}>
                   <MaterialCommunityIcons name={w.icon as any} size={WEATHER_ICON} color={sel ? '#FFF' : w.color} />
                 </View>
               </TouchableOpacity>
@@ -453,7 +571,7 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity style={[s.card, { height: lordoRowH }]} activeOpacity={0.7} onPress={() => setShowUtileModal(true)}>
           <Text style={s.cardBold}>{t('home.profit')}</Text>
-          <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>{'\u20AC'}{utile.toFixed(2)}</Text>
+          <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>{'\u20AC'}{Math.round(utile)}</Text>
         </TouchableOpacity>
       </View>
 
@@ -565,7 +683,7 @@ export default function HomeScreen() {
                 {/* SINISTRA - Numeri */}
                 <View style={{ width: chartMode === 'annoprec' ? 100 : 80, justifyContent: 'center', paddingRight: 6 }}>
                   <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A4040' }}>
-                    €{totale >= 1000 ? `${(totale/1000).toFixed(1)}k` : totale.toFixed(0)}
+                    €{Math.round(totale)}
                   </Text>
                   <Text style={{ fontSize: 9, color: '#7A9090', fontWeight: '600', marginTop: 2 }}>{giorniCount} giornate</Text>
                   
@@ -606,33 +724,50 @@ export default function HomeScreen() {
                 {/* DESTRA - Grafico a BARRE */}
                 <View style={{ flex: 1, justifyContent: 'center' }}>
                   {chartMode === 'anno' ? (
-                    // ANNO - Layout speciale per allineamento perfetto
+                    // ANNO - Layout con barre ANIMATE
                     <View style={{ flex: 1 }}>
-                      {/* Valori sopra */}
-                      <View style={{ flexDirection: 'row', height: 14, marginBottom: 2 }}>
-                        {chartData.map((val, i) => (
-                          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-                            <Text style={{ fontSize: 7, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
-                              {val > 0 ? (val >= 1000 ? `${(val/1000).toFixed(0)}k` : val.toFixed(0)) : '-'}
+                      {/* Tooltip elegante on-tap (no numeri fissi sopra) */}
+                      {chartTooltip?.visible && (
+                        <View style={{ alignItems: 'center', height: 18, marginBottom: 2 }}>
+                          <View style={{ backgroundColor: '#1A4040', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF' }}>
+                              {chartTooltip.label}: €{Math.round(chartTooltip.value)}
                             </Text>
                           </View>
-                        ))}
-                      </View>
+                        </View>
+                      )}
+                      {!chartTooltip?.visible && <View style={{ height: 18, marginBottom: 2 }} />}
                       
-                      {/* Barre */}
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                      {/* Barre ANIMATE - TOUCHABLE */}
+                      <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
-                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
+                          const meseNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+                          const animH = chartAnimRef.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [4, Math.max(hPx, 4)],
+                          });
                           return (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                              <View style={{
-                                width: 14,
-                                height: `${Math.max(h, 5)}%`,
+                            <TouchableOpacity 
+                              key={i} 
+                              style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end' }}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                hapticTap();
+                                if (val > 0) {
+                                  setChartTooltip({ visible: true, label: meseNomi[i], value: val });
+                                  setTimeout(() => setChartTooltip(null), 2500);
+                                }
+                              }}
+                            >
+                              <Animated.View style={{
+                                width: 16,
+                                height: animH,
                                 minHeight: 4,
                                 backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
-                                borderRadius: 3,
+                                borderRadius: 4,
                               }} />
-                            </View>
+                            </TouchableOpacity>
                           );
                         })}
                       </View>
@@ -652,43 +787,57 @@ export default function HomeScreen() {
                           position: 'absolute',
                           left: 0,
                           right: 0,
-                          top: 14 + 2 + (1 - media / maxVal) * 50,
+                          bottom: 14 + 3 + (media / maxVal) * BAR_AREA_H,
                           height: 1.5,
                           backgroundColor: '#1E7F85',
                           opacity: 0.5,
-                          // @ts-ignore
-                          borderStyle: 'dashed',
                         }} />
                       )}
                     </View>
                   ) : chartMode === 'mese' ? (
-                    // MESE - 4 barre
+                    // MESE - 4 barre ANIMATE CLICCABILI
                     <View style={{ flex: 1 }}>
                       {/* Valori sopra */}
                       <View style={{ flexDirection: 'row', height: 16, marginBottom: 2 }}>
                         {chartData.map((val, i) => (
                           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
                             <Text style={{ fontSize: 10, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
-                              {val > 0 ? (val >= 1000 ? `${(val/1000).toFixed(1)}k` : `€${val.toFixed(0)}`) : '-'}
+                              {val > 0 ? `€${Math.round(val)}` : '-'}
                             </Text>
                           </View>
                         ))}
                       </View>
                       
-                      {/* Barre */}
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
+                      {/* Barre ANIMATE */}
+                      <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
-                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
+                          const settLabels = ['Settimana 1', 'Settimana 2', 'Settimana 3', 'Settimana 4'];
+                          const animH = chartAnimRef.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [4, Math.max(hPx, 4)],
+                          });
                           return (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 4 }}>
-                              <View style={{
-                                width: 36,
-                                height: `${Math.max(h, 5)}%`,
+                            <TouchableOpacity 
+                              key={i} 
+                              style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end', paddingHorizontal: 4 }}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                hapticTap();
+                                if (val > 0) {
+                                  setChartTooltip({ visible: true, label: settLabels[i], value: val });
+                                  setTimeout(() => setChartTooltip(null), 2500);
+                                }
+                              }}
+                            >
+                              <Animated.View style={{
+                                width: 40,
+                                height: animH,
                                 minHeight: 4,
                                 backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
-                                borderRadius: 5,
+                                borderRadius: 6,
                               }} />
-                            </View>
+                            </TouchableOpacity>
                           );
                         })}
                       </View>
@@ -703,7 +852,7 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   ) : (
-                    // ANNO PREC - 2 barre confronto
+                    // ANNO PREC - 2 barre ANIMATE confronto
                     <View style={{ flex: 1 }}>
                       {/* Labels anni + valori */}
                       <View style={{ flexDirection: 'row', height: 28, marginBottom: 4 }}>
@@ -711,21 +860,25 @@ export default function HomeScreen() {
                           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
                             <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090' }}>{chartLabels[i]}</Text>
                             <Text style={{ fontSize: 12, fontWeight: '800', color: val > 0 ? '#1A4040' : '#C0C0C0' }}>
-                              €{val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toFixed(0)}
+                              €{Math.round(val)}
                             </Text>
                           </View>
                         ))}
                       </View>
                       
-                      {/* Barre */}
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10 }}>
+                      {/* Barre ANIMATE */}
+                      <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10 }}>
                         {chartData.map((val, i) => {
-                          const h = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                          const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
+                          const animH = chartAnimRef.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [6, Math.max(hPx, 6)],
+                          });
                           return (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 8 }}>
-                              <View style={{
+                            <View key={i} style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end', paddingHorizontal: 8 }}>
+                              <Animated.View style={{
                                 width: 50,
-                                height: `${Math.max(h, 8)}%`,
+                                height: animH,
                                 minHeight: 6,
                                 backgroundColor: i === 0 ? '#7A9090' : '#1E7F85',
                                 borderRadius: 6,
@@ -766,26 +919,50 @@ export default function HomeScreen() {
       <Modal visible={showBellModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>{t('home.upcomingAppointments') || 'Appuntamenti prossimi'}</Text>
-            <Text style={s.modalSub}>{t('home.next2days') || 'Prossimi 2 giorni'}</Text>
+            <Text style={s.modalTitle}>{t('home.commitmentSummary')}</Text>
+            <Text style={s.modalSub}>{t('home.next2days')}</Text>
             <ScrollView style={{ maxHeight: 350 }}>
-              {/* Appuntamenti e ordini prossimi 2 giorni (NO diario) */}
+              {/* APPUNTAMENTI prossimi */}
               {appuntiProssimi.length > 0 && (
                 <View style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6 }}>{t('agenda.dayOrders').toUpperCase()}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E7F85', marginBottom: 6, letterSpacing: 1 }}>{t('home.appointments')}</Text>
                   {appuntiProssimi.map((a, i) => {
                     const d = new Date(a.data);
                     const isToday = d.toDateString() === dataCorrente.toDateString();
-                    const dateLabel = isToday ? 'OGGI' : `${d.getDate()}/${d.getMonth() + 1}`;
+                    const dateLabel = isToday ? t('home.today') : `${d.getDate()}/${d.getMonth() + 1}`;
                     return (
-                      <View key={i} style={s.modalRow}>
-                        <View style={{ backgroundColor: isToday ? '#1E7F85' : '#E8A060', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
+                      <View key={`app-${i}`} style={s.modalRow}>
+                        <View style={{ backgroundColor: isToday ? '#1E7F85' : '#7A9090', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
                           <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
                         </View>
-                        <Ionicons name="document-text" size={18} color="#1E7F85" />
-                        <Text style={[s.modalLabel, { flex: 1 }]}>{a.testo}</Text>
+                        <Ionicons name="time" size={16} color="#1E7F85" />
+                        <Text style={[s.modalLabel, { flex: 1 }]} numberOfLines={2}>{a.testo}</Text>
                         <TouchableOpacity onPress={() => { removeAppunto(a.data, a.testo); }}>
-                          <Ionicons name="close-circle" size={22} color="#D46A6A" />
+                          <Ionicons name="close-circle" size={20} color="#D46A6A" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* ORDINI prossimi */}
+              {ordiniProssimi.length > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#E8A060', marginBottom: 6, letterSpacing: 1 }}>{t('home.orderDeliveries')}</Text>
+                  {ordiniProssimi.map((o, i) => {
+                    const d = new Date(o.data);
+                    const isToday = d.toDateString() === dataCorrente.toDateString();
+                    const dateLabel = isToday ? t('home.today') : `${d.getDate()}/${d.getMonth() + 1}`;
+                    return (
+                      <View key={`ord-${i}`} style={s.modalRow}>
+                        <View style={{ backgroundColor: isToday ? '#E8A060' : '#B0A898', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
+                          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
+                        </View>
+                        <Ionicons name="cube" size={16} color="#E8A060" />
+                        <Text style={[s.modalLabel, { flex: 1 }]} numberOfLines={2}>{o.testo}</Text>
+                        <TouchableOpacity onPress={() => { removeOrdine(o.data, o.testo); }}>
+                          <Ionicons name="close-circle" size={20} color="#D46A6A" />
                         </TouchableOpacity>
                       </View>
                     );
@@ -794,7 +971,7 @@ export default function HomeScreen() {
               )}
 
               {notificheCount === 0 && (
-                <Text style={s.modalEmpty}>{t('home.noNotifications')}</Text>
+                <Text style={s.modalEmpty}>{t('home.noCommitmentsNext2days')}</Text>
               )}
             </ScrollView>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowBellModal(false)}>
@@ -811,18 +988,18 @@ export default function HomeScreen() {
             <Text style={s.modalTitle}>{perditaLabel}</Text>
             <Text style={s.modalSub}>
               {isAlimentare
-                ? 'Inserisci la quantità invenduta per prodotto'
-                : 'Inserisci le perdite per fornitore con motivo'}
+                ? t('home.enterUnsoldQty')
+                : t('home.enterLossDetail')}
             </Text>
             <ScrollView style={{ maxHeight: 320 }}>
               {tuttiProdotti.length === 0 ? (
                 <View>
-                  <Text style={s.modalEmpty}>Nessun prodotto registrato. Vai in Impostazioni → Fornitori per aggiungere i prodotti.</Text>
+                  <Text style={s.modalEmpty}>{t('home.noProductRegistered')}</Text>
                   <View style={s.modalDivider} />
-                  <Text style={[s.modalSub, { marginBottom: 8 }]}>Oppure inserisci manualmente:</Text>
+                  <Text style={[s.modalSub, { marginBottom: 8 }]}>{t('home.orEnterManually')}</Text>
                   <TextInput
                     style={s.manualInput}
-                    placeholder="Importo €"
+                    placeholder={t('home.amountPlaceholder')}
                     placeholderTextColor="#A0B5A8"
                     keyboardType="numeric"
                     value={invenduto}
@@ -867,14 +1044,14 @@ export default function HomeScreen() {
                       </View>
                       <TextInput
                         style={[s.manualInput, { fontSize: 12, paddingVertical: 6, marginBottom: 4 }]}
-                        placeholder="Motivo (es: maglione bucato)"
+                        placeholder={t('home.reasonPlaceholder')}
                         placeholderTextColor="#B0B5A8"
                         value={invendutoQty[`${key}_motivo`] || ''}
                         onChangeText={(t) => setInvendutoQty((prev) => ({ ...prev, [`${key}_motivo`]: t }))}
                       />
                       <TextInput
                         style={[s.manualInput, { fontSize: 14, paddingVertical: 8 }]}
-                        placeholder="Prezzo perdita €"
+                        placeholder={t('home.lossPricePlaceholder')}
                         placeholderTextColor="#B0B5A8"
                         keyboardType="numeric"
                         value={invendutoQty[key] || ''}
@@ -890,17 +1067,17 @@ export default function HomeScreen() {
               <>
                 <View style={s.modalDivider} />
                 <View style={s.modalTotalRow}>
-                  <Text style={s.modalTotalLabel}>TOTALE {perditaLabel}</Text>
+                  <Text style={s.modalTotalLabel}>{t('common.total')} {perditaLabel}</Text>
                   <Text style={s.modalTotalVal}>{'\u20AC'}{invendutoCalcolato.toFixed(2)}</Text>
                 </View>
               </>
             )}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 14, marginTop: 16 }}>
               <TouchableOpacity style={[s.modalClose, { flex: 1, backgroundColor: '#B0A898' }]} onPress={() => setShowInvendutoModal(false)}>
-                <Text style={s.modalCloseTxt}>ANNULLA</Text>
+                <Text style={s.modalCloseTxt}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.modalClose, { flex: 1 }]} onPress={confermaInvenduto}>
-                <Text style={s.modalCloseTxt}>CONFERMA</Text>
+                <Text style={s.modalCloseTxt}>{t('common.confirm')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -911,11 +1088,11 @@ export default function HomeScreen() {
       <Modal visible={showSpeseFisseModal} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>SPESE FISSE GIORNALIERE</Text>
-            <Text style={s.modalSub}>Disabilita le voci da escludere dal calcolo UTILE</Text>
+            <Text style={s.modalTitle}>{t('home.dailyFixedExpenses')}</Text>
+            <Text style={s.modalSub}>{t('home.disableExpensesHint')}</Text>
             <ScrollView style={{ maxHeight: 340 }}>
               {speseFisseOggi.length === 0 ? (
-                <Text style={s.modalEmpty}>Nessuna spesa fissa configurata. Vai in Impostazioni.</Text>
+                <Text style={s.modalEmpty}>{t('home.noFixedExpenses')}</Text>
               ) : (
                 speseFisseOggi.map((it) => {
                   const disabled = (speseFisseDisabilitate || []).includes(it.id);
@@ -937,13 +1114,13 @@ export default function HomeScreen() {
             {isFiera && fieraPlatNum > 0 && (
               <View style={[s.modalRow, { backgroundColor: '#E8DCC8', marginBottom: 8 }]}>
                 <Ionicons name="star" size={16} color="#D4AF37" />
-                <Text style={s.modalLabel}>Plateatico Fiera</Text>
+                <Text style={s.modalLabel}>{t('home.fairStandFee')}</Text>
                 <Text style={s.modalVal}>{'\u20AC'}{fieraPlatNum.toFixed(2)}</Text>
               </View>
             )}
             <View style={s.modalDivider} />
             <View style={s.modalTotalRow}>
-              <Text style={s.modalTotalLabel}>TOTALE ATTIVO</Text>
+              <Text style={s.modalTotalLabel}>{t('home.totalActive')}</Text>
               <Text style={s.modalTotalVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
             </View>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowSpeseFisseModal(false)}>
@@ -960,7 +1137,7 @@ export default function HomeScreen() {
         onSelect={(date) => { setDataCorrente(date); setShowCalendar(false); }}
         initialDate={dataCorrente}
         themeColor="#1E7F85"
-        title="SELEZIONA DATA"
+        title={t('home.selectDate')}
       />
 
       {/* Fiera Modal */}
@@ -1074,6 +1251,14 @@ const s = StyleSheet.create({
   },
 
   /* Header */
+  activityNameSmall: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1E7F85',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
   marketName: {
     fontSize: 24,
     fontWeight: '900',
@@ -1083,7 +1268,7 @@ const s = StyleSheet.create({
   },
   badgeLeft: {
     position: 'absolute',
-    top: 0,
+    top: 28,
     left: 0,
   },
   badge: {
@@ -1097,8 +1282,15 @@ const s = StyleSheet.create({
   badgeTxt: { color: '#FFF', fontSize: 10, fontWeight: '700' },
   bellRight: {
     position: 'absolute',
-    top: 14,
+    top: 28,
     right: 0,
+  },
+  bellTouchArea: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    zIndex: 10,
+    padding: 4,
   },
   bell: {
     width: 36,
@@ -1149,7 +1341,7 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 14, fontWeight: '700', color: '#4A3A2A' },
+  toggleTxt: { fontSize: 13, fontWeight: '700', color: '#4A3A2A', paddingHorizontal: 4 },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
     borderRadius: 8,

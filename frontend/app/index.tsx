@@ -5,18 +5,19 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  useWindowDimensions,
+  ScrollView,
+  StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
-import { NeuBox, NeuInset } from '../src/components/NeuBox';
-import { Colors } from '../src/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const [pin, setPin] = useState('');
@@ -29,6 +30,8 @@ export default function LoginScreen() {
   const { isConfigured, pin: savedPin, nomeAttivita, loadFromStorage, otpEnabled, phoneNumber } = useAppStore();
   const [isLoading, setIsLoading] = useState(true);
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { height: screenH } = useWindowDimensions();
 
   useEffect(() => {
     const init = async () => {
@@ -38,7 +41,13 @@ export default function LoginScreen() {
     init();
   }, []);
 
-  // Lock after 5 failed attempts for 30 seconds
+  // Auto-login: se già configurato con PIN, vai direttamente alla Home
+  useEffect(() => {
+    if (!isLoading && isConfigured && savedPin) {
+      router.replace('/home');
+    }
+  }, [isLoading, isConfigured, savedPin]);
+
   useEffect(() => {
     if (attempts >= 5) {
       setLocked(true);
@@ -51,56 +60,34 @@ export default function LoginScreen() {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
     setOtpStep(true);
-    // Simulate SMS sending - show code in alert
     const msg = `Codice OTP inviato al ${phoneNumber}: ${code}`;
-    if (Platform.OS === 'web') {
-      window.alert(msg);
-    } else {
-      Alert.alert('OTP Inviato', msg);
-    }
+    if (Platform.OS === 'web') window.alert(msg);
+    else Alert.alert('OTP Inviato', msg);
   };
 
   const handleAccedi = () => {
-    if (locked) {
-      if (Platform.OS === 'web') {
-        window.alert(t('login.locked') || 'Troppi tentativi. Riprova tra 30 secondi.');
-      } else {
-        Alert.alert(t('common.error'), t('login.locked'));
-      }
+    if (locked) return;
+    if (!isConfigured) {
+      router.push('/welcome');
       return;
     }
-    if (savedPin && pin !== savedPin) {
-      setAttempts(a => a + 1);
-      if (Platform.OS === 'web') {
-        window.alert(t('login.wrongPin') || 'PIN errato');
-      } else {
-        Alert.alert(t('common.error'), t('login.wrongPin'));
-      }
-      setPin('');
-      return;
+    // Se configurato con PIN → vai direttamente
+    if (savedPin) {
+      router.replace('/home');
+    } else {
+      // Nessun PIN configurato → forza la configurazione
+      router.push('/welcome');
     }
-    // If OTP enabled, go to OTP step
-    if (otpEnabled && phoneNumber) {
-      generateOtp();
-      return;
-    }
-    setAttempts(0);
-    router.replace('/home');
   };
 
   const handleOtpVerify = () => {
     if (otpInput === generatedOtp) {
-      setAttempts(0);
       setOtpStep(false);
       setOtpInput('');
       router.replace('/home');
     } else {
-      setAttempts(a => a + 1);
-      if (Platform.OS === 'web') {
-        window.alert('Codice OTP errato');
-      } else {
-        Alert.alert('Errore', 'Codice OTP errato');
-      }
+      if (Platform.OS === 'web') window.alert('Codice OTP errato');
+      else Alert.alert('Errore', 'Codice OTP errato');
       setOtpInput('');
     }
   };
@@ -111,40 +98,50 @@ export default function LoginScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.loadingText}>Caricamento...</Text>
+      <View style={[s.root, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={s.loadingTxt}>Caricamento...</Text>
       </View>
     );
   }
 
+  const topSpacing = Math.max(insets.top + 10, 50);
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={s.root}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
-        <View style={styles.innerContent}>
-          <View style={styles.logoContainer}>
+        <View style={[s.content, { paddingTop: topSpacing }]}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ alignItems: 'center', paddingBottom: Math.max(insets.bottom + 20, 40) }}
+          >
+          {/* ═══ LOGO ═══ */}
+          <View style={s.logoWrap}>
             <Image
               source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
-              style={styles.logoImage}
-              resizeMode="contain"
+              style={s.logo}
+              contentFit="contain"
             />
           </View>
 
-          <Text style={styles.title}>{t('login.welcome')}</Text>
-          <Text style={styles.subtitle}>
-            {isConfigured ? nomeAttivita : t('login.manageMarket')}
+          {/* ═══ BENTORNATO (vicino al logo) ═══ */}
+          <Text style={s.welcomeTitle}>BENTORNATO</Text>
+          <Text style={s.welcomeSub}>
+            {isConfigured ? nomeAttivita || 'MarketMate' : 'Gestisci il tuo mercato'}
           </Text>
 
-          <View style={styles.inputContainer}>
+          {/* ═══ PIN INPUT ═══ */}
+          <View style={s.inputSection}>
             {!otpStep ? (
               <>
-                <NeuInset style={styles.pinInput}>
+                <View style={s.pinCard}>
+                  <Ionicons name="lock-closed" size={18} color="#1E7F85" />
                   <TextInput
-                    style={styles.input}
-                    placeholder={t('login.enterPin')}
-                    placeholderTextColor={Colors.grey}
+                    style={s.pinInput}
+                    placeholder={t('login.enterPin') || 'Inserisci PIN'}
+                    placeholderTextColor="#B0A898"
                     value={pin}
                     onChangeText={setPin}
                     secureTextEntry
@@ -152,255 +149,230 @@ export default function LoginScreen() {
                     maxLength={6}
                     editable={!locked}
                   />
-                </NeuInset>
+                </View>
                 {locked && (
-                  <Text style={{ color: '#D46A6A', fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' }}>
-                    {t('login.locked')}
-                  </Text>
+                  <Text style={s.lockedTxt}>{t('login.locked') || 'Troppi tentativi. Riprova tra 30s'}</Text>
                 )}
               </>
             ) : (
               <>
                 <View style={{ alignItems: 'center', marginBottom: 12 }}>
-                  <Ionicons name="shield-checkmark" size={36} color="#1E7F85" />
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.marrone, marginTop: 8, textAlign: 'center' }}>
-                    {t('login.otpSent') || 'Codice OTP inviato'}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: Colors.grey, textAlign: 'center', marginTop: 4 }}>
-                    {t('login.enterOtp') || 'Inserisci il codice a 6 cifre'}
-                  </Text>
+                  <Ionicons name="shield-checkmark" size={32} color="#1E7F85" />
+                  <Text style={s.otpTitle}>Codice OTP inviato</Text>
+                  <Text style={s.otpSub}>Inserisci il codice a 6 cifre</Text>
                 </View>
-                <NeuInset style={styles.pinInput}>
+                <View style={s.pinCard}>
+                  <Ionicons name="keypad" size={18} color="#1E7F85" />
                   <TextInput
-                    style={styles.input}
+                    style={s.pinInput}
                     placeholder="000000"
-                    placeholderTextColor={Colors.grey}
+                    placeholderTextColor="#B0A898"
                     value={otpInput}
                     onChangeText={setOtpInput}
                     keyboardType="number-pad"
                     maxLength={6}
                     autoFocus
                   />
-                </NeuInset>
+                </View>
               </>
             )}
           </View>
 
+          {/* ═══ ACCEDI ═══ */}
           <TouchableOpacity
-            style={[styles.accediButton, locked && { opacity: 0.5 }]}
+            style={[s.accediBtn, locked && { opacity: 0.5 }]}
             onPress={otpStep ? handleOtpVerify : handleAccedi}
             activeOpacity={0.8}
             disabled={locked}
           >
-            <Text style={styles.accediText}>{otpStep ? (t('login.verifyOtp') || 'VERIFICA OTP') : t('login.login')}</Text>
-          </TouchableOpacity>
-
-          {otpStep && (
-            <TouchableOpacity onPress={() => { setOtpStep(false); setOtpInput(''); }} style={{ marginTop: 12 }}>
-              <Text style={{ color: '#1E7F85', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
-                {t('login.backToPin') || '← Torna al PIN'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity onPress={handleConfigura} style={styles.configButton}>
-            <Ionicons name="rocket-outline" size={20} color={Colors.terracotta} />
-            <Text style={styles.configText}>
-              {isConfigured ? t('login.reconfigure') : t('login.firstTime')}
+            <Text style={s.accediBtnTxt}>
+              {otpStep ? 'VERIFICA OTP' : t('login.login') || 'ACCEDI'}
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.securityBadge}>
-            <Ionicons name="shield-checkmark" size={24} color="#1E7F85" />
-            <View style={styles.securityTextContainer}>
-              <Text style={styles.securityLine}>{t('login.securityLine1')}</Text>
-              <Text style={styles.securityLine}>{t('login.securityLine2')}</Text>
-              <Text style={styles.securityLine}>{t('login.securityLine3')}</Text>
-            </View>
+          {otpStep && (
+            <TouchableOpacity onPress={() => { setOtpStep(false); setOtpInput(''); }} style={{ marginTop: 10 }}>
+              <Text style={s.backLink}>{'← Torna al PIN'}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* ═══ RICONFIGURA ═══ */}
+          <TouchableOpacity onPress={handleConfigura} style={s.configBtn}>
+            <Ionicons name="settings-outline" size={16} color="#1E7F85" />
+            <Text style={s.configTxt}>
+              {isConfigured ? (t('login.reconfigure') || 'Riconfigura App') : 'Prima volta? Configura la App'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* ═══ TESTO RASSICURANTE ═══ */}
+          <View style={s.reassureBox}>
+            <Text style={s.reassureTxt}>
+              Benvenuto su MarketMade. Finalmente hai tutto sotto controllo: i tuoi conti, i mercati e il lavoro della tua squadra, tutto in un unico posto. I tuoi dati sono custoditi nel nostro cloud protetto e crittografato, accessibili solo a te e a chi deciderai di invitare con i tuoi codici personali. Massima trasparenza, dati sempre al sicuro e zero pensieri.
+            </Text>
           </View>
+
+          {/* ═══ SPACER ═══ */}
+          <View style={{ flex: 1 }} />
+
+          {/* ═══ FOOTER ═══ */}
+          <View style={[s.footer, { paddingBottom: Math.max(insets.bottom + 10, topSpacing) }]}>
+            <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
+            <Text style={s.footerTxt}>{t('login.dataProtected') || 'Dati protetti e crittografati'}</Text>
+          </View>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const s = StyleSheet.create({
+  root: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: '#F5F0E6',
   },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: Colors.marrone,
-  },
-  keyboardView: {
+  content: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 30,
-    paddingVertical: 60,
+    paddingHorizontal: 36,
     alignItems: 'center',
   },
-  innerContent: {
-    flex: 1,
-    paddingHorizontal: 30,
-    paddingTop: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoContainer: {
-    marginBottom: 4,
-    alignItems: 'center',
-  },
-  logoTextBox: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 30,
-  },
-  logoMainText: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: Colors.primary,
-    letterSpacing: 4,
-    marginTop: 10,
-  },
-  logoSubText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.grey,
-    letterSpacing: 2,
-    marginTop: 4,
-  },
-  logoImage: {
-    width: 320,
-    height: 320,
-    borderRadius: 24,
-  },
-  logoBox: {
-    backgroundColor: Colors.caramello,
-    borderRadius: 25,
-    padding: 25,
-    borderWidth: 3,
-    borderColor: Colors.terracotta,
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  logoText: {
-    marginTop: 15,
+  loadingTxt: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.marroneChiaro,
+    fontWeight: '700',
+    color: '#1A4040',
+  },
+  // Logo
+  logoWrap: {
+    marginBottom: 8,
+  },
+  logo: {
+    width: 240,
+    height: 240,
+    borderRadius: 20,
+  },
+  // Testi benvenuto
+  welcomeTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#1A4040',
     letterSpacing: 3,
-  },
-  securityBadge: {
-    flexDirection: 'column' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    gap: 10,
-    marginTop: 20,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    backgroundColor: 'rgba(30,127,133,0.1)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(30,127,133,0.2)',
-  },
-  securityTextContainer: {
-    alignItems: 'center' as const,
-  },
-  securityLine: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: '#2A6565',
-    letterSpacing: 0.2,
-    lineHeight: 20,
-    textAlign: 'center' as const,
-  },
-  securityText: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    color: '#1E7F85',
-    letterSpacing: 0.5,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: Colors.marrone,
-    letterSpacing: 2,
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
+  welcomeSub: {
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.grey,
-    marginBottom: 30,
+    color: '#7A9090',
+    marginBottom: 28,
   },
-  inputContainer: {
+  // PIN
+  inputSection: {
     width: '100%',
-    marginBottom: 25,
+    marginBottom: 16,
   },
-  pinInput: {
-    borderRadius: 30,
-  },
-  input: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    textAlign: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-  },
-  accediButton: {
-    width: '100%',
-    backgroundColor: Colors.verde,
-    paddingVertical: 16,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: '#6B8E6B',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  accediText: {
-    color: Colors.white,
-    fontWeight: '900',
-    fontSize: 16,
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
-  divider: {
-    width: '100%',
-    height: 1,
-    backgroundColor: Colors.lightGrey,
-    marginVertical: 20,
-  },
-  configButton: {
+  pinCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
     gap: 10,
-    paddingVertical: 15,
-    paddingHorizontal: 25,
-    backgroundColor: Colors.bgCard,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: Colors.lightGrey,
+    // @ts-ignore
+    boxShadow: '3px 3px 10px rgba(0,0,0,0.1)',
   },
-  configText: {
-    color: Colors.terracotta,
-    fontWeight: 'bold',
+  pinInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A4040',
+    textAlign: 'center',
+    paddingVertical: 14,
+  },
+  lockedTxt: {
+    color: '#D46A6A',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  otpTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A4040',
+    marginTop: 6,
+  },
+  otpSub: {
+    fontSize: 11,
+    color: '#7A9090',
+    marginTop: 2,
+  },
+  // Accedi
+  accediBtn: {
+    width: '100%',
+    backgroundColor: '#1E7F85',
+    paddingVertical: 16,
+    borderRadius: 16,
+    // @ts-ignore
+    boxShadow: '3px 3px 10px rgba(30,127,133,0.3)',
+  },
+  accediBtnTxt: {
+    color: '#FFF',
+    fontWeight: '900',
+    fontSize: 15,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  backLink: {
+    color: '#1E7F85',
     fontSize: 12,
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  // Riconfigura
+  configBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(30,127,133,0.08)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(30,127,133,0.15)',
+  },
+  configTxt: {
+    color: '#1E7F85',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  // Footer
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  footerTxt: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B0A898',
+    textAlign: 'center',
+  },
+  // Testo rassicurante
+  reassureBox: {
+    marginTop: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(30,127,133,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(30,127,133,0.1)',
+  },
+  reassureTxt: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#5A7A7A',
+    lineHeight: 17,
+    textAlign: 'center',
   },
 });
