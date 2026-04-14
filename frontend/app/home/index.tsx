@@ -425,7 +425,7 @@ export default function HomeScreen() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze]);
+  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, speseExtraFornTotale, speseExtraGenTotale]);
 
   const handleSalvaManuale = () => {
     handleSalva();

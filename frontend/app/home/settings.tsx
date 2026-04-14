@@ -452,10 +452,14 @@ export default function SettingsPage() {
       updated[idx].p_annuo = Math.round(value * 48);
     }
     store.updateAgenda(updated);
+    // KM auto-calc is triggered on blur, not on every keystroke
+  };
 
-    // Auto-calculate km when market name is set and partenzaDa exists
-    if (field === 'mercato' && value && store.partenzaDa) {
-      autoCalculateKm(idx, store.partenzaDa, value);
+  const handleMercatoBlur = (idx: number) => {
+    store.forceFlushSave();
+    const m = store.agenda[idx];
+    if (m?.mercato && m.mercato.trim().length > 2 && store.partenzaDa) {
+      autoCalculateKm(idx, store.partenzaDa, m.mercato);
     }
   };
 
@@ -725,8 +729,8 @@ export default function SettingsPage() {
                     placeholderTextColor="#A0A090"
                     value={m.mercato || ''}
                     onChangeText={(text) => updateMercato(idx, 'mercato', text)}
-                    onBlur={() => store.forceFlushSave()}
-                    onEndEditing={() => store.forceFlushSave()}
+                    onBlur={() => handleMercatoBlur(idx)}
+                    onEndEditing={() => handleMercatoBlur(idx)}
                     autoCapitalize="words"
                     returnKeyType="done"
                   />

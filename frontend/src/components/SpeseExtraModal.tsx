@@ -151,10 +151,10 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       style={st.amountInput}
                       placeholder="0"
                       placeholderTextColor="#B0B0A0"
-                      keyboardType="numeric"
+                      keyboardType="decimal-pad"
                       value={entry.importo}
                       onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
-                      selectTextOnFocus
+                      returnKeyType="done"
                     />
                     <Text style={st.euro}>{'\u20AC'}</Text>
                   </View>
