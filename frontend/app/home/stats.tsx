@@ -444,29 +444,41 @@ export default function StatsScreen() {
 
   /* ── Giorni lavorati vs non lavorati (per grafico) ── */
   const giorniLavoroData = useMemo(() => {
-    const giorniLavorativi = store.agenda.filter(m => m.lavorativo).length || 5;
+    const allDates = store.storicoGiornate.map(g => new Date(g.data).getTime());
+    const firstDataDate = allDates.length > 0 ? new Date(Math.min(...allDates)) : null;
+    
+    if (!firstDataDate) {
+      return { lavorati: 0, nonLavorati: 0, totale: 0 };
+    }
+
+    // Conta i giorni dal primo inserimento dati fino ad oggi
+    const oggi = new Date();
+    oggi.setHours(23, 59, 59, 999);
     
     if (filtroTempo === 'Sett.') {
-      // Settimana corrente: 7 giorni, quanti lavorati
       const weekStart = new Date(now);
       weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
       weekStart.setHours(0,0,0,0);
+      // Conta solo i giorni dalla partenza effettiva (o inizio settimana se dopo)
+      const startDate = firstDataDate > weekStart ? firstDataDate : weekStart;
+      const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const lavorati = filteredData.length;
-      const totGiorni = 7;
-      return { lavorati, nonLavorati: Math.max(0, totGiorni - lavorati), totale: totGiorni };
+      return { lavorati, nonLavorati: Math.max(0, daysPassed - lavorati), totale: daysPassed };
     } else if (filtroTempo === 'Mese') {
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const settimane = Math.ceil(daysInMonth / 7);
-      const giorniPrevisti = settimane * giorniLavorativi;
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startDate = firstDataDate > monthStart ? firstDataDate : monthStart;
+      const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const lavorati = filteredData.length;
-      return { lavorati, nonLavorati: Math.max(0, giorniPrevisti - lavorati), totale: giorniPrevisti };
+      return { lavorati, nonLavorati: Math.max(0, daysPassed - lavorati), totale: daysPassed };
     } else {
-      // Anno
-      const giorniPrevisti = 48 * giorniLavorativi;
+      // Anno o Personalizzato: dal primo dato inserito
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      const startDate = firstDataDate > yearStart ? firstDataDate : yearStart;
+      const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const lavorati = filteredData.length;
-      return { lavorati, nonLavorati: Math.max(0, giorniPrevisti - lavorati), totale: giorniPrevisti };
+      return { lavorati, nonLavorati: Math.max(0, daysPassed - lavorati), totale: daysPassed };
     }
-  }, [filteredData, filtroTempo, store.agenda]);
+  }, [filteredData, filtroTempo, store.storicoGiornate]);
 
   const renderFilterBar = (options: string[], selected: string, onSelect: (v: any) => void, mini = false, labelFn?: (key: string) => string) => (
     <View style={[st.filterRow, { gap: mini ? 4 : 6 }]}>

@@ -102,6 +102,18 @@ export default function AgendaScreen() {
   }, [storicoDiario]);
 
   const today = new Date();
+  /* ═══ GIORNI LAVORATI NEL MESE (dal storico giornate) ═══ */
+  const giorniLavoratiMese = useMemo(() => {
+    const set = new Set<number>();
+    (store.storicoGiornate || []).forEach(g => {
+      const d = new Date(g.data);
+      if (d.getMonth() === calMonth.getMonth() && d.getFullYear() === calMonth.getFullYear()) {
+        set.add(d.getDate());
+      }
+    });
+    return set;
+  }, [store.storicoGiornate, calMonth]);
+
   const isCurrentMonth = calMonth.getMonth() === today.getMonth() && calMonth.getFullYear() === today.getFullYear();
 
   /* ═══ SALVA ORDINE SU GIORNO ═══ */
@@ -226,17 +238,20 @@ export default function AgendaScreen() {
             {row.map((day, di) => {
               const hasItem = day ? impegniMese[day] && impegniMese[day].length > 0 : false;
               const isToday = isCurrentMonth && day === today.getDate();
+              const isWorked = day ? giorniLavoratiMese.has(day) : false;
               const itemTypes = day && impegniMese[day] ? impegniMese[day].map(x => x.tipo) : [];
               const hasApp = itemTypes.includes('appuntamento');
               const hasOrd = itemTypes.includes('ordine');
-              const bgColor = hasApp && hasOrd ? '#1A4040' : hasOrd ? '#E8A060' : hasApp ? '#1E7F85' : 'transparent';
+              const bgColor = hasApp && hasOrd ? '#1A4040' : hasOrd ? '#E8A060' : hasApp ? '#1E7F85' : isWorked ? '#D5F0E8' : 'transparent';
               return (
                 <TouchableOpacity
                   key={di}
                   style={[
                     s.calDay,
                     hasItem && { backgroundColor: bgColor },
-                    isToday && !hasItem && s.calDayToday,
+                    !hasItem && isWorked && { backgroundColor: '#D5F0E8', borderWidth: 1.5, borderColor: '#5AAA6A' },
+                    isToday && !hasItem && !isWorked && s.calDayToday,
+                    isToday && isWorked && !hasItem && { borderColor: '#1E7F85', borderWidth: 2 },
                   ]}
                   disabled={!day}
                   onPress={() => day && handleDayPress(day)}
@@ -245,16 +260,34 @@ export default function AgendaScreen() {
                   <Text style={[
                     s.calDayTxt,
                     hasItem && { color: '#FFF', fontWeight: '800' },
-                    isToday && !hasItem && { color: '#1E7F85', fontWeight: '800' },
+                    !hasItem && isWorked && { color: '#2A7A5A', fontWeight: '800' },
+                    isToday && !hasItem && !isWorked && { color: '#1E7F85', fontWeight: '800' },
                   ]}>
                     {day || ''}
                   </Text>
                   {hasItem && <View style={[s.calDot, { backgroundColor: '#FFF' }]} />}
+                  {!hasItem && isWorked && <View style={[s.calDot, { backgroundColor: '#5AAA6A' }]} />}
                 </TouchableOpacity>
               );
             })}
           </View>
         ))}
+      </View>
+
+      {/* ═══ LEGENDA CALENDARIO ═══ */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 6, marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#5AAA6A' }} />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Lavorato</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85' }} />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Appuntamento</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060' }} />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Ordine</Text>
+        </View>
       </View>
 
       {/* ═══ NOTE DEL GIORNO ═══ */}
