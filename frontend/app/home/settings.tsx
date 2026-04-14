@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { LocalTextInput } from '../../src/components/LocalTextInput';
 import {
   View,
   Text,
@@ -725,28 +726,17 @@ export default function SettingsPage() {
                 {/* Inline TextInput per nome mercato - usa stato locale per evitare perdita caratteri */}
                 <View style={s.inlineInputRow}>
                   <Ionicons name="storefront-outline" size={18} color="#1E7F85" />
-                  <TextInput
+                  <LocalTextInput
                     style={[s.inlineInput, { flex: 1 }]}
                     placeholder={t('settings.marketName') || 'Nome mercato'}
                     placeholderTextColor="#A0A090"
-                    value={localMercatoNames[idx] !== undefined ? localMercatoNames[idx] : (m.mercato || '')}
-                    onFocus={() => setLocalMercatoNames(prev => ({ ...prev, [idx]: m.mercato || '' }))}
-                    onChangeText={(text) => setLocalMercatoNames(prev => ({ ...prev, [idx]: text }))}
-                    onBlur={() => {
-                      const val = localMercatoNames[idx];
-                      if (val !== undefined) {
-                        updateMercato(idx, 'mercato', val);
-                        handleMercatoBlur(idx);
+                    externalValue={m.mercato || ''}
+                    onValueCommit={(text) => {
+                      updateMercato(idx, 'mercato', text);
+                      if (text && text.trim().length > 2 && store.partenzaDa) {
+                        autoCalculateKm(idx, store.partenzaDa, text);
                       }
-                      setLocalMercatoNames(prev => { const n = { ...prev }; delete n[idx]; return n; });
-                    }}
-                    onEndEditing={() => {
-                      const val = localMercatoNames[idx];
-                      if (val !== undefined) {
-                        updateMercato(idx, 'mercato', val);
-                        handleMercatoBlur(idx);
-                      }
-                      setLocalMercatoNames(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                      store.forceFlushSave();
                     }}
                     autoCapitalize="words"
                     returnKeyType="done"

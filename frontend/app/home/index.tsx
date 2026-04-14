@@ -142,10 +142,11 @@ export default function HomeScreen() {
       } else {
         setSpeseExtraFornitore({});
       }
-      // Controlla se era una fiera
+      // Controlla se era una fiera - solo al primo caricamento, non su re-render
       if (saved.mercato?.toLowerCase() === 'fiera') {
         setIsFiera(true);
       }
+      // NON resettare isFiera qui - l'utente potrebbe aver cambiato manualmente
     } else {
       // Resetta i campi per una giornata non ancora salvata
       setLordo('');
@@ -157,14 +158,15 @@ export default function HomeScreen() {
       const p: Record<string, boolean> = {};
       collaboratori.forEach((c) => { p[c.nome] = false; });
       setPresenze(p);
-      setIsFiera(false);
+      // Solo se non c'è nessun dato salvato E il giorno cambia, resetta la fiera
     }
   }, [store.storicoGiornate, collaboratori]);
 
   /* ── Carica dati salvati quando cambia la data ── */
   useEffect(() => {
+    setIsFiera(false); // Resetta fiera solo quando cambia il giorno
     loadSavedData(dataCorrente);
-  }, [dataCorrente, loadSavedData]);
+  }, [dataCorrente]);
 
   /* ── Ricarica dati quando il tab torna in focus ── */
   useFocusEffect(
