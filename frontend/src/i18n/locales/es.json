@@ -431,56 +431,56 @@
     "prev": "Atrás",
     "next": "Siguiente",
     "skip": "Saltar",
-    "done": "¡Entendido!",
+    "done": "¡Listo!",
     "home": {
-      "welcome": "¡Bienvenido a tu Panel!",
-      "welcomeDesc": "Gestiona toda tu jornada de trabajo en el mercado. Ingresa ingresos, gastos y lleva el control de todo.",
-      "lordo": "Ingreso Bruto",
-      "lordoDesc": "Toca BRUTO para ingresar la recaudación del día. Efectivo y POS se suman automáticamente.",
-      "meteo": "Clima del día",
-      "meteoDesc": "Toca los iconos del clima. Útil para entender cómo afecta a las ventas.",
-      "collaboratori": "Tus Colaboradores",
-      "collaboratoriDesc": "Marca quién está presente hoy. Los costos se calculan automáticamente.",
-      "spese": "Gastos Extra",
-      "speseDesc": "Registra gastos de proveedores. Puedes marcarlos como diarios, semanales o mensuales.",
-      "buongiorno": "Asistente IA 'Buenos Días'",
-      "buongiornoDesc": "¡Tu asistente personal! Te da el clima, la gasolinera más barata y el resumen de la semana pasada.",
-      "salva": "Guardar el Día",
-      "salvaDesc": "Pulsa GUARDAR DÍA para guardar. Los datos también se guardan automáticamente."
+      "welcome": "Tu día empieza aquí",
+      "welcomeDesc": "Ingresa datos mientras lees. ¡Toca las tarjetas!",
+      "lordo": "Ingresa el Bruto",
+      "lordoDesc": "Toca BRUTO → escribe el ingreso.",
+      "spese": "Gastos del día",
+      "speseDesc": "Toca GASTOS → ingresa los costos.",
+      "salva": "Guardar todo",
+      "salvaDesc": "Se guarda solo después de 1.5 seg.",
+      "meteo": "Clima",
+      "meteoDesc": "Toca para registrar el clima.",
+      "collaboratori": "Colaboradores",
+      "collaboratoriDesc": "Marca quién trabaja hoy.",
+      "buongiorno": "Asistente IA",
+      "buongiornoDesc": "Clima, gasolina y consejos."
     },
     "agenda": {
-      "calendar": "Tu Calendario",
-      "calendarDesc": "Ve el mes completo. Días verdes = trabajados.",
-      "colors": "Significado de colores",
-      "colorsDesc": "Verde = trabajado, Teal = cita, Naranja = pedido.",
-      "notes": "Notas y Pedidos",
-      "notesDesc": "Escribe notas y pedidos a proveedores."
+      "calendar": "Tu mes",
+      "calendarDesc": "Verde = trabajado. Toca un día.",
+      "colors": "Colores",
+      "colorsDesc": "Verde=trabajo, Teal=cita, Naranja=pedido.",
+      "notes": "Notas",
+      "notesDesc": "Escribe notas por día."
     },
     "gas": {
-      "search": "Buscar Gasolineras",
-      "searchDesc": "Encuentra las gasolineras más baratas en tu ruta.",
-      "prices": "Precios en Tiempo Real",
-      "pricesDesc": "Los precios se obtienen en tiempo real.",
+      "search": "Gasolinera más barata",
+      "searchDesc": "Busca en tu ruta.",
+      "prices": "Precios reales",
+      "pricesDesc": "Del Ministerio.",
       "history": "Historial",
-      "historyDesc": "Registra cada repostaje."
+      "historyDesc": "Registra repostajes."
     },
     "stats": {
-      "charts": "Tus Gráficos",
-      "chartsDesc": "Visualiza la evolución de ingresos.",
-      "filters": "Filtrar por Período",
-      "filtersDesc": "Semana, Mes, Año para estadísticas.",
-      "days": "Días Trabajados",
-      "daysDesc": "Ve cuántos días has trabajado."
+      "charts": "Tus números",
+      "chartsDesc": "Gráficos por semana, mes o año.",
+      "filters": "Filtrar",
+      "filtersDesc": "Sem. / Mes / Año.",
+      "days": "Días trabajados",
+      "daysDesc": "Desde el primer dato."
     },
     "settings": {
-      "agenda": "Agenda Semanal",
-      "agendaDesc": "Configura mercados para cada día.",
-      "collab": "Gestionar Colaboradores",
-      "collabDesc": "Añade colaboradores con nombre y coste diario.",
-      "spese": "Gastos Anuales",
-      "speseDesc": "Ingresa gastos anuales.",
-      "fuel": "Configuración Combustible",
-      "fuelDesc": "Tipo de combustible y ciudad de salida."
+      "agenda": "Mercados semanales",
+      "agendaDesc": "Abre un día → nombre y km.",
+      "collab": "Colaboradores",
+      "collabDesc": "Nombre y costo diario.",
+      "spese": "Gastos anuales",
+      "speseDesc": "Seguro, impuestos... por día.",
+      "fuel": "Combustible",
+      "fuelDesc": "Tipo y ciudad de salida."
     }
   }
 }

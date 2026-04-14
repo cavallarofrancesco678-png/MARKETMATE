@@ -431,56 +431,56 @@
     "prev": "Zurück",
     "next": "Weiter",
     "skip": "Überspringen",
-    "done": "Verstanden!",
+    "done": "Fertig!",
     "home": {
-      "welcome": "Willkommen auf Ihrem Dashboard!",
-      "welcomeDesc": "Verwalten Sie Ihren gesamten Markttag. Erfassen Sie Einnahmen, Ausgaben und behalten Sie alles im Blick.",
-      "lordo": "Bruttoeinnahmen",
-      "lordoDesc": "Tippen Sie auf BRUTTO um die Tageseinnahmen einzugeben. Bar und Karte werden automatisch summiert.",
-      "meteo": "Wetter heute",
-      "meteoDesc": "Tippen Sie auf Wettersymbole. Nützlich um den Wettereinfluss auf Verkäufe zu verstehen.",
-      "collaboratori": "Ihre Mitarbeiter",
-      "collaboratoriDesc": "Markieren Sie wer heute anwesend ist. Kosten werden automatisch berechnet.",
-      "spese": "Zusatzausgaben",
-      "speseDesc": "Erfassen Sie Lieferantenausgaben. Markieren Sie täglich, wöchentlich oder monatlich.",
-      "buongiorno": "KI-Assistent 'Guten Morgen'",
-      "buongiornoDesc": "Ihr persönlicher Assistent! Wetter, günstigste Tankstelle und Wochenzusammenfassung.",
-      "salva": "Tag Speichern",
-      "salvaDesc": "Drücken Sie TAG SPEICHERN. Daten werden auch automatisch nach 1.5 Sekunden gespeichert."
+      "welcome": "Ihr Tag beginnt hier",
+      "welcomeDesc": "Geben Sie Daten ein während Sie lesen!",
+      "lordo": "Brutto eingeben",
+      "lordoDesc": "Tippen Sie BRUTTO → Einnahmen eingeben.",
+      "spese": "Tagesausgaben",
+      "speseDesc": "Tippen Sie AUSGABEN → Kosten eingeben.",
+      "salva": "Alles speichern",
+      "salvaDesc": "Automatisch nach 1.5 Sekunden.",
+      "meteo": "Wetter",
+      "meteoDesc": "Tippen für Wetter.",
+      "collaboratori": "Mitarbeiter",
+      "collaboratoriDesc": "Wer arbeitet heute?",
+      "buongiorno": "KI-Assistent",
+      "buongiornoDesc": "Wetter, Tankstelle & Tipps."
     },
     "agenda": {
-      "calendar": "Ihr Kalender",
-      "calendarDesc": "Sehen Sie den ganzen Monat. Grüne Tage = gearbeitet.",
-      "colors": "Farbenbedeutung",
-      "colorsDesc": "Grün = gearbeitet, Teal = Termin, Orange = Bestellung.",
-      "notes": "Notizen und Bestellungen",
-      "notesDesc": "Schreiben Sie Notizen und Bestellungen für jeden Tag."
+      "calendar": "Ihr Monat",
+      "calendarDesc": "Grün = gearbeitet.",
+      "colors": "Farben",
+      "colorsDesc": "Grün=Arbeit, Teal=Termin, Orange=Bestellung.",
+      "notes": "Notizen",
+      "notesDesc": "Schreiben Sie Notizen."
     },
     "gas": {
-      "search": "Tankstellen Suchen",
-      "searchDesc": "Finden Sie die günstigsten Tankstellen auf Ihrer Route.",
-      "prices": "Echtzeit-Preise",
-      "pricesDesc": "Preise werden in Echtzeit abgerufen.",
-      "history": "Tankhistorie",
-      "historyDesc": "Protokollieren Sie jede Betankung."
+      "search": "Günstigste Tankstelle",
+      "searchDesc": "Suche auf Ihrer Route.",
+      "prices": "Echte Preise",
+      "pricesDesc": "Vom Ministerium.",
+      "history": "Verlauf",
+      "historyDesc": "Tankvorgänge verfolgen."
     },
     "stats": {
-      "charts": "Ihre Diagramme",
-      "chartsDesc": "Visualisieren Sie den Einnahmenverlauf.",
-      "filters": "Nach Zeitraum Filtern",
-      "filtersDesc": "Woche, Monat, Jahr für Statistiken.",
+      "charts": "Ihre Zahlen",
+      "chartsDesc": "Einnahmen-Diagramme.",
+      "filters": "Filtern",
+      "filtersDesc": "Woche / Monat / Jahr.",
       "days": "Arbeitstage",
-      "daysDesc": "Sehen Sie wie viele Tage Sie gearbeitet haben."
+      "daysDesc": "Seit erster Eingabe."
     },
     "settings": {
-      "agenda": "Wochenplanung",
-      "agendaDesc": "Konfigurieren Sie Märkte für jeden Tag.",
-      "collab": "Mitarbeiter Verwalten",
-      "collabDesc": "Fügen Sie Mitarbeiter mit Name und Tageskosten hinzu.",
+      "agenda": "Wochenmärkte",
+      "agendaDesc": "Tag öffnen → Name und km.",
+      "collab": "Mitarbeiter",
+      "collabDesc": "Name und Tageskosten.",
       "spese": "Jahresausgaben",
-      "speseDesc": "Erfassen Sie jährliche Ausgaben.",
-      "fuel": "Kraftstoff-Einstellungen",
-      "fuelDesc": "Kraftstoffart und Abfahrtsstadt."
+      "speseDesc": "Versicherung... pro Tag geteilt.",
+      "fuel": "Kraftstoff",
+      "fuelDesc": "Typ und Abfahrtsstadt."
     }
   }
 }

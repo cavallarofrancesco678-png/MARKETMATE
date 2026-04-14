@@ -1401,7 +1401,7 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 13, fontWeight: '700', color: '#4A3A2A', paddingHorizontal: 4 },
+  toggleTxt: { fontSize: 15, fontWeight: '800', color: '#4A3A2A', paddingHorizontal: 4, letterSpacing: 0.5 },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
     borderRadius: 8,
