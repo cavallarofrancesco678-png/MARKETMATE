@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useTutorial, TutorialFAB, TUTORIAL_STEPS } from '../../src/components/TutorialSystem';
 import {
   View,
   Text,
@@ -23,6 +24,8 @@ const GIORNI_SETT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
 export default function AgendaScreen() {
   const { t } = useTranslation();
+  const { startTutorial, registerSteps } = useTutorial();
+  useEffect(() => { registerSteps('agenda', TUTORIAL_STEPS.agenda); setTimeout(() => startTutorial('agenda'), 1000); }, []);
   const {
     appuntiAgenda, addAppunto, removeAppunto,
     ordiniAgenda, addOrdine, removeOrdine,
@@ -392,6 +395,7 @@ export default function AgendaScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+      <TutorialFAB screenKey="agenda" />
     </View>
   );
 }

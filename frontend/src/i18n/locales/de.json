@@ -296,7 +296,20 @@
     "fri": "F",
     "sat": "S",
     "sun": "S",
-    "monthsShort": ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
+    "monthsShort": [
+      "Jan",
+      "Feb",
+      "Mär",
+      "Apr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dez"
+    ],
     "months": [
       "Januar",
       "Februar",
@@ -413,5 +426,61 @@
     "hasStandFee": "true",
     "taxNote": "MwSt. gem. deutschem Steuerrecht.",
     "marketRegulations": "In Deutschland wird eine Standgebühr (Marktgebühr) an den Marktveranstalter für den zugewiesenen Platz gezahlt."
+  },
+  "tutorial": {
+    "prev": "Zurück",
+    "next": "Weiter",
+    "skip": "Überspringen",
+    "done": "Verstanden!",
+    "home": {
+      "welcome": "Willkommen auf Ihrem Dashboard!",
+      "welcomeDesc": "Verwalten Sie Ihren gesamten Markttag. Erfassen Sie Einnahmen, Ausgaben und behalten Sie alles im Blick.",
+      "lordo": "Bruttoeinnahmen",
+      "lordoDesc": "Tippen Sie auf BRUTTO um die Tageseinnahmen einzugeben. Bar und Karte werden automatisch summiert.",
+      "meteo": "Wetter heute",
+      "meteoDesc": "Tippen Sie auf Wettersymbole. Nützlich um den Wettereinfluss auf Verkäufe zu verstehen.",
+      "collaboratori": "Ihre Mitarbeiter",
+      "collaboratoriDesc": "Markieren Sie wer heute anwesend ist. Kosten werden automatisch berechnet.",
+      "spese": "Zusatzausgaben",
+      "speseDesc": "Erfassen Sie Lieferantenausgaben. Markieren Sie täglich, wöchentlich oder monatlich.",
+      "buongiorno": "KI-Assistent 'Guten Morgen'",
+      "buongiornoDesc": "Ihr persönlicher Assistent! Wetter, günstigste Tankstelle und Wochenzusammenfassung.",
+      "salva": "Tag Speichern",
+      "salvaDesc": "Drücken Sie TAG SPEICHERN. Daten werden auch automatisch nach 1.5 Sekunden gespeichert."
+    },
+    "agenda": {
+      "calendar": "Ihr Kalender",
+      "calendarDesc": "Sehen Sie den ganzen Monat. Grüne Tage = gearbeitet.",
+      "colors": "Farbenbedeutung",
+      "colorsDesc": "Grün = gearbeitet, Teal = Termin, Orange = Bestellung.",
+      "notes": "Notizen und Bestellungen",
+      "notesDesc": "Schreiben Sie Notizen und Bestellungen für jeden Tag."
+    },
+    "gas": {
+      "search": "Tankstellen Suchen",
+      "searchDesc": "Finden Sie die günstigsten Tankstellen auf Ihrer Route.",
+      "prices": "Echtzeit-Preise",
+      "pricesDesc": "Preise werden in Echtzeit abgerufen.",
+      "history": "Tankhistorie",
+      "historyDesc": "Protokollieren Sie jede Betankung."
+    },
+    "stats": {
+      "charts": "Ihre Diagramme",
+      "chartsDesc": "Visualisieren Sie den Einnahmenverlauf.",
+      "filters": "Nach Zeitraum Filtern",
+      "filtersDesc": "Woche, Monat, Jahr für Statistiken.",
+      "days": "Arbeitstage",
+      "daysDesc": "Sehen Sie wie viele Tage Sie gearbeitet haben."
+    },
+    "settings": {
+      "agenda": "Wochenplanung",
+      "agendaDesc": "Konfigurieren Sie Märkte für jeden Tag.",
+      "collab": "Mitarbeiter Verwalten",
+      "collabDesc": "Fügen Sie Mitarbeiter mit Name und Tageskosten hinzu.",
+      "spese": "Jahresausgaben",
+      "speseDesc": "Erfassen Sie jährliche Ausgaben.",
+      "fuel": "Kraftstoff-Einstellungen",
+      "fuelDesc": "Kraftstoffart und Abfahrtsstadt."
+    }
   }
 }

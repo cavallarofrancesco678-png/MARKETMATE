@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTutorial, TutorialFAB, TUTORIAL_STEPS } from '../../src/components/TutorialSystem';
 import {
   View,
   Text,
@@ -216,6 +217,8 @@ export default function StatsScreen() {
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
   const GAP = Math.round(1.5 * ((screenH - 80) / 100));
   const { t } = useTranslation();
+  const { startTutorial, registerSteps } = useTutorial();
+  useEffect(() => { registerSteps('stats', TUTORIAL_STEPS.stats); setTimeout(() => startTutorial('stats'), 1000); }, []);
 
   const [filtroTempo, setFiltroTempo] = useState<FilterTempo>('Sett.');
   const [filtroTipo, setFiltroTipo] = useState<FilterTipo>('TUTTO');

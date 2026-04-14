@@ -298,7 +298,20 @@
     "fri": "V",
     "sat": "S",
     "sun": "D",
-    "monthsShort": ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"],
+    "monthsShort": [
+      "Gen",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mag",
+      "Giu",
+      "Lug",
+      "Ago",
+      "Set",
+      "Ott",
+      "Nov",
+      "Dic"
+    ],
     "months": [
       "Gennaio",
       "Febbraio",
@@ -415,5 +428,61 @@
     "hasStandFee": "true",
     "taxNote": "",
     "marketRegulations": "In Italia il plateatico è la tassa per l'occupazione del suolo pubblico nei mercati."
+  },
+  "tutorial": {
+    "prev": "Indietro",
+    "next": "Avanti",
+    "skip": "Salta",
+    "done": "Ho capito!",
+    "home": {
+      "welcome": "Benvenuto nella tua Dashboard!",
+      "welcomeDesc": "Qui gestisci tutta la tua giornata di lavoro al mercato. Inserisci incassi, spese e tieni traccia di tutto.",
+      "lordo": "Incasso Lordo",
+      "lordoDesc": "Tocca la card LORDO per inserire l'incasso del giorno. Contanti e POS si sommano automaticamente.",
+      "meteo": "Meteo del giorno",
+      "meteoDesc": "Tocca le icone meteo per registrare il tempo. Utile per capire come il meteo influisce sulle vendite.",
+      "collaboratori": "I tuoi Collaboratori",
+      "collaboratoriDesc": "Segna chi è presente oggi. I costi vengono calcolati automaticamente nelle spese fisse.",
+      "spese": "Spese Extra",
+      "speseDesc": "Registra le spese dai fornitori. Puoi segnare se sono giornaliere, settimanali o mensili.",
+      "buongiorno": "Assistente AI 'Buongiorno'",
+      "buongiornoDesc": "Il tuo assistente personale! Ti dà il meteo, il distributore più economico sul tragitto e un riepilogo della settimana scorsa.",
+      "salva": "Salva la Giornata",
+      "salvaDesc": "Premi SALVA GIORNATA per salvare tutti i dati. I dati si auto-salvano anche dopo 1.5 secondi."
+    },
+    "agenda": {
+      "calendar": "Il tuo Calendario",
+      "calendarDesc": "Vedi il mese intero. I giorni verdi sono quelli in cui hai lavorato. Tocca un giorno per aggiungere note.",
+      "colors": "Significato dei colori",
+      "colorsDesc": "Verde = hai lavorato, Teal = appuntamento, Arancione = ordine. Puoi avere più eventi nello stesso giorno.",
+      "notes": "Note e Ordini",
+      "notesDesc": "Scrivi appunti, ordini ai fornitori o promemoria per ogni giorno. Tutto viene salvato automaticamente."
+    },
+    "gas": {
+      "search": "Cerca Distributori",
+      "searchDesc": "Cerca i distributori più economici lungo il tuo tragitto. Funziona per Italia e Francia.",
+      "prices": "Prezzi in Tempo Reale",
+      "pricesDesc": "I prezzi vengono cercati in tempo reale dall'API del Ministero. Vedrai nome, indirizzo e prezzo al litro.",
+      "history": "Storico Rifornimenti",
+      "historyDesc": "Registra ogni rifornimento per tenere traccia dei costi del carburante nel tempo."
+    },
+    "stats": {
+      "charts": "I tuoi Grafici",
+      "chartsDesc": "Visualizza l'andamento degli incassi nel tempo. Confronta mercati diversi e periodi.",
+      "filters": "Filtra per Periodo",
+      "filtersDesc": "Usa i filtri Settimana, Mese, Anno per vedere le statistiche del periodo che ti interessa.",
+      "days": "Giorni Lavorati",
+      "daysDesc": "Vedi quanti giorni hai lavorato dal primo inserimento dati. La percentuale si calcola sui giorni reali."
+    },
+    "settings": {
+      "agenda": "Agenda Settimanale",
+      "agendaDesc": "Configura i mercati per ogni giorno della settimana. Inserisci nome, km e plateatico. I km si calcolano automaticamente!",
+      "collab": "Gestisci Collaboratori",
+      "collabDesc": "Aggiungi collaboratori con nome e costo giornaliero. Verranno mostrati nella Home per segnare le presenze.",
+      "spese": "Spese Annue",
+      "speseDesc": "Inserisci le spese annuali (assicurazione, bollo, ecc). Vengono divise automaticamente per giorno lavorativo.",
+      "fuel": "Configurazione Carburante",
+      "fuelDesc": "Imposta il tipo di carburante e la città di partenza. Serve per calcolare i costi e cercare i distributori."
+    }
   }
 }

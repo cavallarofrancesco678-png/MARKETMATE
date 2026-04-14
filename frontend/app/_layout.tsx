@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { TutorialProvider } from '../src/components/TutorialSystem';
 import '../src/i18n';
 
 SplashScreen.preventAutoHideAsync();
@@ -29,12 +30,14 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" translucent={false} backgroundColor="#D8EDE5" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="welcome" />
-        <Stack.Screen name="home" />
-      </Stack>
+      <TutorialProvider>
+        <StatusBar style="dark" translucent={false} backgroundColor="#D8EDE5" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="welcome" />
+          <Stack.Screen name="home" />
+        </Stack>
+      </TutorialProvider>
     </SafeAreaProvider>
   );
 }

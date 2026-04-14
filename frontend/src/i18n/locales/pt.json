@@ -296,7 +296,20 @@
     "fri": "S",
     "sat": "S",
     "sun": "D",
-    "monthsShort": ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
+    "monthsShort": [
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez"
+    ],
     "months": [
       "Janeiro",
       "Fevereiro",
@@ -413,5 +426,61 @@
     "hasStandFee": "true",
     "taxNote": "IVA conforme regime fiscal.",
     "marketRegulations": "Em Portugal, a taxa de banca é uma taxa municipal paga pela ocupação de espaço em feiras e mercados."
+  },
+  "tutorial": {
+    "prev": "Voltar",
+    "next": "Próximo",
+    "skip": "Pular",
+    "done": "Entendi!",
+    "home": {
+      "welcome": "Bem-vindo ao seu Painel!",
+      "welcomeDesc": "Gerencie todo o seu dia de trabalho no mercado. Insira receitas, despesas e acompanhe tudo.",
+      "lordo": "Receita Bruta",
+      "lordoDesc": "Toque em BRUTO para inserir a receita do dia. Dinheiro e cartão somam automaticamente.",
+      "meteo": "Clima do dia",
+      "meteoDesc": "Toque nos ícones do clima. Útil para entender como afeta as vendas.",
+      "collaboratori": "Seus Colaboradores",
+      "collaboratoriDesc": "Marque quem está presente hoje. Os custos são calculados automaticamente.",
+      "spese": "Despesas Extra",
+      "speseDesc": "Registre despesas de fornecedores. Marque como diárias, semanais ou mensais.",
+      "buongiorno": "Assistente IA 'Bom Dia'",
+      "buongiornoDesc": "Seu assistente pessoal! Clima, posto mais barato e resumo da semana passada.",
+      "salva": "Salvar o Dia",
+      "salvaDesc": "Pressione SALVAR DIA. Os dados também salvam automaticamente."
+    },
+    "agenda": {
+      "calendar": "Seu Calendário",
+      "calendarDesc": "Veja o mês inteiro. Dias verdes = trabalhados.",
+      "colors": "Significado das cores",
+      "colorsDesc": "Verde = trabalhado, Teal = compromisso, Laranja = pedido.",
+      "notes": "Notas e Pedidos",
+      "notesDesc": "Escreva notas e pedidos para cada dia."
+    },
+    "gas": {
+      "search": "Buscar Postos",
+      "searchDesc": "Encontre os postos mais baratos na sua rota.",
+      "prices": "Preços em Tempo Real",
+      "pricesDesc": "Os preços são buscados em tempo real.",
+      "history": "Histórico",
+      "historyDesc": "Registre cada abastecimento."
+    },
+    "stats": {
+      "charts": "Seus Gráficos",
+      "chartsDesc": "Visualize a evolução das receitas.",
+      "filters": "Filtrar por Período",
+      "filtersDesc": "Semana, Mês, Ano para estatísticas.",
+      "days": "Dias Trabalhados",
+      "daysDesc": "Veja quantos dias você trabalhou."
+    },
+    "settings": {
+      "agenda": "Agenda Semanal",
+      "agendaDesc": "Configure mercados para cada dia.",
+      "collab": "Gerenciar Colaboradores",
+      "collabDesc": "Adicione colaboradores com nome e custo diário.",
+      "spese": "Despesas Anuais",
+      "speseDesc": "Insira despesas anuais.",
+      "fuel": "Configuração Combustível",
+      "fuelDesc": "Tipo de combustível e cidade de partida."
+    }
   }
 }

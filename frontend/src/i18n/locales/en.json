@@ -298,7 +298,20 @@
     "fri": "F",
     "sat": "S",
     "sun": "S",
-    "monthsShort": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "monthsShort": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
     "months": [
       "January",
       "February",
@@ -415,5 +428,61 @@
     "hasStandFee": "true",
     "taxNote": "Varies by state/county regulations.",
     "marketRegulations": "In the US and UK, stand fees or pitch fees are paid to the market operator for allocated space."
+  },
+  "tutorial": {
+    "prev": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "done": "Got it!",
+    "home": {
+      "welcome": "Welcome to your Dashboard!",
+      "welcomeDesc": "Manage your entire market workday here. Enter revenue, expenses and track everything.",
+      "lordo": "Gross Revenue",
+      "lordoDesc": "Tap the GROSS card to enter today's revenue. Cash and POS amounts add up automatically.",
+      "meteo": "Today's Weather",
+      "meteoDesc": "Tap weather icons to record conditions. Useful to understand how weather affects sales.",
+      "collaboratori": "Your Collaborators",
+      "collaboratoriDesc": "Mark who's present today. Their costs are automatically calculated in fixed expenses.",
+      "spese": "Extra Expenses",
+      "speseDesc": "Record supplier expenses. You can mark them as daily, weekly or monthly.",
+      "buongiorno": "AI Assistant 'Good Morning'",
+      "buongiornoDesc": "Your personal assistant! Gives you weather, cheapest gas station on your route and last week's summary.",
+      "salva": "Save the Day",
+      "salvaDesc": "Press SAVE DAY to save all data. Data also auto-saves after 1.5 seconds."
+    },
+    "agenda": {
+      "calendar": "Your Calendar",
+      "calendarDesc": "See the whole month. Green days are worked. Tap a day to add notes.",
+      "colors": "Color Meanings",
+      "colorsDesc": "Green = worked, Teal = appointment, Orange = order. You can have multiple events on the same day.",
+      "notes": "Notes and Orders",
+      "notesDesc": "Write notes, supplier orders or reminders for each day. Everything saves automatically."
+    },
+    "gas": {
+      "search": "Search Gas Stations",
+      "searchDesc": "Find cheapest gas stations along your route. Works for Italy and France.",
+      "prices": "Real-Time Prices",
+      "pricesDesc": "Prices are fetched in real-time from the Ministry API. You'll see name, address and price per liter.",
+      "history": "Refueling History",
+      "historyDesc": "Log each refueling to track fuel costs over time."
+    },
+    "stats": {
+      "charts": "Your Charts",
+      "chartsDesc": "View revenue trends over time. Compare different markets and periods.",
+      "filters": "Filter by Period",
+      "filtersDesc": "Use Week, Month, Year filters to see statistics for the period you're interested in.",
+      "days": "Working Days",
+      "daysDesc": "See how many days you've worked since your first data entry. Percentage is based on actual days."
+    },
+    "settings": {
+      "agenda": "Weekly Schedule",
+      "agendaDesc": "Set up markets for each weekday. Enter name, km and stand fee. Km is calculated automatically!",
+      "collab": "Manage Collaborators",
+      "collabDesc": "Add collaborators with name and daily cost. They'll appear on Home to mark attendance.",
+      "spese": "Annual Expenses",
+      "speseDesc": "Enter annual expenses (insurance, tax, etc). They're automatically divided per working day.",
+      "fuel": "Fuel Settings",
+      "fuelDesc": "Set fuel type and departure city. Used to calculate costs and find gas stations."
+    }
   }
 }

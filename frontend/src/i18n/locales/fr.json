@@ -296,7 +296,20 @@
     "fri": "V",
     "sat": "S",
     "sun": "D",
-    "monthsShort": ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"],
+    "monthsShort": [
+      "Jan",
+      "Fév",
+      "Mar",
+      "Avr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aoû",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Déc"
+    ],
     "months": [
       "Janvier",
       "Février",
@@ -413,5 +426,61 @@
     "hasStandFee": "true",
     "taxNote": "TVA applicable selon le régime fiscal.",
     "marketRegulations": "En France, le droit de place est une redevance versée à la commune pour l'occupation de l'emplacement au marché."
+  },
+  "tutorial": {
+    "prev": "Retour",
+    "next": "Suivant",
+    "skip": "Passer",
+    "done": "Compris !",
+    "home": {
+      "welcome": "Bienvenue sur votre Tableau de bord !",
+      "welcomeDesc": "Gérez toute votre journée de travail au marché. Saisissez les recettes, dépenses et suivez tout.",
+      "lordo": "Recette Brute",
+      "lordoDesc": "Touchez BRUT pour saisir la recette du jour. Espèces et CB s'additionnent automatiquement.",
+      "meteo": "Météo du jour",
+      "meteoDesc": "Touchez les icônes météo pour enregistrer le temps. Utile pour comprendre l'impact sur les ventes.",
+      "collaboratori": "Vos Collaborateurs",
+      "collaboratoriDesc": "Marquez qui est présent aujourd'hui. Les coûts sont calculés automatiquement.",
+      "spese": "Dépenses Extra",
+      "speseDesc": "Enregistrez les dépenses fournisseurs. Marquez-les comme journalières, hebdomadaires ou mensuelles.",
+      "buongiorno": "Assistant IA 'Bonjour'",
+      "buongiornoDesc": "Votre assistant personnel ! Météo, station essence la moins chère et résumé de la semaine dernière.",
+      "salva": "Sauvegarder la Journée",
+      "salvaDesc": "Appuyez pour sauvegarder. Les données se sauvegardent aussi automatiquement après 1.5 secondes."
+    },
+    "agenda": {
+      "calendar": "Votre Calendrier",
+      "calendarDesc": "Voyez le mois entier. Jours verts = travaillés.",
+      "colors": "Signification des couleurs",
+      "colorsDesc": "Vert = travaillé, Teal = rendez-vous, Orange = commande.",
+      "notes": "Notes et Commandes",
+      "notesDesc": "Écrivez notes et commandes fournisseurs pour chaque jour."
+    },
+    "gas": {
+      "search": "Chercher Stations",
+      "searchDesc": "Trouvez les stations les moins chères sur votre trajet.",
+      "prices": "Prix en Temps Réel",
+      "pricesDesc": "Les prix sont récupérés en temps réel.",
+      "history": "Historique",
+      "historyDesc": "Enregistrez chaque plein pour suivre les coûts."
+    },
+    "stats": {
+      "charts": "Vos Graphiques",
+      "chartsDesc": "Visualisez l'évolution des recettes.",
+      "filters": "Filtrer par Période",
+      "filtersDesc": "Semaine, Mois, Année pour les statistiques.",
+      "days": "Jours Travaillés",
+      "daysDesc": "Voyez combien de jours vous avez travaillé."
+    },
+    "settings": {
+      "agenda": "Planning Hebdomadaire",
+      "agendaDesc": "Configurez les marchés pour chaque jour.",
+      "collab": "Gérer Collaborateurs",
+      "collabDesc": "Ajoutez collaborateurs avec nom et coût journalier.",
+      "spese": "Dépenses Annuelles",
+      "speseDesc": "Saisissez les dépenses annuelles.",
+      "fuel": "Configuration Carburant",
+      "fuelDesc": "Type de carburant et ville de départ."
+    }
   }
 }

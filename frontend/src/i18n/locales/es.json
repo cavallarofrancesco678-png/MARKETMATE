@@ -296,7 +296,20 @@
     "fri": "V",
     "sat": "S",
     "sun": "D",
-    "monthsShort": ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
+    "monthsShort": [
+      "Ene",
+      "Feb",
+      "Mar",
+      "Abr",
+      "May",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dic"
+    ],
     "months": [
       "Enero",
       "Febrero",
@@ -413,5 +426,61 @@
     "hasStandFee": "true",
     "taxNote": "IVA según régimen fiscal aplicable.",
     "marketRegulations": "En España, la tasa de puesto es un tributo municipal por la ocupación del espacio en mercadillos y ferias."
+  },
+  "tutorial": {
+    "prev": "Atrás",
+    "next": "Siguiente",
+    "skip": "Saltar",
+    "done": "¡Entendido!",
+    "home": {
+      "welcome": "¡Bienvenido a tu Panel!",
+      "welcomeDesc": "Gestiona toda tu jornada de trabajo en el mercado. Ingresa ingresos, gastos y lleva el control de todo.",
+      "lordo": "Ingreso Bruto",
+      "lordoDesc": "Toca BRUTO para ingresar la recaudación del día. Efectivo y POS se suman automáticamente.",
+      "meteo": "Clima del día",
+      "meteoDesc": "Toca los iconos del clima. Útil para entender cómo afecta a las ventas.",
+      "collaboratori": "Tus Colaboradores",
+      "collaboratoriDesc": "Marca quién está presente hoy. Los costos se calculan automáticamente.",
+      "spese": "Gastos Extra",
+      "speseDesc": "Registra gastos de proveedores. Puedes marcarlos como diarios, semanales o mensuales.",
+      "buongiorno": "Asistente IA 'Buenos Días'",
+      "buongiornoDesc": "¡Tu asistente personal! Te da el clima, la gasolinera más barata y el resumen de la semana pasada.",
+      "salva": "Guardar el Día",
+      "salvaDesc": "Pulsa GUARDAR DÍA para guardar. Los datos también se guardan automáticamente."
+    },
+    "agenda": {
+      "calendar": "Tu Calendario",
+      "calendarDesc": "Ve el mes completo. Días verdes = trabajados.",
+      "colors": "Significado de colores",
+      "colorsDesc": "Verde = trabajado, Teal = cita, Naranja = pedido.",
+      "notes": "Notas y Pedidos",
+      "notesDesc": "Escribe notas y pedidos a proveedores."
+    },
+    "gas": {
+      "search": "Buscar Gasolineras",
+      "searchDesc": "Encuentra las gasolineras más baratas en tu ruta.",
+      "prices": "Precios en Tiempo Real",
+      "pricesDesc": "Los precios se obtienen en tiempo real.",
+      "history": "Historial",
+      "historyDesc": "Registra cada repostaje."
+    },
+    "stats": {
+      "charts": "Tus Gráficos",
+      "chartsDesc": "Visualiza la evolución de ingresos.",
+      "filters": "Filtrar por Período",
+      "filtersDesc": "Semana, Mes, Año para estadísticas.",
+      "days": "Días Trabajados",
+      "daysDesc": "Ve cuántos días has trabajado."
+    },
+    "settings": {
+      "agenda": "Agenda Semanal",
+      "agendaDesc": "Configura mercados para cada día.",
+      "collab": "Gestionar Colaboradores",
+      "collabDesc": "Añade colaboradores con nombre y coste diario.",
+      "spese": "Gastos Anuales",
+      "speseDesc": "Ingresa gastos anuales.",
+      "fuel": "Configuración Combustible",
+      "fuelDesc": "Tipo de combustible y ciudad de salida."
+    }
   }
 }

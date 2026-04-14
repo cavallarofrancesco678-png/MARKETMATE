@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useTutorial, TutorialFAB, TUTORIAL_STEPS } from '../../src/components/TutorialSystem';
 import {
   View,
   Text,
@@ -25,6 +26,8 @@ export default function GasScreen() {
   const store = useAppStore();
   const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante } = store;
   const { t } = useTranslation();
+  const { startTutorial, registerSteps } = useTutorial();
+  useEffect(() => { registerSteps('gas', TUTORIAL_STEPS.gas); setTimeout(() => startTutorial('gas'), 1000); }, []);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 

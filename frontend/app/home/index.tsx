@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { useTutorial, TutorialFAB, TUTORIAL_STEPS } from '../../src/components/TutorialSystem';
 import {
   View,
   Text,
@@ -62,6 +63,15 @@ export default function HomeScreen() {
   const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
+  const { startTutorial, registerSteps } = useTutorial();
+
+  // Register and auto-start tutorial for Home screen
+  useEffect(() => {
+    registerSteps('home', TUTORIAL_STEPS.home);
+    // Small delay to let the screen render first
+    const timer = setTimeout(() => startTutorial('home'), 1500);
+    return () => clearTimeout(timer);
+  }, []);
   const dayNames = getDayNames();
   const monthNames = getMonthNames();
   const { height: screenH } = useWindowDimensions();
@@ -1281,6 +1291,8 @@ export default function HomeScreen() {
           mediaScontrino: mercatoOggi?.mediaScontrino || 0,
         }}
       />
+      {/* Tutorial FAB button */}
+      <TutorialFAB screenKey="home" />
     </View>
   );
 }
