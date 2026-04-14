@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -53,12 +53,55 @@ export const SpeseExtraModal: React.FC<Props> = ({
   const [nuovaVoce, setNuovaVoce] = useState('');
   const { speseExtraTags, addSpeseExtraTag } = useAppStore();
 
+  // Local state for input values to prevent re-render losing characters
+  const [localImporti, setLocalImporti] = useState<Record<string, string>>({});
+
+  // Sync local state when modal opens
+  useEffect(() => {
+    if (visible) {
+      const initial: Record<string, string> = {};
+      fornitori.forEach(f => {
+        initial[f.nome] = speseExtraFornitore[f.nome]?.importo || '';
+      });
+      setLocalImporti(initial);
+    }
+  }, [visible]);
+
   const updateEntry = (key: string, field: 'importo' | 'periodo', value: string) => {
-    const current = speseExtraFornitore[key] || { importo: '', periodo: 'giornaliero' };
-    setSpeseExtraFornitore({
-      ...speseExtraFornitore,
-      [key]: { ...current, [field]: value },
+    if (field === 'importo') {
+      // Update local state only for typing
+      setLocalImporti(prev => ({ ...prev, [key]: value }));
+    } else {
+      // For periodo changes, update parent directly
+      const current = speseExtraFornitore[key] || { importo: localImporti[key] || '', periodo: 'giornaliero' };
+      setSpeseExtraFornitore({
+        ...speseExtraFornitore,
+        [key]: { ...current, [field]: value, importo: localImporti[key] || current.importo },
+      });
+    }
+  };
+
+  const flushImporto = (key: string) => {
+    const val = localImporti[key];
+    if (val !== undefined) {
+      const current = speseExtraFornitore[key] || { importo: '', periodo: 'giornaliero' };
+      setSpeseExtraFornitore({
+        ...speseExtraFornitore,
+        [key]: { ...current, importo: val },
+      });
+    }
+  };
+
+  const handleClose = () => {
+    // Flush all local importi to parent state before closing
+    const updated = { ...speseExtraFornitore };
+    Object.entries(localImporti).forEach(([key, val]) => {
+      const current = updated[key] || { importo: '', periodo: 'giornaliero' };
+      updated[key] = { ...current, importo: val };
     });
+    setSpeseExtraFornitore(updated);
+    setLocalImporti({});
+    onClose();
   };
 
   const addVoceGenerica = () => {
@@ -107,7 +150,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
           <View style={st.handle} />
           <View style={st.headerRow}>
             <Text style={st.title}>SPESE EXTRA</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose}>
               <Ionicons name="close-circle" size={28} color="#5A7575" />
             </TouchableOpacity>
           </View>
@@ -152,8 +195,10 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       placeholder="0"
                       placeholderTextColor="#B0B0A0"
                       keyboardType="decimal-pad"
-                      value={entry.importo}
+                      value={localImporti[f.nome] !== undefined ? localImporti[f.nome] : (entry.importo || '')}
                       onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
+                      onBlur={() => flushImporto(f.nome)}
+                      onEndEditing={() => flushImporto(f.nome)}
                       returnKeyType="done"
                     />
                     <Text style={st.euro}>{'\u20AC'}</Text>
@@ -240,7 +285,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
             <View style={{ height: 40 }} />
           </ScrollView>
 
-          <TouchableOpacity style={st.confirmBtn} onPress={onClose} activeOpacity={0.8}>
+          <TouchableOpacity style={st.confirmBtn} onPress={handleClose} activeOpacity={0.8}>
             <Text style={st.confirmTxt}>CONFERMA</Text>
           </TouchableOpacity>
         </View>

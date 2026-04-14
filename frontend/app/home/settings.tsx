@@ -269,6 +269,8 @@ export default function SettingsPage() {
 
   // Expanded state for agenda days
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
+  // Local state for market name inputs to prevent re-render losing characters
+  const [localMercatoNames, setLocalMercatoNames] = useState<Record<number, string>>({});
   // Expanded state for fornitori
   const [expandedForn, setExpandedForn] = useState<number | null>(null);
 
@@ -720,17 +722,32 @@ export default function SettingsPage() {
             {isOpen && (
               <View style={s.agendaBody}>
                 <View style={s.divider} />
-                {/* Inline TextInput per nome mercato - salva direttamente */}
+                {/* Inline TextInput per nome mercato - usa stato locale per evitare perdita caratteri */}
                 <View style={s.inlineInputRow}>
                   <Ionicons name="storefront-outline" size={18} color="#1E7F85" />
                   <TextInput
                     style={[s.inlineInput, { flex: 1 }]}
                     placeholder={t('settings.marketName') || 'Nome mercato'}
                     placeholderTextColor="#A0A090"
-                    value={m.mercato || ''}
-                    onChangeText={(text) => updateMercato(idx, 'mercato', text)}
-                    onBlur={() => handleMercatoBlur(idx)}
-                    onEndEditing={() => handleMercatoBlur(idx)}
+                    value={localMercatoNames[idx] !== undefined ? localMercatoNames[idx] : (m.mercato || '')}
+                    onFocus={() => setLocalMercatoNames(prev => ({ ...prev, [idx]: m.mercato || '' }))}
+                    onChangeText={(text) => setLocalMercatoNames(prev => ({ ...prev, [idx]: text }))}
+                    onBlur={() => {
+                      const val = localMercatoNames[idx];
+                      if (val !== undefined) {
+                        updateMercato(idx, 'mercato', val);
+                        handleMercatoBlur(idx);
+                      }
+                      setLocalMercatoNames(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                    }}
+                    onEndEditing={() => {
+                      const val = localMercatoNames[idx];
+                      if (val !== undefined) {
+                        updateMercato(idx, 'mercato', val);
+                        handleMercatoBlur(idx);
+                      }
+                      setLocalMercatoNames(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                    }}
                     autoCapitalize="words"
                     returnKeyType="done"
                   />
