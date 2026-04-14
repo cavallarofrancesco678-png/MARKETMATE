@@ -55,15 +55,23 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [fuelData, setFuelData] = useState<string>('');
+  const [weatherData, setWeatherData] = useState<string>('');
   const scrollRef = useRef<ScrollView>(null);
   const recognitionRef = useRef<any>(null);
   const sessionId = useRef(`session_${Date.now()}`);
   const { t } = useTranslation();
 
-  // Fetch fuel prices when modal opens
+  // Fetch fuel prices and weather when modal opens
   useEffect(() => {
-    if (visible && storeData.partenzaDa && storeData.mercatoOggi) {
-      fetchFuelPrices();
+    if (visible) {
+      if (storeData.partenzaDa && storeData.mercatoOggi) {
+        fetchFuelPrices();
+      }
+      // Fetch weather for market location or departure
+      const weatherCity = storeData.mercatoOggi || storeData.partenzaDa;
+      if (weatherCity) {
+        fetchWeather(weatherCity);
+      }
     }
   }, [visible]);
 
@@ -92,6 +100,24 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
     }
   };
 
+  const fetchWeather = async (citta: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/weather`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ citta }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWeatherData(`METEO REALE ${citta}: ${data.descrizione}, ${data.temperatura}°C (min ${data.temperatura_min}°C, max ${data.temperatura_max}°C), Vento ${data.vento_kmh} km/h, Precipitazioni ${data.precipitazioni_mm}mm`);
+      } else {
+        setWeatherData(`Meteo non disponibile per ${citta}`);
+      }
+    } catch {
+      setWeatherData('Impossibile recuperare il meteo.');
+    }
+  };
+
   const contextStr = useMemo(() => {
     const s = storeData;
     const settPrec = s.settimanaPrec.giorni > 0
@@ -117,8 +143,9 @@ Settimana precedente totale: ${settPrec}
 Settimana precedente mercato specifico: ${settPrecMerc}
 Media scontrino attuale: ${mediaSc}
 Carburante: ${carb}
+${weatherData ? '\n' + weatherData : 'Nessun dato meteo reale'}
 ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
-  }, [storeData, fuelData]);
+  }, [storeData, fuelData, weatherData]);
 
   // Auto-send welcome message on open
   useEffect(() => {

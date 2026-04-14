@@ -428,6 +428,74 @@ async def calculate_distance(req: DistanceRequest):
         logger.error(f"Distance calc error: {e}")
         return DistanceResponse(success=False, message=f"Errore calcolo distanza: {str(e)}")
 
+# ── Weather API using Open-Meteo (free, no API key) ──
+
+class WeatherRequest(BaseModel):
+    citta: str
+
+class WeatherResponse(BaseModel):
+    success: bool
+    temperatura: float = 0
+    temperatura_max: float = 0
+    temperatura_min: float = 0
+    descrizione: str = ""
+    vento_kmh: float = 0
+    precipitazioni_mm: float = 0
+    message: str = ""
+
+@api_router.post("/weather", response_model=WeatherResponse)
+async def get_weather(req: WeatherRequest):
+    """Get current weather for a city using Open-Meteo (free API)."""
+    try:
+        geo = await geocode_city(req.citta)
+        if not geo:
+            return WeatherResponse(success=False, message=f"Città non trovata: {req.citta}")
+
+        async with httpx.AsyncClient(timeout=10) as client_http:
+            resp = await client_http.get(
+                "https://api.open-meteo.com/v1/forecast",
+                params={
+                    "latitude": geo["lat"],
+                    "longitude": geo["lon"],
+                    "current": "temperature_2m,wind_speed_10m,precipitation,weather_code",
+                    "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
+                    "timezone": "auto",
+                    "forecast_days": 1,
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                current = data.get("current", {})
+                daily = data.get("daily", {})
+
+                # Map WMO weather codes to descriptions
+                wmo_codes = {
+                    0: "Sereno", 1: "Prevalentemente sereno", 2: "Parzialmente nuvoloso", 3: "Coperto",
+                    45: "Nebbia", 48: "Nebbia con brina", 51: "Pioviggine leggera", 53: "Pioviggine",
+                    55: "Pioviggine intensa", 61: "Pioggia leggera", 63: "Pioggia moderata", 65: "Pioggia forte",
+                    71: "Neve leggera", 73: "Neve moderata", 75: "Neve forte", 77: "Granuli di neve",
+                    80: "Rovesci leggeri", 81: "Rovesci moderati", 82: "Rovesci violenti",
+                    85: "Rovesci di neve leggeri", 86: "Rovesci di neve forti",
+                    95: "Temporale", 96: "Temporale con grandine leggera", 99: "Temporale con grandine forte",
+                }
+                weather_code = current.get("weather_code", 0)
+                descrizione = wmo_codes.get(weather_code, f"Codice meteo {weather_code}")
+
+                return WeatherResponse(
+                    success=True,
+                    temperatura=current.get("temperature_2m", 0),
+                    temperatura_max=daily.get("temperature_2m_max", [0])[0] if daily.get("temperature_2m_max") else 0,
+                    temperatura_min=daily.get("temperature_2m_min", [0])[0] if daily.get("temperature_2m_min") else 0,
+                    descrizione=descrizione,
+                    vento_kmh=current.get("wind_speed_10m", 0),
+                    precipitazioni_mm=current.get("precipitation", 0),
+                    message=f"{req.citta}: {descrizione}, {current.get('temperature_2m', 0)}°C, Vento {current.get('wind_speed_10m', 0)} km/h"
+                )
+            return WeatherResponse(success=False, message="Errore API meteo")
+    except Exception as e:
+        logger.error(f"Weather error: {e}")
+        return WeatherResponse(success=False, message=f"Errore meteo: {str(e)}")
+
 # Include the router in the main app
 app.include_router(api_router)
 

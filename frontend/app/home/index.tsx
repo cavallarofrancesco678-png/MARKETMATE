@@ -1091,6 +1091,23 @@ export default function HomeScreen() {
                 })
               )}
             </ScrollView>
+            {/* Pulsante + per aggiungere voce manuale extra */}
+            <View style={{ marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[s.modalSub, { flex: 0, marginBottom: 0 }]}>{t('home.manualEntry') || 'Aggiunta manuale:'}</Text>
+                <TextInput
+                  style={[s.invQtyInput, { flex: 1, textAlign: 'center' }]}
+                  placeholder="€"
+                  placeholderTextColor="#B0B5A8"
+                  keyboardType="numeric"
+                  value={invenduto !== '0' && !invendutoCalcolato ? invenduto : ''}
+                  onChangeText={(v) => {
+                    const manual = parseFloat(v.replace(',', '.')) || 0;
+                    setInvenduto(manual > 0 ? manual.toString() : '0');
+                  }}
+                />
+              </View>
+            </View>
             {tuttiProdotti.length > 0 && (
               <>
                 <View style={s.modalDivider} />

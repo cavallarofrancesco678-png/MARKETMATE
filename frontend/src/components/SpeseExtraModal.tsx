@@ -129,6 +129,15 @@ export const SpeseExtraModal: React.FC<Props> = ({
                   <View style={st.fornHeader}>
                     <Ionicons name="storefront" size={16} color="#1E7F85" />
                     <Text style={st.cardTitle}>{f.nome}</Text>
+                    {entry.importo && parseFloat(entry.importo.replace(',', '.')) > 0 ? (
+                      <TouchableOpacity onPress={() => {
+                        const updated = { ...speseExtraFornitore };
+                        delete updated[f.nome];
+                        setSpeseExtraFornitore(updated);
+                      }} style={{ marginLeft: 'auto' }}>
+                        <Ionicons name="close-circle" size={20} color="#D46A6A" />
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                   <View style={st.prodottiRow}>
                     {f.prodotti.map((p) => (
@@ -159,6 +168,12 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       );
                     })}
                   </View>
+                  {/* Mostra equivalente giornaliero per spese settimanali/mensili */}
+                  {entry.importo && parseFloat(entry.importo.replace(',', '.')) > 0 && entry.periodo !== 'giornaliero' && (
+                    <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 4, fontStyle: 'italic' }}>
+                      = €{(entry.periodo === 'settimanale' ? parseFloat(entry.importo.replace(',', '.')) / 6 : parseFloat(entry.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
+                    </Text>
+                  )}
                 </View>
               );
             })}
