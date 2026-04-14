@@ -622,8 +622,8 @@ export default function HomeScreen() {
       {/* ═══ ROW 3: SPESE EXTRA (cliccabile → fornitori) / SPESE FISSE ═══ */}
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseExtraModal(true)}>
-          <Text style={s.cardLbl}>{t('home.extraExpenses')}</Text>
-          <Text style={s.cardVal}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(2)}</Text>
+          <Text style={s.cardLbl}>SPESE</Text>
+          <Text style={[s.cardVal, { marginLeft: 4 }]}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(2)}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseFisseModal(true)}>
           <Text style={s.cardLbl}>{t('home.fixedExpenses')}</Text>
@@ -1288,11 +1288,12 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   marketName: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '900',
     color: '#1A4040',
     letterSpacing: 1.5,
     textAlign: 'center',
+    paddingHorizontal: 50,
   },
   badgeLeft: {
     position: 'absolute',

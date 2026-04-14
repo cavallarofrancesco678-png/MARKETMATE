@@ -460,6 +460,7 @@ export default function SettingsPage() {
   };
 
   const autoCalculateKm = async (idx: number, partenza: string, destinazione: string) => {
+    if (!partenza || !destinazione || partenza.trim().length < 2 || destinazione.trim().length < 2) return;
     try {
       const res = await fetch(`${BACKEND_URL}/api/distance/calculate`, {
         method: 'POST',
@@ -474,6 +475,19 @@ export default function SettingsPage() {
       }
     } catch (err) {
       // Silently fail - user can always set km manually
+    }
+  };
+
+  // Ricalcola KM per TUTTI i mercati quando cambia la partenza
+  const recalcAllKm = async (partenza: string) => {
+    if (!partenza || partenza.trim().length < 2) return;
+    for (let i = 0; i < store.agenda.length; i++) {
+      const m = store.agenda[i];
+      if (m.mercato && m.mercato.trim().length > 1) {
+        // Delay between calls to respect rate limits
+        await new Promise(r => setTimeout(r, 1200));
+        await autoCalculateKm(i, partenza, m.mercato);
+      }
     }
   };
 
@@ -537,7 +551,7 @@ export default function SettingsPage() {
         <View style={s.divider} />
         <View style={s.itemRow}>
           <Ionicons name="navigate" size={20} color="#1E7F85" />
-          <TouchableOpacity style={s.itemInfo} onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => store.setConfig({ partenzaDa: v[0] }))}>
+          <TouchableOpacity style={s.itemInfo} onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => { store.setConfig({ partenzaDa: v[0] }); recalcAllKm(v[0]); })}>
             <Text style={s.itemLabel}>{t('settings.departure')}</Text>
             <Text style={s.itemVal}>{store.partenzaDa || '---'}</Text>
           </TouchableOpacity>
@@ -546,7 +560,7 @@ export default function SettingsPage() {
               <Ionicons name="close-circle" size={20} color="#D46A6A" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => store.setConfig({ partenzaDa: v[0] }))}>
+          <TouchableOpacity onPress={() => openModal(t('settings.departure'), [t('settings.departure')], (v) => { store.setConfig({ partenzaDa: v[0] }); recalcAllKm(v[0]); })}>
             <Ionicons name="create-outline" size={18} color="#7A9090" />
           </TouchableOpacity>
         </View>
@@ -696,7 +710,7 @@ export default function SettingsPage() {
           <View key={idx} style={s.card}>
             <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedDay(isOpen ? null : idx)}>
               <Text style={s.agendaDay}>{t(`days.${['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][idx]}`).toUpperCase()}</Text>
-              <Text style={s.agendaMarket}>{m.mercato || '---'}</Text>
+              <Text style={s.agendaMarket} numberOfLines={2}>{m.mercato || '---'}</Text>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
             </TouchableOpacity>
             {isOpen && (
@@ -706,7 +720,7 @@ export default function SettingsPage() {
                 <View style={s.inlineInputRow}>
                   <Ionicons name="storefront-outline" size={18} color="#1E7F85" />
                   <TextInput
-                    style={s.inlineInput}
+                    style={[s.inlineInput, { flex: 1 }]}
                     placeholder={t('settings.marketName') || 'Nome mercato'}
                     placeholderTextColor="#A0A090"
                     value={m.mercato || ''}
@@ -717,7 +731,9 @@ export default function SettingsPage() {
                     returnKeyType="done"
                   />
                   {m.mercato ? (
-                    <Ionicons name="checkmark-circle" size={16} color="#1D8348" />
+                    <TouchableOpacity onPress={() => updateMercato(idx, 'mercato', '')} style={{ marginLeft: 4 }}>
+                      <Ionicons name="close-circle" size={18} color="#D46A6A" />
+                    </TouchableOpacity>
                   ) : null}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
