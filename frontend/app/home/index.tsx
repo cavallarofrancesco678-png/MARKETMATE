@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { useTutorial, TutorialFAB, TUTORIAL_STEPS } from '../../src/components/TutorialSystem';
 import {
   View,
   Text,
@@ -63,15 +62,6 @@ export default function HomeScreen() {
   const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
-  const { startTutorial, registerSteps } = useTutorial();
-
-  // Register and auto-start tutorial for Home screen
-  useEffect(() => {
-    registerSteps('home', TUTORIAL_STEPS.home);
-    // Small delay to let the screen render first
-    const timer = setTimeout(() => startTutorial('home'), 1500);
-    return () => clearTimeout(timer);
-  }, []);
   const dayNames = getDayNames();
   const monthNames = getMonthNames();
   const { height: screenH } = useWindowDimensions();
@@ -1290,8 +1280,6 @@ export default function HomeScreen() {
           mediaScontrino: mercatoOggi?.mediaScontrino || 0,
         }}
       />
-      {/* Tutorial FAB button */}
-      <TutorialFAB screenKey="home" />
     </View>
   );
 }
@@ -1400,7 +1388,7 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 16, fontWeight: '900', color: '#4A3A2A', paddingHorizontal: 6, letterSpacing: 1 },
+  toggleTxt: { fontSize: 15, fontWeight: '900', color: '#4A3A2A', letterSpacing: 0.3 },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
     borderRadius: 8,

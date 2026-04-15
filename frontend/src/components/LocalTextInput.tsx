@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { TextInput, TextInputProps, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { TextInput, TextInputProps } from 'react-native';
 
 interface LocalTextInputProps extends TextInputProps {
   externalValue: string;
@@ -7,12 +7,10 @@ interface LocalTextInputProps extends TextInputProps {
 }
 
 /**
- * TextInput che gestisce il proprio stato locale.
- * Evita il bug di React Native dove il re-render del parent
- * causa la perdita dei caratteri digitati.
- * 
+ * TextInput con stato locale isolato.
  * - Scrive nello stato locale durante la digitazione
- * - Sincronizza con il parent solo su blur/submit
+ * - Sincronizza con il parent su blur E su unmount
+ * - Evita perdita caratteri da re-render del parent
  */
 export const LocalTextInput: React.FC<LocalTextInputProps> = ({
   externalValue,
@@ -21,28 +19,55 @@ export const LocalTextInput: React.FC<LocalTextInputProps> = ({
 }) => {
   const [localValue, setLocalValue] = useState(externalValue);
   const [isFocused, setIsFocused] = useState(false);
+  const latestValue = useRef(localValue);
+  const hasChanged = useRef(false);
+  const commitRef = useRef(onValueCommit);
+  commitRef.current = onValueCommit;
+
+  // Keep ref in sync
+  useEffect(() => {
+    latestValue.current = localValue;
+  }, [localValue]);
 
   // Sync from external only when NOT focused
   useEffect(() => {
     if (!isFocused) {
       setLocalValue(externalValue);
+      latestValue.current = externalValue;
+      hasChanged.current = false;
     }
   }, [externalValue, isFocused]);
+
+  // CRITICAL: Commit on unmount to prevent data loss
+  useEffect(() => {
+    return () => {
+      if (hasChanged.current) {
+        commitRef.current(latestValue.current);
+      }
+    };
+  }, []);
 
   const handleFocus = useCallback((e: any) => {
     setIsFocused(true);
     setLocalValue(externalValue);
+    latestValue.current = externalValue;
+    hasChanged.current = false;
     props.onFocus?.(e);
-  }, [externalValue, props.onFocus]);
+  }, [externalValue]);
 
   const handleBlur = useCallback((e: any) => {
     setIsFocused(false);
-    onValueCommit(localValue);
+    if (hasChanged.current) {
+      commitRef.current(latestValue.current);
+      hasChanged.current = false;
+    }
     props.onBlur?.(e);
-  }, [localValue, onValueCommit, props.onBlur]);
+  }, []);
 
   const handleChangeText = useCallback((text: string) => {
     setLocalValue(text);
+    latestValue.current = text;
+    hasChanged.current = true;
   }, []);
 
   return (

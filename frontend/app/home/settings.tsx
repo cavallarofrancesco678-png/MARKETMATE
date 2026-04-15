@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { LocalTextInput } from '../../src/components/LocalTextInput';
-import { useTutorial, TutorialFAB, TUTORIAL_STEPS } from '../../src/components/TutorialSystem';
 import {
   View,
   Text,
@@ -239,8 +238,6 @@ const InputModal = ({
 /* ─── SETTINGS PAGE ─── */
 export default function SettingsPage() {
   const store = useAppStore();
-  const { startTutorial, registerSteps } = useTutorial();
-  useEffect(() => { registerSteps('settings', TUTORIAL_STEPS.settings); setTimeout(() => startTutorial('settings'), 1000); }, []);
   const { t, i18n } = useTranslation();
   const safeInsets = useSafeAreaInsets();
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
