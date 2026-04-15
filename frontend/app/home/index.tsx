@@ -134,7 +134,6 @@ export default function HomeScreen() {
       setMeteo(saved.meteo || 'SOLE');
       const invTot = saved.dettaglio_invenduto?.totale;
       setInvenduto(invTot && invTot > 0 ? invTot.toString() : '0');
-      // Ripristina presenze collaboratori
       if (saved.dettaglio_staff && typeof saved.dettaglio_staff === 'object') {
         const p: Record<string, boolean> = {};
         collaboratori.forEach((c) => {
@@ -142,7 +141,6 @@ export default function HomeScreen() {
         });
         setPresenze(p);
       }
-      // Ripristina spese extra fornitori
       if (saved.dettaglio_fornitori && Object.keys(saved.dettaglio_fornitori).length > 0) {
         const fornData: Record<string, { importo: string; periodo: string }> = {};
         Object.entries(saved.dettaglio_fornitori).forEach(([nome, val]) => {
@@ -152,13 +150,10 @@ export default function HomeScreen() {
       } else {
         setSpeseExtraFornitore({});
       }
-      // Controlla se era una fiera - solo al primo caricamento, non su re-render
       if (saved.mercato?.toLowerCase() === 'fiera') {
         setIsFiera(true);
       }
-      // NON resettare isFiera qui - l'utente potrebbe aver cambiato manualmente
     } else {
-      // Resetta i campi per una giornata non ancora salvata
       setLordo('');
       setContanti('');
       setPos('');
@@ -168,21 +163,25 @@ export default function HomeScreen() {
       const p: Record<string, boolean> = {};
       collaboratori.forEach((c) => { p[c.nome] = false; });
       setPresenze(p);
-      // Solo se non c'è nessun dato salvato E il giorno cambia, resetta la fiera
     }
-  }, [store.storicoGiornate, collaboratori]);
+  }, [collaboratori]);
 
-  /* ── Carica dati salvati quando cambia la data ── */
+  /* ── Carica dati salvati SOLO quando cambia la data ── */
   useEffect(() => {
-    setIsFiera(false); // Resetta fiera solo quando cambia il giorno
+    setIsFiera(false);
     loadSavedData(dataCorrente);
   }, [dataCorrente]);
 
-  /* ── Ricarica dati quando il tab torna in focus ── */
+  /* ── Ricarica dati quando il tab torna in focus (solo per cambio tab) ── */
+  const isFirstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
       loadSavedData(dataCorrente);
-    }, [dataCorrente, loadSavedData])
+    }, [dataCorrente])
   );
 
   /* ── Appunti prossimi 2 giorni per notifiche campanello ── */
@@ -547,12 +546,12 @@ export default function HomeScreen() {
         <View style={s.toggleRow}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsFiera(false)}>
             <View style={[s.toggle, !isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]} numberOfLines={1} adjustsFontSizeToFit>{t('home.market')}</Text>
+              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]} numberOfLines={1}>{t('home.market')}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]} numberOfLines={1} adjustsFontSizeToFit>{t('stats.fairs') || 'FIERE'}</Text>
+              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]} numberOfLines={1}>{t('stats.fairs') || 'FIERE'}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
@@ -1401,7 +1400,7 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 15, fontWeight: '800', color: '#4A3A2A', paddingHorizontal: 4, letterSpacing: 0.5 },
+  toggleTxt: { fontSize: 16, fontWeight: '900', color: '#4A3A2A', paddingHorizontal: 6, letterSpacing: 1 },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
     borderRadius: 8,
