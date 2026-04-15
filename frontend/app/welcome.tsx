@@ -192,6 +192,7 @@ export default function WelcomeScreen() {
       
       {currentPage > 0 && currentPage < TOTAL_PAGES - 1 ? (
         <TouchableOpacity
+          testID="onboard-forward-btn"
           style={styles.navButton}
           onPress={handleNext}
         >
