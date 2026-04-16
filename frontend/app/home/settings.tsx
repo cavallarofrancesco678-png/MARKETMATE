@@ -1238,7 +1238,7 @@ const s = StyleSheet.create({
   agendaDay: { fontSize: 13, fontWeight: '700', color: '#1A3535' },
   agendaMarket: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     color: '#7A9090',
     textAlign: 'right',
     marginRight: 8,

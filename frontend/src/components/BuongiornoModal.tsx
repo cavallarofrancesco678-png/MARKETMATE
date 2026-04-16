@@ -56,6 +56,7 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   const [isListening, setIsListening] = useState(false);
   const [fuelData, setFuelData] = useState<string>('');
   const [weatherData, setWeatherData] = useState<string>('');
+  const [dataReady, setDataReady] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const recognitionRef = useRef<any>(null);
   const sessionId = useRef(`session_${Date.now()}`);
@@ -64,14 +65,22 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   // Fetch fuel prices and weather when modal opens
   useEffect(() => {
     if (visible) {
+      setDataReady(false);
+      const promises: Promise<void>[] = [];
+
       if (storeData.partenzaDa && storeData.mercatoOggi) {
-        fetchFuelPrices();
+        promises.push(fetchFuelPrices());
       }
-      // Fetch weather for market location or departure
       const weatherCity = storeData.mercatoOggi || storeData.partenzaDa;
       if (weatherCity) {
-        fetchWeather(weatherCity);
+        promises.push(fetchWeather(weatherCity));
       }
+
+      // Mark data as ready when all fetches complete
+      Promise.all(promises).then(() => setDataReady(true)).catch(() => setDataReady(true));
+      
+      // Timeout: if fetches take too long, proceed anyway
+      setTimeout(() => setDataReady(true), 5000);
     }
   }, [visible]);
 
@@ -147,12 +156,12 @@ ${weatherData ? '\n' + weatherData : 'Nessun dato meteo reale'}
 ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
   }, [storeData, fuelData, weatherData]);
 
-  // Auto-send welcome message on open
+  // Auto-send welcome message AFTER fuel+weather data is ready
   useEffect(() => {
-    if (visible && messages.length === 0) {
+    if (visible && dataReady && messages.length === 0) {
       sendMessage('Buongiorno! Come si presenta la giornata di oggi?');
     }
-  }, [visible]);
+  }, [visible, dataReady]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;

@@ -1379,7 +1379,9 @@ const s = StyleSheet.create({
     backgroundColor: '#E0DBC8',
     borderRadius: 24,
     paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(155,145,125,0.55), -5px -5px 12px rgba(255,255,250,0.9)',
   },
