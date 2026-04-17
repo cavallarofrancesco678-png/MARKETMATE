@@ -117,12 +117,11 @@ export default function LoginScreen() {
           {/* ═══ PIN INPUT ═══ */}
           <View style={s.inputSection}>
             <View style={s.pinCard}>
-              <Ionicons name="lock-closed" size={18} color="#1E7F85" />
               <TextInput
                 testID="pin-input"
                 style={s.pinInput}
-                placeholder={t('login.enterPin') || 'Inserisci PIN'}
-                placeholderTextColor="#B0A898"
+                placeholder="● ● ● ●"
+                placeholderTextColor="#D0C8B8"
                 value={pin}
                 onChangeText={(v) => { setPin(v); setError(''); }}
                 secureTextEntry
@@ -228,15 +227,15 @@ const s = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 4,
-    gap: 10,
   },
   pinInput: {
     flex: 1,
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '800',
     color: '#1A4040',
     textAlign: 'center',
     paddingVertical: 16,
+    letterSpacing: 8,
   },
   errorTxt: {
     color: '#D46A6A',
