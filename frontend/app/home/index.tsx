@@ -114,9 +114,12 @@ export default function HomeScreen() {
 
   /* ── Funzione per caricare i dati salvati di una data ── */
   const loadSavedData = useCallback((targetDate: Date) => {
-    const saved = store.storicoGiornate.find(
+    // CRITICAL: Read FRESH state from store to avoid stale closure
+    const freshStore = useAppStore.getState();
+    const saved = freshStore.storicoGiornate.find(
       (g) => new Date(g.data).toDateString() === targetDate.toDateString()
     );
+    const collabs = freshStore.collaboratori || [];
     if (saved) {
       setLordo(saved.lordo > 0 ? saved.lordo.toString() : '');
       setContanti(saved.contanti > 0 ? saved.contanti.toString() : '');
@@ -126,7 +129,7 @@ export default function HomeScreen() {
       setInvenduto(invTot && invTot > 0 ? invTot.toString() : '0');
       if (saved.dettaglio_staff && typeof saved.dettaglio_staff === 'object') {
         const p: Record<string, boolean> = {};
-        collaboratori.forEach((c) => {
+        collabs.forEach((c) => {
           p[c.nome] = saved.dettaglio_staff[c.nome] === true;
         });
         setPresenze(p);
@@ -151,10 +154,10 @@ export default function HomeScreen() {
       setSpeseExtraFornitore({});
       setVociGeneriche([]);
       const p: Record<string, boolean> = {};
-      collaboratori.forEach((c) => { p[c.nome] = false; });
+      collabs.forEach((c) => { p[c.nome] = false; });
       setPresenze(p);
     }
-  }, [collaboratori]);
+  }, []);
 
   /* ── Carica dati salvati SOLO quando cambia la data ── */
   useEffect(() => {
@@ -534,23 +537,22 @@ export default function HomeScreen() {
       {/* ═══ TOGGLE ═══ */}
       <View style={[s.section, { height: TOGGLE_H, justifyContent: 'center' }]}>
         <View style={s.toggleRow}>
-          <TouchableOpacity style={{ flex: 1, marginRight: 6 }} onPress={() => setIsFiera(false)}>
+          <TouchableOpacity style={{ flex: 1, marginRight: 4 }} onPress={() => setIsFiera(false)}>
             <View style={[s.toggle, !isFiera && s.toggleOn]}>
               <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>{t('home.market')}</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={{ flex: 1, marginLeft: 6 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
+          <TouchableOpacity style={{ flex: 1, marginHorizontal: 4 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
               <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]}>{t('stats.fairs') || 'FIERE'}</Text>
             </View>
           </TouchableOpacity>
+          <TouchableOpacity style={{ marginLeft: 4 }} onPress={() => setIsInPiazza(!isInPiazza)}>
+            <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#CC3333' }]}>
+              <Ionicons name={isInPiazza ? 'storefront' : 'home'} size={16} color="#FFF" />
+            </View>
+          </TouchableOpacity>
         </View>
-        {/* Pulsante A CASA separato */}
-        <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)} style={{ position: 'absolute', right: 8, top: 4 }}>
-          <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#CC3333' }]}>
-            <Text style={s.piazzaTxt}>{isInPiazza ? '🏪' : '🏠'}</Text>
-          </View>
-        </TouchableOpacity>
       </View>
 
       <View style={{ height: GAP }} />
@@ -944,7 +946,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.3</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.4</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
@@ -1381,7 +1383,7 @@ const s = StyleSheet.create({
     backgroundColor: '#E0DBC8',
     borderRadius: 20,
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
     // @ts-ignore
@@ -1392,12 +1394,14 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 13, fontWeight: '900', color: '#4A3A2A', textTransform: 'uppercase' as const, letterSpacing: 1.5 },
+  toggleTxt: { fontSize: 11, fontWeight: '900', color: '#4A3A2A', textTransform: 'uppercase' as const, letterSpacing: 1.5 },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   piazzaTxt: { color: '#FFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
 

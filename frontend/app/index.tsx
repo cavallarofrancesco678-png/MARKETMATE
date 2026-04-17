@@ -71,12 +71,26 @@ export default function LoginScreen() {
       router.push('/welcome');
       return;
     }
-    // Se configurato con PIN → vai direttamente
+    // Già configurato: vai alla Home (con o senza PIN)
     if (savedPin) {
-      router.replace('/home');
+      // Ha PIN → verifica prima
+      if (pin === savedPin) {
+        if (otpEnabled && phoneNumber) {
+          generateOtp();
+        } else {
+          router.replace('/home');
+        }
+      } else if (pin.length > 0) {
+        setAttempts(prev => prev + 1);
+        setError(t('login.wrongPin') || 'PIN errato');
+        setPin('');
+      } else {
+        // PIN vuoto, mostra errore
+        setError(t('login.enterPin') || 'Inserisci il PIN');
+      }
     } else {
-      // Nessun PIN configurato → forza la configurazione
-      router.push('/welcome');
+      // Nessun PIN → vai direttamente alla Home
+      router.replace('/home');
     }
   };
 
