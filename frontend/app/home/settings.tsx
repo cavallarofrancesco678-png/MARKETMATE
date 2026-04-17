@@ -503,12 +503,14 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (data.success && data.km_andata_ritorno > 0) {
-        const updated = [...store.agenda];
+        // CRITICAL: Read FRESH state from store, not from stale closure
+        const freshAgenda = useAppStore.getState().agenda;
+        const updated = [...freshAgenda];
         updated[idx] = { ...updated[idx], km: data.km_andata_ritorno };
-        store.updateAgenda(updated);
+        useAppStore.getState().updateAgenda(updated);
       }
     } catch (err) {
-      // Silently fail - user can always set km manually
+      // Silently fail
     }
   };
 

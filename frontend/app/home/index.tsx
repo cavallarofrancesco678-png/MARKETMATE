@@ -944,7 +944,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.2</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.3</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
@@ -1379,9 +1379,9 @@ const s = StyleSheet.create({
   },
   toggle: {
     backgroundColor: '#E0DBC8',
-    borderRadius: 24,
+    borderRadius: 20,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
     // @ts-ignore
@@ -1392,7 +1392,7 @@ const s = StyleSheet.create({
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(15,55,60,0.6), -4px -4px 10px rgba(45,120,125,0.35)',
   },
-  toggleTxt: { fontSize: 15, fontWeight: '900', color: '#4A3A2A', letterSpacing: 0.3 },
+  toggleTxt: { fontSize: 13, fontWeight: '900', color: '#4A3A2A', textTransform: 'uppercase' as const, letterSpacing: 1.5 },
   piazzaBtn: {
     backgroundColor: '#1E7F85',
     borderRadius: 8,
