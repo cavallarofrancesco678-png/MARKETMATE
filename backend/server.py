@@ -127,7 +127,12 @@ QUANDO L'UTENTE TI SALUTA O DICE "BUONGIORNO", rispondi con queste sezioni:
 
 3. INCASSO: Mostra i dati della settimana precedente se disponibili.
 
-4. BENZINA: Se hai i PREZZI CARBURANTE REALI nel contesto, riporta il distributore più economico con nome, indirizzo, prezzo e distanza.
+4. BENZINA: Se hai i PREZZI CARBURANTE REALI nel contesto, riporta TUTTI i distributori trovati SUL TRAGITTO tra partenza e arrivo, con:
+   - Nome distributore
+   - Indirizzo/località PRECISA  
+   - Prezzo al litro €
+   - Distanza dal tragitto in km
+   Ordina dal più economico. Specifica che sono lungo il percorso.
 
 PER TUTTE LE ALTRE DOMANDE:
 - Rispondi SEMPRE in modo utile e completo

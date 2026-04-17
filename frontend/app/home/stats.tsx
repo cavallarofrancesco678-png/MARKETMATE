@@ -569,24 +569,24 @@ export default function StatsScreen() {
 
   const renderPieBox = (title: string, items: { label: string; value: number; color: string }[]) => {
     const total = arrSum(items.map((i) => i.value));
+    // Mostra sempre il grafico, anche vuoto
+    const displayItems = total > 0 ? items : [{ label: 'Nessun dato', value: 1, color: '#D8E4E0' }];
+    const displayTotal = total;
     return (
       <View style={[st.card, { marginBottom: GAP }]}>
         <View style={st.chartHeader}>
           <Text style={st.sectionLabel}>{title}</Text>
-          <Text style={st.sectionTotal}>TOT: {'\u20AC'}{total}</Text>
+          <Text style={st.sectionTotal}>TOT: {'\u20AC'}{displayTotal}</Text>
         </View>
-        {total === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-            <Ionicons name="pie-chart-outline" size={40} color="#C0D0C8" />
-            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 8, fontWeight: '700' }}>
-              {t('stats.noData') || 'Nessun dato disponibile'}
-            </Text>
-          </View>
-        ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 14 }}>
-            <PieChart items={items} size={130} />
-            <View style={{ flex: 1 }}>
-              {items.map((it, i) => {
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 14 }}>
+          <PieChart items={displayItems} size={130} />
+          <View style={{ flex: 1 }}>
+            {total === 0 ? (
+              <Text style={{ fontSize: 11, color: '#7A9090', fontWeight: '700', textAlign: 'center' }}>
+                {t('stats.noData') || 'Nessun dato'}
+              </Text>
+            ) : (
+              items.map((it, i) => {
                 const pct = Math.round((it.value / total) * 100);
                 return (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -599,10 +599,10 @@ export default function StatsScreen() {
                     </Text>
                   </View>
                 );
-              })}
-            </View>
+              })
+            )}
           </View>
-        )}
+        </View>
       </View>
     );
   };
