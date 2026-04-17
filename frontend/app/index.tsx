@@ -41,10 +41,16 @@ export default function LoginScreen() {
     init();
   }, []);
 
-  // Auto-login: se già configurato con PIN, vai direttamente alla Home
+  // Auto-login: se già configurato, vai direttamente alla Home
   useEffect(() => {
-    if (!isLoading && isConfigured && savedPin) {
-      router.replace('/home');
+    if (!isLoading && isConfigured) {
+      if (savedPin) {
+        // Ha PIN → mostra schermata login con PIN
+        // Non auto-navigate, l'utente deve inserire il PIN
+      } else {
+        // Nessun PIN → vai direttamente alla Home
+        router.replace('/home');
+      }
     }
   }, [isLoading, isConfigured, savedPin]);
 
