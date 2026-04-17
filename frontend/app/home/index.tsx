@@ -73,6 +73,9 @@ export default function HomeScreen() {
   const [isInPiazza, setIsInPiazza] = useState(true);
   const [meteo, setMeteo] = useState('SOLE');
   const [presenze, setPresenze] = useState<Record<string, boolean>>({});
+  const [costiOverride, setCostiOverride] = useState<Record<string, number>>({});
+  const [showCostModal, setShowCostModal] = useState<string | null>(null);
+  const [tempCost, setTempCost] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSpeseFisseModal, setShowSpeseFisseModal] = useState(false);
   const [showBellModal, setShowBellModal] = useState(false);
@@ -339,10 +342,10 @@ export default function HomeScreen() {
   const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraFornTotale + speseExtraGenTotale;
   const invendutoNum = excludeInvenduto ? 0 : (parseFloat(invenduto.replace(',', '.')) || 0);
 
-  // Costo collaboratori attivi (presenti oggi)
+  // Costo collaboratori attivi (presenti oggi) con override giornaliero
   const costoCollabAttivi = collaboratori
     .filter((c) => presenze[c.nome])
-    .reduce((s, c) => s + (c.costo || 0), 0);
+    .reduce((s, c) => s + (costiOverride[c.nome] !== undefined ? costiOverride[c.nome] : (c.costo || 0)), 0);
 
   // Spese fisse totali = spese fisse annuali + plateatico fiera (se attivo)
   const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
@@ -433,7 +436,8 @@ export default function HomeScreen() {
 
   const handleSalvaManuale = () => {
     handleSalva();
-    playSuccess(); // Conferma sonora + aptica solo su salvataggio manuale
+    // Solo vibrazione di conferma, nessun doppio suono
+    hapticTap();
   };
 
   /* ─── UNIFIED PROPORTIONAL LAYOUT ─── */
@@ -582,10 +586,24 @@ export default function HomeScreen() {
         <View style={s.collabRow}>
           {collabNames.map((n, i) => {
             const on = presenze[n];
+            const hasOverride = costiOverride[n] !== undefined;
+            const costoBase = collaboratori.find(c => c.nome === n)?.costo || 0;
+            const costoGiorno = hasOverride ? costiOverride[n] : costoBase;
             return (
-              <TouchableOpacity key={i} onPress={() => setPresenze((p) => ({ ...p, [n]: !p[n] }))}>
+              <TouchableOpacity
+                key={i}
+                onPress={() => setPresenze((p) => ({ ...p, [n]: !p[n] }))}
+                onLongPress={() => {
+                  setTempCost(costoGiorno.toString());
+                  setShowCostModal(n);
+                }}
+                delayLongPress={500}
+              >
                 <View style={[s.collab, on && s.collabOn]}>
                   <Text style={[s.collabTxt, on && { color: '#FFF' }]}>{n.toUpperCase()}</Text>
+                  {hasOverride && on && (
+                    <Text style={{ fontSize: 8, color: '#FFD700', fontWeight: '800' }}>€{costoGiorno}</Text>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -946,7 +964,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.6</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.7</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
@@ -1284,6 +1302,49 @@ export default function HomeScreen() {
           mediaScontrino: mercatoOggi?.mediaScontrino || 0,
         }}
       />
+      {/* ═══ MODALE COSTO COLLABORATORE (long-press) ═══ */}
+      <Modal visible={showCostModal !== null} transparent animationType="fade" onRequestClose={() => setShowCostModal(null)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowCostModal(null)}>
+          <View style={{ backgroundColor: '#F5F0E6', borderRadius: 20, padding: 24, width: '80%', alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginBottom: 4 }}>{showCostModal?.toUpperCase()}</Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 16 }}>Costo solo per oggi</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, width: '100%', gap: 8 }}>
+              <Ionicons name="cash-outline" size={18} color="#1E7F85" />
+              <TextInput
+                style={{ flex: 1, fontSize: 20, fontWeight: '800', color: '#1A4040', textAlign: 'center' }}
+                value={tempCost}
+                onChangeText={setTempCost}
+                keyboardType="decimal-pad"
+                placeholder="0"
+                placeholderTextColor="#C0B5A5"
+                autoFocus
+              />
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#1E7F85' }}>€</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, width: '100%' }}>
+              <TouchableOpacity
+                style={{ flex: 1, backgroundColor: '#E0DDD0', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+                onPress={() => {
+                  setCostiOverride(prev => { const n = { ...prev }; delete n[showCostModal!]; return n; });
+                  setShowCostModal(null);
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#7A7A6A' }}>RESET</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, backgroundColor: '#1E7F85', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+                onPress={() => {
+                  const val = parseFloat(tempCost.replace(',', '.')) || 0;
+                  setCostiOverride(prev => ({ ...prev, [showCostModal!]: val }));
+                  setShowCostModal(null);
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFF' }}>CONFERMA</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
