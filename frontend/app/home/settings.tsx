@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { LocalTextInput } from '../../src/components/LocalTextInput';
 import {
   View,
   Text,
@@ -270,10 +269,38 @@ export default function SettingsPage() {
 
   // Expanded state for agenda days
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
-  // Local state for market name inputs to prevent re-render losing characters
-  const [localMercatoNames, setLocalMercatoNames] = useState<Record<number, string>>({});
+  // ALL market names stored LOCALLY to prevent any store-related re-render issues
+  const [localNames, setLocalNames] = useState<string[]>(() => 
+    store.agenda.map(m => m.mercato || '')
+  );
   // Expanded state for fornitori
   const [expandedForn, setExpandedForn] = useState<number | null>(null);
+
+  // Sync local names FROM store only once on mount
+  useEffect(() => {
+    setLocalNames(store.agenda.map(m => m.mercato || ''));
+  }, []);
+
+  // Save a specific market name to store
+  const commitName = (idx: number, name: string) => {
+    const updated = [...store.agenda];
+    updated[idx] = { ...updated[idx], mercato: name };
+    store.updateAgenda(updated);
+    store.forceFlushSave();
+    // Calculate km if applicable
+    if (name && name.trim().length > 2 && store.partenzaDa) {
+      autoCalculateKm(idx, store.partenzaDa, name);
+    }
+  };
+
+  // When expanding a different day, save the current one first
+  const handleExpandDay = (idx: number) => {
+    // Save previous day's name if it was open
+    if (expandedDay !== null && localNames[expandedDay] !== undefined) {
+      commitName(expandedDay, localNames[expandedDay]);
+    }
+    setExpandedDay(expandedDay === idx ? null : idx);
+  };
 
   // Expanded state for spese annuali
   const [expandedSpese, setExpandedSpese] = useState(false);
@@ -715,7 +742,7 @@ export default function SettingsPage() {
         const isOpen = expandedDay === idx;
         return (
           <View key={idx} style={s.card}>
-            <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedDay(isOpen ? null : idx)}>
+            <TouchableOpacity style={s.agendaHeader} onPress={() => handleExpandDay(idx)}>
               <Text style={s.agendaDay}>{t(`days.${['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][idx]}`).toUpperCase()}</Text>
               <Text style={s.agendaMarket} numberOfLines={2}>{m.mercato || '---'}</Text>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
@@ -723,26 +750,31 @@ export default function SettingsPage() {
             {isOpen && (
               <View style={s.agendaBody}>
                 <View style={s.divider} />
-                {/* Inline TextInput per nome mercato - usa stato locale per evitare perdita caratteri */}
+                {/* TextInput nome mercato con stato completamente locale */}
                 <View style={s.inlineInputRow}>
                   <Ionicons name="storefront-outline" size={18} color="#1E7F85" />
-                  <LocalTextInput
+                  <TextInput
                     style={[s.inlineInput, { flex: 1 }]}
                     placeholder={t('settings.marketName') || 'Nome mercato'}
                     placeholderTextColor="#A0A090"
-                    externalValue={m.mercato || ''}
-                    onValueCommit={(text) => {
-                      updateMercato(idx, 'mercato', text);
-                      if (text && text.trim().length > 2 && store.partenzaDa) {
-                        autoCalculateKm(idx, store.partenzaDa, text);
-                      }
-                      store.forceFlushSave();
+                    value={localNames[idx] || ''}
+                    onChangeText={(text) => {
+                      setLocalNames(prev => {
+                        const next = [...prev];
+                        next[idx] = text;
+                        return next;
+                      });
                     }}
+                    onBlur={() => commitName(idx, localNames[idx] || '')}
+                    onEndEditing={() => commitName(idx, localNames[idx] || '')}
                     autoCapitalize="words"
                     returnKeyType="done"
                   />
-                  {m.mercato ? (
-                    <TouchableOpacity onPress={() => updateMercato(idx, 'mercato', '')} style={{ marginLeft: 4 }}>
+                  {localNames[idx] ? (
+                    <TouchableOpacity onPress={() => {
+                      setLocalNames(prev => { const n = [...prev]; n[idx] = ''; return n; });
+                      commitName(idx, '');
+                    }} style={{ marginLeft: 4 }}>
                       <Ionicons name="close-circle" size={18} color="#D46A6A" />
                     </TouchableOpacity>
                   ) : null}

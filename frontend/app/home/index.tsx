@@ -534,22 +534,23 @@ export default function HomeScreen() {
       {/* ═══ TOGGLE ═══ */}
       <View style={[s.section, { height: TOGGLE_H, justifyContent: 'center' }]}>
         <View style={s.toggleRow}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsFiera(false)}>
+          <TouchableOpacity style={{ flex: 1, marginRight: 6 }} onPress={() => setIsFiera(false)}>
             <View style={[s.toggle, !isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]} numberOfLines={1}>{t('home.market')}</Text>
+              <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>{t('home.market')}</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
+          <TouchableOpacity style={{ flex: 1, marginLeft: 6 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
-              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]} numberOfLines={1}>{t('stats.fairs') || 'FIERE'}</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)}>
-            <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#CC3333' }]}>
-              <Text style={s.piazzaTxt}>{isInPiazza ? t('home.market') : 'A CASA'}</Text>
+              <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]}>{t('stats.fairs') || 'FIERE'}</Text>
             </View>
           </TouchableOpacity>
         </View>
+        {/* Pulsante A CASA separato */}
+        <TouchableOpacity onPress={() => setIsInPiazza(!isInPiazza)} style={{ position: 'absolute', right: 8, top: 4 }}>
+          <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#CC3333' }]}>
+            <Text style={s.piazzaTxt}>{isInPiazza ? '🏪' : '🏠'}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: GAP }} />
@@ -943,7 +944,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.1</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v1.2</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
