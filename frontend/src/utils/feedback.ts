@@ -1,40 +1,42 @@
 /**
- * Feedback sonoro e aptico per MarketMate
- * - hapticTap: vibrazione leggera per tocchi generici
- * - playSaveSound: SUONO AUDIO reale per il tasto SALVA (diverso da tutto il resto)
+ * Feedback sonoro per MarketMate
+ * - hapticTap: nessun suono (tocchi generici)
+ * - playSuccess: SUONO AUDIO "ding" per SALVA (volume massimo)
  */
-import { Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
+
+const SAVE_SOUND_URL = 'https://cdn.freesound.org/previews/256/256113_3263906-lq.mp3';
+
+// Pre-cache: niente, il suono si carica al primo uso
 
 /**
- * Vibrazione leggera per tocchi generici (nessun suono)
+ * Nessun suono per tocchi generici
  */
 export function hapticTap() {
-  // No-op on web, light vibration on native would need expo-haptics
-  // Keep lightweight - no sound
+  // Silenzioso
 }
 
 /**
- * SUONO AUDIO di conferma salvataggio
- * Riproduce un breve "ding" ascendente — DIVERSO da qualsiasi altra interazione
+ * SUONO AUDIO "ding" per il tasto SALVA — volume massimo
  */
 export async function playSuccess() {
   try {
+    // Use expo-audio (modern API, replaces deprecated expo-av)
+    const { Audio } = require('expo-av');
     const { sound } = await Audio.Sound.createAsync(
-      { uri: 'https://cdn.freesound.org/previews/256/256113_3263906-lq.mp3' },
-      { shouldPlay: true, volume: 0.6 }
+      { uri: SAVE_SOUND_URL },
+      { shouldPlay: true, volume: 1.0 }
     );
-    // Rilascia la risorsa dopo la riproduzione
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if ('didJustFinish' in status && status.didJustFinish) {
+    sound.setOnPlaybackStatusUpdate((status: any) => {
+      if (status.didJustFinish) {
         sound.unloadAsync().catch(() => {});
       }
     });
   } catch (_e) {
-    // Fallback silenzioso se non riesce a riprodurre
+    // Fallback silenzioso
   }
 }
 
-// Legacy exports per compatibilità
+// Legacy exports
 export const playTap = hapticTap;
 export const playNotification = hapticTap;
