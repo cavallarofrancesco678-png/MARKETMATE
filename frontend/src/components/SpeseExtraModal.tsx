@@ -167,17 +167,27 @@ export const SpeseExtraModal: React.FC<Props> = ({
             )}
             {fornitori.map((f) => {
               const entry = speseExtraFornitore[f.nome] || { importo: '', periodo: 'giornaliero' };
+              const libKey = `${f.nome}__libera`;
+              const entryLib = speseExtraFornitore[libKey] || { importo: '', periodo: 'giornaliero' };
+              const fatturato = parseFloat((localImporti[f.nome] !== undefined ? localImporti[f.nome] : entry.importo || '0').replace(',', '.')) || 0;
+              const libera = parseFloat((localImporti[libKey] !== undefined ? localImporti[libKey] : entryLib.importo || '0').replace(',', '.')) || 0;
+              const totFornitore = fatturato + libera;
               return (
                 <View key={f.nome} style={st.card}>
                   <View style={st.fornHeader}>
                     <Ionicons name="storefront" size={16} color="#1E7F85" />
                     <Text style={st.cardTitle}>{f.nome}</Text>
-                    {entry.importo && parseFloat(entry.importo.replace(',', '.')) > 0 ? (
+                    {totFornitore > 0 ? (
+                      <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>TOT €{totFornitore.toFixed(2)}</Text>
+                    ) : null}
+                    {totFornitore > 0 ? (
                       <TouchableOpacity onPress={() => {
                         const updated = { ...speseExtraFornitore };
                         delete updated[f.nome];
+                        delete updated[libKey];
                         setSpeseExtraFornitore(updated);
-                      }} style={{ marginLeft: 'auto' }}>
+                        setLocalImporti(prev => { const n = { ...prev }; delete n[f.nome]; delete n[libKey]; return n; });
+                      }} style={{ marginLeft: 6 }}>
                         <Ionicons name="close-circle" size={20} color="#D46A6A" />
                       </TouchableOpacity>
                     ) : null}
@@ -189,19 +199,41 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       </View>
                     ))}
                   </View>
-                  <View style={st.inputRow}>
-                    <TextInput
-                      style={st.amountInput}
-                      placeholder="0"
-                      placeholderTextColor="#B0B0A0"
-                      keyboardType="decimal-pad"
-                      value={localImporti[f.nome] !== undefined ? localImporti[f.nome] : (entry.importo || '')}
-                      onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
-                      onBlur={() => flushImporto(f.nome)}
-                      onEndEditing={() => flushImporto(f.nome)}
-                      returnKeyType="done"
-                    />
-                    <Text style={st.euro}>{'\u20AC'}</Text>
+                  {/* Riga 1: Fatturata */}
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090', marginBottom: 2 }}>Fatt. n°</Text>
+                    <View style={st.inputRow}>
+                      <TextInput
+                        style={st.amountInput}
+                        placeholder="0"
+                        placeholderTextColor="#B0B0A0"
+                        keyboardType="decimal-pad"
+                        value={localImporti[f.nome] !== undefined ? localImporti[f.nome] : (entry.importo || '')}
+                        onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
+                        onBlur={() => flushImporto(f.nome)}
+                        onEndEditing={() => flushImporto(f.nome)}
+                        returnKeyType="done"
+                      />
+                      <Text style={st.euro}>{'\u20AC'}</Text>
+                    </View>
+                  </View>
+                  {/* Riga 2: Libera (non fatturata) */}
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#B08050', marginBottom: 2 }}>Libera</Text>
+                    <View style={st.inputRow}>
+                      <TextInput
+                        style={st.amountInput}
+                        placeholder="0"
+                        placeholderTextColor="#B0B0A0"
+                        keyboardType="decimal-pad"
+                        value={localImporti[libKey] !== undefined ? localImporti[libKey] : (entryLib.importo || '')}
+                        onChangeText={(v) => updateEntry(libKey, 'importo', v)}
+                        onBlur={() => flushImporto(libKey)}
+                        onEndEditing={() => flushImporto(libKey)}
+                        returnKeyType="done"
+                      />
+                      <Text style={st.euro}>{'\u20AC'}</Text>
+                    </View>
                   </View>
                   <View style={st.periodoRow}>
                     {['giornaliero', 'settimanale', 'mensile'].map((per) => {

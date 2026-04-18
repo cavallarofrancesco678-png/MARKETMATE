@@ -381,6 +381,7 @@ export default function AgendaScreen() {
                     if (!dayModalText.trim()) return;
                     const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay!, 12, 0, 0);
                     addAppunto({ data: newDate, testo: dayModalText.trim() });
+                    playSuccess();
                     setShowDayModal(false);
                   }
                 }}
