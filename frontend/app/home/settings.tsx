@@ -860,7 +860,19 @@ export default function SettingsPage() {
             <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedForn(isOpen ? null : fi)}>
               <Ionicons name="cube-outline" size={20} color="#1E7F85" />
               <Text style={[s.agendaDay, { flex: 1 }]}>{f.nome}</Text>
-              <TouchableOpacity onPress={() => store.removeFornitore(f.nome)}>
+              {/* Modifica nome fornitore */}
+              <TouchableOpacity onPress={() =>
+                openModal(t('settings.editName') || 'Modifica nome', [t('settings.name')], (vals) => {
+                  if (vals[0] && vals[0].trim()) {
+                    const updF = [...store.fornitori];
+                    updF[fi] = { ...updF[fi], nome: vals[0].trim() };
+                    store.setConfig({ fornitori: updF });
+                  }
+                }, ['default'], undefined, undefined, [f.nome])
+              }>
+                <Ionicons name="pencil-outline" size={16} color="#1E7F85" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => store.removeFornitore(f.nome)} style={{ marginLeft: 6 }}>
                 <Ionicons name="trash-outline" size={18} color="#D46A6A" />
               </TouchableOpacity>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" style={{ marginLeft: 8 }} />
@@ -870,8 +882,23 @@ export default function SettingsPage() {
                 <View style={s.divider} />
                 {f.prodotti.map((p, pi) => (
                   <View key={pi} style={s.prodRow}>
-                    <Text style={s.itemVal}>{p.nome}</Text>
-                    <Text style={[s.itemLabel, { color: '#1E7F85' }]}>€{p.prezzo}/kg</Text>
+                    {/* Tap sul nome/prezzo per modificare */}
+                    <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }} onPress={() =>
+                      openModal(t('settings.editProduct') || 'Modifica prodotto', [t('settings.productName'), `${t('settings.pricePerKg')} €`], (vals) => {
+                        const updF = [...store.fornitori];
+                        updF[fi] = {
+                          ...updF[fi],
+                          prodotti: updF[fi].prodotti.map((prod, idx) =>
+                            idx === pi ? { nome: vals[0] || prod.nome, prezzo: parseFloat(vals[1].replace(',', '.')) || prod.prezzo } : prod
+                          ),
+                        };
+                        store.setConfig({ fornitori: updF });
+                      }, ['default', 'numeric'], undefined, undefined, [p.nome, p.prezzo.toString()])
+                    }>
+                      <Text style={s.itemVal}>{p.nome}</Text>
+                      <Text style={[s.itemLabel, { color: '#1E7F85' }]}>€{p.prezzo}/kg</Text>
+                      <Ionicons name="pencil-outline" size={12} color="#B0B0A0" />
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
                       const updF = [...store.fornitori];
                       updF[fi] = { ...updF[fi], prodotti: updF[fi].prodotti.filter((_, idx) => idx !== pi) };
