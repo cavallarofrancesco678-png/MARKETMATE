@@ -221,6 +221,7 @@ export default function StatsScreen() {
   const [filtroTipo, setFiltroTipo] = useState<FilterTipo>('TUTTO');
   const [showMeteo, setShowMeteo] = useState(false);
   const [showFiere, setShowFiere] = useState(false);
+  const [showFornitori, setShowFornitori] = useState(false);
   const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
   const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
 
@@ -423,6 +424,39 @@ export default function StatsScreen() {
       { label: t('stats.extraExpenses'), value: totSpeseExtra, color: PALETTE[1] },
       { label: t('stats.unsold'), value: totInvenduto, color: PALETTE[3] },
     ].filter((i) => i.value > 0);
+  }, [filteredData]);
+
+  // Calcolo totali fornitori: fatturata vs libera
+  const fornitoriTotals = useMemo(() => {
+    let fatturata = 0;
+    let libera = 0;
+    const perForn: Record<string, { fatturata: number; libera: number }> = {};
+    
+    filteredData.forEach((g) => {
+      if (g.dettaglio_fornitori) {
+        Object.entries(g.dettaglio_fornitori).forEach(([k, v]) => {
+          if (k.includes('__libera') && !k.includes('__liberaLabel') && !k.includes('__fattn')) {
+            const fornName = k.replace('__libera', '');
+            libera += (v as number);
+            if (!perForn[fornName]) perForn[fornName] = { fatturata: 0, libera: 0 };
+            perForn[fornName].libera += (v as number);
+          } else if (!k.includes('__')) {
+            fatturata += (v as number);
+            if (!perForn[k]) perForn[k] = { fatturata: 0, libera: 0 };
+            perForn[k].fatturata += (v as number);
+          }
+        });
+      }
+    });
+    
+    return {
+      fatturata: Math.round(fatturata),
+      libera: Math.round(libera),
+      totale: Math.round(fatturata + libera),
+      perFornitore: Object.entries(perForn).map(([nome, vals]) => ({
+        nome, fatturata: Math.round(vals.fatturata), libera: Math.round(vals.libera),
+      })).sort((a, b) => (b.fatturata + b.libera) - (a.fatturata + a.libera)),
+    };
   }, [filteredData]);
 
   const meteoCounts = useMemo(() => {
@@ -786,6 +820,62 @@ export default function StatsScreen() {
         {/* ─── AREOGRAMMI ─── */}
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
         {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
+
+        {/* ─── FORNITORI: Fatturata vs Libera (espandibile) ─── */}
+        <View style={[st.card, { marginBottom: GAP }]}>
+          <TouchableOpacity onPress={() => setShowFornitori(!showFornitori)} activeOpacity={0.7}>
+            <View style={st.chartHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="storefront" size={16} color="#1E7F85" />
+                <Text style={st.sectionLabel}>{t('stats.suppliers') || 'FORNITORI'}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={st.sectionTotal}>TOT: €{fornitoriTotals.totale.toFixed(0)}</Text>
+                <Ionicons name={showFornitori ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
+              </View>
+            </View>
+          </TouchableOpacity>
+          {showFornitori && (
+            <View style={{ marginTop: 12 }}>
+              {/* PieChart Fatturata vs Libera */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+                <PieChart items={fornitoriTotals.totale > 0 ? [
+                  { label: 'Fatturata', value: fornitoriTotals.fatturata, color: '#1E7F85' },
+                  { label: 'Libera', value: fornitoriTotals.libera, color: '#E8A060' },
+                ] : [{ label: 'Nessun dato', value: 1, color: '#D8E4E0' }]} size={110} />
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#1E7F85', marginRight: 8 }} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>Fatturata</Text>
+                    <Text style={{ marginLeft: 'auto', fontSize: 13, fontWeight: '900', color: '#1E7F85' }}>€{fornitoriTotals.fatturata.toFixed(0)}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#E8A060', marginRight: 8 }} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>Libera</Text>
+                    <Text style={{ marginLeft: 'auto', fontSize: 13, fontWeight: '900', color: '#E8A060' }}>€{fornitoriTotals.libera.toFixed(0)}</Text>
+                  </View>
+                  {fornitoriTotals.totale > 0 && (
+                    <Text style={{ fontSize: 10, color: '#7A9090', fontWeight: '700', marginTop: 4 }}>
+                      Fatturata: {Math.round((fornitoriTotals.fatturata / fornitoriTotals.totale) * 100)}% | Libera: {Math.round((fornitoriTotals.libera / fornitoriTotals.totale) * 100)}%
+                    </Text>
+                  )}
+                </View>
+              </View>
+              {/* Dettaglio per fornitore */}
+              {fornitoriTotals.perFornitore.map((f, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderColor: '#E8EDE8' }}>
+                  <Ionicons name="cube-outline" size={14} color="#7A9090" />
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1, marginLeft: 6 }}>{f.nome}</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85', marginRight: 8 }}>F: €{f.fatturata.toFixed(0)}</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060' }}>L: €{f.libera.toFixed(0)}</Text>
+                </View>
+              ))}
+              {fornitoriTotals.perFornitore.length === 0 && (
+                <Text style={{ fontSize: 11, color: '#7A9090', textAlign: 'center', paddingVertical: 10 }}>Nessun dato fornitori nel periodo</Text>
+              )}
+            </View>
+          )}
+        </View>
 
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
         {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}

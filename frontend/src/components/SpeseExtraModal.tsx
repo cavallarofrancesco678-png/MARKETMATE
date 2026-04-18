@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/appStore';
@@ -199,10 +200,27 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       </View>
                     ))}
                   </View>
-                  {/* Riga 1: Fatturata */}
+                  {/* Riga 1: Fatturata con campo numero fattura */}
                   <View style={{ marginTop: 6 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090', marginBottom: 2 }}>Fatt. n°</Text>
-                    <View style={st.inputRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090' }}>Fatt. n°</Text>
+                      <TextInput
+                        style={{ fontSize: 10, fontWeight: '600', color: '#1A4040', borderBottomWidth: 1, borderColor: '#D0D5D0', paddingVertical: 2, paddingHorizontal: 4, minWidth: 60, flex: 1 }}
+                        placeholder="n° fattura"
+                        placeholderTextColor="#C0C0B0"
+                        value={localImporti[`${f.nome}__fattn`] !== undefined ? localImporti[`${f.nome}__fattn`] : (speseExtraFornitore[`${f.nome}__fattn`]?.importo || '')}
+                        onChangeText={(v) => {
+                          setLocalImporti(prev => ({ ...prev, [`${f.nome}__fattn`]: v }));
+                        }}
+                        onBlur={() => {
+                          const val = localImporti[`${f.nome}__fattn`] || '';
+                          const current = speseExtraFornitore[`${f.nome}__fattn`] || { importo: '', periodo: 'giornaliero' };
+                          setSpeseExtraFornitore({ ...speseExtraFornitore, [`${f.nome}__fattn`]: { ...current, importo: val } });
+                        }}
+                        returnKeyType="done"
+                      />
+                    </View>
+                    <View style={[st.inputRow, { marginTop: 4 }]}>
                       <TextInput
                         style={st.amountInput}
                         placeholder="0"
@@ -217,9 +235,26 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       <Text style={st.euro}>{'\u20AC'}</Text>
                     </View>
                   </View>
-                  {/* Riga 2: Libera (non fatturata) */}
+                  {/* Riga 2: Libera (nome personalizzabile con long-press) */}
                   <View style={{ marginTop: 4 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#B08050', marginBottom: 2 }}>Libera</Text>
+                    <TouchableOpacity onLongPress={() => {
+                      const currentLabel = speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera';
+                      Alert.prompt ? Alert.prompt('Rinomina', 'Come vuoi chiamare questa voce?', (text) => {
+                        if (text && text.trim()) {
+                          setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: text.trim(), periodo: 'giornaliero' } }));
+                        }
+                      }, 'plain-text', currentLabel) : (() => {
+                        // Fallback for Android: use the label from store or default
+                        const newLabel = prompt('Come vuoi chiamare questa voce?', currentLabel);
+                        if (newLabel && newLabel.trim()) {
+                          setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: newLabel.trim(), periodo: 'giornaliero' } }));
+                        }
+                      })();
+                    }} delayLongPress={500}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#B08050', marginBottom: 2 }}>
+                        {speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera'} <Text style={{ fontSize: 8, color: '#C0B0A0' }}>✏️</Text>
+                      </Text>
+                    </TouchableOpacity>
                     <View style={st.inputRow}>
                       <TextInput
                         style={st.amountInput}
