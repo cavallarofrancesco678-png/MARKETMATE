@@ -81,6 +81,7 @@ const InputModal = ({
     }
     const filled = hints.map((_, i) => values[i] || '');
     onSave(filled);
+    playSuccess();
     onClose();
   };
 

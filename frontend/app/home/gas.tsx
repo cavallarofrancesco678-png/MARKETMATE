@@ -173,6 +173,7 @@ export default function GasScreen() {
     // Aggiungi nuovo
     const newDate = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), selectedDay, 12, 0, 0);
     addCarburante({ data: newDate, euro, nota: dayNote });
+    playSuccess();
     setShowDayModal(false);
   };
 
