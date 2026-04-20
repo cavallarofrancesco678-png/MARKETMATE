@@ -222,6 +222,12 @@ export default function StatsScreen() {
   const [showMeteo, setShowMeteo] = useState(false);
   const [showFiere, setShowFiere] = useState(false);
   const [showFornitori, setShowFornitori] = useState(false);
+  const [expandedFornitore, setExpandedFornitore] = useState<string | null>(null);
+  // Date range per filtro personalizzato
+  const [persDateFrom, setPersDateFrom] = useState<Date | null>(null);
+  const [persDateTo, setPersDateTo] = useState<Date | null>(null);
+  const [showPersCalendar, setShowPersCalendar] = useState(false);
+  const [persPickingFrom, setPersPickingFrom] = useState(true); // true = picking FROM, false = picking TO
   const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
   const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
 
@@ -288,9 +294,14 @@ export default function StatsScreen() {
       if (filtroTempo === 'Sett.') return isSameWeek(d, now);
       if (filtroTempo === 'Mese') return isSameMonth(d, now);
       if (filtroTempo === 'Anno') return isSameYear(d, now);
+      if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
+        const from = new Date(persDateFrom); from.setHours(0,0,0,0);
+        const to = new Date(persDateTo); to.setHours(23,59,59,999);
+        return d >= from && d <= to;
+      }
       return true;
     });
-  }, [storicoGiornate, filtroTempo]);
+  }, [storicoGiornate, filtroTempo, persDateFrom, persDateTo]);
 
   const filteredData = useMemo(() => {
     if (filtroTipo === 'TUTTO') return filteredByTime;
@@ -740,7 +751,10 @@ export default function StatsScreen() {
       {/* ═══ HEADER FISSO ═══ */}
       <View style={[st.stickyHeader, { paddingTop: topPad }]}>
         <Text style={st.pageTitle}>{t('stats.analysis')}</Text>
-        {renderFilterBar(['Pers.', 'Ieri', 'Oggi', 'Sett.', 'Mese', 'Anno'], filtroTempo, setFiltroTempo, false, tempoLabel)}
+        {renderFilterBar(['Pers.', 'Ieri', 'Oggi', 'Sett.', 'Mese', 'Anno'], filtroTempo, (v: FilterTempo) => {
+          setFiltroTempo(v);
+          if (v === 'Pers.') setShowPersCalendar(true);
+        }, false, tempoLabel)}
         {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true, tipoLabel)}
       </View>
 
@@ -963,6 +977,55 @@ export default function StatsScreen() {
         onClose={() => setShowMeteo(false)}
         giornate={storicoGiornate}
       />
+
+      {/* ═══ CALENDARIO PERSONALIZZATO ═══ */}
+      <Modal visible={showPersCalendar} transparent animationType="fade" onRequestClose={() => setShowPersCalendar(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowPersCalendar(false)}>
+          <View style={{ backgroundColor: '#F5F0E6', borderRadius: 20, padding: 20, width: '85%' }}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 4 }}>
+              {t('stats.customRange') || 'Periodo personalizzato'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', textAlign: 'center', marginBottom: 16 }}>
+              {persPickingFrom ? (t('stats.selectFrom') || 'Seleziona data INIZIO') : (t('stats.selectTo') || 'Seleziona data FINE')}
+            </Text>
+            
+            {/* Date selezionate */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => setPersPickingFrom(true)} style={{ padding: 8, backgroundColor: persPickingFrom ? '#1E7F85' : '#E8EDE8', borderRadius: 10, flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: persPickingFrom ? '#FFF' : '#7A9090' }}>DA</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: persPickingFrom ? '#FFF' : '#1A4040' }}>
+                  {persDateFrom ? persDateFrom.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '---'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setPersPickingFrom(false)} style={{ padding: 8, backgroundColor: !persPickingFrom ? '#1E7F85' : '#E8EDE8', borderRadius: 10, flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: !persPickingFrom ? '#FFF' : '#7A9090' }}>A</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: !persPickingFrom ? '#FFF' : '#1A4040' }}>
+                  {persDateTo ? persDateTo.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '---'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick date buttons */}
+            {[7, 14, 30, 60, 90].map(days => (
+              <TouchableOpacity key={days} onPress={() => {
+                const to = new Date();
+                const from = new Date(); from.setDate(from.getDate() - days);
+                setPersDateFrom(from);
+                setPersDateTo(to);
+                setShowPersCalendar(false);
+              }} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#E8EDE8' }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A4040', textAlign: 'center' }}>
+                  {t('stats.lastDays', { count: days }) || `Ultimi ${days} giorni`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity onPress={() => setShowPersCalendar(false)} style={{ marginTop: 16, backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
+              <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>{t('common.confirm') || 'CONFERMA'}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ═══ MODAL NETTO - Selezione voci da escludere ═══ */}
       <Modal

@@ -279,10 +279,15 @@ export default function HomeScreen() {
     return items;
   }, [speseAnnue, agenda]);
 
-  // Add fuel cost as daily fixed expense
+  // Calcolo costo carburante per km REALISTICO
   const costoCarburanteSpeso = store.storicoCarburante.reduce((s: number, c: any) => s + (c.euro || 0), 0);
   const kmTotPercorsi = store.storicoGiornate.reduce((s: number, g: any) => s + (g.km || 0), 0);
-  const costoPerKm = kmTotPercorsi > 0 ? costoCarburanteSpeso / kmTotPercorsi : 0.18;
+  // Se ci sono dati reali, usa quelli. Altrimenti media realistica
+  const tipoCarb = store.tipoCarburante || 'benzina';
+  const prezzoLitroMedio = tipoCarb === 'gasolio' ? 1.60 : tipoCarb === 'gpl' ? 0.75 : 1.70;
+  const kmPerLitro = tipoCarb === 'gasolio' ? 18 : tipoCarb === 'gpl' ? 12 : 16;
+  const costoPerKmDefault = prezzoLitroMedio / kmPerLitro; // ~€0.106/km benzina, ~€0.089/km diesel
+  const costoPerKm = kmTotPercorsi > 100 ? costoCarburanteSpeso / kmTotPercorsi : costoPerKmDefault;
 
   const speseFisseConCarburante = useMemo(() => {
     const items = [...speseFisseItems];
@@ -963,7 +968,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v2.5</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v2.6</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
