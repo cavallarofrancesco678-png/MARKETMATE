@@ -212,13 +212,6 @@ export const SpeseExtraModal: React.FC<Props> = ({
                   </TouchableOpacity>
                   {isOpen && (
                     <>
-                      <View style={st.prodottiRow}>
-                        {f.prodotti.map((p) => (
-                          <View key={p.nome} style={st.chip}>
-                            <Text style={st.chipTxt}>{p.nome} ({'\u20AC'}{p.prezzo})</Text>
-                          </View>
-                        ))}
-                      </View>
                       {/* Riga 1: Fatturata con campo numero fattura */}
                       <View style={{ marginTop: 6 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
