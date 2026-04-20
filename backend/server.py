@@ -343,12 +343,20 @@ async def find_cheapest_fuel(req: FuelRequest):
         a = math.sin(dlat/2)**2 + math.cos(math.radians(dep_geo["lat"])) * math.cos(math.radians(dest_geo["lat"])) * math.sin(dlon/2)**2
         route_km = 6371 * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         
-        # Search radius based on route: min 5km for short routes, up to 15km
-        search_radius = max(5, min(int(route_km / 3) + 5, 15))
+        # For short routes (<20km), use small radius and few points
+        # For longer routes, use more points along the way
+        if route_km < 15:
+            search_radius = 3
+            fractions = [0.2, 0.5, 0.8]
+        elif route_km < 40:
+            search_radius = 5
+            fractions = [0.15, 0.35, 0.5, 0.65, 0.85]
+        else:
+            search_radius = 8
+            fractions = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85]
         
-        # Search at 5 points along the route: near departure, 25%, 50%, 75%, near arrival
         search_points = []
-        for frac in [0.1, 0.3, 0.5, 0.7, 0.9]:
+        for frac in fractions:
             lat = dep_geo["lat"] + (dest_geo["lat"] - dep_geo["lat"]) * frac
             lon = dep_geo["lon"] + (dest_geo["lon"] - dep_geo["lon"]) * frac
             search_points.append((lat, lon))

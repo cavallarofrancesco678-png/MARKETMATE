@@ -305,7 +305,6 @@ const cs = StyleSheet.create({
   },
   weekRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     marginBottom: 8,
   },
   weekDay: {
