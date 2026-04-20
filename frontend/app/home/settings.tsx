@@ -21,6 +21,8 @@ import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage, getDayNames } from '../../src/i18n';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -491,6 +493,59 @@ export default function SettingsPage() {
     const m = store.agenda[idx];
     if (m?.mercato && m.mercato.trim().length > 2 && store.partenzaDa) {
       autoCalculateKm(idx, store.partenzaDa, m.mercato);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const state = useAppStore.getState();
+      const exportData = {
+        esportato_il: new Date().toISOString(),
+        app: 'MarketMate v2.5.0',
+        produttore: 'T.V.S di Francesco Cavallaro',
+        nomeAttivita: state.nomeAttivita,
+        isAlimentare: state.isAlimentare,
+        agenda: state.agenda,
+        collaboratori: state.collaboratori,
+        fornitori: state.fornitori,
+        speseAnnue: state.speseAnnue,
+        storicoGiornate: state.storicoGiornate,
+        storicoCarburante: state.storicoCarburante,
+        impegni: state.impegni,
+        appuntiGiornalieri: state.appuntiGiornalieri,
+      };
+
+      const json = JSON.stringify(exportData, null, 2);
+      const fileName = `MarketMate_${new Date().toISOString().split('T')[0]}.json`;
+
+      if (Platform.OS === 'web') {
+        // Web: download as file
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile: save to file and share
+        const filePath = `${FileSystem.documentDirectory}${fileName}`;
+        await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
+        
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(filePath, {
+            mimeType: 'application/json',
+            dialogTitle: 'Esporta dati MarketMate',
+            UTI: 'public.json',
+          });
+        } else {
+          Alert.alert('Export', `File salvato in: ${filePath}`);
+        }
+      }
+      playSuccess();
+    } catch (err) {
+      Alert.alert('Errore', 'Impossibile esportare i dati');
     }
   };
 
@@ -1089,6 +1144,36 @@ export default function SettingsPage() {
         <Text style={{ fontSize: 10, color: '#D46A6A', marginTop: 8, textAlign: 'center', fontWeight: '700' }}>
           {t('settings.fullResetDesc') || 'Elimina TUTTO: mercati, fornitori, collaboratori, impostazioni. Ripristina lo stato di fabbrica.'}
         </Text>
+      </View>
+
+      {/* ─── EXPORT DATI ─── */}
+      <View style={[s.card, { marginTop: 20 }]}>
+        <View style={s.sectionHeader}>
+          <Ionicons name="download-outline" size={20} color="#1E7F85" />
+          <Text style={s.sectionTitle}>EXPORT DATI</Text>
+        </View>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12 }}>
+          Genera un file con tutti i tuoi dati. Puoi inviarlo via WhatsApp, email o salvarlo.
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onPress={handleExportData}
+        >
+          <Ionicons name="share-outline" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>ESPORTA DATI</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ─── INFO APP ─── */}
+      <View style={{ marginTop: 24, alignItems: 'center', paddingBottom: 8 }}>
+        <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A4040', letterSpacing: 2 }}>MarketMate</Text>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>Versione 2.5.0</Text>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>© 2026 T.V.S di Francesco Cavallaro</Text>
+        <Text style={{ fontSize: 10, color: '#B0B0A0', marginTop: 6 }}>Tutti i diritti riservati</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#1E7F85' }}>Dati protetti e crittografati sul dispositivo</Text>
+        </View>
       </View>
 
       {/* ─── ESCI DALL'APP ─── */}
