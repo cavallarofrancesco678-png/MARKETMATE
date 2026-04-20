@@ -209,6 +209,17 @@ export default function HomeScreen() {
   /* ── Conteggio notifiche totale (appuntamenti + ordini, NO diario) ── */
   const notificheCount = appuntiProssimi.length + ordiniProssimi.length;
 
+  /* ── Suono leggero quando aumentano le notifiche ── */
+  const prevNotificheRef = useRef(notificheCount);
+  useEffect(() => {
+    if (notificheCount > prevNotificheRef.current) {
+      // Nuova notifica: suono leggero + vibrazione
+      playSuccess();
+      hapticTap();
+    }
+    prevNotificheRef.current = notificheCount;
+  }, [notificheCount]);
+
   /* ── Animazione barre grafico ── */
   const chartAnimRef = useRef(new Animated.Value(0)).current;
   const [chartReady, setChartReady] = useState(false);
@@ -529,22 +540,6 @@ export default function HomeScreen() {
             <Ionicons name="power" size={16} color="#FFF" />
           </View>
         </TouchableOpacity>
-        {/* Bell a destra - ZONA SEPARATA con area di tocco grande */}
-        <TouchableOpacity 
-          onPress={() => { hapticTap(); setShowBellModal(true); }} 
-          activeOpacity={0.7}
-          style={s.bellTouchArea}
-          hitSlop={{ top: 10, bottom: 10, left: 15, right: 15 }}
-        >
-          <View style={[s.bell, notificheCount > 0 && { backgroundColor: '#E44' }]}>
-            <Ionicons name="notifications" size={20} color="#FFF" />
-            {notificheCount > 0 && (
-              <View style={s.bellBadge}>
-                <Text style={s.bellBadgeTxt}>{notificheCount}</Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
         <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
         <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7}>
           <View style={s.dateRow}>
@@ -572,6 +567,22 @@ export default function HomeScreen() {
           <TouchableOpacity style={{ marginLeft: 4 }} onPress={() => setIsInPiazza(!isInPiazza)}>
             <View style={[s.piazzaBtn, !isInPiazza && { backgroundColor: '#CC3333' }]}>
               <Ionicons name={isInPiazza ? 'storefront' : 'home'} size={16} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+          {/* Bell allineata con la casetta */}
+          <TouchableOpacity
+            onPress={() => { hapticTap(); setShowBellModal(true); }}
+            activeOpacity={0.7}
+            style={{ marginLeft: 4 }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <View style={[s.piazzaBtn, notificheCount > 0 && { backgroundColor: '#E44' }]}>
+              <Ionicons name="notifications" size={18} color="#FFF" />
+              {notificheCount > 0 && (
+                <View style={s.bellBadge}>
+                  <Text style={s.bellBadgeTxt}>{notificheCount}</Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         </View>
@@ -982,7 +993,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v2.9</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v3.0</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">

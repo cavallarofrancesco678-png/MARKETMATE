@@ -574,7 +574,10 @@ export default function StatsScreen() {
   );
 
   const renderChartBox = (title: string, lines: { label: string; color: string; data: number[] }[], chartKey: string) => {
-    const totalSection = arrSum(lines.map((l) => arrSum(l.data)));
+    // Per 'economico' (LORDO + NETTO) mostra come totale solo il NETTO, non la somma
+    const totalSection = chartKey === 'economico'
+      ? arrSum((lines.find(l => l.label.toUpperCase() === 'NETTO') || lines[lines.length - 1])?.data || [])
+      : arrSum(lines.map((l) => arrSum(l.data)));
     if (lines.length === 0) return null;
     const activeLine = activeChartLine[chartKey] ?? null;
     const currentTooltip = tooltipInfo && tooltipInfo.chartKey === chartKey ? tooltipInfo : null;
