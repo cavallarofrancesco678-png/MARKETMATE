@@ -412,6 +412,19 @@ export default function HomeScreen() {
       }
     });
 
+    // Build dettaglio_spese_extra from vociGeneriche (per-item names for stats pie chart)
+    const dettaglioExtra: Record<string, number> = {};
+    vociGeneriche.forEach((v) => {
+      if (!v.attivo) return;
+      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+      if (imp > 0) {
+        const per = (v as any).periodo || 'giornaliero';
+        if (per === 'settimanale') dettaglioExtra[v.nome] = imp / 6;
+        else if (per === 'mensile') dettaglioExtra[v.nome] = imp / 26;
+        else dettaglioExtra[v.nome] = imp;
+      }
+    });
+
     salvaGiornata({
       data: dataCorrente, mercato: mercatoNome, meteo,
       km: mercatoOggi?.km || 0, lordo: lordoNum, netto: utile,
@@ -421,8 +434,9 @@ export default function HomeScreen() {
       dettaglio_staff: presenze,
       dettaglio_invenduto: { totale: invendutoNum },
       dettaglio_fornitori: dettaglioForn,
+      dettaglio_spese_extra: dettaglioExtra,
     } as any);
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, invendutoNum, speseExtraFornitore, salvaGiornata]);
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, invendutoNum, speseExtraFornitore, vociGeneriche, salvaGiornata]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -968,7 +982,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v2.7</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v2.8</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">

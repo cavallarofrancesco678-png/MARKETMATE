@@ -31,7 +31,7 @@ export default function AgendaScreen() {
   const store = useAppStore();
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
-  const TAB_BAR = 70 + Math.max(insets.bottom, 10);
+  const TAB_BAR = 70 + Math.max(insets.bottom, 10) + 40;
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
   const contentH = screenH - TAB_BAR - topPad;
 

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/appStore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Fornitore {
   nome: string;
@@ -52,7 +53,17 @@ export const SpeseExtraModal: React.FC<Props> = ({
   vociGeneriche, setVociGeneriche,
 }) => {
   const [nuovaVoce, setNuovaVoce] = useState('');
-  const { speseExtraTags, addSpeseExtraTag } = useAppStore();
+  const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag } = useAppStore();
+  const insets = useSafeAreaInsets();
+
+  // Expansion states (fornitori + voci generiche - a pacchetto)
+  const [expandedForn, setExpandedForn] = useState<Record<string, boolean>>({});
+  const [expandedVoce, setExpandedVoce] = useState<Record<number, boolean>>({});
+
+  const toggleForn = (nome: string) =>
+    setExpandedForn(prev => ({ ...prev, [nome]: !prev[nome] }));
+  const toggleVoce = (idx: number) =>
+    setExpandedVoce(prev => ({ ...prev, [idx]: !prev[idx] }));
 
   // Local state for input values to prevent re-render losing characters
   const [localImporti, setLocalImporti] = useState<Record<string, string>>({});
@@ -173,118 +184,127 @@ export const SpeseExtraModal: React.FC<Props> = ({
               const fatturato = parseFloat((localImporti[f.nome] !== undefined ? localImporti[f.nome] : entry.importo || '0').replace(',', '.')) || 0;
               const libera = parseFloat((localImporti[libKey] !== undefined ? localImporti[libKey] : entryLib.importo || '0').replace(',', '.')) || 0;
               const totFornitore = fatturato + libera;
+              const isOpen = !!expandedForn[f.nome];
               return (
                 <View key={f.nome} style={st.card}>
-                  <View style={st.fornHeader}>
-                    <Ionicons name="storefront" size={16} color="#1E7F85" />
-                    <Text style={st.cardTitle}>{f.nome}</Text>
-                    {totFornitore > 0 ? (
-                      <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>TOT €{totFornitore.toFixed(2)}</Text>
-                    ) : null}
-                    {totFornitore > 0 ? (
-                      <TouchableOpacity onPress={() => {
-                        const updated = { ...speseExtraFornitore };
-                        delete updated[f.nome];
-                        delete updated[libKey];
-                        setSpeseExtraFornitore(updated);
-                        setLocalImporti(prev => { const n = { ...prev }; delete n[f.nome]; delete n[libKey]; return n; });
-                      }} style={{ marginLeft: 6 }}>
-                        <Ionicons name="close-circle" size={20} color="#D46A6A" />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                  <View style={st.prodottiRow}>
-                    {f.prodotti.map((p) => (
-                      <View key={p.nome} style={st.chip}>
-                        <Text style={st.chipTxt}>{p.nome} ({'\u20AC'}{p.prezzo})</Text>
-                      </View>
-                    ))}
-                  </View>
-                  {/* Riga 1: Fatturata con campo numero fattura */}
-                  <View style={{ marginTop: 6 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090' }}>Fatt. n°</Text>
-                      <TextInput
-                        style={{ fontSize: 10, fontWeight: '600', color: '#1A4040', borderBottomWidth: 1, borderColor: '#D0D5D0', paddingVertical: 2, paddingHorizontal: 4, minWidth: 60, flex: 1 }}
-                        placeholder="n° fattura"
-                        placeholderTextColor="#C0C0B0"
-                        value={localImporti[`${f.nome}__fattn`] !== undefined ? localImporti[`${f.nome}__fattn`] : (speseExtraFornitore[`${f.nome}__fattn`]?.importo || '')}
-                        onChangeText={(v) => {
-                          setLocalImporti(prev => ({ ...prev, [`${f.nome}__fattn`]: v }));
-                        }}
-                        onBlur={() => {
-                          const val = localImporti[`${f.nome}__fattn`] || '';
-                          const current = speseExtraFornitore[`${f.nome}__fattn`] || { importo: '', periodo: 'giornaliero' };
-                          setSpeseExtraFornitore({ ...speseExtraFornitore, [`${f.nome}__fattn`]: { ...current, importo: val } });
-                        }}
-                        returnKeyType="done"
-                      />
-                    </View>
-                    <View style={[st.inputRow, { marginTop: 4 }]}>
-                      <TextInput
-                        style={st.amountInput}
-                        placeholder="0"
-                        placeholderTextColor="#B0B0A0"
-                        keyboardType="decimal-pad"
-                        value={localImporti[f.nome] !== undefined ? localImporti[f.nome] : (entry.importo || '')}
-                        onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
-                        onBlur={() => flushImporto(f.nome)}
-                        onEndEditing={() => flushImporto(f.nome)}
-                        returnKeyType="done"
-                      />
-                      <Text style={st.euro}>{'\u20AC'}</Text>
-                    </View>
-                  </View>
-                  {/* Riga 2: Libera (nome personalizzabile con long-press) */}
-                  <View style={{ marginTop: 4 }}>
-                    <TouchableOpacity onLongPress={() => {
-                      const currentLabel = speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera';
-                      Alert.prompt ? Alert.prompt('Rinomina', 'Come vuoi chiamare questa voce?', (text) => {
-                        if (text && text.trim()) {
-                          setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: text.trim(), periodo: 'giornaliero' } }));
-                        }
-                      }, 'plain-text', currentLabel) : (() => {
-                        // Fallback for Android: use the label from store or default
-                        const newLabel = prompt('Come vuoi chiamare questa voce?', currentLabel);
-                        if (newLabel && newLabel.trim()) {
-                          setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: newLabel.trim(), periodo: 'giornaliero' } }));
-                        }
-                      })();
-                    }} delayLongPress={500}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#B08050', marginBottom: 2 }}>
-                        {speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera'} <Text style={{ fontSize: 8, color: '#C0B0A0' }}>✏️</Text>
-                      </Text>
-                    </TouchableOpacity>
-                    <View style={st.inputRow}>
-                      <TextInput
-                        style={st.amountInput}
-                        placeholder="0"
-                        placeholderTextColor="#B0B0A0"
-                        keyboardType="decimal-pad"
-                        value={localImporti[libKey] !== undefined ? localImporti[libKey] : (entryLib.importo || '')}
-                        onChangeText={(v) => updateEntry(libKey, 'importo', v)}
-                        onBlur={() => flushImporto(libKey)}
-                        onEndEditing={() => flushImporto(libKey)}
-                        returnKeyType="done"
-                      />
-                      <Text style={st.euro}>{'\u20AC'}</Text>
-                    </View>
-                  </View>
-                  <View style={st.periodoRow}>
-                    {['giornaliero', 'settimanale', 'mensile'].map((per) => {
-                      const on = entry.periodo === per;
-                      return (
-                        <TouchableOpacity key={per} style={[st.periodoBtn, on && st.periodoBtnOn]} onPress={() => updateEntry(f.nome, 'periodo', per)}>
-                          <Text style={[st.periodoTxt, on && { color: '#FFF' }]}>{PERIODI_LABELS[per]}</Text>
+                  <TouchableOpacity onPress={() => toggleForn(f.nome)} activeOpacity={0.7}>
+                    <View style={st.fornHeader}>
+                      <Ionicons name="storefront" size={16} color="#1E7F85" />
+                      <Text style={st.cardTitle}>{f.nome}</Text>
+                      {totFornitore > 0 ? (
+                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>TOT €{totFornitore.toFixed(2)}</Text>
+                      ) : (
+                        <View style={{ marginLeft: 'auto' }} />
+                      )}
+                      {totFornitore > 0 ? (
+                        <TouchableOpacity onPress={() => {
+                          const updated = { ...speseExtraFornitore };
+                          delete updated[f.nome];
+                          delete updated[libKey];
+                          setSpeseExtraFornitore(updated);
+                          setLocalImporti(prev => { const n = { ...prev }; delete n[f.nome]; delete n[libKey]; return n; });
+                        }} style={{ marginLeft: 6 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Ionicons name="close-circle" size={20} color="#D46A6A" />
                         </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                  {/* Mostra equivalente giornaliero per spese settimanali/mensili */}
-                  {entry.importo && parseFloat(entry.importo.replace(',', '.')) > 0 && entry.periodo !== 'giornaliero' && (
-                    <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 4, fontStyle: 'italic' }}>
-                      = €{(entry.periodo === 'settimanale' ? parseFloat(entry.importo.replace(',', '.')) / 6 : parseFloat(entry.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
-                    </Text>
+                      ) : null}
+                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#5A7575" style={{ marginLeft: 6 }} />
+                    </View>
+                  </TouchableOpacity>
+                  {isOpen && (
+                    <>
+                      <View style={st.prodottiRow}>
+                        {f.prodotti.map((p) => (
+                          <View key={p.nome} style={st.chip}>
+                            <Text style={st.chipTxt}>{p.nome} ({'\u20AC'}{p.prezzo})</Text>
+                          </View>
+                        ))}
+                      </View>
+                      {/* Riga 1: Fatturata con campo numero fattura */}
+                      <View style={{ marginTop: 6 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090' }}>Fatt. n°</Text>
+                          <TextInput
+                            style={{ fontSize: 10, fontWeight: '600', color: '#1A4040', borderBottomWidth: 1, borderColor: '#D0D5D0', paddingVertical: 2, paddingHorizontal: 4, minWidth: 60, flex: 1 }}
+                            placeholder="n° fattura"
+                            placeholderTextColor="#C0C0B0"
+                            value={localImporti[`${f.nome}__fattn`] !== undefined ? localImporti[`${f.nome}__fattn`] : (speseExtraFornitore[`${f.nome}__fattn`]?.importo || '')}
+                            onChangeText={(v) => {
+                              setLocalImporti(prev => ({ ...prev, [`${f.nome}__fattn`]: v }));
+                            }}
+                            onBlur={() => {
+                              const val = localImporti[`${f.nome}__fattn`] || '';
+                              const current = speseExtraFornitore[`${f.nome}__fattn`] || { importo: '', periodo: 'giornaliero' };
+                              setSpeseExtraFornitore({ ...speseExtraFornitore, [`${f.nome}__fattn`]: { ...current, importo: val } });
+                            }}
+                            returnKeyType="done"
+                          />
+                        </View>
+                        <View style={[st.inputRow, { marginTop: 4 }]}>
+                          <TextInput
+                            style={st.amountInput}
+                            placeholder="0"
+                            placeholderTextColor="#B0B0A0"
+                            keyboardType="decimal-pad"
+                            value={localImporti[f.nome] !== undefined ? localImporti[f.nome] : (entry.importo || '')}
+                            onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
+                            onBlur={() => flushImporto(f.nome)}
+                            onEndEditing={() => flushImporto(f.nome)}
+                            returnKeyType="done"
+                          />
+                          <Text style={st.euro}>{'\u20AC'}</Text>
+                        </View>
+                      </View>
+                      {/* Riga 2: Libera (nome personalizzabile con long-press) */}
+                      <View style={{ marginTop: 4 }}>
+                        <TouchableOpacity onLongPress={() => {
+                          const currentLabel = speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera';
+                          Alert.prompt ? Alert.prompt('Rinomina', 'Come vuoi chiamare questa voce?', (text) => {
+                            if (text && text.trim()) {
+                              setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: text.trim(), periodo: 'giornaliero' } }));
+                            }
+                          }, 'plain-text', currentLabel) : (() => {
+                            const newLabel = prompt('Come vuoi chiamare questa voce?', currentLabel);
+                            if (newLabel && newLabel.trim()) {
+                              setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: newLabel.trim(), periodo: 'giornaliero' } }));
+                            }
+                          })();
+                        }} delayLongPress={500}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#B08050', marginBottom: 2 }}>
+                            {speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera'} <Text style={{ fontSize: 8, color: '#C0B0A0' }}>✏️</Text>
+                          </Text>
+                        </TouchableOpacity>
+                        <View style={st.inputRow}>
+                          <TextInput
+                            style={st.amountInput}
+                            placeholder="0"
+                            placeholderTextColor="#B0B0A0"
+                            keyboardType="decimal-pad"
+                            value={localImporti[libKey] !== undefined ? localImporti[libKey] : (entryLib.importo || '')}
+                            onChangeText={(v) => updateEntry(libKey, 'importo', v)}
+                            onBlur={() => flushImporto(libKey)}
+                            onEndEditing={() => flushImporto(libKey)}
+                            returnKeyType="done"
+                          />
+                          <Text style={st.euro}>{'\u20AC'}</Text>
+                        </View>
+                      </View>
+                      <View style={st.periodoRow}>
+                        {['giornaliero', 'settimanale', 'mensile'].map((per) => {
+                          const on = entry.periodo === per;
+                          return (
+                            <TouchableOpacity key={per} style={[st.periodoBtn, on && st.periodoBtnOn]} onPress={() => updateEntry(f.nome, 'periodo', per)}>
+                              <Text style={[st.periodoTxt, on && { color: '#FFF' }]}>{PERIODI_LABELS[per]}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      {/* Mostra equivalente giornaliero per spese settimanali/mensili */}
+                      {entry.importo && parseFloat(entry.importo.replace(',', '.')) > 0 && entry.periodo !== 'giornaliero' && (
+                        <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 4, fontStyle: 'italic' }}>
+                          = €{(entry.periodo === 'settimanale' ? parseFloat(entry.importo.replace(',', '.')) / 6 : parseFloat(entry.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
+                        </Text>
+                      )}
+                    </>
                   )}
                 </View>
               );
@@ -293,59 +313,84 @@ export const SpeseExtraModal: React.FC<Props> = ({
             {/* ═══ SPESE EXTRA GENERICHE ═══ */}
             <Text style={st.sectionTitle}>SPESE EXTRA GENERICHE</Text>
 
-            {vociGeneriche.map((v, idx) => (
-              <View key={idx} style={st.card}>
-                <View style={st.fornHeader}>
-                  <Ionicons name="receipt-outline" size={16} color="#1E7F85" />
-                  <Text style={st.cardTitle}>{v.nome}</Text>
-                  <TouchableOpacity onPress={() => removeVoce(idx)} style={{ marginLeft: 'auto' }}>
-                    <Ionicons name="close-circle" size={20} color="#D46A6A" />
-                  </TouchableOpacity>
-                </View>
-                <View style={st.inputRow}>
-                  <TextInput
-                    style={st.amountInput}
-                    placeholder="0"
-                    placeholderTextColor="#B0B0A0"
-                    keyboardType="decimal-pad"
-                    value={v.importo}
-                    onChangeText={(val) => updateVoce(idx, 'importo', val)}
-                    returnKeyType="done"
-                  />
-                  <Text style={st.euro}>{'\u20AC'}</Text>
-                </View>
-                {/* Periodo: giorno / settimana / mese */}
-                <View style={st.periodoRow}>
-                  {['giornaliero', 'settimanale', 'mensile'].map((per) => {
-                    const on = (v as any).periodo === per || (!((v as any).periodo) && per === 'giornaliero');
-                    return (
-                      <TouchableOpacity key={per} style={[st.periodoBtn, on && st.periodoBtnOn]} onPress={() => updateVoce(idx, 'periodo', per)}>
-                        <Text style={[st.periodoTxt, on && { color: '#FFF' }]}>
-                          {per === 'giornaliero' ? 'Giorno' : per === 'settimanale' ? 'Sett.' : 'Mese'}
-                        </Text>
+            {vociGeneriche.map((v, idx) => {
+              const isOpen = !!expandedVoce[idx];
+              const importNum = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+              return (
+                <View key={idx} style={st.card}>
+                  <TouchableOpacity onPress={() => toggleVoce(idx)} activeOpacity={0.7}>
+                    <View style={st.fornHeader}>
+                      <Ionicons name="receipt-outline" size={16} color="#1E7F85" />
+                      <Text style={st.cardTitle}>{v.nome}</Text>
+                      {importNum > 0 ? (
+                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>€{importNum.toFixed(2)}</Text>
+                      ) : (
+                        <View style={{ marginLeft: 'auto' }} />
+                      )}
+                      <TouchableOpacity onPress={() => removeVoce(idx)} style={{ marginLeft: 6 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="close-circle" size={20} color="#D46A6A" />
                       </TouchableOpacity>
-                    );
-                  })}
+                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#5A7575" style={{ marginLeft: 6 }} />
+                    </View>
+                  </TouchableOpacity>
+                  {isOpen && (
+                    <>
+                      <View style={st.inputRow}>
+                        <TextInput
+                          style={st.amountInput}
+                          placeholder="0"
+                          placeholderTextColor="#B0B0A0"
+                          keyboardType="decimal-pad"
+                          value={v.importo}
+                          onChangeText={(val) => updateVoce(idx, 'importo', val)}
+                          returnKeyType="done"
+                        />
+                        <Text style={st.euro}>{'\u20AC'}</Text>
+                      </View>
+                      {/* Periodo: giorno / settimana / mese */}
+                      <View style={st.periodoRow}>
+                        {['giornaliero', 'settimanale', 'mensile'].map((per) => {
+                          const on = (v as any).periodo === per || (!((v as any).periodo) && per === 'giornaliero');
+                          return (
+                            <TouchableOpacity key={per} style={[st.periodoBtn, on && st.periodoBtnOn]} onPress={() => updateVoce(idx, 'periodo', per)}>
+                              <Text style={[st.periodoTxt, on && { color: '#FFF' }]}>
+                                {per === 'giornaliero' ? 'Giorno' : per === 'settimanale' ? 'Sett.' : 'Mese'}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      {/* Mostra equivalente giornaliero */}
+                      {v.importo && parseFloat(v.importo.replace(',', '.')) > 0 && (v as any).periodo && (v as any).periodo !== 'giornaliero' && (
+                        <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 2, fontStyle: 'italic' }}>
+                          = €{((v as any).periodo === 'settimanale' ? parseFloat(v.importo.replace(',', '.')) / 6 : parseFloat(v.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
+                        </Text>
+                      )}
+                    </>
+                  )}
                 </View>
-                {/* Mostra equivalente giornaliero */}
-                {v.importo && parseFloat(v.importo.replace(',', '.')) > 0 && (v as any).periodo && (v as any).periodo !== 'giornaliero' && (
-                  <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 2, fontStyle: 'italic' }}>
-                    = €{((v as any).periodo === 'settimanale' ? parseFloat(v.importo.replace(',', '.')) / 6 : parseFloat(v.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
-                  </Text>
-                )}
-              </View>
-            ))}
+              );
+            })}
 
-            {/* ═══ TAG SALVATI (quick add) ═══ */}
+            {/* ═══ TAG SALVATI (quick add + X per rimuovere) ═══ */}
             {speseExtraTags.length > 0 && (
               <View style={st.tagsRow}>
                 {speseExtraTags
                   .filter((tag) => !vociGeneriche.some((v) => v.nome === tag))
                   .map((tag) => (
-                    <TouchableOpacity key={tag} style={st.tagChip} onPress={() => addVoceFromTag(tag)}>
-                      <Ionicons name="add-circle-outline" size={14} color="#1E7F85" />
-                      <Text style={st.tagChipTxt}>{tag}</Text>
-                    </TouchableOpacity>
+                    <View key={tag} style={st.tagChip}>
+                      <TouchableOpacity onPress={() => addVoceFromTag(tag)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="add-circle-outline" size={14} color="#1E7F85" />
+                        <Text style={st.tagChipTxt}>{tag}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => removeSpeseExtraTag(tag)}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        style={{ marginLeft: 6 }}
+                      >
+                        <Ionicons name="close-circle" size={16} color="#D46A6A" />
+                      </TouchableOpacity>
+                    </View>
                   ))}
               </View>
             )}
@@ -368,7 +413,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
             <View style={{ height: 40 }} />
           </ScrollView>
 
-          <TouchableOpacity style={st.confirmBtn} onPress={handleClose} activeOpacity={0.8}>
+          <TouchableOpacity style={[st.confirmBtn, { marginBottom: Math.max(insets.bottom, 8) + 8 }]} onPress={handleClose} activeOpacity={0.8}>
             <Text style={st.confirmTxt}>CONFERMA</Text>
           </TouchableOpacity>
         </View>

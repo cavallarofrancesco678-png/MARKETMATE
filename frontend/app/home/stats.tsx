@@ -223,6 +223,21 @@ export default function StatsScreen() {
   const [showFiere, setShowFiere] = useState(false);
   const [showFornitori, setShowFornitori] = useState(false);
   const [expandedFornitore, setExpandedFornitore] = useState<string | null>(null);
+  // Collapse state per ogni sezione (default: tutte chiuse "a pacchetto")
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+    economico: true,
+    incassi: true,
+    workingDays: true,
+    fixedExpenses: true,
+    extraExpenses: true,
+    invenduto: true,
+    collab: true,
+    fornLines: true,
+    fiere: true,
+    meteo: true,
+  });
+  const toggleCollapsed = (key: string) =>
+    setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
   // Date range per filtro personalizzato
   const [persDateFrom, setPersDateFrom] = useState<Date | null>(null);
   const [persDateTo, setPersDateTo] = useState<Date | null>(null);
@@ -418,24 +433,43 @@ export default function StatsScreen() {
     const fattore = filtroTempo === 'Oggi' || filtroTempo === 'Ieri' ? 1 / 365
       : filtroTempo === 'Sett.' ? 1 / 52
       : filtroTempo === 'Mese' ? 1 / 12 : 1;
+    // Mostra TUTTE le spese annue (anche con valore decimale), non solo quelle che arrotondano a 0
     return speseAnnue.map((sp, i) => ({
       label: sp.voce,
-      value: Math.round(sp.importo * fattore),
-      color: [PALETTE[6], '#8899AA', PALETTE[2], PALETTE[7]][i % 4],
+      value: Math.max(Math.round(sp.importo * fattore * 100) / 100, 0.01),
+      color: PALETTE[i % PALETTE.length],
     }));
   }, [speseAnnue, filtroTempo]);
 
   const speseExtraItems = useMemo(() => {
-    const totSpeseExtra = arrSum(filteredData.map((g) => g.spese_extra || 0));
+    // Aggrega per nome voce dalle dettaglio_spese_extra di ogni giornata
+    const perVoce: Record<string, number> = {};
+    filteredData.forEach((g) => {
+      if (g.dettaglio_spese_extra) {
+        Object.entries(g.dettaglio_spese_extra).forEach(([k, v]) => {
+          perVoce[k] = (perVoce[k] || 0) + (v as number);
+        });
+      }
+    });
+    // Invenduto come voce a sé
     const totInvenduto = arrSum(filteredData.map((g) => {
       if (!g.dettaglio_invenduto) return 0;
       return Object.values(g.dettaglio_invenduto).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
     }));
-    return [
-      { label: t('stats.extraExpenses'), value: totSpeseExtra, color: PALETTE[1] },
-      { label: t('stats.unsold'), value: totInvenduto, color: PALETTE[3] },
-    ].filter((i) => i.value > 0);
-  }, [filteredData]);
+    const items: { label: string; value: number; color: string }[] = [];
+    Object.entries(perVoce).forEach(([nome, val], i) => {
+      items.push({ label: nome, value: Math.round(val * 100) / 100, color: PALETTE[i % PALETTE.length] });
+    });
+    if (totInvenduto > 0) {
+      items.push({ label: t('stats.unsold'), value: totInvenduto, color: '#D46A6A' });
+    }
+    // Fallback: se nessun dettaglio extra, mostra totale aggregato
+    if (items.length === 0) {
+      const totSpeseExtra = arrSum(filteredData.map((g) => g.spese_extra || 0));
+      if (totSpeseExtra > 0) items.push({ label: t('stats.extraExpenses'), value: totSpeseExtra, color: PALETTE[1] });
+    }
+    return items.filter((i) => i.value > 0);
+  }, [filteredData, t]);
 
   // Calcolo totali fornitori: fatturata vs libera
   const fornitoriTotals = useMemo(() => {
@@ -545,23 +579,20 @@ export default function StatsScreen() {
     const activeLine = activeChartLine[chartKey] ?? null;
     const currentTooltip = tooltipInfo && tooltipInfo.chartKey === chartKey ? tooltipInfo : null;
     const hasActiveFilter = activeLine !== null;
+    const isCollapsed = collapsed[chartKey] ?? false;
     return (
       <View style={[st.card, { marginBottom: GAP }]}>
-        <View style={st.chartHeader}>
-          <TouchableOpacity 
-            onPress={() => {
-              // Reset to show all lines when clicking on section title
-              if (hasActiveFilter) {
-                setActiveChartLine((prev) => ({ ...prev, [chartKey]: null }));
-                setTooltipInfo(null);
-              }
-            }}
-            activeOpacity={hasActiveFilter ? 0.6 : 1}
-          >
+        <TouchableOpacity onPress={() => toggleCollapsed(chartKey)} activeOpacity={0.7}>
+          <View style={st.chartHeader}>
             <Text style={[st.sectionLabel, hasActiveFilter && { textDecorationLine: 'underline', color: '#E8A060' }]}>{title}</Text>
-          </TouchableOpacity>
-          <Text style={st.sectionTotal}>TOTALE: {'\u20AC'}{totalSection.toFixed(0)}</Text>
-        </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={st.sectionTotal}>TOT: {'\u20AC'}{totalSection.toFixed(0)}</Text>
+              <Ionicons name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />
+            </View>
+          </View>
+        </TouchableOpacity>
+        {!isCollapsed && (
+        <>
         {hasActiveFilter && (
           <TouchableOpacity 
             style={{ alignSelf: 'flex-start', marginBottom: 6, backgroundColor: '#E8A060', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}
@@ -608,21 +639,30 @@ export default function StatsScreen() {
             onPointPress={(li, pi, val) => handlePointPress(chartKey, li, pi, val)}
           />
         </View>
+        </>
+        )}
       </View>
     );
   };
 
-  const renderPieBox = (title: string, items: { label: string; value: number; color: string }[]) => {
+  const renderPieBox = (title: string, items: { label: string; value: number; color: string }[], collapseKey?: string) => {
     const total = arrSum(items.map((i) => i.value));
     // Mostra sempre il grafico, anche vuoto
     const displayItems = total > 0 ? items : [{ label: 'Nessun dato', value: 1, color: '#D8E4E0' }];
     const displayTotal = total;
+    const isCollapsed = collapseKey ? (collapsed[collapseKey] ?? false) : false;
     return (
       <View style={[st.card, { marginBottom: GAP }]}>
-        <View style={st.chartHeader}>
-          <Text style={st.sectionLabel}>{title}</Text>
-          <Text style={st.sectionTotal}>TOT: {'\u20AC'}{displayTotal}</Text>
-        </View>
+        <TouchableOpacity onPress={() => collapseKey && toggleCollapsed(collapseKey)} activeOpacity={collapseKey ? 0.7 : 1} disabled={!collapseKey}>
+          <View style={st.chartHeader}>
+            <Text style={st.sectionLabel}>{title}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={st.sectionTotal}>TOT: {'\u20AC'}{displayTotal.toFixed(2)}</Text>
+              {collapseKey && <Ionicons name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />}
+            </View>
+          </View>
+        </TouchableOpacity>
+        {!isCollapsed && (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 14 }}>
           <PieChart items={displayItems} size={130} />
           <View style={{ flex: 1 }}>
@@ -640,7 +680,7 @@ export default function StatsScreen() {
                       {it.label}
                     </Text>
                     <Text style={{ fontSize: 10, fontWeight: '800', color: it.color }}>
-                      {'\u20AC'}{it.value} ({pct}%)
+                      {'\u20AC'}{it.value.toFixed(2)} ({pct}%)
                     </Text>
                   </View>
                 );
@@ -648,6 +688,7 @@ export default function StatsScreen() {
             )}
           </View>
         </View>
+        )}
       </View>
     );
   };
@@ -789,13 +830,19 @@ export default function StatsScreen() {
 
         {/* ─── GIORNI LAVORATI VS NON LAVORATI ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>
-          <View style={st.chartHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="calendar-outline" size={16} color="#1E7F85" />
-              <Text style={st.sectionLabel}>{t('stats.workingDays')}</Text>
+          <TouchableOpacity onPress={() => toggleCollapsed('workingDays')} activeOpacity={0.7}>
+            <View style={st.chartHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="calendar-outline" size={16} color="#1E7F85" />
+                <Text style={st.sectionLabel}>{t('stats.workingDays')}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={st.sectionTotal}>{giorniLavoroData.lavorati}/{giorniLavoroData.totale}</Text>
+                <Ionicons name={collapsed.workingDays ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />
+              </View>
             </View>
-            <Text style={st.sectionTotal}>{giorniLavoroData.lavorati}/{giorniLavoroData.totale}</Text>
-          </View>
+          </TouchableOpacity>
+          {!collapsed.workingDays && (
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, marginTop: 10, gap: 12, paddingHorizontal: 10 }}>
             {/* Barra giorni lavorati */}
             <View style={{ flex: 1, alignItems: 'center' }}>
@@ -829,11 +876,12 @@ export default function StatsScreen() {
               <Text style={{ fontSize: 9, fontWeight: '700', color: '#7A9090' }}>PRESENZA</Text>
             </View>
           </View>
+          )}
         </View>
 
         {/* ─── AREOGRAMMI ─── */}
-        {renderPieBox(t('stats.fixedExpenses'), speseFisseItems)}
-        {renderPieBox(t('stats.extraExpenses'), speseExtraItems)}
+        {renderPieBox(t('stats.fixedExpenses'), speseFisseItems, 'fixedExpenses')}
+        {renderPieBox(t('stats.extraExpenses'), speseExtraItems, 'extraExpenses')}
 
         {/* ─── FORNITORI: Fatturata vs Libera (espandibile) ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>
@@ -875,15 +923,46 @@ export default function StatsScreen() {
                   )}
                 </View>
               </View>
-              {/* Dettaglio per fornitore */}
-              {fornitoriTotals.perFornitore.map((f, i) => (
-                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderColor: '#E8EDE8' }}>
-                  <Ionicons name="cube-outline" size={14} color="#7A9090" />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1, marginLeft: 6 }}>{f.nome}</Text>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85', marginRight: 8 }}>F: €{f.fatturata.toFixed(0)}</Text>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060' }}>L: €{f.libera.toFixed(0)}</Text>
-                </View>
-              ))}
+              {/* Dettaglio per fornitore - click per espandere personale */}
+              {fornitoriTotals.perFornitore.map((f, i) => {
+                const isExp = expandedFornitore === f.nome;
+                const totF = f.fatturata + f.libera;
+                return (
+                  <View key={i} style={{ borderTopWidth: 1, borderColor: '#E8EDE8' }}>
+                    <TouchableOpacity onPress={() => setExpandedFornitore(isExp ? null : f.nome)} activeOpacity={0.7}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
+                        <Ionicons name="cube-outline" size={14} color="#7A9090" />
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1, marginLeft: 6 }}>{f.nome}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85', marginRight: 8 }}>F: €{f.fatturata.toFixed(0)}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060', marginRight: 6 }}>L: €{f.libera.toFixed(0)}</Text>
+                        <Ionicons name={isExp ? 'chevron-up' : 'chevron-down'} size={16} color="#5A7575" />
+                      </View>
+                    </TouchableOpacity>
+                    {isExp && totF > 0 && (
+                      <View style={{ backgroundColor: '#F4FAF7', borderRadius: 10, padding: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <PieChart items={[
+                          { label: 'Fatturata', value: f.fatturata, color: '#1E7F85' },
+                          { label: 'Libera', value: f.libera, color: '#E8A060' },
+                        ]} size={100} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '900', color: '#1A4040', marginBottom: 6 }}>{f.nome}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85', marginRight: 6 }} />
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>Fatturata</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85' }}>€{f.fatturata.toFixed(0)} ({Math.round((f.fatturata / totF) * 100)}%)</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060', marginRight: 6 }} />
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>Libera</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060' }}>€{f.libera.toFixed(0)} ({Math.round((f.libera / totF) * 100)}%)</Text>
+                          </View>
+                          <Text style={{ fontSize: 10, color: '#5A7575', fontWeight: '700', marginTop: 4 }}>TOT: €{totF.toFixed(0)}</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
               {fornitoriTotals.perFornitore.length === 0 && (
                 <Text style={{ fontSize: 11, color: '#7A9090', textAlign: 'center', paddingVertical: 10 }}>Nessun dato fornitori nel periodo</Text>
               )}

@@ -102,6 +102,7 @@ export interface Giornata {
   dettaglio_staff: Record<string, number>;
   dettaglio_invenduto: Record<string, number>;
   dettaglio_fornitori: Record<string, number>;
+  dettaglio_spese_extra?: Record<string, number>;
 }
 
 export interface Carburante {
