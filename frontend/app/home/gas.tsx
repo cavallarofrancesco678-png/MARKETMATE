@@ -37,7 +37,7 @@ export default function GasScreen() {
   const [displayMonth, setDisplayMonth] = useState(new Date());
 
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
-  const contentH = height - insets.bottom - 70 - topPad;
+  const contentH = height - insets.bottom - 110 - topPad;
 
   /* ═══ SALVA RIFORNIMENTO OGGI ═══ */
   const handleSalvaRifornimento = () => {

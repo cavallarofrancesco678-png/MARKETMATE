@@ -12,7 +12,6 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
-  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
@@ -500,25 +499,24 @@ export default function SettingsPage() {
       const state = useAppStore.getState();
       const exportData = {
         esportato_il: new Date().toISOString(),
-        app: 'MarketMate v2.5.0',
+        app: 'MarketMate v2.7.0',
         produttore: 'T.V.S di Francesco Cavallaro',
-        nomeAttivita: state.nomeAttivita,
+        nomeAttivita: state.nomeAttivita || '',
         isAlimentare: state.isAlimentare,
-        agenda: state.agenda,
-        collaboratori: state.collaboratori,
-        fornitori: state.fornitori,
-        speseAnnue: state.speseAnnue,
-        storicoGiornate: state.storicoGiornate,
-        storicoCarburante: state.storicoCarburante,
-        impegni: state.impegni,
-        appuntiGiornalieri: state.appuntiGiornalieri,
+        agenda: state.agenda || [],
+        collaboratori: state.collaboratori || [],
+        fornitori: state.fornitori || [],
+        speseAnnue: state.speseAnnue || [],
+        storicoGiornate: state.storicoGiornate || [],
+        storicoCarburante: state.storicoCarburante || [],
+        impegni: (state as any).impegni || [],
+        appuntiGiornalieri: (state as any).appuntiGiornalieri || [],
       };
 
       const json = JSON.stringify(exportData, null, 2);
       const fileName = `MarketMate_${new Date().toISOString().split('T')[0]}.json`;
 
       if (Platform.OS === 'web') {
-        // Web: download as file
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -526,9 +524,14 @@ export default function SettingsPage() {
         a.download = fileName;
         a.click();
         URL.revokeObjectURL(url);
+        playSuccess();
       } else {
-        // Mobile: save to file and share
-        const filePath = `${FileSystem.documentDirectory}${fileName}`;
+        const dirPath = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+        if (!dirPath) {
+          Alert.alert('Export', 'Directory non disponibile. Riprova.');
+          return;
+        }
+        const filePath = `${dirPath}${fileName}`;
         await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
         
         const canShare = await Sharing.isAvailableAsync();
@@ -536,15 +539,14 @@ export default function SettingsPage() {
           await Sharing.shareAsync(filePath, {
             mimeType: 'application/json',
             dialogTitle: 'Esporta dati MarketMate',
-            UTI: 'public.json',
           });
+          playSuccess();
         } else {
-          Alert.alert('Export', `File salvato in: ${filePath}`);
+          Alert.alert('Export', 'Dati salvati! Condivisione non disponibile su questo dispositivo.');
         }
       }
-      playSuccess();
-    } catch (err) {
-      Alert.alert('Errore', 'Impossibile esportare i dati');
+    } catch (err: any) {
+      Alert.alert('Errore Export', `${err?.message || 'Errore sconosciuto'}. Riprova.`);
     }
   };
 
@@ -1175,34 +1177,7 @@ export default function SettingsPage() {
         </View>
       </View>
 
-      {/* ─── ESCI DALL'APP ─── */}
-      <TouchableOpacity
-        style={{ backgroundColor: '#1A4040', borderRadius: 14, padding: 16, marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-        onPress={() => {
-          const doExit = () => {
-            if (Platform.OS === 'web') {
-              window.close();
-            } else {
-              BackHandler.exitApp();
-            }
-          };
-          if (Platform.OS === 'web') {
-            doExit();
-          } else {
-            Alert.alert(
-              t('settings.exitApp'),
-              t('settings.exitAppConfirm'),
-              [
-                { text: t('common.cancel'), style: 'cancel' },
-                { text: t('settings.exitApp'), onPress: doExit },
-              ]
-            );
-          }
-        }}
-      >
-        <Ionicons name="exit-outline" size={20} color="#FFF" />
-        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 1 }}>{t('settings.exitApp')}</Text>
-      </TouchableOpacity>
+      {/* ─── Il pulsante "Esci dall'App" è stato rimosso: è già presente in Home ─── */}
 
       <View style={{ height: 40 }} />
 
