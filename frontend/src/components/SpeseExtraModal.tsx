@@ -295,28 +295,44 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
             {vociGeneriche.map((v, idx) => (
               <View key={idx} style={st.card}>
-                <View style={st.voceRow}>
-                  <Switch
-                    value={v.attivo}
-                    onValueChange={(val) => updateVoce(idx, 'attivo', val)}
-                    trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
-                    thumbColor={v.attivo ? '#1E7F85' : '#999'}
-                  />
-                  <Text style={[st.voceName, !v.attivo && { color: '#B0B0A0', textDecorationLine: 'line-through' }]}>{v.nome}</Text>
-                  <TextInput
-                    style={st.voceInput}
-                    placeholder="0"
-                    placeholderTextColor="#B0B0A0"
-                    keyboardType="numeric"
-                    value={v.importo}
-                    onChangeText={(val) => updateVoce(idx, 'importo', val)}
-                    selectTextOnFocus
-                  />
-                  <Text style={st.euro}>{'\u20AC'}</Text>
-                  <TouchableOpacity onPress={() => removeVoce(idx)} style={st.deleteBtn}>
-                    <Ionicons name="trash-outline" size={18} color="#D46A6A" />
+                <View style={st.fornHeader}>
+                  <Ionicons name="receipt-outline" size={16} color="#1E7F85" />
+                  <Text style={st.cardTitle}>{v.nome}</Text>
+                  <TouchableOpacity onPress={() => removeVoce(idx)} style={{ marginLeft: 'auto' }}>
+                    <Ionicons name="close-circle" size={20} color="#D46A6A" />
                   </TouchableOpacity>
                 </View>
+                <View style={st.inputRow}>
+                  <TextInput
+                    style={st.amountInput}
+                    placeholder="0"
+                    placeholderTextColor="#B0B0A0"
+                    keyboardType="decimal-pad"
+                    value={v.importo}
+                    onChangeText={(val) => updateVoce(idx, 'importo', val)}
+                    returnKeyType="done"
+                  />
+                  <Text style={st.euro}>{'\u20AC'}</Text>
+                </View>
+                {/* Periodo: giorno / settimana / mese */}
+                <View style={st.periodoRow}>
+                  {['giornaliero', 'settimanale', 'mensile'].map((per) => {
+                    const on = (v as any).periodo === per || (!((v as any).periodo) && per === 'giornaliero');
+                    return (
+                      <TouchableOpacity key={per} style={[st.periodoBtn, on && st.periodoBtnOn]} onPress={() => updateVoce(idx, 'periodo', per)}>
+                        <Text style={[st.periodoTxt, on && { color: '#FFF' }]}>
+                          {per === 'giornaliero' ? 'Giorno' : per === 'settimanale' ? 'Sett.' : 'Mese'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {/* Mostra equivalente giornaliero */}
+                {v.importo && parseFloat(v.importo.replace(',', '.')) > 0 && (v as any).periodo && (v as any).periodo !== 'giornaliero' && (
+                  <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 2, fontStyle: 'italic' }}>
+                    = €{((v as any).periodo === 'settimanale' ? parseFloat(v.importo.replace(',', '.')) / 6 : parseFloat(v.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
+                  </Text>
+                )}
               </View>
             ))}
 
