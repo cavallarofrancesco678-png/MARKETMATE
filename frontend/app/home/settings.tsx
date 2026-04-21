@@ -796,6 +796,10 @@ export default function SettingsPage() {
         <Text style={s.addBtnTxt}>{t('settings.addCollaborator')}</Text>
       </TouchableOpacity>
 
+      {/* ─── ⭐ FIERE RICORRENTI (Food Truck / Sagre / Festival) ─── */}
+      <Text style={[s.secTitle, { color: '#D4AF37' }]}>⭐ FIERE RICORRENTI</Text>
+      <FiereRicorrentiSection />
+
       {/* ─── AGENDA MERCATI ─── */}
       <Text style={s.secTitle}>{t('settings.marketsTitle') || 'MERCATI'}</Text>
       {store.agenda.map((m, idx) => {
@@ -909,11 +913,7 @@ export default function SettingsPage() {
         );
       })}
 
-      {/* ─── FIERE RICORRENTI (Food Truck / Sagre / Festival) ─── */}
-      <FiereRicorrentiSection />
-
-      {/* ─── FORNITORI ─── */}
-      <Text style={s.secTitle}>{t('settings.suppliersTitle') || 'FORNITORI'}</Text>
+      <Text style={s.secTitle}>{t('settings.marketsTitle') || 'MERCATI'}</Text>
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (

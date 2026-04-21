@@ -406,20 +406,17 @@ export default function StatsScreen() {
       color: PALETTE[i % PALETTE.length],
       data: groupData(filteredData, (g) => (g.dettaglio_invenduto?.[name] || 0)),
     }));
-    // Se non ci sono prodotti specifici, usa il totale come singola linea
+    // Se non ci sono prodotti specifici, usa SEMPRE il totale come singola linea (anche se 0)
     if (productLines.length === 0) {
-      const totaleLine = {
+      return [{
         label: t('stats.unsold') || 'Invenduto',
         color: '#D46A6A',
         data: groupData(filteredData, (g) => {
           const det = g.dettaglio_invenduto || {};
-          return Object.values(det).reduce((s: number, v) => s + (typeof v === 'number' ? v : 0), 0);
+          // Somma tutti i valori numerici dell'oggetto
+          return Object.values(det).reduce((s: number, v: any) => s + (typeof v === 'number' ? v : 0), 0);
         }),
-      };
-      // Mostra la linea solo se c'è almeno un dato non-zero
-      if (totaleLine.data.some((v: number) => v > 0)) {
-        return [totaleLine];
-      }
+      }];
     }
     return productLines;
   }, [filteredData, filtroTempo, t]);
