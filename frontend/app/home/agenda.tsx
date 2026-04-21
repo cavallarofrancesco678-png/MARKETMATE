@@ -116,6 +116,26 @@ export default function AgendaScreen() {
 
   const isCurrentMonth = calMonth.getMonth() === today.getMonth() && calMonth.getFullYear() === today.getFullYear();
 
+  /* ═══ FIERE RICORRENTI ATTIVE: mappa per giorno-della-settimana (0=Lun..6=Dom) ═══ */
+  const fiereByDow = useMemo(() => {
+    const map: Record<number, { nome: string; luogo: string }[]> = {};
+    (store.fiere || []).forEach((f: any) => {
+      if (!f.attiva) return;
+      (f.giorni || []).forEach((dow: number) => {
+        if (!map[dow]) map[dow] = [];
+        map[dow].push({ nome: f.nome, luogo: f.luogo });
+      });
+    });
+    return map;
+  }, [store.fiere]);
+
+  const getFiereForDay = (day: number) => {
+    if (!day) return [];
+    const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), day);
+    const dow = (date.getDay() + 6) % 7; // 0=Lun..6=Dom
+    return fiereByDow[dow] || [];
+  };
+
   /* ═══ SALVA ORDINE SU GIORNO ═══ */
   const handleSaveOrder = (day: number) => {
     const text = dayModalType === 'new' ? orderText.trim() : dayModalText.trim();
@@ -239,6 +259,8 @@ export default function AgendaScreen() {
               const hasItem = day ? impegniMese[day] && impegniMese[day].length > 0 : false;
               const isToday = isCurrentMonth && day === today.getDate();
               const isWorked = day ? giorniLavoratiMese.has(day) : false;
+              const fiereOggi = day ? getFiereForDay(day) : [];
+              const hasFiera = fiereOggi.length > 0;
               const itemTypes = day && impegniMese[day] ? impegniMese[day].map(x => x.tipo) : [];
               const hasApp = itemTypes.includes('appuntamento');
               const hasOrd = itemTypes.includes('ordine');
@@ -252,6 +274,7 @@ export default function AgendaScreen() {
                     !hasItem && isWorked && { backgroundColor: '#D5F0E8', borderWidth: 1.5, borderColor: '#5AAA6A' },
                     isToday && !hasItem && !isWorked && s.calDayToday,
                     isToday && isWorked && !hasItem && { borderColor: '#1E7F85', borderWidth: 2 },
+                    !hasItem && !isWorked && hasFiera && { borderWidth: 1.5, borderColor: '#D4AF37', borderStyle: 'dashed' as any },
                   ]}
                   disabled={!day}
                   onPress={() => day && handleDayPress(day)}
@@ -267,6 +290,11 @@ export default function AgendaScreen() {
                   </Text>
                   {hasItem && <View style={[s.calDot, { backgroundColor: '#FFF' }]} />}
                   {!hasItem && isWorked && <View style={[s.calDot, { backgroundColor: '#5AAA6A' }]} />}
+                  {hasFiera && (
+                    <View style={{ position: 'absolute', top: 2, right: 2 }}>
+                      <Ionicons name="star" size={10} color="#D4AF37" />
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -285,10 +313,31 @@ export default function AgendaScreen() {
           <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Appuntamento</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Ordine</Text>
+          <Ionicons name="star" size={10} color="#D4AF37" />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Fiera</Text>
         </View>
       </View>
+
+      {/* ═══ FIERE DI OGGI (se presenti) ═══ */}
+      {(() => {
+        const fiereOggi = getFiereForDay(today.getDate()).length > 0 && isCurrentMonth
+          ? getFiereForDay(today.getDate())
+          : [];
+        if (fiereOggi.length === 0) return null;
+        return (
+          <View style={{ backgroundColor: '#FFF8E1', borderLeftWidth: 3, borderLeftColor: '#D4AF37', padding: 8, marginBottom: 8, borderRadius: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Ionicons name="star" size={12} color="#D4AF37" />
+              <Text style={{ fontSize: 10, fontWeight: '900', color: '#8A6A1F', letterSpacing: 0.5 }}>FIERE DI OGGI</Text>
+            </View>
+            {fiereOggi.map((f, i) => (
+              <Text key={i} style={{ fontSize: 11, color: '#5A4A1F', fontWeight: '700' }}>
+                • {f.nome}{f.luogo ? ` — ${f.luogo}` : ''}
+              </Text>
+            ))}
+          </View>
+        );
+      })()}
 
       {/* ═══ NOTE DEL GIORNO ═══ */}
       <View style={[s.card, { flex: 1 }]}>
