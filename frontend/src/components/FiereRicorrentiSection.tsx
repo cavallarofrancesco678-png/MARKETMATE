@@ -13,10 +13,11 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppStore, Fiera } from '../store/appStore';
+import { useAppStore, Fiera, TipologiaEvento } from '../store/appStore';
 
 const GIORNI_LABEL = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 const GIORNI_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+const TIPOLOGIE: TipologiaEvento[] = ['Fiera', 'Sagra', 'Festa Patronale', 'Evento Speciale'];
 
 function genId() {
   return `f_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -40,6 +41,7 @@ export const FiereRicorrentiSection: React.FC = () => {
       orarioFine: '',
       km: 0,
       plateatico: 0,
+      tipologia: 'Fiera',
       note: '',
       attiva: true,
     });
@@ -125,7 +127,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                   {f.nome}
                 </Text>
                 <Text style={s.rowSub}>
-                  {f.luogo ? `${f.luogo} · ` : ''}{formatGiorni(f.giorni)}
+                  {f.tipologia ? `${f.tipologia} · ` : ''}{f.luogo ? `${f.luogo} · ` : ''}{formatGiorni(f.giorni)}
                   {f.plateatico > 0 ? ` · €${f.plateatico}/g` : ''}
                   {f.km > 0 ? ` · ${f.km}km` : ''}
                 </Text>
@@ -160,6 +162,29 @@ export const FiereRicorrentiSection: React.FC = () => {
                   value={editing.nome}
                   onChangeText={(v) => setEditing({ ...editing, nome: v })}
                 />
+
+                <Text style={s.label}>Tipologia</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {TIPOLOGIE.map((tip) => {
+                    const on = (editing.tipologia || 'Fiera') === tip;
+                    return (
+                      <TouchableOpacity
+                        key={tip}
+                        onPress={() => setEditing({ ...editing, tipologia: tip })}
+                        style={{
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
+                          borderRadius: 18,
+                          backgroundColor: on ? '#D4AF37' : '#FFF',
+                          borderWidth: 1,
+                          borderColor: on ? '#D4AF37' : '#E8EDE8',
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: on ? '#FFF' : '#5A7575' }}>{tip}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
                 <Text style={s.label}>Luogo / Città</Text>
                 <TextInput
                   style={s.input}

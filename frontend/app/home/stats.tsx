@@ -322,11 +322,18 @@ export default function StatsScreen() {
 
   const filteredData = useMemo(() => {
     if (filtroTipo === 'TUTTO') return filteredByTime;
-    if (filtroTipo === 'FIERE') return filteredByTime.filter((g) =>
-      g.mercato.toLowerCase().includes('fiera') || g.mercato.toLowerCase().includes('sagra'));
+    if (filtroTipo === 'FIERE') {
+      // Matcha su parole chiave + nomi delle fiere ricorrenti configurate
+      const fiereNomi = (store.fiere || []).map((f: any) => f.nome.toLowerCase());
+      return filteredByTime.filter((g) => {
+        const m = g.mercato.toLowerCase();
+        return m.includes('fiera') || m.includes('sagra') || m.includes('festa') || m.includes('evento') ||
+          fiereNomi.some((n: string) => n && m.includes(n));
+      });
+    }
     const targetDay = GIORNO_MAP[filtroTipo];
     return filteredByTime.filter((g) => new Date(g.data).getDay() === targetDay);
-  }, [filteredByTime, filtroTipo]);
+  }, [filteredByTime, filtroTipo, store.fiere]);
 
   const totLordo = arrSum(filteredData.map((g) => g.lordo || 0));
   const totNetto = arrSum(filteredData.map((g) => g.netto || 0));
@@ -877,6 +884,75 @@ export default function StatsScreen() {
 
       {/* ═══ CONTENUTO SCROLLABILE ═══ */}
       <ScrollView contentContainerStyle={[st.scroll, { gap: GAP }]} showsVerticalScrollIndicator={false}>
+
+        {/* ═══ EVENTI & FIERE — PANNELLO DEDICATO (solo quando filtro = FIERE) ═══ */}
+        {filtroTipo === 'FIERE' && (() => {
+          // Calcola statistiche per evento
+          const eventsMap: Record<string, { nome: string; tipologia: string; giornate: number; lordo: number; netto: number; km: number; plateatico: number }> = {};
+          filteredData.forEach((g) => {
+            const key = g.mercato || 'Sconosciuto';
+            const fiera = (store.fiere || []).find((f: any) => 
+              g.mercato.toLowerCase().includes(f.nome.toLowerCase()) ||
+              (f.luogo && g.mercato.toLowerCase().includes(f.luogo.toLowerCase()))
+            );
+            if (!eventsMap[key]) {
+              eventsMap[key] = {
+                nome: fiera?.nome || g.mercato,
+                tipologia: fiera?.tipologia || 'Fiera',
+                giornate: 0, lordo: 0, netto: 0, km: 0, plateatico: 0,
+              };
+            }
+            eventsMap[key].giornate += 1;
+            eventsMap[key].lordo += (g.lordo || 0);
+            eventsMap[key].netto += (g.netto || 0);
+            eventsMap[key].km += (g.km || 0);
+            eventsMap[key].plateatico += ((fiera?.plateatico || 0));
+          });
+          const events = Object.values(eventsMap).sort((a, b) => b.netto - a.netto);
+          const totaleEventi = events.reduce((s, e) => s + e.giornate, 0);
+          const totaleGuadagno = events.reduce((s, e) => s + e.netto, 0);
+          return (
+            <View style={[st.card, { marginBottom: GAP, backgroundColor: '#FFF8E1', borderLeftWidth: 4, borderLeftColor: '#D4AF37' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Ionicons name="star" size={18} color="#D4AF37" />
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#8A6A1F', letterSpacing: 1 }}>EVENTI & FIERE</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 }}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 20, fontWeight: '900', color: '#D4AF37' }}>{totaleEventi}</Text>
+                  <Text style={{ fontSize: 10, color: '#8A6A1F', fontWeight: '700' }}>EVENTI EFFETTUATI</Text>
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 20, fontWeight: '900', color: totaleGuadagno >= 0 ? '#2A7A5A' : '#D46A6A' }}>€{totaleGuadagno.toFixed(0)}</Text>
+                  <Text style={{ fontSize: 10, color: '#8A6A1F', fontWeight: '700' }}>NETTO EVENTI</Text>
+                </View>
+              </View>
+              {events.length === 0 && (
+                <Text style={{ fontSize: 11, color: '#7A9090', fontStyle: 'italic', textAlign: 'center', paddingVertical: 8 }}>
+                  Nessun evento nel periodo. Salva una giornata con mercato = "Fiera" o "Sagra".
+                </Text>
+              )}
+              {events.length > 0 && (
+                <View>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#8A6A1F', marginBottom: 6, letterSpacing: 0.5 }}>🏆 CLASSIFICA EVENTI</Text>
+                  {events.slice(0, 10).map((e, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: i > 0 ? 1 : 0, borderColor: '#F0E0B0' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: '#D4AF37', width: 22 }}>{i + 1}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }} numberOfLines={1}>{e.nome}</Text>
+                        <Text style={{ fontSize: 9, color: '#7A9090' }}>{e.tipologia} · {e.giornate}gg · {e.km}km</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '900', color: e.netto >= 0 ? '#2A7A5A' : '#D46A6A' }}>€{e.netto.toFixed(0)}</Text>
+                        <Text style={{ fontSize: 8, color: '#7A9090' }}>L:€{e.lordo.toFixed(0)}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })()}
 
         <View style={{ gap: GAP }}>
           <View style={st.kpiRow}>

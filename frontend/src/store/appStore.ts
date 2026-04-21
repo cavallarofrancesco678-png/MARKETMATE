@@ -91,6 +91,8 @@ export interface SpesaAnnua {
 
 // Fiera ricorrente (Opzione A): eventi multi-settimanali (es. food truck)
 // giorni: array di 0-6 dove 0=Lun, 1=Mar, ..., 6=Dom
+export type TipologiaEvento = 'Fiera' | 'Sagra' | 'Festa Patronale' | 'Evento Speciale';
+
 export interface Fiera {
   id: string;
   nome: string;
@@ -100,6 +102,7 @@ export interface Fiera {
   orarioFine?: string;
   km: number;
   plateatico: number;
+  tipologia?: TipologiaEvento;
   note?: string;
   attiva: boolean;
 }
