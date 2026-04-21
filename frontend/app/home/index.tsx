@@ -130,6 +130,28 @@ export default function HomeScreen() {
       setMeteo(saved.meteo || 'SOLE');
       const invTot = saved.dettaglio_invenduto?.totale;
       setInvenduto(invTot && invTot > 0 ? invTot.toString() : '0');
+      // Ripristina il dettaglio per prodotto (pizza, pane-andrea, ecc.)
+      if (saved.dettaglio_invenduto && typeof saved.dettaglio_invenduto === 'object') {
+        // Ricostruisci invendutoQty mappando le chiavi "Pane - Andrea" -> invertire in "Andrea_Pane"
+        const invQty: Record<string, string> = {};
+        Object.entries(saved.dettaglio_invenduto).forEach(([label, val]) => {
+          if (label === 'totale') return;
+          // label formato "nome - fornitore"
+          const parts = label.split(' - ');
+          if (parts.length === 2) {
+            const [nome, fornitore] = parts;
+            const prodotto = fornitori?.flatMap(f => f.prodotti.map(p => ({ f: f.nome, n: p.nome, pr: p.prezzo }))).find(p => p.n === nome && p.f === fornitore);
+            if (prodotto) {
+              const key = `${fornitore}_${nome}`;
+              const qty = isAlimentare && prodotto.pr > 0 ? (val as number) / prodotto.pr : (val as number);
+              invQty[key] = qty.toString();
+            }
+          }
+        });
+        setInvendutoQty(invQty);
+      } else {
+        setInvendutoQty({});
+      }
       if (saved.dettaglio_staff && typeof saved.dettaglio_staff === 'object') {
         const p: Record<string, boolean> = {};
         const override: Record<string, number> = {};
@@ -469,6 +491,19 @@ export default function HomeScreen() {
       }
     });
 
+    // Build dettaglio_invenduto per prodotto (pizza, pane-andrea, ecc.) + totale
+    const dettaglioInv: Record<string, number> = { totale: invendutoNum };
+    Object.entries(invendutoQty).forEach(([key, val]) => {
+      const qty = parseFloat((val || '0').replace(',', '.')) || 0;
+      if (qty <= 0) return;
+      const prod = tuttiProdotti.find(p => `${p.fornitore}_${p.nome}` === key);
+      if (!prod) return;
+      const valore = isAlimentare ? qty * prod.prezzo : qty;
+      // Etichetta: "Pane - Andrea"
+      const label = `${prod.nome} - ${prod.fornitore}`;
+      dettaglioInv[label] = Math.round(valore * 100) / 100;
+    });
+
     salvaGiornata({
       data: dataCorrente, mercato: mercatoNome, meteo,
       km: mercatoOggi?.km || 0, lordo: lordoNum, netto: utile,
@@ -476,11 +511,11 @@ export default function HomeScreen() {
       pos: parseFloat(pos.replace(',', '.')) || 0,
       spese_extra: speseExtraTotNum,
       dettaglio_staff: dettaglioStaff,
-      dettaglio_invenduto: { totale: invendutoNum },
+      dettaglio_invenduto: dettaglioInv,
       dettaglio_fornitori: dettaglioForn,
       dettaglio_spese_extra: dettaglioExtra,
     } as any);
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, speseExtraFornitore, vociGeneriche, salvaGiornata]);
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1070,7 +1105,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v3.9</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v4.0</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">

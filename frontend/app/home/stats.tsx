@@ -480,12 +480,27 @@ export default function StatsScreen() {
       }
     });
     // 3. Carburante - spesa reale del periodo filtrato (dal storicoCarburante)
+    // Filtra direttamente per data (indipendente da filteredData)
+    const nowDate = new Date();
     const totCarburantePeriodo = arrSum((storicoCarburante || []).filter((c) => {
       const d = new Date(c.data);
-      return filteredData.some((g) => {
-        const gd = new Date(g.data);
-        return gd.toDateString() === d.toDateString();
-      }) || (filtroTempo === 'Anno' && d.getFullYear() === new Date().getFullYear());
+      if (filtroTempo === 'Oggi') return d.toDateString() === nowDate.toDateString();
+      if (filtroTempo === 'Ieri') {
+        const ieri = new Date(nowDate); ieri.setDate(ieri.getDate() - 1);
+        return d.toDateString() === ieri.toDateString();
+      }
+      if (filtroTempo === 'Sett.') {
+        const start = new Date(nowDate); start.setDate(nowDate.getDate() - 6); start.setHours(0,0,0,0);
+        return d >= start && d <= nowDate;
+      }
+      if (filtroTempo === 'Mese') return d.getMonth() === nowDate.getMonth() && d.getFullYear() === nowDate.getFullYear();
+      if (filtroTempo === 'Anno') return d.getFullYear() === nowDate.getFullYear();
+      if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
+        const from = new Date(persDateFrom); from.setHours(0,0,0,0);
+        const to = new Date(persDateTo); to.setHours(23,59,59,999);
+        return d >= from && d <= to;
+      }
+      return true;
     }).map((c) => c.euro || 0));
     if (totCarburantePeriodo > 0) {
       items.push({
@@ -495,7 +510,7 @@ export default function StatsScreen() {
       });
     }
     return items;
-  }, [speseAnnue, agenda, storicoCarburante, filteredData, filtroTempo, persDateFrom, persDateTo]);
+  }, [speseAnnue, agenda, storicoCarburante, filtroTempo, persDateFrom, persDateTo]);
 
   const speseExtraItems = useMemo(() => {
     // Aggrega per nome voce dalle dettaglio_spese_extra di ogni giornata
