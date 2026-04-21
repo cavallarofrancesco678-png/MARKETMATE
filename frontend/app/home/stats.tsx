@@ -19,6 +19,7 @@ import Svg, { Path, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { MeteoStatsModal } from '../../src/components/MeteoStatsModal';
 import { CalendarModal } from '../../src/components/CalendarModal';
+import { MiniMonthCalendar } from '../../src/components/MiniMonthCalendar';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDayNames, getMonthNames, getShortDayNames } from '../../src/i18n';
@@ -889,6 +890,7 @@ export default function StatsScreen() {
         {filtroTipo === 'FIERE' && (() => {
           // Calcola statistiche per evento
           const eventsMap: Record<string, { nome: string; tipologia: string; giornate: number; lordo: number; netto: number; km: number; plateatico: number }> = {};
+          const dateEventiIso = new Set<string>();
           filteredData.forEach((g) => {
             const key = g.mercato || 'Sconosciuto';
             const fiera = (store.fiere || []).find((f: any) => 
@@ -907,35 +909,78 @@ export default function StatsScreen() {
             eventsMap[key].netto += (g.netto || 0);
             eventsMap[key].km += (g.km || 0);
             eventsMap[key].plateatico += ((fiera?.plateatico || 0));
+            // Data ISO YYYY-MM-DD della giornata
+            const gd = new Date(g.data);
+            const iso = `${gd.getFullYear()}-${String(gd.getMonth() + 1).padStart(2, '0')}-${String(gd.getDate()).padStart(2, '0')}`;
+            dateEventiIso.add(iso);
+          });
+          // Anche date specifiche configurate nelle fiere (eventi futuri programmati)
+          const dateProgrammate = new Set<string>();
+          (store.fiere || []).forEach((f: any) => {
+            if (!f.attiva) return;
+            (f.dateSpecifiche || []).forEach((d: string) => dateProgrammate.add(d));
           });
           const events = Object.values(eventsMap).sort((a, b) => b.netto - a.netto);
           const totaleEventi = events.reduce((s, e) => s + e.giornate, 0);
           const totaleGuadagno = events.reduce((s, e) => s + e.netto, 0);
+          // Lista cronologica
+          const listaCronologica = filteredData
+            .slice()
+            .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+            .slice(0, 30);
           return (
             <View style={[st.card, { marginBottom: GAP, backgroundColor: '#FFF8E1', borderLeftWidth: 4, borderLeftColor: '#D4AF37' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <Ionicons name="star" size={18} color="#D4AF37" />
                 <Text style={{ fontSize: 13, fontWeight: '900', color: '#8A6A1F', letterSpacing: 1 }}>EVENTI & FIERE</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 }}>
+
+              {/* ─── CALENDARIO MENSILE CON EVENTI ─── */}
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 10, color: '#8A6A1F', fontWeight: '700', marginBottom: 6 }}>
+                  🗓️ Calendario eventi (giornate effettuate + programmate)
+                </Text>
+                <MiniMonthCalendar
+                  selectedDates={Array.from(dateEventiIso)}
+                  highlightedDates={Array.from(dateProgrammate)}
+                  onToggleDate={() => {}}
+                  themeColor="#D4AF37"
+                  mode="view"
+                />
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 6, justifyContent: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <View style={{ width: 10, height: 10, backgroundColor: '#D4AF37', borderRadius: 5 }} />
+                    <Text style={{ fontSize: 9, color: '#8A6A1F' }}>Effettuato</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <View style={{ width: 10, height: 10, backgroundColor: '#F5E8A0', borderRadius: 5, borderWidth: 1, borderColor: '#D4AF37' }} />
+                    <Text style={{ fontSize: 9, color: '#8A6A1F' }}>Programmato</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Riepilogo */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12, paddingTop: 8, borderTopWidth: 1, borderColor: '#F0E0B0' }}>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 20, fontWeight: '900', color: '#D4AF37' }}>{totaleEventi}</Text>
-                  <Text style={{ fontSize: 10, color: '#8A6A1F', fontWeight: '700' }}>EVENTI EFFETTUATI</Text>
+                  <Text style={{ fontSize: 10, color: '#8A6A1F', fontWeight: '700' }}>EVENTI</Text>
                 </View>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 20, fontWeight: '900', color: totaleGuadagno >= 0 ? '#2A7A5A' : '#D46A6A' }}>€{totaleGuadagno.toFixed(0)}</Text>
-                  <Text style={{ fontSize: 10, color: '#8A6A1F', fontWeight: '700' }}>NETTO EVENTI</Text>
+                  <Text style={{ fontSize: 10, color: '#8A6A1F', fontWeight: '700' }}>NETTO</Text>
                 </View>
               </View>
+
               {events.length === 0 && (
                 <Text style={{ fontSize: 11, color: '#7A9090', fontStyle: 'italic', textAlign: 'center', paddingVertical: 8 }}>
-                  Nessun evento nel periodo. Salva una giornata con mercato = "Fiera" o "Sagra".
+                  Nessun evento nel periodo selezionato.
                 </Text>
               )}
+
               {events.length > 0 && (
-                <View>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#8A6A1F', marginBottom: 6, letterSpacing: 0.5 }}>🏆 CLASSIFICA EVENTI</Text>
-                  {events.slice(0, 10).map((e, i) => (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#8A6A1F', marginBottom: 6, letterSpacing: 0.5 }}>🏆 CLASSIFICA</Text>
+                  {events.slice(0, 5).map((e, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: i > 0 ? 1 : 0, borderColor: '#F0E0B0' }}>
                       <Text style={{ fontSize: 14, fontWeight: '900', color: '#D4AF37', width: 22 }}>{i + 1}</Text>
                       <View style={{ flex: 1 }}>
@@ -944,10 +989,30 @@ export default function StatsScreen() {
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={{ fontSize: 11, fontWeight: '900', color: e.netto >= 0 ? '#2A7A5A' : '#D46A6A' }}>€{e.netto.toFixed(0)}</Text>
-                        <Text style={{ fontSize: 8, color: '#7A9090' }}>L:€{e.lordo.toFixed(0)}</Text>
                       </View>
                     </View>
                   ))}
+                </View>
+              )}
+
+              {/* ─── LISTA CRONOLOGICA GIORNATE ─── */}
+              {listaCronologica.length > 0 && (
+                <View>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#8A6A1F', marginBottom: 6, letterSpacing: 0.5 }}>
+                    📅 GIORNATE EVENTO ({listaCronologica.length})
+                  </Text>
+                  {listaCronologica.map((g, i) => {
+                    const d = new Date(g.data);
+                    const label = `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`;
+                    return (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderTopWidth: i > 0 ? 1 : 0, borderColor: '#F0E0B0' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#8A6A1F', width: 55 }}>{label}</Text>
+                        <Text style={{ flex: 1, fontSize: 10, color: '#1A4040' }} numberOfLines={1}>{g.mercato}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85' }}>L:€{(g.lordo || 0).toFixed(0)}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '900', color: (g.netto || 0) >= 0 ? '#2A7A5A' : '#D46A6A', marginLeft: 8 }}>€{(g.netto || 0).toFixed(0)}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
             </View>

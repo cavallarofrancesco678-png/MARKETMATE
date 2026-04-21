@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Fiera, TipologiaEvento } from '../store/appStore';
+import { MiniMonthCalendar } from './MiniMonthCalendar';
 
 const GIORNI_LABEL = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 const GIORNI_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
@@ -193,7 +194,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                   value={editing.luogo}
                   onChangeText={(v) => setEditing({ ...editing, luogo: v })}
                 />
-                <Text style={s.label}>Giorni della settimana</Text>
+                <Text style={s.label}>Giorni della settimana (ricorrente)</Text>
                 <View style={s.daysRow}>
                   {GIORNI_LABEL.map((g, i) => {
                     const on = editing.giorni.includes(i);
@@ -208,7 +209,26 @@ export const FiereRicorrentiSection: React.FC = () => {
                     );
                   })}
                 </View>
-                <Text style={s.labelHint}>Seleziona uno o più giorni. Es. Food Truck attivo Mar-Gio-Sab</Text>
+                <Text style={s.labelHint}>Oppure aggiungi date specifiche qui sotto ↓</Text>
+
+                <Text style={s.label}>Date specifiche (one-shot)</Text>
+                <MiniMonthCalendar
+                  selectedDates={editing.dateSpecifiche || []}
+                  onToggleDate={(iso) => {
+                    const list = editing.dateSpecifiche || [];
+                    const exists = list.includes(iso);
+                    setEditing({
+                      ...editing,
+                      dateSpecifiche: exists ? list.filter((x) => x !== iso) : [...list, iso].sort(),
+                    });
+                  }}
+                  themeColor="#D4AF37"
+                />
+                {(editing.dateSpecifiche || []).length > 0 && (
+                  <Text style={{ fontSize: 10, color: '#8A6A1F', marginTop: 4 }}>
+                    {(editing.dateSpecifiche || []).length} date selezionate
+                  </Text>
+                )}
 
                 <View style={s.row2}>
                   <View style={{ flex: 1 }}>

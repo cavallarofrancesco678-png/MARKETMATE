@@ -98,6 +98,7 @@ export interface Fiera {
   nome: string;
   luogo: string;
   giorni: number[];
+  dateSpecifiche?: string[]; // date ISO YYYY-MM-DD per eventi one-shot
   orarioInizio?: string;
   orarioFine?: string;
   km: number;
