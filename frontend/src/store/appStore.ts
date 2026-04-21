@@ -89,6 +89,21 @@ export interface SpesaAnnua {
   importo: number;
 }
 
+// Fiera ricorrente (Opzione A): eventi multi-settimanali (es. food truck)
+// giorni: array di 0-6 dove 0=Lun, 1=Mar, ..., 6=Dom
+export interface Fiera {
+  id: string;
+  nome: string;
+  luogo: string;
+  giorni: number[];
+  orarioInizio?: string;
+  orarioFine?: string;
+  km: number;
+  plateatico: number;
+  note?: string;
+  attiva: boolean;
+}
+
 export interface Giornata {
   data: Date;
   mercato: string;
@@ -168,6 +183,7 @@ interface AppState {
   fornitori: Fornitore[];
   agenda: MercatoAgenda[];
   speseAnnue: SpesaAnnua[];
+  fiere: Fiera[];
   storicoGiornate: Giornata[];
   storicoCarburante: Carburante[];
   appuntiAgenda: Appunto[];
@@ -187,6 +203,10 @@ interface AppState {
   addSpesaAnnua: (s: SpesaAnnua) => void;
   removeSpesaAnnua: (voce: string) => void;
   toggleSpesaAnnua: (voce: string) => void;
+  addFiera: (f: Fiera) => void;
+  removeFiera: (id: string) => void;
+  updateFiera: (id: string, patch: Partial<Fiera>) => void;
+  toggleFieraAttiva: (id: string) => void;
   salvaGiornata: (g: Giornata) => void;
   addCarburante: (c: Carburante) => void;
   removeCarburante: (index: number) => void;
@@ -246,6 +266,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fornitori: [],
   agenda: defaultAgenda,
   speseAnnue: [],
+  fiere: [],
   storicoGiornate: [],
   storicoCarburante: [],
   appuntiAgenda: [],
@@ -319,6 +340,28 @@ export const useAppStore = create<AppState>((set, get) => ({
           : [...disabled, voce]
       };
     });
+    get().saveToStorage();
+  },
+
+  // ═══ FIERE RICORRENTI ═══
+  addFiera: (f) => {
+    set((state) => ({ fiere: [...(state.fiere || []), f] }));
+    get().saveToStorage();
+  },
+  removeFiera: (id) => {
+    set((state) => ({ fiere: (state.fiere || []).filter((f) => f.id !== id) }));
+    get().saveToStorage();
+  },
+  updateFiera: (id, patch) => {
+    set((state) => ({
+      fiere: (state.fiere || []).map((f) => f.id === id ? { ...f, ...patch } : f),
+    }));
+    get().saveToStorage();
+  },
+  toggleFieraAttiva: (id) => {
+    set((state) => ({
+      fiere: (state.fiere || []).map((f) => f.id === id ? { ...f, attiva: !f.attiva } : f),
+    }));
     get().saveToStorage();
   },
   
@@ -542,6 +585,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         agenda: state.agenda,
         speseAnnue: state.speseAnnue,
         speseAnnueDisabilitate: state.speseAnnueDisabilitate,
+        fiere: state.fiere || [],
         storicoGiornate: state.storicoGiornate,
         storicoCarburante: state.storicoCarburante,
         appuntiAgenda: state.appuntiAgenda,
@@ -577,6 +621,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       fornitori: [],
       agenda: defaultAgenda,
       speseAnnue: [],
+      fiere: [],
       storicoGiornate: [],
       storicoCarburante: [],
       appuntiAgenda: [],

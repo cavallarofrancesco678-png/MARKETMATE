@@ -23,6 +23,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FiereRicorrentiSection } from '../../src/components/FiereRicorrentiSection';
 
 /* ─── REUSABLE INPUT MODAL ─── */
 const InputModal = ({
@@ -1004,6 +1005,9 @@ export default function SettingsPage() {
         <Ionicons name="cube-outline" size={18} color="#1E7F85" />
         <Text style={s.addBtnTxt}>{t('settings.addSupplier')}</Text>
       </TouchableOpacity>
+
+      {/* ─── FIERE RICORRENTI (Food Truck / Sagre / Festival) ─── */}
+      <FiereRicorrentiSection />
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
       <View style={s.card}>

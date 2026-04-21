@@ -592,7 +592,51 @@ export default function HomeScreen() {
               <Text style={[s.toggleTxt, !isFiera && { color: '#FFF' }]}>{t('home.market')}</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={{ flex: 1, marginHorizontal: 4 }} onPress={() => { setIsFiera(true); setShowFieraModal(true); }}>
+          <TouchableOpacity style={{ flex: 1, marginHorizontal: 4 }} onPress={() => {
+            setIsFiera(true);
+            // Auto-rilevamento: se oggi (dayOfWeek 0=Lun..6=Dom) c'è una fiera ricorrente attiva, pre-compila
+            const dow = (dataCorrente.getDay() + 6) % 7; // 0=Lun .. 6=Dom
+            const fiereOggi = (store.fiere || []).filter((f: any) => f.attiva && f.giorni?.includes(dow));
+            if (fiereOggi.length === 1) {
+              const f = fiereOggi[0];
+              setFieraLuogo(f.nome + (f.luogo ? ` - ${f.luogo}` : ''));
+              setFieraKm(String(f.km || ''));
+              setFieraPlat(String(f.plateatico || ''));
+              setShowFieraModal(true);
+            } else if (fiereOggi.length > 1) {
+              // Multi-select: mostra modale nativa per scegliere
+              if (Platform.OS === 'web') {
+                const choice = window.prompt(
+                  `Ci sono ${fiereOggi.length} fiere oggi. Digita il nome di una:\n${fiereOggi.map((f: any) => `- ${f.nome}`).join('\n')}`
+                );
+                const scelta = fiereOggi.find((f: any) => f.nome.toLowerCase() === (choice || '').toLowerCase().trim());
+                if (scelta) {
+                  setFieraLuogo(scelta.nome + (scelta.luogo ? ` - ${scelta.luogo}` : ''));
+                  setFieraKm(String(scelta.km || ''));
+                  setFieraPlat(String(scelta.plateatico || ''));
+                }
+              } else {
+                Alert.alert(
+                  'Fiere di oggi',
+                  'Quale fiera vuoi selezionare?',
+                  [
+                    ...fiereOggi.map((f: any) => ({
+                      text: f.nome,
+                      onPress: () => {
+                        setFieraLuogo(f.nome + (f.luogo ? ` - ${f.luogo}` : ''));
+                        setFieraKm(String(f.km || ''));
+                        setFieraPlat(String(f.plateatico || ''));
+                      },
+                    })),
+                    { text: 'Annulla', style: 'cancel' as const },
+                  ]
+                );
+              }
+              setShowFieraModal(true);
+            } else {
+              setShowFieraModal(true);
+            }
+          }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
               <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]}>{t('stats.fairs') || 'FIERE'}</Text>
             </View>
@@ -1026,7 +1070,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v3.4</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v3.5</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
