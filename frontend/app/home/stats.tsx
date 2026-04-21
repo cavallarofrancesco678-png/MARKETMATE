@@ -479,38 +479,23 @@ export default function StatsScreen() {
         });
       }
     });
-    // 3. Carburante - spesa reale del periodo filtrato (dal storicoCarburante)
-    // Filtra direttamente per data (indipendente da filteredData)
-    const nowDate = new Date();
-    const totCarburantePeriodo = arrSum((storicoCarburante || []).filter((c) => {
-      const d = new Date(c.data);
-      if (filtroTempo === 'Oggi') return d.toDateString() === nowDate.toDateString();
-      if (filtroTempo === 'Ieri') {
-        const ieri = new Date(nowDate); ieri.setDate(ieri.getDate() - 1);
-        return d.toDateString() === ieri.toDateString();
-      }
-      if (filtroTempo === 'Sett.') {
-        const start = new Date(nowDate); start.setDate(nowDate.getDate() - 6); start.setHours(0,0,0,0);
-        return d >= start && d <= nowDate;
-      }
-      if (filtroTempo === 'Mese') return d.getMonth() === nowDate.getMonth() && d.getFullYear() === nowDate.getFullYear();
-      if (filtroTempo === 'Anno') return d.getFullYear() === nowDate.getFullYear();
-      if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
-        const from = new Date(persDateFrom); from.setHours(0,0,0,0);
-        const to = new Date(persDateTo); to.setHours(23,59,59,999);
-        return d >= from && d <= to;
-      }
-      return true;
-    }).map((c) => c.euro || 0));
-    if (totCarburantePeriodo > 0) {
+    // 3. Carburante - calcolato come MEDIA €/km applicata ai km del periodo
+    // Media storica: totale € spesi in carburante / totale km percorsi
+    const totEuroCarbStorico = arrSum((storicoCarburante || []).map((c) => c.euro || 0));
+    const totKmStorico = arrSum((storicoGiornate || []).map((g) => g.km || 0));
+    const mediaEuroKm = totKmStorico > 0 ? totEuroCarbStorico / totKmStorico : 0;
+    // Km percorsi nel periodo filtrato
+    const kmPeriodo = arrSum(filteredData.map((g) => g.km || 0));
+    const carburantePeriodo = Math.round(kmPeriodo * mediaEuroKm * 100) / 100;
+    if (carburantePeriodo > 0 || kmPeriodo > 0 || totEuroCarbStorico > 0) {
       items.push({
-        label: 'Carburante',
-        value: Math.round(totCarburantePeriodo * 100) / 100,
+        label: `Carburante (€${mediaEuroKm.toFixed(3)}/km × ${kmPeriodo}km)`,
+        value: Math.max(carburantePeriodo, 0.01),
         color: '#E8A060',
       });
     }
     return items;
-  }, [speseAnnue, agenda, storicoCarburante, filtroTempo, persDateFrom, persDateTo]);
+  }, [speseAnnue, agenda, storicoCarburante, storicoGiornate, filteredData, filtroTempo, persDateFrom, persDateTo]);
 
   const speseExtraItems = useMemo(() => {
     // Aggrega per nome voce dalle dettaglio_spese_extra di ogni giornata

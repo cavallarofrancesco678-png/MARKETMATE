@@ -348,11 +348,15 @@ export default function HomeScreen() {
   const speseFisseConCarburante = useMemo(() => {
     const items = [...speseFisseItems];
     const kmMercato = mercatoOggi?.km || 0;
-    // Sempre mostra la voce Carburante (anche a 0 se non c'è mercato oggi o km/costo mancanti)
-    const costoCarb = Math.round(kmMercato * (costoPerKm || 0) * 100) / 100;
+    // Calcola la media €/km dai rifornimenti storici vs km percorsi
+    const totEuroCarbStorico = (store.storicoCarburante || []).reduce((s, c) => s + (c.euro || 0), 0);
+    const totKmStorico = (store.storicoGiornate || []).reduce((s, g) => s + (g.km || 0), 0);
+    const mediaEuroKm = totKmStorico > 0 ? totEuroCarbStorico / totKmStorico : (costoPerKm || 0);
+    // Costo carburante di oggi = km × media €/km (fallback su costoPerKm delle impostazioni)
+    const costoCarb = Math.round(kmMercato * mediaEuroKm * 100) / 100;
     items.push({ id: 'carburante_gg', label: t('home.fuelCost') || 'Carburante', importoGG: costoCarb });
     return items;
-  }, [speseFisseItems, mercatoOggi, costoPerKm, t]);
+  }, [speseFisseItems, mercatoOggi, costoPerKm, store.storicoCarburante, store.storicoGiornate, t]);
 
   // Filter: only show today's plateatico + all general spese + fuel
   const speseFisseOggi = useMemo(() => {
@@ -1105,7 +1109,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v4.0</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v4.1</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
