@@ -909,6 +909,9 @@ export default function SettingsPage() {
         );
       })}
 
+      {/* ─── FIERE RICORRENTI (Food Truck / Sagre / Festival) ─── */}
+      <FiereRicorrentiSection />
+
       {/* ─── FORNITORI ─── */}
       <Text style={s.secTitle}>{t('settings.suppliersTitle') || 'FORNITORI'}</Text>
       {store.fornitori.map((f, fi) => {
@@ -1005,9 +1008,6 @@ export default function SettingsPage() {
         <Ionicons name="cube-outline" size={18} color="#1E7F85" />
         <Text style={s.addBtnTxt}>{t('settings.addSupplier')}</Text>
       </TouchableOpacity>
-
-      {/* ─── FIERE RICORRENTI (Food Truck / Sagre / Festival) ─── */}
-      <FiereRicorrentiSection />
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
       <View style={s.card}>
