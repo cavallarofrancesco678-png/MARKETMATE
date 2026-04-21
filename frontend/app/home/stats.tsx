@@ -613,11 +613,28 @@ export default function StatsScreen() {
     const totalSection = chartKey === 'economico'
       ? arrSum((lines.find(l => l.label.toUpperCase() === 'LORDO') || lines[0])?.data || [])
       : arrSum(lines.map((l) => arrSum(l.data)));
-    if (lines.length === 0) return null;
     const activeLine = activeChartLine[chartKey] ?? null;
     const currentTooltip = tooltipInfo && tooltipInfo.chartKey === chartKey ? tooltipInfo : null;
     const hasActiveFilter = activeLine !== null;
     const isCollapsed = collapsed[chartKey] ?? false;
+    // Se non ci sono righe, mostra un card placeholder (utile per "Fornitori 2" quando non hai ancora fornitori o dati)
+    if (lines.length === 0) {
+      return (
+        <View style={[st.card, { marginBottom: GAP }]}>
+          <TouchableOpacity onPress={() => toggleCollapsed(chartKey)} activeOpacity={0.7}>
+            <View style={st.chartHeader}>
+              <Text style={st.sectionLabel}>{title}</Text>
+              <Ionicons name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />
+            </View>
+          </TouchableOpacity>
+          {!isCollapsed && (
+            <Text style={{ fontSize: 11, color: '#7A9090', fontStyle: 'italic', textAlign: 'center', paddingVertical: 16 }}>
+              Nessun fornitore configurato. Aggiungili in Impostazioni → Fornitori.
+            </Text>
+          )}
+        </View>
+      );
+    }
     return (
       <View style={[st.card, { marginBottom: GAP }]}>
         <TouchableOpacity onPress={() => toggleCollapsed(chartKey)} activeOpacity={0.7}>
@@ -1100,36 +1117,25 @@ export default function StatsScreen() {
       <Modal visible={showPersCalendar} transparent animationType="fade" onRequestClose={() => setShowPersCalendar(false)}>
         <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowPersCalendar(false)}>
           <View style={{ backgroundColor: '#F5F0E6', borderRadius: 20, padding: 20, width: '85%' }}>
-            <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 4 }}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 12 }}>
               {t('stats.customRange') || 'Periodo personalizzato'}
             </Text>
-            <Text style={{ fontSize: 11, color: '#7A9090', textAlign: 'center', marginBottom: 16 }}>
-              {persPickingFrom ? (t('stats.selectFrom') || 'Seleziona data INIZIO') : (t('stats.selectTo') || 'Seleziona data FINE')}
-            </Text>
-            
+
             {/* Date selezionate - tap per aprire calendario */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
-              <TouchableOpacity onPress={() => { setPersPickingFrom(true); setShowPersDayCal(true); }} style={{ padding: 10, backgroundColor: '#1E7F85', borderRadius: 10, flex: 1, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
+              <TouchableOpacity onPress={() => { setPersPickingFrom(true); setShowPersDayCal(true); }} style={{ padding: 12, backgroundColor: '#1E7F85', borderRadius: 10, flex: 1, alignItems: 'center' }}>
                 <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>DA</Text>
                 <Text style={{ fontSize: 14, fontWeight: '900', color: '#FFF' }}>
-                  {persDateFrom ? persDateFrom.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : 'seleziona'}
+                  {persDateFrom ? persDateFrom.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '---'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setPersPickingFrom(false); setShowPersDayCal(true); }} style={{ padding: 10, backgroundColor: '#E8A060', borderRadius: 10, flex: 1, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => { setPersPickingFrom(false); setShowPersDayCal(true); }} style={{ padding: 12, backgroundColor: '#E8A060', borderRadius: 10, flex: 1, alignItems: 'center' }}>
                 <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>A</Text>
                 <Text style={{ fontSize: 14, fontWeight: '900', color: '#FFF' }}>
-                  {persDateTo ? persDateTo.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : 'seleziona'}
+                  {persDateTo ? persDateTo.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '---'}
                 </Text>
               </TouchableOpacity>
             </View>
-
-            <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginBottom: 8, fontStyle: 'italic' }}>
-              Tocca DA e A per aprire il calendario
-            </Text>
-
-            <TouchableOpacity onPress={() => setShowPersCalendar(false)} style={{ marginTop: 8, backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
-              <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>{t('common.confirm') || 'CONFERMA'}</Text>
-            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
