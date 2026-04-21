@@ -401,12 +401,28 @@ export default function StatsScreen() {
         Object.keys(g.dettaglio_invenduto).forEach((k) => { if (k !== 'totale') productNames.add(k); });
       }
     });
-    return Array.from(productNames).slice(0, 7).map((name, i) => ({
+    const productLines = Array.from(productNames).slice(0, 7).map((name, i) => ({
       label: name,
       color: PALETTE[i % PALETTE.length],
       data: groupData(filteredData, (g) => (g.dettaglio_invenduto?.[name] || 0)),
     }));
-  }, [filteredData, filtroTempo]);
+    // Se non ci sono prodotti specifici, usa il totale come singola linea
+    if (productLines.length === 0) {
+      const totaleLine = {
+        label: t('stats.unsold') || 'Invenduto',
+        color: '#D46A6A',
+        data: groupData(filteredData, (g) => {
+          const det = g.dettaglio_invenduto || {};
+          return Object.values(det).reduce((s: number, v) => s + (typeof v === 'number' ? v : 0), 0);
+        }),
+      };
+      // Mostra la linea solo se c'è almeno un dato non-zero
+      if (totaleLine.data.some((v: number) => v > 0)) {
+        return [totaleLine];
+      }
+    }
+    return productLines;
+  }, [filteredData, filtroTempo, t]);
 
   const collabLines = useMemo(() => {
     // Use only collaborator names from Settings
@@ -436,9 +452,17 @@ export default function StatsScreen() {
   }, [filteredData, filtroTempo, fornitori]);
 
   const speseFisseItems = useMemo(() => {
-    const fattore = filtroTempo === 'Oggi' || filtroTempo === 'Ieri' ? 1 / 365
-      : filtroTempo === 'Sett.' ? 1 / 52
-      : filtroTempo === 'Mese' ? 1 / 12 : 1;
+    // Calcola il numero di giorni del periodo selezionato per proration corretta
+    let daysInPeriod = 365;
+    if (filtroTempo === 'Oggi' || filtroTempo === 'Ieri') daysInPeriod = 1;
+    else if (filtroTempo === 'Sett.') daysInPeriod = 7;
+    else if (filtroTempo === 'Mese') daysInPeriod = 30;
+    else if (filtroTempo === 'Anno') daysInPeriod = 365;
+    else if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
+      const diff = Math.max(1, Math.ceil((persDateTo.getTime() - persDateFrom.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      daysInPeriod = diff;
+    }
+    const fattore = daysInPeriod / 365;
     const items: { label: string; value: number; color: string }[] = [];
     // 1. Voci di spese annue (assicurazione, bollo, commercialista, ecc.)
     (speseAnnue || []).forEach((sp) => {
@@ -474,7 +498,7 @@ export default function StatsScreen() {
       });
     }
     return items;
-  }, [speseAnnue, agenda, storicoCarburante, filteredData, filtroTempo]);
+  }, [speseAnnue, agenda, storicoCarburante, filteredData, filtroTempo, persDateFrom, persDateTo]);
 
   const speseExtraItems = useMemo(() => {
     // Aggrega per nome voce dalle dettaglio_spese_extra di ogni giornata
@@ -1118,11 +1142,11 @@ export default function StatsScreen() {
         <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowPersCalendar(false)}>
           <View style={{ backgroundColor: '#F5F0E6', borderRadius: 20, padding: 20, width: '85%' }}>
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 12 }}>
-              {t('stats.customRange') || 'Periodo personalizzato'}
+              Scegli il periodo
             </Text>
 
             {/* Date selezionate - tap per aprire calendario */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14 }}>
               <TouchableOpacity onPress={() => { setPersPickingFrom(true); setShowPersDayCal(true); }} style={{ padding: 12, backgroundColor: '#1E7F85', borderRadius: 10, flex: 1, alignItems: 'center' }}>
                 <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>DA</Text>
                 <Text style={{ fontSize: 14, fontWeight: '900', color: '#FFF' }}>
@@ -1136,6 +1160,14 @@ export default function StatsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              onPress={() => setShowPersCalendar(false)}
+              style={{ backgroundColor: '#1A4040', borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14, letterSpacing: 1 }}>INVIO</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
