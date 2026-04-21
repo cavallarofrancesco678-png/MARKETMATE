@@ -24,6 +24,7 @@ import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FiereRicorrentiSection } from '../../src/components/FiereRicorrentiSection';
+import * as DocumentPicker from 'expo-document-picker';
 
 /* ─── REUSABLE INPUT MODAL ─── */
 const InputModal = ({
@@ -500,7 +501,7 @@ export default function SettingsPage() {
       const state = useAppStore.getState();
       const exportData = {
         esportato_il: new Date().toISOString(),
-        app: 'MarketMate v2.7.0',
+        app: 'MarketMate v3.9',
         produttore: 'T.V.S di Francesco Cavallaro',
         nomeAttivita: state.nomeAttivita || '',
         isAlimentare: state.isAlimentare,
@@ -508,10 +509,17 @@ export default function SettingsPage() {
         collaboratori: state.collaboratori || [],
         fornitori: state.fornitori || [],
         speseAnnue: state.speseAnnue || [],
+        fiere: (state as any).fiere || [],
+        speseExtraTags: (state as any).speseExtraTags || [],
         storicoGiornate: state.storicoGiornate || [],
         storicoCarburante: state.storicoCarburante || [],
         impegni: (state as any).impegni || [],
         appuntiGiornalieri: (state as any).appuntiGiornalieri || [],
+        // Impostazioni generali
+        partenzaDa: (state as any).partenzaDa || '',
+        costoPerKm: (state as any).costoPerKm || 0,
+        tipoCarburante: (state as any).tipoCarburante || '',
+        targetMensile: (state as any).targetMensile || 0,
       };
 
       const json = JSON.stringify(exportData, null, 2);
@@ -548,6 +556,95 @@ export default function SettingsPage() {
       }
     } catch (err: any) {
       Alert.alert('Errore Export', `${err?.message || 'Errore sconosciuto'}. Riprova.`);
+    }
+  };
+
+  const handleImportData = async () => {
+    try {
+      // Conferma import (sovrascrittura dati)
+      const confirmImport = await new Promise<boolean>((resolve) => {
+        if (Platform.OS === 'web') {
+          resolve(window.confirm('⚠️ Importare i dati SOVRASCRIVERÀ tutti i dati attuali. Vuoi procedere?'));
+        } else {
+          Alert.alert(
+            'Importa Dati',
+            '⚠️ Importare i dati SOVRASCRIVERÀ tutti i dati attuali (mercati, fornitori, storico, ecc.). Vuoi procedere?',
+            [
+              { text: 'Annulla', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Importa', style: 'destructive', onPress: () => resolve(true) },
+            ],
+            { cancelable: true, onDismiss: () => resolve(false) }
+          );
+        }
+      });
+      if (!confirmImport) return;
+
+      let jsonText = '';
+
+      if (Platform.OS === 'web') {
+        // Web: usa input file HTML
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        const fileData = await new Promise<string | null>((resolve) => {
+          input.onchange = (e: any) => {
+            const file = e.target.files?.[0];
+            if (!file) return resolve(null);
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target?.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsText(file);
+          };
+          input.click();
+        });
+        if (!fileData) return;
+        jsonText = fileData;
+      } else {
+        // Mobile: usa DocumentPicker
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'application/json',
+          copyToCacheDirectory: true,
+        });
+        if (result.canceled || !result.assets || result.assets.length === 0) return;
+        const uri = result.assets[0].uri;
+        jsonText = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 });
+      }
+
+      const data = JSON.parse(jsonText);
+
+      // Applica i dati al store
+      const currentState = useAppStore.getState();
+      const updates: any = {};
+      if (data.nomeAttivita !== undefined) updates.nomeAttivita = data.nomeAttivita;
+      if (data.isAlimentare !== undefined) updates.isAlimentare = data.isAlimentare;
+      if (Array.isArray(data.agenda)) updates.agenda = data.agenda;
+      if (Array.isArray(data.collaboratori)) updates.collaboratori = data.collaboratori;
+      if (Array.isArray(data.fornitori)) updates.fornitori = data.fornitori;
+      if (Array.isArray(data.speseAnnue)) updates.speseAnnue = data.speseAnnue;
+      if (Array.isArray(data.fiere)) updates.fiere = data.fiere;
+      if (Array.isArray(data.speseExtraTags)) updates.speseExtraTags = data.speseExtraTags;
+      if (Array.isArray(data.storicoGiornate)) updates.storicoGiornate = data.storicoGiornate;
+      if (Array.isArray(data.storicoCarburante)) updates.storicoCarburante = data.storicoCarburante;
+      if (Array.isArray(data.impegni)) updates.impegni = data.impegni;
+      if (Array.isArray(data.appuntiGiornalieri)) updates.appuntiGiornalieri = data.appuntiGiornalieri;
+      if (data.partenzaDa !== undefined) updates.partenzaDa = data.partenzaDa;
+      if (typeof data.costoPerKm === 'number') updates.costoPerKm = data.costoPerKm;
+      if (data.tipoCarburante !== undefined) updates.tipoCarburante = data.tipoCarburante;
+      if (typeof data.targetMensile === 'number') updates.targetMensile = data.targetMensile;
+
+      useAppStore.setState(updates);
+      // Salva in AsyncStorage
+      try {
+        await (currentState as any).saveToStorage?.();
+      } catch {}
+
+      playSuccess();
+      Alert.alert(
+        'Import Riuscito',
+        `Dati importati correttamente!\n\nMercati: ${(data.agenda || []).length}\nFornitori: ${(data.fornitori || []).length}\nGiornate storico: ${(data.storicoGiornate || []).length}\nFiere: ${(data.fiere || []).length}`,
+      );
+    } catch (err: any) {
+      Alert.alert('Errore Import', `${err?.message || 'File non valido'}. Usa un file .json esportato da MarketMate.`);
     }
   };
 
@@ -1155,24 +1252,31 @@ export default function SettingsPage() {
       <View style={[s.card, { marginTop: 20 }]}>
         <View style={s.sectionHeader}>
           <Ionicons name="download-outline" size={20} color="#1E7F85" />
-          <Text style={s.sectionTitle}>EXPORT DATI</Text>
+          <Text style={s.sectionTitle}>BACKUP DATI</Text>
         </View>
         <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12 }}>
-          Genera un file con tutti i tuoi dati. Puoi inviarlo via WhatsApp, email o salvarlo.
+          Esporta un file di backup con tutti i tuoi dati. Puoi inviarlo via WhatsApp, email o salvarlo. Usa "Importa" per ripristinare i dati su un nuovo dispositivo o dopo una reinstallazione.
         </Text>
         <TouchableOpacity
-          style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}
           onPress={handleExportData}
         >
           <Ionicons name="share-outline" size={18} color="#FFF" />
           <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>ESPORTA DATI</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: '#D4AF37', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onPress={handleImportData}
+        >
+          <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>IMPORTA DATI</Text>
         </TouchableOpacity>
       </View>
 
       {/* ─── INFO APP ─── */}
       <View style={{ marginTop: 24, alignItems: 'center', paddingBottom: 8 }}>
         <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A4040', letterSpacing: 2 }}>MarketMate</Text>
-        <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>Versione 2.5.0</Text>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>Versione 3.9</Text>
         <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>© 2026 T.V.S di Francesco Cavallaro</Text>
         <Text style={{ fontSize: 10, color: '#B0B0A0', marginTop: 6 }}>Tutti i diritti riservati</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
