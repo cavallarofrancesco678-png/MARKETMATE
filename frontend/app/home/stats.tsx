@@ -237,6 +237,9 @@ export default function StatsScreen() {
     fornLines: true,
     fiere: true,
     meteo: true,
+    eventClassifica: true,
+    eventGiornate: true,
+    eventCalendario: true,
   });
   const toggleCollapsed = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
@@ -979,8 +982,13 @@ export default function StatsScreen() {
 
               {events.length > 0 && (
                 <View style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#8A6A1F', marginBottom: 6, letterSpacing: 0.5 }}>🏆 CLASSIFICA</Text>
-                  {events.slice(0, 5).map((e, i) => (
+                  <TouchableOpacity onPress={() => toggleCollapsed('eventClassifica')} activeOpacity={0.7}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                      <Text style={{ flex: 1, fontSize: 11, fontWeight: '900', color: '#8A6A1F', letterSpacing: 0.5 }}>🏆 CLASSIFICA</Text>
+                      <Ionicons name={collapsed.eventClassifica ? 'chevron-down' : 'chevron-up'} size={16} color="#8A6A1F" />
+                    </View>
+                  </TouchableOpacity>
+                  {!collapsed.eventClassifica && events.slice(0, 5).map((e, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: i > 0 ? 1 : 0, borderColor: '#F0E0B0' }}>
                       <Text style={{ fontSize: 14, fontWeight: '900', color: '#D4AF37', width: 22 }}>{i + 1}</Text>
                       <View style={{ flex: 1 }}>
@@ -998,10 +1006,15 @@ export default function StatsScreen() {
               {/* ─── LISTA CRONOLOGICA GIORNATE ─── */}
               {listaCronologica.length > 0 && (
                 <View>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#8A6A1F', marginBottom: 6, letterSpacing: 0.5 }}>
-                    📅 GIORNATE EVENTO ({listaCronologica.length})
-                  </Text>
-                  {listaCronologica.map((g, i) => {
+                  <TouchableOpacity onPress={() => toggleCollapsed('eventGiornate')} activeOpacity={0.7}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                      <Text style={{ flex: 1, fontSize: 11, fontWeight: '900', color: '#8A6A1F', letterSpacing: 0.5 }}>
+                        📅 GIORNATE EVENTO ({listaCronologica.length})
+                      </Text>
+                      <Ionicons name={collapsed.eventGiornate ? 'chevron-down' : 'chevron-up'} size={16} color="#8A6A1F" />
+                    </View>
+                  </TouchableOpacity>
+                  {!collapsed.eventGiornate && listaCronologica.map((g, i) => {
                     const d = new Date(g.data);
                     const label = `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`;
                     return (
@@ -1191,42 +1204,6 @@ export default function StatsScreen() {
 
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
         {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}
-
-        <View style={[st.card, { marginBottom: GAP }]}>
-          <TouchableOpacity onPress={() => setShowFiere(!showFiere)} activeOpacity={0.7}>
-            <View style={st.chartHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="star" size={16} color="#D4AF37" />
-                <Text style={st.sectionLabel}>{t('stats.fairHistory')}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={st.sectionTotal}>TOT: {'\u20AC'}{totFiere.toFixed(0)}</Text>
-                <Ionicons name={showFiere ? 'chevron-up' : 'chevron-down'} size={16} color="#5A7575" />
-              </View>
-            </View>
-          </TouchableOpacity>
-          {showFiere && (
-            <View style={{ marginTop: 8 }}>
-              {fiereDays.length === 0 ? (
-                <Text style={st.emptyText}>{t('stats.noFairs')}</Text>
-              ) : (
-                fiereDays.map((f, i) => {
-                  const d = new Date(f.data);
-                  const GG = getDayNames();
-                  const MM = getMonthNames();
-                  return (
-                    <View key={i} style={st.fieraRow}>
-                      <Text style={st.fieraText} numberOfLines={1}>
-                        {GG[d.getDay() === 0 ? 6 : d.getDay() - 1]} {d.getDate()} {MM[d.getMonth()]} - {f.mercato}
-                      </Text>
-                      <Text style={st.fieraValue}>{'\u20AC'}{f.lordo.toFixed(0)}</Text>
-                    </View>
-                  );
-                })
-              )}
-            </View>
-          )}
-        </View>
 
         <View style={[st.card, { marginBottom: GAP }]}>
           <Text style={st.sectionLabel}>{t('stats.weatherLabel')}</Text>

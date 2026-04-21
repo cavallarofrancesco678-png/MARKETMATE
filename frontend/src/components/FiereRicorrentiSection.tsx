@@ -27,10 +27,31 @@ function genId() {
 export const FiereRicorrentiSection: React.FC = () => {
   const store = useAppStore();
   const fiere = store.fiere || [];
+  const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
   const [expanded, setExpanded] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [editing, setEditing] = useState<Fiera | null>(null);
+  const [calculatingKm, setCalculatingKm] = useState(false);
+
+  // Auto-calcola km A/R usando l'API distance (come i mercati)
+  const autoCalcKm = async (luogo: string) => {
+    const partenza = store.partenzaDa;
+    if (!partenza || !luogo || luogo.trim().length < 2) return;
+    setCalculatingKm(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/distance/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partenza, destinazione: luogo }),
+      });
+      const data = await res.json();
+      if (data.success && data.km_andata_ritorno > 0) {
+        setEditing((prev) => prev ? { ...prev, km: data.km_andata_ritorno } : prev);
+      }
+    } catch {}
+    setCalculatingKm(false);
+  };
 
   const startNew = () => {
     setEditing({
@@ -102,7 +123,7 @@ export const FiereRicorrentiSection: React.FC = () => {
     <View style={s.card}>
       <TouchableOpacity style={s.header} onPress={() => setExpanded(!expanded)} activeOpacity={0.7}>
         <Ionicons name="star" size={18} color="#D4AF37" />
-        <Text style={s.title}>FIERE RICORRENTI</Text>
+        <Text style={s.title}>EVENTI E FIERE</Text>
         <Text style={s.count}>{fiere.filter(f => f.attiva).length}/{fiere.length}</Text>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
       </TouchableOpacity>
@@ -193,6 +214,9 @@ export const FiereRicorrentiSection: React.FC = () => {
                   placeholderTextColor="#B0A898"
                   value={editing.luogo}
                   onChangeText={(v) => setEditing({ ...editing, luogo: v })}
+                  onBlur={() => autoCalcKm(editing.luogo)}
+                  returnKeyType="done"
+                  onSubmitEditing={() => autoCalcKm(editing.luogo)}
                 />
                 <Text style={s.label}>Giorni della settimana (ricorrente)</Text>
                 <View style={s.daysRow}>

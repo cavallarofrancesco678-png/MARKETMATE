@@ -893,8 +893,7 @@ export default function SettingsPage() {
         <Text style={s.addBtnTxt}>{t('settings.addCollaborator')}</Text>
       </TouchableOpacity>
 
-      {/* ─── ⭐ FIERE RICORRENTI (Food Truck / Sagre / Festival) ─── */}
-      <Text style={[s.secTitle, { color: '#D4AF37' }]}>⭐ FIERE RICORRENTI</Text>
+      {/* ─── ⭐ EVENTI E FIERE (Food Truck / Sagre / Festival) ─── */}
       <FiereRicorrentiSection />
 
       {/* ─── AGENDA MERCATI ─── */}

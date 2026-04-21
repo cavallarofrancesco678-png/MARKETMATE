@@ -109,32 +109,73 @@ export default function GasScreen() {
       const translatedShort = t('gas.monthsShort', { returnObjects: true }) as string[];
       return { values: months, labels: Array.isArray(translatedShort) ? translatedShort : MESI_SHORT };
     } else if (filtro === 'MESE') {
+      // 4 settimane del mese corrente
       const weeks = [0, 0, 0, 0];
-      const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
       storicoCarburante.forEach(c => {
         const d = new Date(c.data);
-        if (d.getTime() >= monthAgo.getTime()) {
-          const weekNum = Math.floor((now.getTime() - d.getTime()) / (7 * 24 * 60 * 60 * 1000));
-          if (weekNum >= 0 && weekNum < 4) {
-            weeks[3 - weekNum] += c.euro || 0;
-          }
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+          const weekIdx = Math.min(3, Math.floor((d.getDate() - 1) / 7));
+          weeks[weekIdx] += c.euro || 0;
         }
       });
       return { values: weeks, labels: ['S1', 'S2', 'S3', 'S4'] };
-    } else {
-      const days = [0, 0, 0, 0, 0, 0, 0];
-      const dayLabels = [t('gas.mon'), t('gas.tue'), t('gas.wed'), t('gas.thu'), t('gas.fri'), t('gas.sat'), t('gas.sun')];
+    } else if (filtro === 'PERS.' && persDateFrom && persDateTo) {
+      // Range personalizzato: raggruppa per giorno se <=14 giorni, per settimana se <=60, per mese altrimenti
+      const msDay = 24 * 60 * 60 * 1000;
+      const fromT = new Date(persDateFrom.getFullYear(), persDateFrom.getMonth(), persDateFrom.getDate()).getTime();
+      const toT = new Date(persDateTo.getFullYear(), persDateTo.getMonth(), persDateTo.getDate(), 23, 59, 59).getTime();
+      const days = Math.ceil((toT - fromT) / msDay);
+      if (days <= 14) {
+        const values: number[] = Array(days).fill(0);
+        const labels: string[] = [];
+        for (let i = 0; i < days; i++) {
+          const d = new Date(fromT + i * msDay);
+          labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
+        }
+        storicoCarburante.forEach(c => {
+          const d = new Date(c.data);
+          const dt = d.getTime();
+          if (dt >= fromT && dt <= toT) {
+            const idx = Math.floor((dt - fromT) / msDay);
+            if (idx >= 0 && idx < days) values[idx] += c.euro || 0;
+          }
+        });
+        return { values, labels };
+      }
+      // altrimenti raggruppa per settimana
+      const weeks = Math.ceil(days / 7);
+      const values: number[] = Array(weeks).fill(0);
+      const labels: string[] = [];
+      for (let i = 0; i < weeks; i++) labels.push(`S${i + 1}`);
       storicoCarburante.forEach(c => {
         const d = new Date(c.data);
-        const diff = Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
-        if (diff >= 0 && diff < 7) {
-          const dayOfWeek = (d.getDay() + 6) % 7; // Lun=0, Dom=6
+        const dt = d.getTime();
+        if (dt >= fromT && dt <= toT) {
+          const idx = Math.floor((dt - fromT) / (7 * msDay));
+          if (idx >= 0 && idx < weeks) values[idx] += c.euro || 0;
+        }
+      });
+      return { values, labels };
+    } else {
+      // SETT. = settimana corrente (Lun-Dom), non ultimi 7 giorni
+      const days = [0, 0, 0, 0, 0, 0, 0];
+      const dayLabels = [t('gas.mon'), t('gas.tue'), t('gas.wed'), t('gas.thu'), t('gas.fri'), t('gas.sat'), t('gas.sun')];
+      // Trova il lunedì di questa settimana
+      const monday = new Date(now);
+      const dow = (now.getDay() + 6) % 7; // 0=Lun..6=Dom
+      monday.setDate(now.getDate() - dow);
+      monday.setHours(0, 0, 0, 0);
+      const nextMonday = new Date(monday); nextMonday.setDate(monday.getDate() + 7);
+      storicoCarburante.forEach(c => {
+        const d = new Date(c.data);
+        if (d.getTime() >= monday.getTime() && d.getTime() < nextMonday.getTime()) {
+          const dayOfWeek = (d.getDay() + 6) % 7;
           days[dayOfWeek] += c.euro || 0;
         }
       });
       return { values: days, labels: dayLabels };
     }
-  }, [storicoCarburante, filtro, t]);
+  }, [storicoCarburante, filtro, persDateFrom, persDateTo, t]);
 
   const maxChart = Math.max(...chartData.values, 1);
 

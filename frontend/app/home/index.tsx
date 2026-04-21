@@ -348,11 +348,20 @@ export default function HomeScreen() {
   const speseFisseConCarburante = useMemo(() => {
     const items = [...speseFisseItems];
     const kmMercato = mercatoOggi?.km || 0;
-    // Calcola la media €/km dai rifornimenti storici vs km percorsi
+    // Calcola media €/km: preferisce dati storici reali, fallback su costoPerKm impostato, fallback finale 0.20 €/km
     const totEuroCarbStorico = (store.storicoCarburante || []).reduce((s, c) => s + (c.euro || 0), 0);
     const totKmStorico = (store.storicoGiornate || []).reduce((s, g) => s + (g.km || 0), 0);
-    const mediaEuroKm = totKmStorico > 0 ? totEuroCarbStorico / totKmStorico : (costoPerKm || 0);
-    // Costo carburante di oggi = km × media €/km (fallback su costoPerKm delle impostazioni)
+    let mediaEuroKm: number;
+    if (totKmStorico > 30 && totEuroCarbStorico > 5) {
+      // Dati storici sufficienti per calcolo media reale
+      mediaEuroKm = totEuroCarbStorico / totKmStorico;
+    } else if (costoPerKm && costoPerKm > 0) {
+      mediaEuroKm = costoPerKm;
+    } else {
+      // Fallback: 1,90 €/L ÷ 9,5 km/L ≈ 0,20 €/km
+      mediaEuroKm = 0.20;
+    }
+    // Costo carburante di oggi = km × media €/km
     const costoCarb = Math.round(kmMercato * mediaEuroKm * 100) / 100;
     items.push({ id: 'carburante_gg', label: t('home.fuelCost') || 'Carburante', importoGG: costoCarb });
     return items;
@@ -633,48 +642,20 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={{ flex: 1, marginHorizontal: 4 }} onPress={() => {
             setIsFiera(true);
-            // Auto-rilevamento: se oggi (dayOfWeek 0=Lun..6=Dom) c'è una fiera ricorrente attiva, pre-compila
+            // Auto-rilevamento: se oggi c'è una fiera attiva (ricorrente o data specifica), pre-compila SENZA popup
             const dow = (dataCorrente.getDay() + 6) % 7; // 0=Lun .. 6=Dom
-            const fiereOggi = (store.fiere || []).filter((f: any) => f.attiva && f.giorni?.includes(dow));
-            if (fiereOggi.length === 1) {
+            const isoToday = `${dataCorrente.getFullYear()}-${String(dataCorrente.getMonth() + 1).padStart(2, '0')}-${String(dataCorrente.getDate()).padStart(2, '0')}`;
+            const fiereOggi = (store.fiere || []).filter((f: any) => 
+              f.attiva && (f.giorni?.includes(dow) || (f.dateSpecifiche || []).includes(isoToday))
+            );
+            if (fiereOggi.length >= 1) {
+              // Prende la prima (o l'unica). Se multiple, la logica viene gestita dopo via dropdown in-place
               const f = fiereOggi[0];
               setFieraLuogo(f.nome + (f.luogo ? ` - ${f.luogo}` : ''));
               setFieraKm(String(f.km || ''));
               setFieraPlat(String(f.plateatico || ''));
-              setShowFieraModal(true);
-            } else if (fiereOggi.length > 1) {
-              // Multi-select: mostra modale nativa per scegliere
-              if (Platform.OS === 'web') {
-                const choice = window.prompt(
-                  `Ci sono ${fiereOggi.length} fiere oggi. Digita il nome di una:\n${fiereOggi.map((f: any) => `- ${f.nome}`).join('\n')}`
-                );
-                const scelta = fiereOggi.find((f: any) => f.nome.toLowerCase() === (choice || '').toLowerCase().trim());
-                if (scelta) {
-                  setFieraLuogo(scelta.nome + (scelta.luogo ? ` - ${scelta.luogo}` : ''));
-                  setFieraKm(String(scelta.km || ''));
-                  setFieraPlat(String(scelta.plateatico || ''));
-                }
-              } else {
-                Alert.alert(
-                  'Fiere di oggi',
-                  'Quale fiera vuoi selezionare?',
-                  [
-                    ...fiereOggi.map((f: any) => ({
-                      text: f.nome,
-                      onPress: () => {
-                        setFieraLuogo(f.nome + (f.luogo ? ` - ${f.luogo}` : ''));
-                        setFieraKm(String(f.km || ''));
-                        setFieraPlat(String(f.plateatico || ''));
-                      },
-                    })),
-                    { text: 'Annulla', style: 'cancel' as const },
-                  ]
-                );
-              }
-              setShowFieraModal(true);
-            } else {
-              setShowFieraModal(true);
             }
+            // Nessun popup: i dati sono già in Impostazioni → Eventi e Fiere
           }}>
             <View style={[s.toggle, isFiera && s.toggleOn]}>
               <Text style={[s.toggleTxt, isFiera && { color: '#FFF' }]}>{t('stats.fairs') || 'FIERE'}</Text>
@@ -1109,7 +1090,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v4.3</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v4.4</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
