@@ -423,11 +423,15 @@ export default function StatsScreen() {
   }, [filteredData, filtroTempo, collaboratori]);
 
   const fornitoriLines = useMemo(() => {
-    // Use only fornitore names from Settings
+    // Per ogni fornitore, somma Fatturata + Libera da ogni giornata
     return fornitori.map((f, i) => ({
       label: f.nome,
       color: PALETTE[(i + 1) % PALETTE.length],
-      data: groupData(filteredData, (g) => (g.dettaglio_fornitori?.[f.nome] || 0)),
+      data: groupData(filteredData, (g) => {
+        const fatt = g.dettaglio_fornitori?.[f.nome] || 0;
+        const libera = g.dettaglio_fornitori?.[`${f.nome}__libera`] || 0;
+        return fatt + libera;
+      }),
     }));
   }, [filteredData, filtroTempo, fornitori]);
 
@@ -1120,25 +1124,10 @@ export default function StatsScreen() {
             </View>
 
             <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginBottom: 8, fontStyle: 'italic' }}>
-              oppure scegli un periodo rapido:
+              Tocca DA e A per aprire il calendario
             </Text>
 
-            {/* Quick date buttons */}
-            {[7, 14, 30, 60, 90].map(days => (
-              <TouchableOpacity key={days} onPress={() => {
-                const to = new Date();
-                const from = new Date(); from.setDate(from.getDate() - days);
-                setPersDateFrom(from);
-                setPersDateTo(to);
-                setShowPersCalendar(false);
-              }} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: '#E8EDE8' }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A4040', textAlign: 'center' }}>
-                  {t('stats.lastDays', { count: days }) || `Ultimi ${days} giorni`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            <TouchableOpacity onPress={() => setShowPersCalendar(false)} style={{ marginTop: 16, backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => setShowPersCalendar(false)} style={{ marginTop: 8, backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
               <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>{t('common.confirm') || 'CONFERMA'}</Text>
             </TouchableOpacity>
           </View>
