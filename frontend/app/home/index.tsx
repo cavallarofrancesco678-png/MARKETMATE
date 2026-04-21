@@ -132,10 +132,21 @@ export default function HomeScreen() {
       setInvenduto(invTot && invTot > 0 ? invTot.toString() : '0');
       if (saved.dettaglio_staff && typeof saved.dettaglio_staff === 'object') {
         const p: Record<string, boolean> = {};
+        const override: Record<string, number> = {};
         collabs.forEach((c) => {
-          p[c.nome] = saved.dettaglio_staff[c.nome] === true;
+          const val = saved.dettaglio_staff[c.nome];
+          if (typeof val === 'number') {
+            p[c.nome] = val > 0;
+            // Se il costo salvato è diverso da quello base, è un override personalizzato
+            if (val > 0 && val !== (c.costo || 0)) {
+              override[c.nome] = val;
+            }
+          } else {
+            p[c.nome] = val === true;
+          }
         });
         setPresenze(p);
+        setCostiOverride(override);
       }
       if (saved.dettaglio_fornitori && Object.keys(saved.dettaglio_fornitori).length > 0) {
         const fornData: Record<string, { importo: string; periodo: string }> = {};
@@ -145,6 +156,17 @@ export default function HomeScreen() {
         setSpeseExtraFornitore(fornData);
       } else {
         setSpeseExtraFornitore({});
+      }
+      // Ripristina le voci generiche (spese extra dettagliate)
+      if ((saved as any).dettaglio_spese_extra && Object.keys((saved as any).dettaglio_spese_extra).length > 0) {
+        const voci = Object.entries((saved as any).dettaglio_spese_extra).map(([nome, val]) => ({
+          nome,
+          importo: (val as number).toString(),
+          attivo: true,
+        }));
+        setVociGeneriche(voci);
+      } else {
+        setVociGeneriche([]);
       }
       if (saved.mercato?.toLowerCase() === 'fiera') {
         setIsFiera(true);
@@ -156,6 +178,7 @@ export default function HomeScreen() {
       setInvenduto('0');
       setSpeseExtraFornitore({});
       setVociGeneriche([]);
+      setCostiOverride({});
       const p: Record<string, boolean> = {};
       collabs.forEach((c) => { p[c.nome] = false; });
       setPresenze(p);
@@ -436,18 +459,29 @@ export default function HomeScreen() {
       }
     });
 
+    // Build dettaglio_staff as NUMBERS (cost including override) so stats uses the correct amounts
+    const dettaglioStaff: Record<string, number> = {};
+    (collaboratori || []).forEach((c) => {
+      if (presenze[c.nome]) {
+        const costoBase = c.costo || 0;
+        dettaglioStaff[c.nome] = costiOverride[c.nome] !== undefined ? costiOverride[c.nome] : costoBase;
+      } else {
+        dettaglioStaff[c.nome] = 0;
+      }
+    });
+
     salvaGiornata({
       data: dataCorrente, mercato: mercatoNome, meteo,
       km: mercatoOggi?.km || 0, lordo: lordoNum, netto: utile,
       contanti: parseFloat(contanti.replace(',', '.')) || 0,
       pos: parseFloat(pos.replace(',', '.')) || 0,
       spese_extra: speseExtraTotNum,
-      dettaglio_staff: presenze,
+      dettaglio_staff: dettaglioStaff,
       dettaglio_invenduto: { totale: invendutoNum },
       dettaglio_fornitori: dettaglioForn,
       dettaglio_spese_extra: dettaglioExtra,
     } as any);
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, invendutoNum, speseExtraFornitore, vociGeneriche, salvaGiornata]);
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, speseExtraFornitore, vociGeneriche, salvaGiornata]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -462,7 +496,7 @@ export default function HomeScreen() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, speseExtraFornTotale, speseExtraGenTotale]);
+  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride, speseExtraFornTotale, speseExtraGenTotale]);
 
   const handleSalvaManuale = () => {
     handleSalva();
@@ -993,7 +1027,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v3.0</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v3.1</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">

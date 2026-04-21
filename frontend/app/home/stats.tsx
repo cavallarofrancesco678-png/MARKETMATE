@@ -433,12 +433,13 @@ export default function StatsScreen() {
     const fattore = filtroTempo === 'Oggi' || filtroTempo === 'Ieri' ? 1 / 365
       : filtroTempo === 'Sett.' ? 1 / 52
       : filtroTempo === 'Mese' ? 1 / 12 : 1;
-    // Mostra TUTTE le spese annue (anche con valore decimale), non solo quelle che arrotondano a 0
-    return speseAnnue.map((sp, i) => ({
+    // Mostra TUTTE le voci di speseAnnue anche se importo=0. Valore minimo 0.01 per far apparire la fetta nel grafico
+    const allItems = (speseAnnue || []).map((sp, i) => ({
       label: sp.voce,
-      value: Math.max(Math.round(sp.importo * fattore * 100) / 100, 0.01),
+      value: Math.max(Math.round((sp.importo || 0) * fattore * 100) / 100, 0.01),
       color: PALETTE[i % PALETTE.length],
     }));
+    return allItems;
   }, [speseAnnue, filtroTempo]);
 
   const speseExtraItems = useMemo(() => {
@@ -574,9 +575,9 @@ export default function StatsScreen() {
   );
 
   const renderChartBox = (title: string, lines: { label: string; color: string; data: number[] }[], chartKey: string) => {
-    // Per 'economico' (LORDO + NETTO) mostra come totale solo il NETTO, non la somma
+    // Per 'economico' (LORDO + NETTO) mostra come totale solo il LORDO
     const totalSection = chartKey === 'economico'
-      ? arrSum((lines.find(l => l.label.toUpperCase() === 'NETTO') || lines[lines.length - 1])?.data || [])
+      ? arrSum((lines.find(l => l.label.toUpperCase() === 'LORDO') || lines[0])?.data || [])
       : arrSum(lines.map((l) => arrSum(l.data)));
     if (lines.length === 0) return null;
     const activeLine = activeChartLine[chartKey] ?? null;
@@ -828,8 +829,8 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {renderChartBox(t('stats.economic'), economicoLines, 'economico')}
-        {renderChartBox(t('stats.income'), incassiLines, 'incassi')}
+        {renderChartBox('LORDO / NETTO', economicoLines, 'economico')}
+        {renderChartBox('CASH / POS', incassiLines, 'incassi')}
 
         {/* ─── GIORNI LAVORATI VS NON LAVORATI ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>
@@ -892,7 +893,7 @@ export default function StatsScreen() {
             <View style={st.chartHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="storefront" size={16} color="#1E7F85" />
-                <Text style={st.sectionLabel}>{t('stats.suppliers') || 'FORNITORI'}</Text>
+                <Text style={st.sectionLabel}>{(t('stats.suppliers') || 'FORNITORI') + ' 1'}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={st.sectionTotal}>TOT: €{fornitoriTotals.totale.toFixed(0)}</Text>
@@ -973,9 +974,10 @@ export default function StatsScreen() {
           )}
         </View>
 
+        {renderChartBox('FORNITORI 2', fornitoriLines, 'fornitori')}
+
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
         {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}
-        {renderChartBox(t('stats.suppliers'), fornitoriLines, 'fornitori')}
 
         <View style={[st.card, { marginBottom: GAP }]}>
           <TouchableOpacity onPress={() => setShowFiere(!showFiere)} activeOpacity={0.7}>
