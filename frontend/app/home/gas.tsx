@@ -16,6 +16,7 @@ import { useAppStore } from '../../src/store/appStore';
 import { useTranslation } from 'react-i18next';
 import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CalendarModal } from '../../src/components/CalendarModal';
 
 type Filtro = 'SETT.' | 'MESE' | 'ANNO' | 'PERS.';
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
@@ -29,6 +30,10 @@ export default function GasScreen() {
   const insets = useSafeAreaInsets();
 
   const [filtro, setFiltro] = useState<Filtro>('MESE');
+  const [persDateFrom, setPersDateFrom] = useState<Date | null>(null);
+  const [persDateTo, setPersDateTo] = useState<Date | null>(null);
+  const [showPersCal, setShowPersCal] = useState(false);
+  const [pickingFrom, setPickingFrom] = useState(true);
   const [euroText, setEuroText] = useState('');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
@@ -70,6 +75,17 @@ export default function GasScreen() {
       const yearStart = new Date(now.getFullYear(), 0, 1);
       filtered = storicoCarburante.filter(c => new Date(c.data).getTime() >= yearStart.getTime());
       filteredGiornate = storicoGiornate.filter(g => new Date(g.data).getTime() >= yearStart.getTime());
+    } else if (filtro === 'PERS.' && persDateFrom && persDateTo) {
+      const fromT = new Date(persDateFrom.getFullYear(), persDateFrom.getMonth(), persDateFrom.getDate()).getTime();
+      const toT = new Date(persDateTo.getFullYear(), persDateTo.getMonth(), persDateTo.getDate(), 23, 59, 59).getTime();
+      filtered = storicoCarburante.filter(c => {
+        const dt = new Date(c.data).getTime();
+        return dt >= fromT && dt <= toT;
+      });
+      filteredGiornate = storicoGiornate.filter(g => {
+        const dt = new Date(g.data).getTime();
+        return dt >= fromT && dt <= toT;
+      });
     }
 
     const totale = filtered.reduce((s, c) => s + (c.euro || 0), 0);
@@ -77,7 +93,7 @@ export default function GasScreen() {
     const euroKm = km > 0 ? totale / km : 0;
 
     return { totale, km, euroKm, filtered };
-  }, [storicoCarburante, storicoGiornate, filtro]);
+  }, [storicoCarburante, storicoGiornate, filtro, persDateFrom, persDateTo]);
 
   /* ═══ DATI GRAFICO ═══ */
   const chartData = useMemo(() => {
@@ -234,8 +250,18 @@ export default function GasScreen() {
           { key: 'ANNO' as Filtro, label: t('gas.yearFilter') },
           { key: 'PERS.' as Filtro, label: t('gas.customFilter') },
         ]).map(f => (
-          <TouchableOpacity key={f.key} style={[s.filterBtn, filtro === f.key && s.filterOn]} onPress={() => setFiltro(f.key)}>
-            <Text style={[s.filterTxt, filtro === f.key && { color: '#FFF' }]}>{f.label}</Text>
+          <TouchableOpacity key={f.key} style={[s.filterBtn, filtro === f.key && s.filterOn]} onPress={() => {
+            setFiltro(f.key);
+            if (f.key === 'PERS.') {
+              setPickingFrom(true);
+              setShowPersCal(true);
+            }
+          }}>
+            <Text style={[s.filterTxt, filtro === f.key && { color: '#FFF' }]}>
+              {f.key === 'PERS.' && persDateFrom && persDateTo
+                ? `${persDateFrom.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}-${persDateTo.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}`
+                : f.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -360,6 +386,29 @@ export default function GasScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* ═══ CALENDARIO PER PERIODO PERSONALIZZATO ═══ */}
+      <CalendarModal
+        visible={showPersCal}
+        onClose={() => setShowPersCal(false)}
+        initialDate={pickingFrom ? (persDateFrom || new Date()) : (persDateTo || new Date())}
+        themeColor={pickingFrom ? '#1E7F85' : '#E8A060'}
+        title={pickingFrom ? (t('gas.selectFrom') || 'Seleziona data INIZIO') : (t('gas.selectTo') || 'Seleziona data FINE')}
+        onSelect={(d) => {
+          if (pickingFrom) {
+            setPersDateFrom(d);
+            if (!persDateTo) {
+              setPickingFrom(false);
+              setShowPersCal(false);
+              setTimeout(() => setShowPersCal(true), 250);
+              return;
+            }
+          } else {
+            setPersDateTo(d);
+          }
+          setShowPersCal(false);
+        }}
+      />
     </View>
   );
 }

@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
 import { MeteoStatsModal } from '../../src/components/MeteoStatsModal';
+import { CalendarModal } from '../../src/components/CalendarModal';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDayNames, getMonthNames, getShortDayNames } from '../../src/i18n';
@@ -210,7 +211,7 @@ const PieChart = ({ items, size = 120 }: { items: { label: string; value: number
 /* ══════════════════════════════════════════════════════ */
 export default function StatsScreen() {
   const store = useAppStore();
-  const { storicoGiornate, storicoCarburante, speseAnnue, collaboratori, fornitori, seedMockData } = store;
+  const { storicoGiornate, storicoCarburante, speseAnnue, collaboratori, fornitori, agenda, seedMockData } = store;
   const { height: screenH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
@@ -243,6 +244,7 @@ export default function StatsScreen() {
   const [persDateTo, setPersDateTo] = useState<Date | null>(null);
   const [showPersCalendar, setShowPersCalendar] = useState(false);
   const [persPickingFrom, setPersPickingFrom] = useState(true); // true = picking FROM, false = picking TO
+  const [showPersDayCal, setShowPersDayCal] = useState(false); // calendario vero e proprio
   const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
   const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
 
@@ -433,14 +435,42 @@ export default function StatsScreen() {
     const fattore = filtroTempo === 'Oggi' || filtroTempo === 'Ieri' ? 1 / 365
       : filtroTempo === 'Sett.' ? 1 / 52
       : filtroTempo === 'Mese' ? 1 / 12 : 1;
-    // Mostra TUTTE le voci di speseAnnue anche se importo=0. Valore minimo 0.01 per far apparire la fetta nel grafico
-    const allItems = (speseAnnue || []).map((sp, i) => ({
-      label: sp.voce,
-      value: Math.max(Math.round((sp.importo || 0) * fattore * 100) / 100, 0.01),
-      color: PALETTE[i % PALETTE.length],
-    }));
-    return allItems;
-  }, [speseAnnue, filtroTempo]);
+    const items: { label: string; value: number; color: string }[] = [];
+    // 1. Voci di spese annue (assicurazione, bollo, commercialista, ecc.)
+    (speseAnnue || []).forEach((sp) => {
+      items.push({
+        label: sp.voce,
+        value: Math.max(Math.round((sp.importo || 0) * fattore * 100) / 100, 0.01),
+        color: PALETTE[items.length % PALETTE.length],
+      });
+    });
+    // 2. Plateatico annuo per ogni mercato (p_annuo)
+    (agenda || []).forEach((m) => {
+      if ((m as any).p_annuo && (m as any).p_annuo > 0) {
+        items.push({
+          label: `Plat. ${m.mercato}`,
+          value: Math.max(Math.round((m as any).p_annuo * fattore * 100) / 100, 0.01),
+          color: PALETTE[items.length % PALETTE.length],
+        });
+      }
+    });
+    // 3. Carburante - spesa reale del periodo filtrato (dal storicoCarburante)
+    const totCarburantePeriodo = arrSum((storicoCarburante || []).filter((c) => {
+      const d = new Date(c.data);
+      return filteredData.some((g) => {
+        const gd = new Date(g.data);
+        return gd.toDateString() === d.toDateString();
+      }) || (filtroTempo === 'Anno' && d.getFullYear() === new Date().getFullYear());
+    }).map((c) => c.euro || 0));
+    if (totCarburantePeriodo > 0) {
+      items.push({
+        label: 'Carburante',
+        value: Math.round(totCarburantePeriodo * 100) / 100,
+        color: '#E8A060',
+      });
+    }
+    return items;
+  }, [speseAnnue, agenda, storicoCarburante, filteredData, filtroTempo]);
 
   const speseExtraItems = useMemo(() => {
     // Aggrega per nome voce dalle dettaglio_spese_extra di ogni giornata
@@ -1073,21 +1103,25 @@ export default function StatsScreen() {
               {persPickingFrom ? (t('stats.selectFrom') || 'Seleziona data INIZIO') : (t('stats.selectTo') || 'Seleziona data FINE')}
             </Text>
             
-            {/* Date selezionate */}
+            {/* Date selezionate - tap per aprire calendario */}
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
-              <TouchableOpacity onPress={() => setPersPickingFrom(true)} style={{ padding: 8, backgroundColor: persPickingFrom ? '#1E7F85' : '#E8EDE8', borderRadius: 10, flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: persPickingFrom ? '#FFF' : '#7A9090' }}>DA</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: persPickingFrom ? '#FFF' : '#1A4040' }}>
-                  {persDateFrom ? persDateFrom.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '---'}
+              <TouchableOpacity onPress={() => { setPersPickingFrom(true); setShowPersDayCal(true); }} style={{ padding: 10, backgroundColor: '#1E7F85', borderRadius: 10, flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>DA</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: '#FFF' }}>
+                  {persDateFrom ? persDateFrom.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : 'seleziona'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setPersPickingFrom(false)} style={{ padding: 8, backgroundColor: !persPickingFrom ? '#1E7F85' : '#E8EDE8', borderRadius: 10, flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: !persPickingFrom ? '#FFF' : '#7A9090' }}>A</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: !persPickingFrom ? '#FFF' : '#1A4040' }}>
-                  {persDateTo ? persDateTo.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '---'}
+              <TouchableOpacity onPress={() => { setPersPickingFrom(false); setShowPersDayCal(true); }} style={{ padding: 10, backgroundColor: '#E8A060', borderRadius: 10, flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>A</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: '#FFF' }}>
+                  {persDateTo ? persDateTo.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : 'seleziona'}
                 </Text>
               </TouchableOpacity>
             </View>
+
+            <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginBottom: 8, fontStyle: 'italic' }}>
+              oppure scegli un periodo rapido:
+            </Text>
 
             {/* Quick date buttons */}
             {[7, 14, 30, 60, 90].map(days => (
@@ -1110,6 +1144,30 @@ export default function StatsScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Calendario giornaliero per selezionare DA/A */}
+      <CalendarModal
+        visible={showPersDayCal}
+        onClose={() => setShowPersDayCal(false)}
+        initialDate={persPickingFrom ? (persDateFrom || new Date()) : (persDateTo || new Date())}
+        themeColor={persPickingFrom ? '#1E7F85' : '#E8A060'}
+        title={persPickingFrom ? (t('stats.selectFrom') || 'Seleziona data INIZIO') : (t('stats.selectTo') || 'Seleziona data FINE')}
+        onSelect={(d) => {
+          if (persPickingFrom) {
+            setPersDateFrom(d);
+            // Se non c'è ancora il to, passa automaticamente a scegliere TO
+            if (!persDateTo) {
+              setPersPickingFrom(false);
+              setShowPersDayCal(false);
+              setTimeout(() => setShowPersDayCal(true), 250);
+              return;
+            }
+          } else {
+            setPersDateTo(d);
+          }
+          setShowPersDayCal(false);
+        }}
+      />
 
       {/* ═══ MODAL NETTO - Selezione voci da escludere ═══ */}
       <Modal
