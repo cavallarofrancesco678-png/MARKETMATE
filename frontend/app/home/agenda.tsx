@@ -248,7 +248,8 @@ export default function AgendaScreen() {
         setDayModalText(nonFiera[0].testo);
         setDayModalType('edit');
       } else {
-        setDayModalText('');
+        // Precompila con il nome della fiera
+        setDayModalText(existing.find(x => x.tipo === 'fiera')?.testo || '');
         setDayModalType('fiera');
       }
       setShowDayModal(true);
@@ -514,6 +515,14 @@ export default function AgendaScreen() {
       <Modal visible={showDayModal} transparent animationType="fade" onRequestClose={() => setShowDayModal(false)}>
         <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setShowDayModal(false)}>
           <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
+            {/* X close button */}
+            <TouchableOpacity
+              onPress={() => setShowDayModal(false)}
+              style={{ position: 'absolute', top: 10, right: 10, padding: 6, zIndex: 10 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={22} color="#7A9090" />
+            </TouchableOpacity>
             <View style={s.modalTitleRow}>
               <Ionicons name="calendar" size={20} color="#1E7F85" />
               <Text style={s.modalTitle}>
@@ -524,62 +533,109 @@ export default function AgendaScreen() {
             {dayModalType === 'fiera' && selectedDay !== null && (() => {
               const items = impegniMese[selectedDay] || [];
               const fiereItems = items.filter(x => x.tipo === 'fiera');
+              const f = fiereItems[0];
+              if (!f) return null;
+              const col = getTipologiaColor(f.tipologia);
+              const iso = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
               return (
                 <View style={{ marginTop: 6 }}>
-                  {fiereItems.map((f, i) => (
-                    <View key={i} style={{
-                      backgroundColor: getTipologiaColor(f.tipologia) + '18',
-                      borderLeftWidth: 3,
-                      borderLeftColor: getTipologiaColor(f.tipologia),
-                      padding: 12,
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <View style={{
+                      backgroundColor: col,
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
                       borderRadius: 10,
-                      marginBottom: 8,
                     }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <View style={{
-                          backgroundColor: getTipologiaColor(f.tipologia),
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                          borderRadius: 10,
-                        }}>
-                          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>
-                            {(f.tipologia || 'Fiera').toUpperCase()}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={{ fontSize: 15, fontWeight: '900', color: '#1A4040', marginBottom: 4 }}>
-                        {f.testo}
+                      <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>
+                        {(f.tipologia || 'Fiera').toUpperCase()}
                       </Text>
-                      {f.luogo ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                          <Ionicons name="location" size={12} color="#7A9090" />
-                          <Text style={{ fontSize: 12, color: '#5A7575' }}>{f.luogo}</Text>
-                        </View>
-                      ) : null}
-                      {(f.km ?? 0) > 0 ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                          <Ionicons name="car" size={12} color="#7A9090" />
-                          <Text style={{ fontSize: 12, color: '#5A7575' }}>{f.km} km A/R</Text>
-                        </View>
-                      ) : null}
-                      {(f.plateatico ?? 0) > 0 ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Ionicons name="cash" size={12} color="#7A9090" />
-                          <Text style={{ fontSize: 12, color: '#5A7575' }}>€{f.plateatico}/giorno</Text>
-                        </View>
-                      ) : null}
                     </View>
-                  ))}
+                  </View>
+
+                  {/* Nome modificabile */}
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#5A7575', marginBottom: 3, letterSpacing: 0.5 }}>NOME</Text>
+                  <TextInput
+                    style={[s.modalInput, { borderLeftWidth: 3, borderLeftColor: col }]}
+                    value={dayModalText || f.testo}
+                    onChangeText={setDayModalText}
+                    placeholder="Nome fiera"
+                    placeholderTextColor="#B0A898"
+                  />
+
+                  {/* Info compatte */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {f.luogo ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: col + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                        <Ionicons name="location" size={11} color={col} />
+                        <Text style={{ fontSize: 11, color: '#1A4040', fontWeight: '600' }}>{f.luogo}</Text>
+                      </View>
+                    ) : null}
+                    {(f.km ?? 0) > 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: col + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                        <Ionicons name="car" size={11} color={col} />
+                        <Text style={{ fontSize: 11, color: '#1A4040', fontWeight: '600' }}>{f.km} km</Text>
+                      </View>
+                    ) : null}
+                    {(f.plateatico ?? 0) > 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: col + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                        <Ionicons name="cash" size={11} color={col} />
+                        <Text style={{ fontSize: 11, color: '#1A4040', fontWeight: '600' }}>€{f.plateatico}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Pulsanti azione */}
+                  <View style={s.modalBtns}>
+                    <TouchableOpacity
+                      style={[s.modalBtn, { backgroundColor: '#D46A6A' }]}
+                      onPress={() => {
+                        if (!f.fieraId) return;
+                        const fiera = (store.fiere || []).find((x: any) => x.id === f.fieraId);
+                        if (!fiera) return;
+                        const dates = (fiera.dateSpecifiche || []).filter((d: string) => d !== iso);
+                        // Rimuovi anche dai giorni ricorrenti se presente per quel dow
+                        const dow = (new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay!).getDay() + 6) % 7;
+                        const giorni = (fiera.giorni || []).filter((g: number) => g !== dow);
+                        // Se non rimangono date né giorni, elimina l'intera fiera
+                        if (dates.length === 0 && giorni.length === 0) {
+                          store.removeFiera(f.fieraId);
+                        } else {
+                          store.updateFiera(f.fieraId, { dateSpecifiche: dates, giorni });
+                        }
+                        setShowDayModal(false);
+                      }}
+                    >
+                      <Ionicons name="trash" size={16} color="#FFF" />
+                      <Text style={s.modalBtnTxt}>RIMUOVI</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.modalBtn, { backgroundColor: col, flex: 1 }]}
+                      onPress={() => {
+                        if (!f.fieraId) return;
+                        const newName = (dayModalText || f.testo).trim();
+                        if (!newName) return;
+                        store.updateFiera(f.fieraId, { nome: newName });
+                        playSuccess();
+                        setShowDayModal(false);
+                      }}
+                    >
+                      <Ionicons name="create" size={16} color="#FFF" />
+                      <Text style={s.modalBtnTxt}>MODIFICA</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Opzione: aggiungi anche un appunto su questo giorno */}
                   <TouchableOpacity
-                    style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1, marginTop: 4 }]}
+                    style={{ alignSelf: 'center', marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                     onPress={() => {
-                      // Permetti di aggiungere anche un appunto/ordine su questo giorno
                       setDayModalType('new');
                       setDayModalText('');
                     }}
                   >
-                    <Ionicons name="add-circle" size={16} color="#FFF" />
-                    <Text style={s.modalBtnTxt}>AGGIUNGI APPUNTO</Text>
+                    <Ionicons name="add-circle-outline" size={14} color="#1E7F85" />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#1E7F85', letterSpacing: 0.3 }}>
+                      Aggiungi anche un appunto
+                    </Text>
                   </TouchableOpacity>
                 </View>
               );
