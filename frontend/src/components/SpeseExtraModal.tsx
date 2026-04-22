@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/appStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MiniMonthCalendar } from './MiniMonthCalendar';
 
 interface Fornitore {
   nome: string;
@@ -32,6 +33,11 @@ interface VoceGenerica {
   attivo: boolean;
 }
 
+interface FornInfoEntry {
+  numeroFattura: string;
+  scadenza: string;
+}
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -40,6 +46,8 @@ interface Props {
   setSpeseExtraFornitore: (v: Record<string, SpeseExtraEntry>) => void;
   vociGeneriche: VoceGenerica[];
   setVociGeneriche: (v: VoceGenerica[]) => void;
+  fornInfo: Record<string, FornInfoEntry>;
+  setFornInfo: (v: Record<string, FornInfoEntry>) => void;
 }
 
 const PERIODI_LABELS: Record<string, string> = {
@@ -50,11 +58,14 @@ const PERIODI_LABELS: Record<string, string> = {
 
 export const SpeseExtraModal: React.FC<Props> = ({
   visible, onClose, fornitori, speseExtraFornitore, setSpeseExtraFornitore,
-  vociGeneriche, setVociGeneriche,
+  vociGeneriche, setVociGeneriche, fornInfo, setFornInfo,
 }) => {
   const [nuovaVoce, setNuovaVoce] = useState('');
   const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag } = useAppStore();
   const insets = useSafeAreaInsets();
+
+  // Stato locale: quale fornitore sta aprendo il datepicker scadenza
+  const [scadenzaPickerFor, setScadenzaPickerFor] = useState<string | null>(null);
 
   // Expansion states (fornitori + voci generiche - a pacchetto)
   const [expandedForn, setExpandedForn] = useState<Record<string, boolean>>({});
@@ -143,7 +154,9 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
   const getTotale = () => {
     let tot = 0;
-    Object.values(speseExtraFornitore).forEach((v) => {
+    Object.entries(speseExtraFornitore).forEach(([key, v]) => {
+      // Ignora chiavi interne (__fattn, __liberaLabel, ecc.)
+      if (key.includes('__')) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (v.periodo === 'settimanale') tot += imp / 6;
       else if (v.periodo === 'mensile') tot += imp / 26;
@@ -212,27 +225,74 @@ export const SpeseExtraModal: React.FC<Props> = ({
                   </TouchableOpacity>
                   {isOpen && (
                     <>
-                      {/* Riga 1: Fatturata con campo numero fattura */}
-                      <View style={{ marginTop: 6 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#7A9090' }}>Fatt. n°</Text>
+                      {/* Riga: Numero Fattura + Scadenza (datepicker) */}
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, alignItems: 'flex-end' }}>
+                        <View style={{ flex: 1.2 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>N° FATTURA</Text>
                           <TextInput
-                            style={{ fontSize: 10, fontWeight: '600', color: '#1A4040', borderBottomWidth: 1, borderColor: '#D0D5D0', paddingVertical: 2, paddingHorizontal: 4, minWidth: 60, flex: 1 }}
-                            placeholder="n° fattura"
+                            style={st.fattInput}
+                            placeholder="es. 2025/127"
                             placeholderTextColor="#C0C0B0"
-                            value={localImporti[`${f.nome}__fattn`] !== undefined ? localImporti[`${f.nome}__fattn`] : (speseExtraFornitore[`${f.nome}__fattn`]?.importo || '')}
+                            value={(fornInfo[f.nome]?.numeroFattura) || ''}
                             onChangeText={(v) => {
-                              setLocalImporti(prev => ({ ...prev, [`${f.nome}__fattn`]: v }));
-                            }}
-                            onBlur={() => {
-                              const val = localImporti[`${f.nome}__fattn`] || '';
-                              const current = speseExtraFornitore[`${f.nome}__fattn`] || { importo: '', periodo: 'giornaliero' };
-                              setSpeseExtraFornitore({ ...speseExtraFornitore, [`${f.nome}__fattn`]: { ...current, importo: val } });
+                              const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
+                              setFornInfo({ ...fornInfo, [f.nome]: { ...current, numeroFattura: v } });
                             }}
                             returnKeyType="done"
                           />
                         </View>
-                        <View style={[st.inputRow, { marginTop: 4 }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>DA PAGARE IL</Text>
+                          <TouchableOpacity
+                            style={st.scadenzaBtn}
+                            onPress={() => setScadenzaPickerFor(scadenzaPickerFor === f.nome ? null : f.nome)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="calendar" size={12} color="#B08050" />
+                            <Text style={{ fontSize: 11, color: fornInfo[f.nome]?.scadenza ? '#1A4040' : '#B0B0A0', fontWeight: '700', flex: 1, marginLeft: 4 }}>
+                              {fornInfo[f.nome]?.scadenza
+                                ? (() => {
+                                    const [y, m, d] = fornInfo[f.nome].scadenza.split('-');
+                                    return `${d}/${m}/${y.slice(2)}`;
+                                  })()
+                                : 'Seleziona'}
+                            </Text>
+                            {fornInfo[f.nome]?.scadenza ? (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
+                                  setFornInfo({ ...fornInfo, [f.nome]: { ...current, scadenza: '' } });
+                                }}
+                                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                              >
+                                <Ionicons name="close" size={14} color="#D46A6A" />
+                              </TouchableOpacity>
+                            ) : null}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {/* Datepicker scadenza (calendario inline) */}
+                      {scadenzaPickerFor === f.nome && (
+                        <View style={{ marginTop: 8, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
+                          <MiniMonthCalendar
+                            selectedDates={fornInfo[f.nome]?.scadenza ? [fornInfo[f.nome].scadenza] : []}
+                            onToggleDate={(iso) => {
+                              const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
+                              // Single date selection
+                              const newScadenza = current.scadenza === iso ? '' : iso;
+                              setFornInfo({ ...fornInfo, [f.nome]: { ...current, scadenza: newScadenza } });
+                              setScadenzaPickerFor(null);
+                            }}
+                            themeColor="#B08050"
+                          />
+                        </View>
+                      )}
+
+                      {/* Riga: IMPORTO € */}
+                      <View style={{ marginTop: 8 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO €</Text>
+                        <View style={st.inputRow}>
                           <TextInput
                             style={st.amountInput}
                             placeholder="0"
@@ -448,6 +508,16 @@ const st = StyleSheet.create({
   amountInput: {
     flex: 1, fontSize: 18, fontWeight: '800', color: '#1A3535',
     backgroundColor: '#E0DBC8', borderRadius: 10, padding: 8, textAlign: 'center',
+  },
+  fattInput: {
+    fontSize: 12, fontWeight: '700', color: '#1A4040',
+    backgroundColor: '#F0EBD8', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 7,
+    borderWidth: 1, borderColor: '#D8D0B8',
+  },
+  scadenzaBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F0EBD8', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8,
+    borderWidth: 1, borderColor: '#D8D0B8',
   },
   euro: { fontSize: 16, fontWeight: '800', color: '#5A7575' },
   periodoRow: { flexDirection: 'row', gap: 6 },

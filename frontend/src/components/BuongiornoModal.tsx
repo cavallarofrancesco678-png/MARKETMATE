@@ -41,6 +41,7 @@ interface StoreData {
   fiereProssime?: { data: string; nome: string; luogo: string }[];
   appuntiProssimi?: { data: string; titolo?: string; note?: string; testo?: string }[];
   ordiniProssimi?: { data: string; titolo?: string; note?: string; testo?: string }[];
+  pagamentiImminenti?: { fornitore: string; numeroFattura: string; importo: number; scadenza: string; giorniRestanti: number }[];
   noteOggi?: string;
 }
 
@@ -275,7 +276,8 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
             const appunti = storeData.appuntiProssimi || [];
             const ordini = storeData.ordiniProssimi || [];
             const nota = storeData.noteOggi || '';
-            const hasAny = fiere.length > 0 || appunti.length > 0 || ordini.length > 0 || nota.length > 0;
+            const pagamentiImminenti = storeData.pagamentiImminenti || [];
+            const hasAny = fiere.length > 0 || appunti.length > 0 || ordini.length > 0 || nota.length > 0 || pagamentiImminenti.length > 0;
             if (!hasAny) return null;
             return (
               <View style={st.widget}>
@@ -283,6 +285,28 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                   <Ionicons name="notifications" size={14} color="#1E7F85" />
                   <Text style={st.widgetTitle}>RIEPILOGO SETTIMANA</Text>
                 </View>
+
+                {/* Pagamenti fornitori imminenti (tono colloquiale) */}
+                {pagamentiImminenti.length > 0 && (
+                  <View style={[st.widgetSection, { backgroundColor: '#FFF4DC', borderRadius: 8, padding: 8, borderLeftWidth: 2, borderLeftColor: '#E8A060' }]}>
+                    <Text style={[st.widgetSubtitle, { color: '#B07030' }]}>💸 Pagamenti in arrivo</Text>
+                    {pagamentiImminenti.slice(0, 4).map((p, i) => {
+                      const emoji = p.giorniRestanti === 0 ? '🔔' :
+                                    p.giorniRestanti === 1 ? '⏰' : '📌';
+                      const frase = p.giorniRestanti === 0
+                        ? `${emoji} Oggi scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` (€${p.importo.toFixed(2)})` : ''}. Non dimenticartene!`
+                        : p.giorniRestanti === 1
+                        ? `${emoji} Ehilà! Domani scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` – €${p.importo.toFixed(2)}` : ''}.`
+                        : `${emoji} Ti ricordo che tra ${p.giorniRestanti} giorni scade la fattura di ${p.fornitore}${p.importo ? ` (€${p.importo.toFixed(2)})` : ''}. Segnalo da parte!`;
+                      return (
+                        <Text key={i} style={[st.widgetLine, { marginBottom: 3 }]}>
+                          {frase}
+                        </Text>
+                      );
+                    })}
+                  </View>
+                )}
+
                 {appunti.length > 0 && (
                   <View style={st.widgetSection}>
                     <Text style={[st.widgetSubtitle, { color: '#1E7F85' }]}>📅 Appuntamenti ({appunti.length})</Text>
@@ -293,7 +317,7 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                     ))}
                   </View>
                 )}
-                {ordini.length > 0 && (
+                {ordini.length > 0 && pagamentiImminenti.length === 0 && (
                   <View style={st.widgetSection}>
                     <Text style={[st.widgetSubtitle, { color: '#E8A060' }]}>📦 Scadenze Ordini ({ordini.length})</Text>
                     {ordini.slice(0, 3).map((o, i) => (

@@ -59,7 +59,7 @@ const MiniBar = () => (
 );
 
 export default function HomeScreen() {
-  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine } = useAppStore();
+  const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine, addOrdine } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
   const dayNames = getDayNames();
@@ -93,6 +93,7 @@ export default function HomeScreen() {
   const [excludeSpeseFisse, setExcludeSpeseFisse] = useState(false);
   const [excludeCollaboratori, setExcludeCollaboratori] = useState(false);
   const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
+  const [fornInfo, setFornInfo] = useState<Record<string, { numeroFattura: string; scadenza: string }>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
   
@@ -187,6 +188,8 @@ export default function HomeScreen() {
       } else {
         setSpeseExtraFornitore({});
       }
+      // Carica fornitori info (numero fattura + scadenza)
+      setFornInfo((saved as any).fornitoriInfo || {});
       // Ripristina le voci generiche (spese extra dettagliate)
       if ((saved as any).dettaglio_spese_extra && Object.keys((saved as any).dettaglio_spese_extra).length > 0) {
         const voci = Object.entries((saved as any).dettaglio_spese_extra).map(([nome, val]) => ({
@@ -207,6 +210,7 @@ export default function HomeScreen() {
       setPos('');
       setInvenduto('0');
       setSpeseExtraFornitore({});
+      setFornInfo({});
       setVociGeneriche([]);
       setCostiOverride({});
       const p: Record<string, boolean> = {};
@@ -258,6 +262,48 @@ export default function HomeScreen() {
       return d >= oggi && d <= fra2gg;
     });
   }, [ordiniAgenda, dataCorrente]);
+
+  /* ── Pagamenti fornitori imminenti (entro 7 giorni) per widget Buongiorno ── */
+  const pagamentiImminenti = useMemo(() => {
+    const oggi = new Date(dataCorrente);
+    oggi.setHours(0, 0, 0, 0);
+    const result: { fornitore: string; numeroFattura: string; importo: number; scadenza: string; giorniRestanti: number }[] = [];
+    // Scansiona lo storico giornate per raccogliere fornitoriInfo
+    (store.storicoGiornate || []).forEach((g: any) => {
+      const info = g.fornitoriInfo || {};
+      Object.entries(info).forEach(([nome, dati]: [string, any]) => {
+        if (!dati || !dati.scadenza) return;
+        const scadDate = new Date(dati.scadenza + 'T12:00:00');
+        if (isNaN(scadDate.getTime())) return;
+        scadDate.setHours(0, 0, 0, 0);
+        const diff = Math.floor((scadDate.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
+        if (diff < 0 || diff > 7) return;
+        // Evita duplicati: tieni la scadenza più recente per fornitore+fattura
+        const key = `${nome}_${dati.numeroFattura || ''}`;
+        const existing = result.find((r) => `${r.fornitore}_${r.numeroFattura}` === key);
+        const imp = g.dettaglio_fornitori?.[nome] || 0;
+        if (!existing) {
+          result.push({ fornitore: nome, numeroFattura: dati.numeroFattura || '', importo: imp, scadenza: dati.scadenza, giorniRestanti: diff });
+        }
+      });
+    });
+    // Aggiungi anche i dati "pending" non ancora salvati (utente sta compilando ma la giornata non è ancora salvata)
+    Object.entries(fornInfo).forEach(([nome, dati]) => {
+      if (!dati || !dati.scadenza) return;
+      const scadDate = new Date(dati.scadenza + 'T12:00:00');
+      if (isNaN(scadDate.getTime())) return;
+      scadDate.setHours(0, 0, 0, 0);
+      const diff = Math.floor((scadDate.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff < 0 || diff > 7) return;
+      const key = `${nome}_${dati.numeroFattura || ''}`;
+      const existing = result.find((r) => `${r.fornitore}_${r.numeroFattura}` === key);
+      if (!existing) {
+        const imp = parseFloat((speseExtraFornitore[nome]?.importo || '0').replace(',', '.')) || 0;
+        result.push({ fornitore: nome, numeroFattura: dati.numeroFattura || '', importo: imp, scadenza: dati.scadenza, giorniRestanti: diff });
+      }
+    });
+    return result.sort((a, b) => a.giorniRestanti - b.giorniRestanti);
+  }, [store.storicoGiornate, fornInfo, speseExtraFornitore, dataCorrente]);
 
   /* ── Fiere prossimi 7 giorni per notifiche campanello ── */
   const fiereProssime = useMemo(() => {
@@ -417,7 +463,9 @@ export default function HomeScreen() {
   /* ── Spese Extra fornitori totale ── */
   const speseExtraFornTotale = useMemo(() => {
     let tot = 0;
-    Object.values(speseExtraFornitore).forEach((v) => {
+    Object.entries(speseExtraFornitore).forEach(([key, v]) => {
+      // Ignora chiavi interne (__fattn, __liberaLabel, ecc.) — erano un workaround legacy
+      if (key.includes('__')) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (v.periodo === 'settimanale') tot += imp / 6;
       else if (v.periodo === 'mensile') tot += imp / 26;
@@ -508,6 +556,8 @@ export default function HomeScreen() {
     // Build dettaglio_fornitori from speseExtraFornitore
     const dettaglioForn: Record<string, number> = {};
     Object.entries(speseExtraFornitore).forEach(([nome, v]) => {
+      // Ignora chiavi interne legacy (__fattn, __liberaLabel, __libera)
+      if (nome.includes('__')) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (imp > 0) {
         if (v.periodo === 'settimanale') dettaglioForn[nome] = imp / 6;
@@ -563,8 +613,31 @@ export default function HomeScreen() {
       dettaglio_invenduto: dettaglioInv,
       dettaglio_fornitori: dettaglioForn,
       dettaglio_spese_extra: dettaglioExtra,
+      fornitoriInfo: fornInfo,
     } as any);
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata]);
+
+    // Integrazione in Ordini e Appuntamenti: per ogni fornitore con scadenza
+    // crea (o aggiorna) un ordine con la data di scadenza
+    Object.entries(fornInfo).forEach(([nomeFornitore, info]) => {
+      if (!info || !info.scadenza) return;
+      const imp = dettaglioForn[nomeFornitore] || 0;
+      if (imp <= 0 && !info.numeroFattura) return;
+      try {
+        const scadenzaDate = new Date(info.scadenza + 'T12:00:00');
+        if (isNaN(scadenzaDate.getTime())) return;
+        const testo = `${nomeFornitore}${info.numeroFattura ? ` – Fatt. ${info.numeroFattura}` : ''} – €${imp.toFixed(2)}`;
+        // Evita duplicati: rimuovi eventuale ordine esistente per stessa data+fornitore
+        const existing = (ordiniAgenda || []).find((o: any) => {
+          const d = new Date(o.data);
+          return d.toDateString() === scadenzaDate.toDateString() && (o.testo || '').startsWith(nomeFornitore);
+        });
+        if (existing) {
+          removeOrdine(new Date(existing.data), existing.testo);
+        }
+        addOrdine({ data: scadenzaDate, testo });
+      } catch { /* skip */ }
+    });
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1435,6 +1508,8 @@ export default function HomeScreen() {
         setSpeseExtraFornitore={setSpeseExtraFornitore}
         vociGeneriche={vociGeneriche}
         setVociGeneriche={setVociGeneriche}
+        fornInfo={fornInfo}
+        setFornInfo={setFornInfo}
       />
 
       {/* Buongiorno AI Modal */}
@@ -1500,6 +1575,7 @@ export default function HomeScreen() {
             data: new Date(o.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
             testo: o.testo || o.fornitore || o.titolo || '',
           })),
+          pagamentiImminenti: pagamentiImminenti,
           noteOggi: (() => {
             try {
               const today = new Date();
