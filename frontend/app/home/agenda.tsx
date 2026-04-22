@@ -59,7 +59,7 @@ export default function AgendaScreen() {
 
   /* ═══ ORDINI + APPUNTAMENTI DEL MESE ═══ */
   const impegniMese = useMemo(() => {
-    const map: { [day: number]: { testo: string; tipo: string }[] } = {};
+    const map: { [day: number]: { testo: string; tipo: string; tipologia?: string }[] } = {};
     (appuntiAgenda || []).forEach(a => {
       const d = new Date(a.data);
       if (d.getMonth() === calMonth.getMonth() && d.getFullYear() === calMonth.getFullYear()) {
@@ -76,8 +76,52 @@ export default function AgendaScreen() {
         map[day].push({ testo: o.testo, tipo: 'ordine' });
       }
     });
+    // Aggiungi le fiere del mese (ricorrenti + date specifiche)
+    const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), d);
+      const dow = (date.getDay() + 6) % 7;
+      const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      (store.fiere || []).forEach((f: any) => {
+        if (!f.attiva) return;
+        const match = f.giorni?.includes(dow) || (f.dateSpecifiche || []).includes(iso);
+        if (match) {
+          if (!map[d]) map[d] = [];
+          // Evita duplicati se la fiera è già stata aggiunta per questo giorno
+          if (!map[d].some((x) => x.testo === f.nome && x.tipo === 'fiera')) {
+            map[d].push({ testo: f.nome, tipo: 'fiera', tipologia: f.tipologia || 'Fiera' });
+          }
+        }
+      });
+    }
     return map;
-  }, [appuntiAgenda, ordiniAgenda, calMonth]);
+  }, [appuntiAgenda, ordiniAgenda, calMonth, store.fiere]);
+
+  /* ═══ LISTA FIERE DEL MESE ═══ */
+  const fiereDelMese = useMemo(() => {
+    const arr: { giorno: number; nome: string; luogo: string; tipologia: string; km: number; plateatico: number }[] = [];
+    const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), d);
+      const dow = (date.getDay() + 6) % 7;
+      const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      (store.fiere || []).forEach((f: any) => {
+        if (!f.attiva) return;
+        const match = f.giorni?.includes(dow) || (f.dateSpecifiche || []).includes(iso);
+        if (match) {
+          arr.push({
+            giorno: d,
+            nome: f.nome,
+            luogo: f.luogo || '',
+            tipologia: f.tipologia || 'Fiera',
+            km: f.km || 0,
+            plateatico: f.plateatico || 0,
+          });
+        }
+      });
+    }
+    return arr.sort((a, b) => a.giorno - b.giorno);
+  }, [store.fiere, calMonth]);
 
   /* ═══ CALENDARIO GRID ═══ */
   const calendarGrid = useMemo(() => {

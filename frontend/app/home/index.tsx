@@ -369,24 +369,12 @@ export default function HomeScreen() {
   const speseFisseConCarburante = useMemo(() => {
     const items = [...speseFisseItems];
     const kmMercato = mercatoOggi?.km || 0;
-    // Calcola media €/km: preferisce dati storici reali, fallback su costoPerKm impostato, fallback finale 0.20 €/km
-    const totEuroCarbStorico = (store.storicoCarburante || []).reduce((s, c) => s + (c.euro || 0), 0);
-    const totKmStorico = (store.storicoGiornate || []).reduce((s, g) => s + (g.km || 0), 0);
-    let mediaEuroKm: number;
-    if (totKmStorico > 30 && totEuroCarbStorico > 5) {
-      // Dati storici sufficienti per calcolo media reale
-      mediaEuroKm = totEuroCarbStorico / totKmStorico;
-    } else if (costoPerKm && costoPerKm > 0) {
-      mediaEuroKm = costoPerKm;
-    } else {
-      // Fallback: 1,90 €/L ÷ 9,5 km/L ≈ 0,20 €/km
-      mediaEuroKm = 0.20;
-    }
-    // Costo carburante di oggi = km × media €/km
+    // HARDCODED 0.20 €/km fino a nuova indicazione
+    const mediaEuroKm = 0.20;
     const costoCarb = Math.round(kmMercato * mediaEuroKm * 100) / 100;
     items.push({ id: 'carburante_gg', label: t('home.fuelCost') || 'Carburante', importoGG: costoCarb });
     return items;
-  }, [speseFisseItems, mercatoOggi, costoPerKm, store.storicoCarburante, store.storicoGiornate, t]);
+  }, [speseFisseItems, mercatoOggi, t]);
 
   // Filter: only show today's plateatico + all general spese + fuel
   const speseFisseOggi = useMemo(() => {
