@@ -432,6 +432,27 @@ export default function StatsScreen() {
     return productLines;
   }, [filteredData, filtroTempo, t]);
 
+  /* ═══ BREAKDOWN INVENDUTO PER PRODOTTO (con giorni coinvolti) ═══ */
+  const invendutoBreakdown = useMemo(() => {
+    const perProd: Record<string, { totale: number; giorni: number }> = {};
+    filteredData.forEach((g) => {
+      if (!g.dettaglio_invenduto) return;
+      Object.entries(g.dettaglio_invenduto).forEach(([k, v]) => {
+        if (k === 'totale') return;
+        const val = typeof v === 'number' ? v : 0;
+        if (val <= 0) return;
+        if (!perProd[k]) perProd[k] = { totale: 0, giorni: 0 };
+        perProd[k].totale += val;
+        perProd[k].giorni += 1;
+      });
+    });
+    const arr = Object.entries(perProd)
+      .map(([nome, d]) => ({ nome, totale: Math.round(d.totale * 100) / 100, giorni: d.giorni }))
+      .sort((a, b) => b.totale - a.totale);
+    const totale = arr.reduce((s, x) => s + x.totale, 0);
+    return { items: arr, totale };
+  }, [filteredData]);
+
   const collabLines = useMemo(() => {
     // Use only collaborator names from Settings
     return collaboratori.map((c, i) => ({
@@ -1203,6 +1224,40 @@ export default function StatsScreen() {
         {renderChartBox('FORNITORI 2', fornitoriLines, 'fornitori')}
 
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
+
+        {/* ═══ DETTAGLIO INVENDUTO PER PRODOTTO ═══ */}
+        {invendutoBreakdown.items.length > 0 && !collapsed['invenduto'] && (
+          <View style={[st.card, { marginBottom: GAP, marginTop: -GAP + 2, backgroundColor: '#FFF5F3', borderLeftWidth: 3, borderLeftColor: '#D46A6A' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Ionicons name="cube-outline" size={14} color="#D46A6A" />
+              <Text style={{ fontSize: 11, fontWeight: '900', color: '#8A3A3A', letterSpacing: 0.5, marginLeft: 6, flex: 1 }}>
+                DETTAGLIO PER PRODOTTO ({invendutoBreakdown.items.length})
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: '900', color: '#D46A6A' }}>
+                €{invendutoBreakdown.totale.toFixed(2)}
+              </Text>
+            </View>
+            {invendutoBreakdown.items.map((item, i) => {
+              const pct = invendutoBreakdown.totale > 0 ? Math.round((item.totale / invendutoBreakdown.totale) * 100) : 0;
+              return (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: i === invendutoBreakdown.items.length - 1 ? 0 : 1, borderColor: '#FCE4E0' }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: PALETTE[i % PALETTE.length], marginRight: 8 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#1A4040' }} numberOfLines={1}>
+                      {item.nome}
+                    </Text>
+                    <Text style={{ fontSize: 9, color: '#8A7070' }}>
+                      {item.giorni} {item.giorni === 1 ? 'giorno' : 'giorni'} · {pct}%
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: '#D46A6A' }}>
+                    €{item.totale.toFixed(2)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
         {renderChartBox(t('stats.collaborators'), collabLines, 'collab')}
 
         <View style={[st.card, { marginBottom: GAP }]}>

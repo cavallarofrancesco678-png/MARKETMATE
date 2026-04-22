@@ -101,3 +101,70 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Verify MarketMate backend endpoints (distance, weather, fuel, ai/chat) are still functional after frontend-only changes."
+
+backend:
+  - task: "POST /api/distance/calculate - Roma to Milano"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "HTTP 200. Response: success=True, km=620.3, km_andata_ritorno=1240.6. Geocoding via Nominatim + Haversine working."
+
+  - task: "POST /api/weather"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "CONTRACT MISMATCH noted but endpoint works. Backend WeatherRequest model expects {\"citta\": <string>}, NOT {\"lat\",\"lon\",\"date\"} as the review request suggested. Payload {lat,lon,date} -> HTTP 422 (field 'citta' missing). Correct payload {\"citta\":\"Roma\"} -> HTTP 200 success=True, temp=15.7°C, desc='Rovesci leggeri'. If frontend currently sends lat/lon/date, it must be adapted to send {citta}, OR the backend must be extended to accept lat/lon. Main agent should confirm expected contract."
+
+  - task: "POST /api/fuel/cheapest - Roma->Milano benzina"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "HTTP 200. success=True, country=IT, 3 stations returned along the route. Italian fuel API integration working."
+
+  - task: "POST /api/ai/chat - Buongiorno with context (fiere/appunti/ordini)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "HTTP 200. LLM (gpt-4.1-mini via emergentintegrations) responded and cited ALL 3 context items: 'San Magno' 🎪, 'Commercialista' 📅, 'Andrea Pane' 📦. Personalized greeting to 'Mario'. Context injection fully functional."
+
+metadata:
+  created_by: "testing_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "testing"
+    -message: "Backend smoke test complete. 4/4 endpoints returned HTTP 200 with correct behavior. /api/distance/calculate, /api/fuel/cheapest and /api/ai/chat work exactly as expected. /api/weather works correctly but uses a different request schema than what the review mentioned: it expects {\"citta\":\"<city>\"} (WeatherRequest model) and returns 422 for {lat,lon,date}. Please confirm whether frontend should send {citta} (current backend contract) or whether backend should be extended to accept lat/lon/date. Receipt/analyze intentionally SKIPPED per review instructions (requires valid image_base64)."

@@ -253,7 +253,7 @@ export default function HomeScreen() {
 
   /* ── Fiere prossimi 7 giorni per notifiche campanello ── */
   const fiereProssime = useMemo(() => {
-    const result: { data: Date; nome: string; luogo: string }[] = [];
+    const result: { data: Date; nome: string; luogo: string; tipologia: string }[] = [];
     const oggi = new Date(dataCorrente); oggi.setHours(0, 0, 0, 0);
     for (let i = 0; i <= 7; i++) {
       const d = new Date(oggi); d.setDate(oggi.getDate() + i);
@@ -264,13 +264,23 @@ export default function HomeScreen() {
         if (f.giorni?.includes(dow) || (f.dateSpecifiche || []).includes(iso)) {
           // Dedupe: se stessa fiera già presente per data, skip
           if (!result.some((r) => r.nome === f.nome && r.data.toDateString() === d.toDateString())) {
-            result.push({ data: new Date(d), nome: f.nome, luogo: f.luogo || '' });
+            result.push({ data: new Date(d), nome: f.nome, luogo: f.luogo || '', tipologia: f.tipologia || 'Fiera' });
           }
         }
       });
     }
     return result;
   }, [store.fiere, dataCorrente]);
+
+  const getTipologiaColor = (tipologia?: string) => {
+    switch (tipologia) {
+      case 'Sagra': return '#9B59B6';
+      case 'Festa Patronale': return '#C0392B';
+      case 'Evento Speciale': return '#16A085';
+      case 'Fiera':
+      default: return '#D4AF37';
+    }
+  };
 
   /* ── Conteggio notifiche totale (appuntamenti + ordini + fiere, NO diario) ── */
   const notificheCount = appuntiProssimi.length + ordiniProssimi.length + fiereProssime.length;
@@ -1150,6 +1160,31 @@ export default function HomeScreen() {
                         <TouchableOpacity onPress={() => { removeOrdine(o.data, o.testo); }}>
                           <Ionicons name="close-circle" size={20} color="#D46A6A" />
                         </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* FIERE prossime 7 giorni */}
+              {fiereProssime.length > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#D4AF37', marginBottom: 6, letterSpacing: 1 }}>FIERE & EVENTI</Text>
+                  {fiereProssime.map((f, i) => {
+                    const d = new Date(f.data);
+                    const isToday = d.toDateString() === dataCorrente.toDateString();
+                    const dateLabel = isToday ? t('home.today') : `${d.getDate()}/${d.getMonth() + 1}`;
+                    const col = getTipologiaColor(f.tipologia);
+                    return (
+                      <View key={`fie-${i}`} style={s.modalRow}>
+                        <View style={{ backgroundColor: col, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
+                          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
+                        </View>
+                        <Ionicons name="flag" size={16} color={col} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.modalLabel]} numberOfLines={1}>{f.nome}</Text>
+                          {f.luogo ? <Text style={{ fontSize: 9, color: '#7A9090' }} numberOfLines={1}>{f.tipologia} · {f.luogo}</Text> : null}
+                        </View>
                       </View>
                     );
                   })}

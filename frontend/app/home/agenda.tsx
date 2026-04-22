@@ -44,7 +44,7 @@ export default function AgendaScreen() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
   const [dayModalText, setDayModalText] = useState('');
-  const [dayModalType, setDayModalType] = useState<'new' | 'edit'>('new');
+  const [dayModalType, setDayModalType] = useState<'new' | 'edit' | 'fiera'>('new');
 
   // ═══ NOTE DEL GIORNO ═══
   const [noteText, setNoteText] = useState('');
@@ -57,9 +57,9 @@ export default function AgendaScreen() {
     setNoteText(existing ? existing.testo : '');
   }, []);
 
-  /* ═══ ORDINI + APPUNTAMENTI DEL MESE ═══ */
+  /* ═══ ORDINI + APPUNTAMENTI + FIERE DEL MESE ═══ */
   const impegniMese = useMemo(() => {
-    const map: { [day: number]: { testo: string; tipo: string; tipologia?: string }[] } = {};
+    const map: { [day: number]: { testo: string; tipo: string; tipologia?: string; luogo?: string; km?: number; plateatico?: number; fieraId?: string }[] } = {};
     (appuntiAgenda || []).forEach(a => {
       const d = new Date(a.data);
       if (d.getMonth() === calMonth.getMonth() && d.getFullYear() === calMonth.getFullYear()) {
@@ -89,13 +89,32 @@ export default function AgendaScreen() {
           if (!map[d]) map[d] = [];
           // Evita duplicati se la fiera è già stata aggiunta per questo giorno
           if (!map[d].some((x) => x.testo === f.nome && x.tipo === 'fiera')) {
-            map[d].push({ testo: f.nome, tipo: 'fiera', tipologia: f.tipologia || 'Fiera' });
+            map[d].push({
+              testo: f.nome,
+              tipo: 'fiera',
+              tipologia: f.tipologia || 'Fiera',
+              luogo: f.luogo || '',
+              km: f.km || 0,
+              plateatico: f.plateatico || 0,
+              fieraId: f.id,
+            });
           }
         }
       });
     }
     return map;
   }, [appuntiAgenda, ordiniAgenda, calMonth, store.fiere]);
+
+  /* ═══ COLORE PER TIPOLOGIA EVENTO ═══ */
+  const getTipologiaColor = (tipologia?: string) => {
+    switch (tipologia) {
+      case 'Sagra': return '#9B59B6';
+      case 'Festa Patronale': return '#C0392B';
+      case 'Evento Speciale': return '#16A085';
+      case 'Fiera':
+      default: return '#D4AF37';
+    }
+  };
 
   /* ═══ LISTA FIERE DEL MESE ═══ */
   const fiereDelMese = useMemo(() => {
@@ -219,12 +238,19 @@ export default function AgendaScreen() {
 
   /* ═══ CLICK SU GIORNO CALENDARIO ═══ */
   const handleDayPress = (day: number) => {
-    const existing = impegniMese[day];
-    if (existing && existing.length > 0) {
-      // Giorno con impegno → apri modal per modificare/cancellare
+    const existing = impegniMese[day] || [];
+    // Se ci sono solo fiere (nessun appuntamento/ordine), mostra info fiera
+    const nonFiera = existing.filter(x => x.tipo !== 'fiera');
+    if (existing.length > 0) {
       setSelectedDay(day);
-      setDayModalText(existing[0].testo);
-      setDayModalType('edit');
+      // Se c'è un item non-fiera lo editi, altrimenti mostri la fiera
+      if (nonFiera.length > 0) {
+        setDayModalText(nonFiera[0].testo);
+        setDayModalType('edit');
+      } else {
+        setDayModalText('');
+        setDayModalType('fiera');
+      }
       setShowDayModal(true);
     } else if (showCalendar && orderText.trim()) {
       // Salva nuovo ordine su questo giorno
@@ -241,9 +267,10 @@ export default function AgendaScreen() {
   /* ═══ ELIMINA IMPEGNO ═══ */
   const handleDeleteImpegno = () => {
     if (!selectedDay) return;
-    const existing = impegniMese[selectedDay];
-    if (existing && existing.length > 0) {
-      const item = existing[0];
+    const existing = impegniMese[selectedDay] || [];
+    // Solo impegni non-fiera sono cancellabili (le fiere si gestiscono in Settings)
+    const item = existing.find(x => x.tipo !== 'fiera');
+    if (item) {
       const dDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay, 12, 0, 0);
       if (item.tipo === 'appuntamento') {
         removeAppunto(dDate, item.testo);
@@ -257,14 +284,15 @@ export default function AgendaScreen() {
   /* ═══ MODIFICA IMPEGNO ═══ */
   const handleEditImpegno = () => {
     if (!selectedDay || !dayModalText.trim()) return;
-    const existing = impegniMese[selectedDay];
+    const existing = impegniMese[selectedDay] || [];
+    const item = existing.find(x => x.tipo !== 'fiera');
     const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay, 12, 0, 0);
     // Rimuovi esistente
-    if (existing && existing.length > 0) {
-      if (existing[0].tipo === 'appuntamento') {
-        removeAppunto(newDate, existing[0].testo);
+    if (item) {
+      if (item.tipo === 'appuntamento') {
+        removeAppunto(newDate, item.testo);
       } else {
-        removeOrdine(newDate, existing[0].testo);
+        removeOrdine(newDate, item.testo);
       }
     }
     // Aggiungi nuovo
@@ -319,15 +347,21 @@ export default function AgendaScreen() {
         {calendarGrid.map((row, ri) => (
           <View key={ri} style={s.calRow}>
             {row.map((day, di) => {
-              const hasItem = day ? impegniMese[day] && impegniMese[day].length > 0 : false;
+              const items = day ? impegniMese[day] || [] : [];
+              const hasItem = items.length > 0;
               const isToday = isCurrentMonth && day === today.getDate();
               const isWorked = day ? giorniLavoratiMese.has(day) : false;
-              const fiereOggi = day ? getFiereForDay(day) : [];
-              const hasFiera = fiereOggi.length > 0;
-              const itemTypes = day && impegniMese[day] ? impegniMese[day].map(x => x.tipo) : [];
-              const hasApp = itemTypes.includes('appuntamento');
-              const hasOrd = itemTypes.includes('ordine');
-              const bgColor = hasApp && hasOrd ? '#1A4040' : hasOrd ? '#E8A060' : hasApp ? '#1E7F85' : isWorked ? '#D5F0E8' : 'transparent';
+              const fieraItem = items.find(x => x.tipo === 'fiera');
+              const hasFiera = !!fieraItem;
+              const hasApp = items.some(x => x.tipo === 'appuntamento');
+              const hasOrd = items.some(x => x.tipo === 'ordine');
+              // Priorità colore: fiera > ordine > appuntamento
+              const fieraColor = fieraItem ? getTipologiaColor(fieraItem.tipologia) : null;
+              const bgColor = hasFiera ? fieraColor! :
+                               hasApp && hasOrd ? '#1A4040' :
+                               hasOrd ? '#E8A060' :
+                               hasApp ? '#1E7F85' :
+                               isWorked ? '#D5F0E8' : 'transparent';
               return (
                 <TouchableOpacity
                   key={di}
@@ -337,7 +371,6 @@ export default function AgendaScreen() {
                     !hasItem && isWorked && { backgroundColor: '#D5F0E8', borderWidth: 1.5, borderColor: '#5AAA6A' },
                     isToday && !hasItem && !isWorked && s.calDayToday,
                     isToday && isWorked && !hasItem && { borderColor: '#1E7F85', borderWidth: 2 },
-                    !hasItem && !isWorked && hasFiera && { borderWidth: 1.5, borderColor: '#D4AF37', borderStyle: 'dashed' as any },
                   ]}
                   disabled={!day}
                   onPress={() => day && handleDayPress(day)}
@@ -351,13 +384,25 @@ export default function AgendaScreen() {
                   ]}>
                     {day || ''}
                   </Text>
-                  {hasItem && <View style={[s.calDot, { backgroundColor: '#FFF' }]} />}
-                  {!hasItem && isWorked && <View style={[s.calDot, { backgroundColor: '#5AAA6A' }]} />}
-                  {hasFiera && (
-                    <View style={{ position: 'absolute', top: 2, right: 2 }}>
-                      <Ionicons name="star" size={10} color="#D4AF37" />
+                  {/* Indicatore multi-tipo (piccoli pallini) quando più elementi */}
+                  {hasItem && items.length > 1 && (
+                    <View style={{ flexDirection: 'row', gap: 2, marginTop: 1 }}>
+                      {items.slice(0, 3).map((it, idx) => (
+                        <View
+                          key={idx}
+                          style={{
+                            width: 4, height: 4, borderRadius: 2,
+                            backgroundColor: '#FFF',
+                            opacity: 0.9,
+                          }}
+                        />
+                      ))}
                     </View>
                   )}
+                  {hasItem && items.length === 1 && (
+                    <View style={[s.calDot, { backgroundColor: '#FFF' }]} />
+                  )}
+                  {!hasItem && isWorked && <View style={[s.calDot, { backgroundColor: '#5AAA6A' }]} />}
                 </TouchableOpacity>
               );
             })}
@@ -365,19 +410,35 @@ export default function AgendaScreen() {
         ))}
       </View>
 
-      {/* ═══ LEGENDA CALENDARIO ═══ */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 6, marginBottom: 8 }}>
+      {/* ═══ LEGENDA CALENDARIO (tipologie dinamiche) ═══ */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 6, marginBottom: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#5AAA6A' }} />
           <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Lavorato</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Appuntamento</Text>
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Appunt.</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Ionicons name="star" size={10} color="#D4AF37" />
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060' }} />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Ordine</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#D4AF37' }} />
           <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Fiera</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#9B59B6' }} />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Sagra</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#C0392B' }} />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Festa Patron.</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#16A085' }} />
+          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Evento</Text>
         </View>
       </View>
 
@@ -449,7 +510,7 @@ export default function AgendaScreen() {
         )}
       </View>
 
-      {/* ═══ MODAL GIORNO (Modifica/Cancella) ═══ */}
+      {/* ═══ MODAL GIORNO (Modifica/Cancella/Dettaglio Fiera) ═══ */}
       <Modal visible={showDayModal} transparent animationType="fade" onRequestClose={() => setShowDayModal(false)}>
         <TouchableOpacity activeOpacity={1} style={s.modalOverlay} onPress={() => setShowDayModal(false)}>
           <TouchableOpacity activeOpacity={1} style={s.modalContent} onPress={() => {}}>
@@ -460,48 +521,116 @@ export default function AgendaScreen() {
               </Text>
             </View>
 
-            {dayModalType === 'edit' && impegniMese[selectedDay!] ? (
-              <Text style={s.modalSubtitle}>
-                {impegniMese[selectedDay!][0].tipo === 'appuntamento' ? 'APPUNTAMENTO' : 'ORDINE'}
-              </Text>
-            ) : (
-              <Text style={s.modalSubtitle}>NUOVO IMPEGNO</Text>
+            {dayModalType === 'fiera' && selectedDay !== null && (() => {
+              const items = impegniMese[selectedDay] || [];
+              const fiereItems = items.filter(x => x.tipo === 'fiera');
+              return (
+                <View style={{ marginTop: 6 }}>
+                  {fiereItems.map((f, i) => (
+                    <View key={i} style={{
+                      backgroundColor: getTipologiaColor(f.tipologia) + '18',
+                      borderLeftWidth: 3,
+                      borderLeftColor: getTipologiaColor(f.tipologia),
+                      padding: 12,
+                      borderRadius: 10,
+                      marginBottom: 8,
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <View style={{
+                          backgroundColor: getTipologiaColor(f.tipologia),
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 10,
+                        }}>
+                          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>
+                            {(f.tipologia || 'Fiera').toUpperCase()}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={{ fontSize: 15, fontWeight: '900', color: '#1A4040', marginBottom: 4 }}>
+                        {f.testo}
+                      </Text>
+                      {f.luogo ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                          <Ionicons name="location" size={12} color="#7A9090" />
+                          <Text style={{ fontSize: 12, color: '#5A7575' }}>{f.luogo}</Text>
+                        </View>
+                      ) : null}
+                      {(f.km ?? 0) > 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                          <Ionicons name="car" size={12} color="#7A9090" />
+                          <Text style={{ fontSize: 12, color: '#5A7575' }}>{f.km} km A/R</Text>
+                        </View>
+                      ) : null}
+                      {(f.plateatico ?? 0) > 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="cash" size={12} color="#7A9090" />
+                          <Text style={{ fontSize: 12, color: '#5A7575' }}>€{f.plateatico}/giorno</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+                  <TouchableOpacity
+                    style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1, marginTop: 4 }]}
+                    onPress={() => {
+                      // Permetti di aggiungere anche un appunto/ordine su questo giorno
+                      setDayModalType('new');
+                      setDayModalText('');
+                    }}
+                  >
+                    <Ionicons name="add-circle" size={16} color="#FFF" />
+                    <Text style={s.modalBtnTxt}>AGGIUNGI APPUNTO</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
+
+            {dayModalType !== 'fiera' && (
+              <>
+                {dayModalType === 'edit' && impegniMese[selectedDay!] ? (
+                  <Text style={s.modalSubtitle}>
+                    {(impegniMese[selectedDay!].find(x => x.tipo !== 'fiera')?.tipo === 'appuntamento') ? 'APPUNTAMENTO' : 'ORDINE'}
+                  </Text>
+                ) : (
+                  <Text style={s.modalSubtitle}>NUOVO IMPEGNO</Text>
+                )}
+
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="Descrizione..."
+                  placeholderTextColor="#B0A898"
+                  value={dayModalText}
+                  onChangeText={setDayModalText}
+                  multiline
+                />
+
+                <View style={s.modalBtns}>
+                  {dayModalType === 'edit' && (
+                    <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} onPress={handleDeleteImpegno}>
+                      <Ionicons name="trash" size={16} color="#FFF" />
+                      <Text style={s.modalBtnTxt}>CANCELLA</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity 
+                    style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1 }]} 
+                    onPress={() => {
+                      if (dayModalType === 'edit') {
+                        handleEditImpegno();
+                      } else {
+                        if (!dayModalText.trim()) return;
+                        const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay!, 12, 0, 0);
+                        addAppunto({ data: newDate, testo: dayModalText.trim() });
+                        playSuccess();
+                        setShowDayModal(false);
+                      }
+                    }}
+                  >
+                    <Ionicons name={dayModalType === 'edit' ? 'create' : 'save'} size={16} color="#FFF" />
+                    <Text style={s.modalBtnTxt}>{dayModalType === 'edit' ? (t('common.edit') || 'MODIFICA') : (t('agenda.save') || 'SALVA')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
             )}
-
-            <TextInput
-              style={s.modalInput}
-              placeholder="Descrizione..."
-              placeholderTextColor="#B0A898"
-              value={dayModalText}
-              onChangeText={setDayModalText}
-              multiline
-            />
-
-            <View style={s.modalBtns}>
-              {dayModalType === 'edit' && (
-                <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#D46A6A' }]} onPress={handleDeleteImpegno}>
-                  <Ionicons name="trash" size={16} color="#FFF" />
-                  <Text style={s.modalBtnTxt}>CANCELLA</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity 
-                style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1 }]} 
-                onPress={() => {
-                  if (dayModalType === 'edit') {
-                    handleEditImpegno();
-                  } else {
-                    if (!dayModalText.trim()) return;
-                    const newDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), selectedDay!, 12, 0, 0);
-                    addAppunto({ data: newDate, testo: dayModalText.trim() });
-                    playSuccess();
-                    setShowDayModal(false);
-                  }
-                }}
-              >
-                <Ionicons name={dayModalType === 'edit' ? 'create' : 'save'} size={16} color="#FFF" />
-                <Text style={s.modalBtnTxt}>{dayModalType === 'edit' ? (t('common.edit') || 'MODIFICA') : (t('agenda.save') || 'SALVA')}</Text>
-              </TouchableOpacity>
-            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
