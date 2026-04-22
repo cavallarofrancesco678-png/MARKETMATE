@@ -1318,7 +1318,7 @@ export default function SettingsPage() {
                 <Ionicons name="cash-outline" size={22} color="#1E7F85" />
                 <View style={{ flex: 1 }}>
                   <Text style={s.ocrResultLabel}>{t('settings.dailyTotal') || 'Totale Giornaliero'}</Text>
-                  <Text style={s.ocrResultValue}>€{ocrResult.totale.toFixed(2)}</Text>
+                  <Text style={s.ocrResultValue}>€{ocrResult.totale.toFixed(0)}</Text>
                 </View>
               </View>
               <View style={s.divider} />
@@ -1334,7 +1334,7 @@ export default function SettingsPage() {
                 <Ionicons name="analytics-outline" size={22} color="#8B6914" />
                 <View style={{ flex: 1 }}>
                   <Text style={s.ocrResultLabel}>{t('settings.avgReceipt') || 'Media Scontrino'}</Text>
-                  <Text style={[s.ocrResultValue, { color: '#8B6914', fontSize: 22 }]}>€{ocrResult.mediaScontrino.toFixed(2)}</Text>
+                  <Text style={[s.ocrResultValue, { color: '#8B6914', fontSize: 22 }]}>€{ocrResult.mediaScontrino.toFixed(0)}</Text>
                 </View>
               </View>
             </View>

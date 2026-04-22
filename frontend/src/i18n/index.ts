@@ -57,15 +57,12 @@ export const changeLanguage = async (lng: string) => {
   await i18n.changeLanguage(lng);
 };
 
-// Format number according to locale
+// Format number according to locale (senza decimali, arrotondati all'intero)
 export const formatNumber = (num: number, lng?: string): string => {
   const lang = lng || i18n.language;
-  const decSep = i18n.t('locale.decimalSeparator', { lng: lang });
   const thousSep = i18n.t('locale.thousandSeparator', { lng: lang });
-  
-  const parts = num.toFixed(2).split('.');
-  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousSep);
-  return intPart + decSep + parts[1];
+  const intPart = Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, thousSep);
+  return intPart;
 };
 
 // Format currency according to locale

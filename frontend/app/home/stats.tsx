@@ -447,7 +447,7 @@ export default function StatsScreen() {
       });
     });
     const arr = Object.entries(perProd)
-      .map(([nome, d]) => ({ nome, totale: Math.round(d.totale * 100) / 100, giorni: d.giorni }))
+      .map(([nome, d]) => ({ nome, totale: Math.round(d.totale), giorni: d.giorni }))
       .sort((a, b) => b.totale - a.totale);
     const totale = arr.reduce((s, x) => s + x.totale, 0);
     return { items: arr, totale };
@@ -497,7 +497,7 @@ export default function StatsScreen() {
     (speseAnnue || []).forEach((sp) => {
       items.push({
         label: sp.voce,
-        value: Math.max(Math.round((sp.importo || 0) * fattore * 100) / 100, 0.01),
+        value: Math.max(Math.round((sp.importo || 0) * fattore), 1),
         color: PALETTE[items.length % PALETTE.length],
       });
     });
@@ -506,7 +506,7 @@ export default function StatsScreen() {
       if ((m as any).p_annuo && (m as any).p_annuo > 0) {
         items.push({
           label: `Plat. ${m.mercato}`,
-          value: Math.max(Math.round((m as any).p_annuo * fattore * 100) / 100, 0.01),
+          value: Math.max(Math.round((m as any).p_annuo * fattore), 1),
           color: PALETTE[items.length % PALETTE.length],
         });
       }
@@ -518,11 +518,11 @@ export default function StatsScreen() {
     const mediaEuroKm = totKmStorico > 0 ? totEuroCarbStorico / totKmStorico : 0;
     // Km percorsi nel periodo filtrato
     const kmPeriodo = arrSum(filteredData.map((g) => g.km || 0));
-    const carburantePeriodo = Math.round(kmPeriodo * mediaEuroKm * 100) / 100;
+    const carburantePeriodo = Math.round(kmPeriodo * mediaEuroKm);
     if (carburantePeriodo > 0 || kmPeriodo > 0 || totEuroCarbStorico > 0) {
       items.push({
         label: `Carburante (€${mediaEuroKm.toFixed(3)}/km × ${kmPeriodo}km)`,
-        value: Math.max(carburantePeriodo, 0.01),
+        value: Math.max(carburantePeriodo, 1),
         color: '#E8A060',
       });
     }
@@ -546,7 +546,7 @@ export default function StatsScreen() {
     }));
     const items: { label: string; value: number; color: string }[] = [];
     Object.entries(perVoce).forEach(([nome, val], i) => {
-      items.push({ label: nome, value: Math.round(val * 100) / 100, color: PALETTE[i % PALETTE.length] });
+      items.push({ label: nome, value: Math.round(val), color: PALETTE[i % PALETTE.length] });
     });
     if (totInvenduto > 0) {
       items.push({ label: t('stats.unsold'), value: totInvenduto, color: '#D46A6A' });
@@ -776,7 +776,7 @@ export default function StatsScreen() {
           <View style={st.chartHeader}>
             <Text style={st.sectionLabel}>{title}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={st.sectionTotal}>TOT: {'\u20AC'}{displayTotal.toFixed(2)}</Text>
+              <Text style={st.sectionTotal}>TOT: {'\u20AC'}{displayTotal.toFixed(0)}</Text>
               {collapseKey && <Ionicons name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />}
             </View>
           </View>
@@ -799,7 +799,7 @@ export default function StatsScreen() {
                       {it.label}
                     </Text>
                     <Text style={{ fontSize: 10, fontWeight: '800', color: it.color }}>
-                      {'\u20AC'}{it.value.toFixed(2)} ({pct}%)
+                      {'\u20AC'}{it.value.toFixed(0)} ({pct}%)
                     </Text>
                   </View>
                 );
@@ -1245,7 +1245,7 @@ export default function StatsScreen() {
                 DETTAGLIO PER PRODOTTO ({invendutoBreakdown.items.length})
               </Text>
               <Text style={{ fontSize: 11, fontWeight: '900', color: '#D46A6A' }}>
-                €{invendutoBreakdown.totale.toFixed(2)}
+                €{invendutoBreakdown.totale.toFixed(0)}
               </Text>
             </View>
             {invendutoBreakdown.items.map((item, i) => {
@@ -1262,7 +1262,7 @@ export default function StatsScreen() {
                     </Text>
                   </View>
                   <Text style={{ fontSize: 13, fontWeight: '900', color: '#D46A6A' }}>
-                    €{item.totale.toFixed(2)}
+                    €{item.totale.toFixed(0)}
                   </Text>
                 </View>
               );

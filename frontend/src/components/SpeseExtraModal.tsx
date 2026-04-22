@@ -155,8 +155,8 @@ export const SpeseExtraModal: React.FC<Props> = ({
   const getTotale = () => {
     let tot = 0;
     Object.entries(speseExtraFornitore).forEach(([key, v]) => {
-      // Ignora chiavi interne (__fattn, __liberaLabel, ecc.)
-      if (key.includes('__')) return;
+      // Ignora SOLO chiavi meta-dati legacy (numeri fattura / label testuali), mantieni __libera
+      if (key.endsWith('__fattn') || key.endsWith('__liberaLabel')) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (v.periodo === 'settimanale') tot += imp / 6;
       else if (v.periodo === 'mensile') tot += imp / 26;
@@ -182,7 +182,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
           <View style={st.totalRow}>
             <Text style={st.totalLabel}>Totale giornaliero:</Text>
-            <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(2)}</Text>
+            <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(0)}</Text>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
@@ -205,7 +205,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       <Ionicons name="storefront" size={16} color="#1E7F85" />
                       <Text style={st.cardTitle}>{f.nome}</Text>
                       {totFornitore > 0 ? (
-                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>TOT €{totFornitore.toFixed(2)}</Text>
+                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>TOT €{totFornitore.toFixed(0)}</Text>
                       ) : (
                         <View style={{ marginLeft: 'auto' }} />
                       )}
@@ -354,7 +354,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       {/* Mostra equivalente giornaliero per spese settimanali/mensili */}
                       {entry.importo && parseFloat(entry.importo.replace(',', '.')) > 0 && entry.periodo !== 'giornaliero' && (
                         <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 4, fontStyle: 'italic' }}>
-                          = €{(entry.periodo === 'settimanale' ? parseFloat(entry.importo.replace(',', '.')) / 6 : parseFloat(entry.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
+                          = €{(entry.periodo === 'settimanale' ? parseFloat(entry.importo.replace(',', '.')) / 6 : parseFloat(entry.importo.replace(',', '.')) / 26).toFixed(0)}/giorno
                         </Text>
                       )}
                     </>
@@ -376,7 +376,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       <Ionicons name="receipt-outline" size={16} color="#1E7F85" />
                       <Text style={st.cardTitle}>{v.nome}</Text>
                       {importNum > 0 ? (
-                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>€{importNum.toFixed(2)}</Text>
+                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>€{importNum.toFixed(0)}</Text>
                       ) : (
                         <View style={{ marginLeft: 'auto' }} />
                       )}
@@ -416,7 +416,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       {/* Mostra equivalente giornaliero */}
                       {v.importo && parseFloat(v.importo.replace(',', '.')) > 0 && (v as any).periodo && (v as any).periodo !== 'giornaliero' && (
                         <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 2, fontStyle: 'italic' }}>
-                          = €{((v as any).periodo === 'settimanale' ? parseFloat(v.importo.replace(',', '.')) / 6 : parseFloat(v.importo.replace(',', '.')) / 26).toFixed(2)}/giorno
+                          = €{((v as any).periodo === 'settimanale' ? parseFloat(v.importo.replace(',', '.')) / 6 : parseFloat(v.importo.replace(',', '.')) / 26).toFixed(0)}/giorno
                         </Text>
                       )}
                     </>

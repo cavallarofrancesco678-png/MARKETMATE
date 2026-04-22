@@ -394,7 +394,7 @@ export default function HomeScreen() {
   }, [tuttiProdotti, invendutoQty, isAlimentare]);
 
   const confermaInvenduto = () => {
-    setInvenduto(parseFloat(invendutoCalcolato.toFixed(2)).toString());
+    setInvenduto(parseFloat(invendutoCalcolato.toFixed(0)).toString());
     setShowInvendutoModal(false);
   };
 
@@ -413,7 +413,7 @@ export default function HomeScreen() {
       if (m.p_giornaliero > 0) {
         items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: m.p_giornaliero });
       } else if (m.p_annuo > 0) {
-        items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: Math.round(m.p_annuo / 48 * 100) / 100 });
+        items.push({ id: `plat_${m.giorno}`, label: `Plat. ${m.mercato || m.giorno}`, importoGG: Math.round(m.p_annuo / 48) });
       }
     });
 
@@ -435,7 +435,7 @@ export default function HomeScreen() {
     const kmMercato = mercatoOggi?.km || 0;
     // HARDCODED 0.20 €/km fino a nuova indicazione
     const mediaEuroKm = 0.20;
-    const costoCarb = Math.round(kmMercato * mediaEuroKm * 100) / 100;
+    const costoCarb = Math.round(kmMercato * mediaEuroKm);
     items.push({ id: 'carburante_gg', label: t('home.fuelCost') || 'Carburante', importoGG: costoCarb });
     return items;
   }, [speseFisseItems, mercatoOggi, t]);
@@ -464,8 +464,8 @@ export default function HomeScreen() {
   const speseExtraFornTotale = useMemo(() => {
     let tot = 0;
     Object.entries(speseExtraFornitore).forEach(([key, v]) => {
-      // Ignora chiavi interne (__fattn, __liberaLabel, ecc.) — erano un workaround legacy
-      if (key.includes('__')) return;
+      // Ignora SOLO chiavi meta-dati legacy (numeri fattura / label testuali), ma TIENI __libera (importo secondario)
+      if (key.endsWith('__fattn') || key.endsWith('__liberaLabel')) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (v.periodo === 'settimanale') tot += imp / 6;
       else if (v.periodo === 'mensile') tot += imp / 26;
@@ -538,7 +538,7 @@ export default function HomeScreen() {
     const p = parseFloat(pos.replace(',', '.')) || 0;
     // Auto-calcolo Contanti = Lordo - POS quando si inserisce il Lordo
     if (l > 0) {
-      setContanti(Math.max(0, Math.round((l - p) * 100) / 100).toString());
+      setContanti(Math.max(0, Math.round(l - p)).toString());
     }
   };
   const handleContanti = (val: string) => {
@@ -556,8 +556,8 @@ export default function HomeScreen() {
     // Build dettaglio_fornitori from speseExtraFornitore
     const dettaglioForn: Record<string, number> = {};
     Object.entries(speseExtraFornitore).forEach(([nome, v]) => {
-      // Ignora chiavi interne legacy (__fattn, __liberaLabel, __libera)
-      if (nome.includes('__')) return;
+      // Ignora chiavi meta (numeri fattura, label testuali) ma TIENI __libera
+      if (nome.endsWith('__fattn') || nome.endsWith('__liberaLabel')) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (imp > 0) {
         if (v.periodo === 'settimanale') dettaglioForn[nome] = imp / 6;
@@ -600,7 +600,7 @@ export default function HomeScreen() {
       const valore = isAlimentare ? qty * prod.prezzo : qty;
       // Etichetta: "Pane - Andrea"
       const label = `${prod.nome} - ${prod.fornitore}`;
-      dettaglioInv[label] = Math.round(valore * 100) / 100;
+      dettaglioInv[label] = Math.round(valore);
     });
 
     salvaGiornata({
@@ -625,7 +625,7 @@ export default function HomeScreen() {
       try {
         const scadenzaDate = new Date(info.scadenza + 'T12:00:00');
         if (isNaN(scadenzaDate.getTime())) return;
-        const testo = `${nomeFornitore}${info.numeroFattura ? ` – Fatt. ${info.numeroFattura}` : ''} – €${imp.toFixed(2)}`;
+        const testo = `${nomeFornitore}${info.numeroFattura ? ` – Fatt. ${info.numeroFattura}` : ''} – €${imp.toFixed(0)}`;
         // Evita duplicati: rimuovi eventuale ordine esistente per stessa data+fornitore
         const existing = (ordiniAgenda || []).find((o: any) => {
           const d = new Date(o.data);
@@ -879,11 +879,11 @@ export default function HomeScreen() {
       <View style={[s.gridRow, { gap: GAP }]}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseExtraModal(true)}>
           <Text style={s.cardLbl}>SPESE</Text>
-          <Text style={[s.cardVal, { marginLeft: 4 }]}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(2)}</Text>
+          <Text style={[s.cardVal, { marginLeft: 4 }]}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(0)}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseFisseModal(true)}>
           <Text style={s.cardLbl}>{t('home.fixedExpenses')}</Text>
-          <Text style={s.cardVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
+          <Text style={s.cardVal}>{'\u20AC'}{speseFisseTotali.toFixed(0)}</Text>
         </TouchableOpacity>
       </View>
 
@@ -1338,7 +1338,7 @@ export default function HomeScreen() {
                         onChangeText={(t) => setInvendutoQty((prev) => ({ ...prev, [key]: t }))}
                         textAlign="center"
                       />
-                      <Text style={s.invSubtot}>{'\u20AC'}{subtot.toFixed(2)}</Text>
+                      <Text style={s.invSubtot}>{'\u20AC'}{subtot.toFixed(0)}</Text>
                     </View>
                   );
                 })
@@ -1395,7 +1395,7 @@ export default function HomeScreen() {
                 <View style={s.modalDivider} />
                 <View style={s.modalTotalRow}>
                   <Text style={s.modalTotalLabel}>{t('common.total')} {perditaLabel}</Text>
-                  <Text style={s.modalTotalVal}>{'\u20AC'}{invendutoCalcolato.toFixed(2)}</Text>
+                  <Text style={s.modalTotalVal}>{'\u20AC'}{invendutoCalcolato.toFixed(0)}</Text>
                 </View>
               </>
             )}
@@ -1442,13 +1442,13 @@ export default function HomeScreen() {
               <View style={[s.modalRow, { backgroundColor: '#E8DCC8', marginBottom: 8 }]}>
                 <Ionicons name="star" size={16} color="#D4AF37" />
                 <Text style={s.modalLabel}>{t('home.fairStandFee')}</Text>
-                <Text style={s.modalVal}>{'\u20AC'}{fieraPlatNum.toFixed(2)}</Text>
+                <Text style={s.modalVal}>{'\u20AC'}{fieraPlatNum.toFixed(0)}</Text>
               </View>
             )}
             <View style={s.modalDivider} />
             <View style={s.modalTotalRow}>
               <Text style={s.modalTotalLabel}>{t('home.totalActive')}</Text>
-              <Text style={s.modalTotalVal}>{'\u20AC'}{speseFisseTotali.toFixed(2)}</Text>
+              <Text style={s.modalTotalVal}>{'\u20AC'}{speseFisseTotali.toFixed(0)}</Text>
             </View>
             <TouchableOpacity style={s.modalClose} onPress={() => setShowSpeseFisseModal(false)}>
               <Text style={s.modalCloseTxt}>{t('common.close')}</Text>

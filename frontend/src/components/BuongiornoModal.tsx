@@ -144,7 +144,7 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
     const carb = s.ultimoCarburante
       ? `Ultimo rifornimento: ${s.ultimoCarburante.data}, €${s.ultimoCarburante.euro}`
       : 'Nessun dato carburante';
-    const mediaSc = s.mediaScontrino > 0 ? `€${s.mediaScontrino.toFixed(2)}` : 'Non calcolata';
+    const mediaSc = s.mediaScontrino > 0 ? `€${s.mediaScontrino.toFixed(0)}` : 'Non calcolata';
 
     return `Attivita: ${s.nomeAttivita}
 Titolare: ${s.nomeTitolare}
@@ -294,10 +294,10 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                       const emoji = p.giorniRestanti === 0 ? '🔔' :
                                     p.giorniRestanti === 1 ? '⏰' : '📌';
                       const frase = p.giorniRestanti === 0
-                        ? `${emoji} Oggi scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` (€${p.importo.toFixed(2)})` : ''}. Non dimenticartene!`
+                        ? `${emoji} Oggi scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` (€${p.importo.toFixed(0)})` : ''}. Non dimenticartene!`
                         : p.giorniRestanti === 1
-                        ? `${emoji} Ehilà! Domani scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` – €${p.importo.toFixed(2)}` : ''}.`
-                        : `${emoji} Ti ricordo che tra ${p.giorniRestanti} giorni scade la fattura di ${p.fornitore}${p.importo ? ` (€${p.importo.toFixed(2)})` : ''}. Segnalo da parte!`;
+                        ? `${emoji} Ehilà! Domani scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` – €${p.importo.toFixed(0)}` : ''}.`
+                        : `${emoji} Ti ricordo che tra ${p.giorniRestanti} giorni scade la fattura di ${p.fornitore}${p.importo ? ` (€${p.importo.toFixed(0)})` : ''}. Segnalo da parte!`;
                       return (
                         <Text key={i} style={[st.widgetLine, { marginBottom: 3 }]}>
                           {frase}

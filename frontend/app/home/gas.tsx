@@ -197,7 +197,7 @@ export default function GasScreen() {
     setSelectedDay(day);
     const rifs = rifornimentiMese[day];
     if (rifs && rifs.length > 0) {
-      setDayAmount(rifs[0].euro.toFixed(2));
+      setDayAmount(rifs[0].euro.toFixed(0));
       setDayNote(rifs[0].nota || '');
     } else {
       setDayAmount('');
@@ -322,7 +322,7 @@ export default function GasScreen() {
         <View style={s.kpiCard}>
           <Ionicons name="calculator-outline" size={16} color="#1E7F85" />
           <Text style={s.kpiLabel}>€/KM</Text>
-          <Text style={s.kpiValue}>€{stats.euroKm.toFixed(2)}</Text>
+          <Text style={s.kpiValue}>€{stats.euroKm.toFixed(0)}</Text>
         </View>
       </View>
 

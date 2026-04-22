@@ -411,37 +411,7 @@ export default function AgendaScreen() {
         ))}
       </View>
 
-      {/* ═══ LEGENDA CALENDARIO (tipologie dinamiche) ═══ */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 6, marginBottom: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#5AAA6A' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Lavorato</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Appunt.</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Ordine</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#D4AF37' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Fiera</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#9B59B6' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Sagra</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#C0392B' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Festa Patron.</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#16A085' }} />
-          <Text style={{ fontSize: 9, color: '#5A7575', fontWeight: '600' }}>Evento</Text>
-        </View>
-      </View>
+      {/* ═══ LEGENDA CALENDARIO (rimossa su richiesta utente) ═══ */}
 
       {/* ═══ FIERE DI OGGI (se presenti) ═══ */}
       {(() => {

@@ -59,7 +59,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ storicoGiornate = []
       spacing: gapInGroup,
       labelTextStyle: { color: '#7A9A9A', fontSize: 6.5, fontWeight: '600' },
       topLabelComponent: () => (
-        <Text style={sty.barLabel}>€{(MOCK_CURRENT[i] / 1000).toFixed(1)}k</Text>
+        <Text style={sty.barLabel}>€{(MOCK_CURRENT[i] / 1000).toFixed(0)}k</Text>
       ),
       onPress: () => {
         const d = MOCK_PREVIOUS[i] > 0

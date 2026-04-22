@@ -47,12 +47,12 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value
     <View style={{ flex: 1 }}>
       <Text style={[st.rowLabel, excluded && st.rowDisabled]}>{label}</Text>
       <Text style={[st.rowVal, excluded && st.rowDisabled]}>
-        {excluded ? 'Escluso dal calcolo' : `€${value.toFixed(2)}`}
+        {excluded ? 'Escluso dal calcolo' : `€${value.toFixed(0)}`}
       </Text>
     </View>
     <View style={st.rowRight}>
       <Text style={[st.rowAmount, { color: excluded ? '#B0B0A0' : '#D46A6A' }]}>
-        {excluded ? '—' : `-€${value.toFixed(2)}`}
+        {excluded ? '—' : `-€${value.toFixed(0)}`}
       </Text>
       <Switch
         value={!excluded}
@@ -130,18 +130,18 @@ export const UtileModal: React.FC<Props> = ({
           <View style={st.summaryRow}>
             <View style={st.summaryItem}>
               <Text style={st.summaryLabel}>{(t('home.gross') || 'LORDO').toUpperCase()}</Text>
-              <Text style={st.summaryGreen}>{'\u20AC'}{lordo.toFixed(2)}</Text>
+              <Text style={st.summaryGreen}>{'\u20AC'}{lordo.toFixed(0)}</Text>
             </View>
             <Text style={st.summaryMinus}>-</Text>
             <View style={st.summaryItem}>
               <Text style={st.summaryLabel}>{(t('home.deductions') || 'DEDUZIONI').toUpperCase()}</Text>
-              <Text style={st.summaryRed}>{'\u20AC'}{totDeduzioni.toFixed(2)}</Text>
+              <Text style={st.summaryRed}>{'\u20AC'}{totDeduzioni.toFixed(0)}</Text>
             </View>
             <Text style={st.summaryEquals}>=</Text>
             <View style={st.summaryItem}>
               <Text style={st.summaryLabel}>UTILE</Text>
               <Text style={[st.summaryResult, { color: utile >= 0 ? '#1D8348' : '#D44' }]}>
-                {'\u20AC'}{utile.toFixed(2)}
+                {'\u20AC'}{utile.toFixed(0)}
               </Text>
             </View>
           </View>
@@ -176,14 +176,14 @@ export const UtileModal: React.FC<Props> = ({
                     </Text>
                   </View>
                   <Text style={[st.riepilogoVal, cat.excluded && st.rowDisabled]}>
-                    {cat.excluded ? '€0.00' : `€${cat.value.toFixed(2)}`}
+                    {cat.excluded ? '€0.00' : `€${cat.value.toFixed(0)}`}
                   </Text>
                 </View>
               ))}
               <View style={st.riepilogoDivider} />
               <View style={st.riepilogoRow}>
                 <Text style={st.riepilogoTotalLabel}>TOTALE DEDUZIONI</Text>
-                <Text style={st.riepilogoTotalVal}>{'\u20AC'}{totDeduzioni.toFixed(2)}</Text>
+                <Text style={st.riepilogoTotalVal}>{'\u20AC'}{totDeduzioni.toFixed(0)}</Text>
               </View>
             </View>
 
