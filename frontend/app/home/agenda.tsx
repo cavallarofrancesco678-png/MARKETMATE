@@ -116,7 +116,7 @@ export default function AgendaScreen() {
 
   const isCurrentMonth = calMonth.getMonth() === today.getMonth() && calMonth.getFullYear() === today.getFullYear();
 
-  /* ═══ FIERE RICORRENTI ATTIVE: mappa per giorno-della-settimana (0=Lun..6=Dom) ═══ */
+  /* ═══ FIERE RICORRENTI ATTIVE: mappa per giorno-della-settimana (0=Lun..6=Dom) + date specifiche ═══ */
   const fiereByDow = useMemo(() => {
     const map: Record<number, { nome: string; luogo: string }[]> = {};
     (store.fiere || []).forEach((f: any) => {
@@ -129,11 +129,30 @@ export default function AgendaScreen() {
     return map;
   }, [store.fiere]);
 
+  // Mappa per date specifiche (ISO YYYY-MM-DD)
+  const fiereByDate = useMemo(() => {
+    const map: Record<string, { nome: string; luogo: string }[]> = {};
+    (store.fiere || []).forEach((f: any) => {
+      if (!f.attiva) return;
+      (f.dateSpecifiche || []).forEach((iso: string) => {
+        if (!map[iso]) map[iso] = [];
+        map[iso].push({ nome: f.nome, luogo: f.luogo });
+      });
+    });
+    return map;
+  }, [store.fiere]);
+
   const getFiereForDay = (day: number) => {
     if (!day) return [];
     const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), day);
     const dow = (date.getDay() + 6) % 7; // 0=Lun..6=Dom
-    return fiereByDow[dow] || [];
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const fromDow = fiereByDow[dow] || [];
+    const fromDate = fiereByDate[iso] || [];
+    // Merge dedupe per nome
+    const combined = [...fromDow, ...fromDate];
+    const seen = new Set<string>();
+    return combined.filter((f) => { if (seen.has(f.nome)) return false; seen.add(f.nome); return true; });
   };
 
   /* ═══ SALVA ORDINE SU GIORNO ═══ */

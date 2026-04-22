@@ -105,7 +105,7 @@ export default function HomeScreen() {
   const [invenduto, setInvenduto] = useState('');
 
   const mercatoOggi = agenda[getGiornoIndex(dataCorrente)];
-  const mercatoNome = isFiera ? 'Fiera' : (mercatoOggi?.mercato || '');
+  const mercatoNome = isFiera ? (fieraLuogo || 'Fiera') : (mercatoOggi?.mercato || '');
   const giorno = dayNames[(dataCorrente.getDay() + 6) % 7]; // dayNames is Mon-Sun, getDay() is Sun=0
   const data = `${dataCorrente.getDate()} ${monthNames[dataCorrente.getMonth()]}`;
 
@@ -251,8 +251,29 @@ export default function HomeScreen() {
     });
   }, [ordiniAgenda, dataCorrente]);
 
-  /* ── Conteggio notifiche totale (appuntamenti + ordini, NO diario) ── */
-  const notificheCount = appuntiProssimi.length + ordiniProssimi.length;
+  /* ── Fiere prossimi 7 giorni per notifiche campanello ── */
+  const fiereProssime = useMemo(() => {
+    const result: { data: Date; nome: string; luogo: string }[] = [];
+    const oggi = new Date(dataCorrente); oggi.setHours(0, 0, 0, 0);
+    for (let i = 0; i <= 7; i++) {
+      const d = new Date(oggi); d.setDate(oggi.getDate() + i);
+      const dow = (d.getDay() + 6) % 7;
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      (store.fiere || []).forEach((f: any) => {
+        if (!f.attiva) return;
+        if (f.giorni?.includes(dow) || (f.dateSpecifiche || []).includes(iso)) {
+          // Dedupe: se stessa fiera già presente per data, skip
+          if (!result.some((r) => r.nome === f.nome && r.data.toDateString() === d.toDateString())) {
+            result.push({ data: new Date(d), nome: f.nome, luogo: f.luogo || '' });
+          }
+        }
+      });
+    }
+    return result;
+  }, [store.fiere, dataCorrente]);
+
+  /* ── Conteggio notifiche totale (appuntamenti + ordini + fiere, NO diario) ── */
+  const notificheCount = appuntiProssimi.length + ordiniProssimi.length + fiereProssime.length;
 
   /* ── Suono leggero quando aumentano le notifiche ── */
   const prevNotificheRef = useRef(notificheCount);
@@ -1090,7 +1111,7 @@ export default function HomeScreen() {
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
-      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v4.4</Text>
+      <Text style={{ textAlign: 'center', fontSize: 9, color: '#B0B0A0', marginTop: 2 }}>v4.5</Text>
 
       {/* ═══ MODALE CAMPANELLO / NOTIFICHE ═══ */}
       <Modal visible={showBellModal} transparent animationType="fade">
@@ -1426,6 +1447,22 @@ export default function HomeScreen() {
           costoKm: costoPerKm,
           tipoCarburante: store.tipoCarburante || 'benzina',
           mediaScontrino: mercatoOggi?.mediaScontrino || 0,
+          // ── Prossimi 7 giorni: fiere, appuntamenti, ordini ──
+          fiereProssime: fiereProssime.map((f) => ({
+            data: f.data.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
+            nome: f.nome,
+            luogo: f.luogo,
+          })),
+          appuntiProssimi: (appuntiProssimi || []).map((a: any) => ({
+            data: new Date(a.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
+            titolo: a.titolo || '',
+            note: a.note || '',
+          })),
+          ordiniProssimi: (ordiniProssimi || []).map((o: any) => ({
+            data: new Date(o.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
+            fornitore: o.fornitore || o.titolo || '',
+            note: o.note || '',
+          })),
         }}
       />
       {/* ═══ MODALE COSTO COLLABORATORE (long-press) ═══ */}
