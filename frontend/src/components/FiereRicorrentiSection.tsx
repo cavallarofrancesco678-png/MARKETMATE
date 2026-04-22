@@ -18,7 +18,11 @@ import { MiniMonthCalendar } from './MiniMonthCalendar';
 
 const GIORNI_LABEL = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 const GIORNI_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const TIPOLOGIE: TipologiaEvento[] = ['Fiera', 'Sagra', 'Festa Patronale', 'Evento Speciale'];
+const TIPOLOGIE_UI: Array<{ value: TipologiaEvento; label: string; color: string }> = [
+  { value: 'Fiera', label: 'FIERA', color: '#D4AF37' },
+  { value: 'Sagra', label: 'SAGRA', color: '#9B59B6' },
+  { value: 'Evento Speciale', label: 'EVENTO', color: '#16A085' },
+];
 
 function genId() {
   return `f_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -43,10 +47,11 @@ export const FiereRicorrentiSection: React.FC = () => {
   };
   const getTipCol = (t?: string) => TIPOLOGIA_COLOR[t || 'Fiera'] || '#D4AF37';
 
-  // Compute fiere dates for current viewed month
+  // Compute fiere dates for CURRENT SOLAR MONTH (indipendente da viewMonth del calendario)
   const fiereDelMeseList = React.useMemo(() => {
-    const y = viewMonth.getFullYear();
-    const m = viewMonth.getMonth();
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
     const lastDay = new Date(y, m + 1, 0).getDate();
     const list: { giorno: number; iso: string; fiera: Fiera }[] = [];
     for (let d = 1; d <= lastDay; d++) {
@@ -60,7 +65,7 @@ export const FiereRicorrentiSection: React.FC = () => {
       });
     }
     return list.sort((a, b) => a.giorno - b.giorno);
-  }, [fiere, viewMonth]);
+  }, [fiere]);
 
   const highlightedIsos = React.useMemo(() => fiereDelMeseList.map((x) => x.iso), [fiereDelMeseList]);
 
@@ -120,7 +125,9 @@ export const FiereRicorrentiSection: React.FC = () => {
   };
 
   const startEdit = (f: Fiera) => {
-    setEditing({ ...f });
+    // Migrazione: mappa "Festa Patronale" su "Evento Speciale"
+    const migrated = f.tipologia === 'Festa Patronale' ? { ...f, tipologia: 'Evento Speciale' as TipologiaEvento } : { ...f };
+    setEditing(migrated);
     setEditVisible(true);
   };
 
@@ -272,59 +279,67 @@ export const FiereRicorrentiSection: React.FC = () => {
         </View>
       )}
 
-      {/* ═══ MODALE EDIT ═══ */}
+      {/* ═══ MODALE INFO FIERA ═══ */}
       <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
         <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={s.modal}>
             <TouchableOpacity style={s.close} onPress={() => setEditVisible(false)}>
               <Ionicons name="close" size={22} color="#1A4040" />
             </TouchableOpacity>
-            <Text style={s.modalTitle}>{editing && fiere.some(f => f.id === editing.id) ? 'MODIFICA FIERA' : 'NUOVA FIERA'}</Text>
+            <Text style={s.modalTitle}>INFO FIERA</Text>
             {editing && (
-              <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-                <Text style={s.label}>Nome fiera *</Text>
+              <View style={{ paddingBottom: 8 }}>
+                {/* Nome */}
                 <TextInput
-                  style={s.input}
-                  placeholder="es. Festa del Pesce"
+                  style={[s.input, { fontWeight: '800', fontSize: 14 }]}
+                  placeholder="Nome fiera *"
                   placeholderTextColor="#B0A898"
                   value={editing.nome}
                   onChangeText={(v) => setEditing({ ...editing, nome: v })}
                 />
 
-                <Text style={s.label}>Tipologia</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                  {TIPOLOGIE.map((tip) => {
-                    const on = (editing.tipologia || 'Fiera') === tip;
+                {/* 3 Tag tipologia (senza label) */}
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                  {TIPOLOGIE_UI.map((tip) => {
+                    // Migrazione: se la fiera era "Festa Patronale", mappala su "Evento Speciale"
+                    const currentTip = editing.tipologia === 'Festa Patronale' ? 'Evento Speciale' : (editing.tipologia || 'Fiera');
+                    const on = currentTip === tip.value;
                     return (
                       <TouchableOpacity
-                        key={tip}
-                        onPress={() => setEditing({ ...editing, tipologia: tip })}
+                        key={tip.value}
+                        onPress={() => setEditing({ ...editing, tipologia: tip.value })}
+                        activeOpacity={0.7}
                         style={{
-                          paddingVertical: 8,
-                          paddingHorizontal: 12,
-                          borderRadius: 18,
-                          backgroundColor: on ? '#D4AF37' : '#FFF',
-                          borderWidth: 1,
-                          borderColor: on ? '#D4AF37' : '#E8EDE8',
+                          flex: 1,
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          backgroundColor: on ? tip.color : '#FFF',
+                          borderWidth: 1.5,
+                          borderColor: on ? tip.color : '#E0D8CC',
+                          alignItems: 'center',
                         }}
                       >
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: on ? '#FFF' : '#5A7575' }}>{tip}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : tip.color, letterSpacing: 0.8 }}>
+                          {tip.label}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
-                <Text style={s.label}>Luogo / Città</Text>
+
+                {/* Luogo */}
                 <TextInput
-                  style={s.input}
-                  placeholder="es. Piazza Centrale, Roma"
+                  style={[s.input, { marginTop: 8 }]}
+                  placeholder="Luogo / Città"
                   placeholderTextColor="#B0A898"
                   value={editing.luogo}
                   onChangeText={(v) => setEditing({ ...editing, luogo: v })}
                   onBlur={() => autoCalcKm(editing.luogo)}
                   returnKeyType="done"
-                  onSubmitEditing={() => autoCalcKm(editing.luogo)}
                 />
-                <Text style={s.label}>Date dell'evento (seleziona sul calendario)</Text>
+
+                {/* Data Evento con DatePicker (MiniMonthCalendar) */}
+                <Text style={[s.label, { marginTop: 8 }]}>Data evento</Text>
                 <MiniMonthCalendar
                   selectedDates={editing.dateSpecifiche || []}
                   onToggleDate={(iso) => {
@@ -335,19 +350,15 @@ export const FiereRicorrentiSection: React.FC = () => {
                       dateSpecifiche: exists ? list.filter((x) => x !== iso) : [...list, iso].sort(),
                     });
                   }}
-                  themeColor="#D4AF37"
+                  themeColor={TIPOLOGIE_UI.find(t => t.value === (editing.tipologia === 'Festa Patronale' ? 'Evento Speciale' : (editing.tipologia || 'Fiera')))?.color || '#D4AF37'}
                 />
-                {(editing.dateSpecifiche || []).length > 0 && (
-                  <Text style={{ fontSize: 10, color: '#8A6A1F', marginTop: 4 }}>
-                    {(editing.dateSpecifiche || []).length} date selezionate
-                  </Text>
-                )}
 
-                <View style={s.row2}>
+                {/* Riga inline: Dalle | Alle | Km A/R | Plateatico */}
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.label}>Dalle</Text>
+                    <Text style={s.miniLabel}>Dalle</Text>
                     <TextInput
-                      style={s.input}
+                      style={s.miniInput}
                       placeholder="18:00"
                       placeholderTextColor="#B0A898"
                       value={editing.orarioInizio || ''}
@@ -355,22 +366,19 @@ export const FiereRicorrentiSection: React.FC = () => {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.label}>Alle</Text>
+                    <Text style={s.miniLabel}>Alle</Text>
                     <TextInput
-                      style={s.input}
+                      style={s.miniInput}
                       placeholder="23:30"
                       placeholderTextColor="#B0A898"
                       value={editing.orarioFine || ''}
                       onChangeText={(v) => setEditing({ ...editing, orarioFine: v })}
                     />
                   </View>
-                </View>
-
-                <View style={s.row2}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.label}>Km andata/ritorno</Text>
+                    <Text style={s.miniLabel}>Km A/R</Text>
                     <TextInput
-                      style={s.input}
+                      style={s.miniInput}
                       placeholder="0"
                       placeholderTextColor="#B0A898"
                       keyboardType="numeric"
@@ -379,9 +387,9 @@ export const FiereRicorrentiSection: React.FC = () => {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.label}>Plateatico €/giorno</Text>
+                    <Text style={s.miniLabel}>Plat. €</Text>
                     <TextInput
-                      style={s.input}
+                      style={s.miniInput}
                       placeholder="0"
                       placeholderTextColor="#B0A898"
                       keyboardType="decimal-pad"
@@ -391,25 +399,94 @@ export const FiereRicorrentiSection: React.FC = () => {
                   </View>
                 </View>
 
-                <Text style={s.label}>Note (contatto, referente, ecc.)</Text>
+                {/* Note */}
                 <TextInput
-                  style={[s.input, { height: 70, textAlignVertical: 'top' }]}
-                  placeholder="es. Marco 333-123456 - pagamento fine serata"
+                  style={[s.input, { height: 48, textAlignVertical: 'top', marginTop: 8, fontSize: 12 }]}
+                  placeholder="Note (contatto, referente, ecc.)"
                   placeholderTextColor="#B0A898"
                   multiline
                   value={editing.note || ''}
                   onChangeText={(v) => setEditing({ ...editing, note: v })}
                 />
 
+                {/* Grafico storico ultimi 4 anni */}
+                <FieraHistoryChart
+                  fieraNome={editing.nome}
+                  storicoGiornate={store.storicoGiornate || []}
+                  themeColor={TIPOLOGIE_UI.find(t => t.value === (editing.tipologia === 'Festa Patronale' ? 'Evento Speciale' : (editing.tipologia || 'Fiera')))?.color || '#D4AF37'}
+                />
+
                 <TouchableOpacity style={s.saveBtn} onPress={save}>
                   <Ionicons name="save" size={18} color="#FFF" />
-                  <Text style={s.saveBtnTxt}>SALVA FIERA</Text>
+                  <Text style={s.saveBtnTxt}>SALVA</Text>
                 </TouchableOpacity>
-              </ScrollView>
+              </View>
             )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
+    </View>
+  );
+};
+
+/* ═══ GRAFICO STORICO 4 ANNI ═══ */
+const FieraHistoryChart: React.FC<{ fieraNome: string; storicoGiornate: any[]; themeColor: string }> = ({ fieraNome, storicoGiornate, themeColor }) => {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
+
+  const data = React.useMemo(() => {
+    return years.map((y) => {
+      const lordo = (storicoGiornate || [])
+        .filter((g) => {
+          if (!g.mercato || !fieraNome) return false;
+          const d = new Date(g.data);
+          if (d.getFullYear() !== y) return false;
+          return (g.mercato || '').toLowerCase().includes(fieraNome.toLowerCase());
+        })
+        .reduce((s: number, g: any) => s + (g.lordo || 0), 0);
+      return { anno: y, lordo: Math.round(lordo) };
+    });
+  }, [fieraNome, storicoGiornate]);
+
+  const max = Math.max(1, ...data.map((d) => d.lordo));
+  const hasAnyData = data.some((d) => d.lordo > 0);
+
+  return (
+    <View style={{ marginTop: 10, backgroundColor: '#FFF', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#E8EDE8' }}>
+      <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.8, marginBottom: 6 }}>
+        STORICO ULTIMI 4 ANNI
+      </Text>
+      {!hasAnyData ? (
+        <Text style={{ fontSize: 10, color: '#7A9090', fontStyle: 'italic', paddingVertical: 8, textAlign: 'center' }}>
+          Nessun dato storico disponibile
+        </Text>
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 60, gap: 8, paddingHorizontal: 4 }}>
+          {data.map((d, i) => {
+            const h = d.lordo > 0 ? Math.max(3, (d.lordo / max) * 54) : 2;
+            const isCurrent = d.anno === currentYear;
+            const col = isCurrent ? '#E8A060' : themeColor;
+            return (
+              <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 8, fontWeight: '800', color: '#1A4040', marginBottom: 2 }}>
+                  €{d.lordo}
+                </Text>
+                <View style={{
+                  width: '70%',
+                  height: h,
+                  backgroundColor: col,
+                  borderTopLeftRadius: 4,
+                  borderTopRightRadius: 4,
+                  opacity: d.lordo > 0 ? 1 : 0.3,
+                }} />
+                <Text style={{ fontSize: 9, fontWeight: isCurrent ? '900' : '700', color: isCurrent ? '#E8A060' : '#5A7575', marginTop: 3 }}>
+                  {d.anno}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 };
@@ -434,6 +511,8 @@ const s = StyleSheet.create({
   label: { fontSize: 11, fontWeight: '800', color: '#5A7575', marginTop: 10, marginBottom: 4, letterSpacing: 0.5 },
   labelHint: { fontSize: 10, color: '#7A9090', fontStyle: 'italic', marginTop: 2, marginBottom: 4 },
   input: { backgroundColor: '#FFF', borderRadius: 10, padding: 10, fontSize: 13, color: '#1A4040', borderWidth: 1, borderColor: '#E8EDE8' },
+  miniLabel: { fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2, letterSpacing: 0.3, textAlign: 'center' },
+  miniInput: { backgroundColor: '#FFF', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 4, fontSize: 12, color: '#1A4040', borderWidth: 1, borderColor: '#E8EDE8', textAlign: 'center' },
   row2: { flexDirection: 'row', gap: 10 },
   daysRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
   dayChip: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E8EDE8' },

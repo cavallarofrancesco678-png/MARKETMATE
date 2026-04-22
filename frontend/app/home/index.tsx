@@ -32,12 +32,12 @@ import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
-const WEATHER_ICONS: Array<{ icon: string; labelKey: string; color: string; bg: string }> = [
-  { icon: 'weather-sunny', labelKey: 'home.sun', color: '#FF8C00', bg: '#FFF3E0' },
-  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud', color: '#7A8A9A', bg: '#ECEFF1' },
-  { icon: 'weather-rainy', labelKey: 'home.rain', color: '#4A90D9', bg: '#E3F2FD' },
-  { icon: 'weather-lightning', labelKey: 'home.snow', color: '#FFB300', bg: '#FFF8E1' },
-  { icon: 'weather-windy', labelKey: 'home.wind', color: '#26A69A', bg: '#E0F2F1' },
+const WEATHER_ICONS: Array<{ icon: string; labelKey: string; code: string; color: string; bg: string }> = [
+  { icon: 'weather-sunny', labelKey: 'home.sun', code: 'SOLE', color: '#FF8C00', bg: '#FFF3E0' },
+  { icon: 'weather-partly-cloudy', labelKey: 'home.cloud', code: 'NUVOLO', color: '#7A8A9A', bg: '#ECEFF1' },
+  { icon: 'weather-rainy', labelKey: 'home.rain', code: 'PIOGGIA', color: '#4A90D9', bg: '#E3F2FD' },
+  { icon: 'weather-lightning', labelKey: 'home.snow', code: 'NEVE', color: '#FFB300', bg: '#FFF8E1' },
+  { icon: 'weather-windy', labelKey: 'home.wind', code: 'VENTO', color: '#26A69A', bg: '#E0F2F1' },
 ];
 
 /* ─── Mini charts ─── */
@@ -127,7 +127,15 @@ export default function HomeScreen() {
       setLordo(saved.lordo > 0 ? saved.lordo.toString() : '');
       setContanti(saved.contanti > 0 ? saved.contanti.toString() : '');
       setPos(saved.pos > 0 ? saved.pos.toString() : '');
-      setMeteo(saved.meteo || 'SOLE');
+      // Normalizza meteo salvato in formato legacy (stringhe tradotte) al nuovo codice
+      const rawMet = (saved.meteo || '').toUpperCase();
+      let metCode = 'SOLE';
+      if (rawMet.includes('SOL') || rawMet.includes('SUN')) metCode = 'SOLE';
+      else if (rawMet.includes('NUV') || rawMet.includes('CLOUD') || rawMet.includes('NUB') || rawMet.includes('NUAG')) metCode = 'NUVOLO';
+      else if (rawMet.includes('PIOG') || rawMet.includes('RAIN') || rawMet.includes('LLUV') || rawMet.includes('PLUI') || rawMet.includes('CHUV')) metCode = 'PIOGGIA';
+      else if (rawMet.includes('NEV') || rawMet.includes('SNOW') || rawMet.includes('NIE') || rawMet.includes('NEIG')) metCode = 'NEVE';
+      else if (rawMet.includes('VENT') || rawMet.includes('WIND') || rawMet.includes('VIEN')) metCode = 'VENTO';
+      setMeteo(metCode);
       const invTot = saved.dettaglio_invenduto?.totale;
       setInvenduto(invTot && invTot > 0 ? invTot.toString() : '0');
       // Ripristina il dettaglio per prodotto (pizza, pane-andrea, ecc.)
@@ -476,6 +484,15 @@ export default function HomeScreen() {
 
   const collabNames = collaboratori.length > 0 ? collaboratori.map((c) => c.nome) : [];
 
+  const handleLordo = (val: string) => {
+    setLordo(val);
+    const l = parseFloat(val.replace(',', '.')) || 0;
+    const p = parseFloat(pos.replace(',', '.')) || 0;
+    // Auto-calcolo Contanti = Lordo - POS quando si inserisce il Lordo
+    if (l > 0) {
+      setContanti(Math.max(0, Math.round((l - p) * 100) / 100).toString());
+    }
+  };
   const handleContanti = (val: string) => {
     setContanti(val);
     const c = parseFloat(val.replace(',', '.')) || 0;
@@ -710,10 +727,9 @@ export default function HomeScreen() {
       <View style={[s.section, { height: WEATHER_H, justifyContent: 'center' }]}>
         <View style={s.meteoRow}>
           {WEATHER_ICONS.map((w, i) => {
-            const wLabel = t(w.labelKey);
-            const sel = meteo === wLabel;
+            const sel = meteo === w.code;
             return (
-              <TouchableOpacity key={i} onPress={() => { hapticTap(); setMeteo(wLabel); }} activeOpacity={0.7}>
+              <TouchableOpacity key={i} onPress={() => { hapticTap(); setMeteo(w.code); }} activeOpacity={0.7}>
                 <View style={[s.meteo, { width: WEATHER_SIZE, height: WEATHER_SIZE, borderRadius: WEATHER_SIZE / 2, backgroundColor: sel ? w.color : w.bg }, sel && { borderWidth: 2, borderColor: w.color }]}>
                   <MaterialCommunityIcons name={w.icon as any} size={WEATHER_ICON} color={sel ? '#FFF' : w.color} />
                 </View>
@@ -762,7 +778,7 @@ export default function HomeScreen() {
       <View style={[s.gridRow, { gap: GAP }]}>
         <View style={[s.card, { height: lordoRowH }]}>
           <Text style={s.cardBold}>{t('home.gross')}</Text>
-          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={setLordo} selectTextOnFocus />
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={handleLordo} selectTextOnFocus />
         </View>
         <TouchableOpacity style={[s.card, { height: lordoRowH }]} activeOpacity={0.7} onPress={() => setShowUtileModal(true)}>
           <Text style={s.cardBold}>{t('home.profit')}</Text>
@@ -1478,14 +1494,19 @@ export default function HomeScreen() {
           })),
           appuntiProssimi: (appuntiProssimi || []).map((a: any) => ({
             data: new Date(a.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
-            titolo: a.titolo || '',
-            note: a.note || '',
+            testo: a.testo || a.titolo || '',
           })),
           ordiniProssimi: (ordiniProssimi || []).map((o: any) => ({
             data: new Date(o.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
-            fornitore: o.fornitore || o.titolo || '',
-            note: o.note || '',
+            testo: o.testo || o.fornitore || o.titolo || '',
           })),
+          noteOggi: (() => {
+            try {
+              const today = new Date();
+              const entry = (store.storicoDiario || []).find((d: any) => new Date(d.data).toDateString() === today.toDateString());
+              return entry?.testo || '';
+            } catch { return ''; }
+          })(),
         }}
       />
       {/* ═══ MODALE COSTO COLLABORATORE (long-press) ═══ */}

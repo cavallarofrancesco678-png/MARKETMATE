@@ -37,6 +37,11 @@ interface StoreData {
   costoKm: number;
   tipoCarburante: string;
   mediaScontrino: number;
+  // Notifiche dinamiche
+  fiereProssime?: { data: string; nome: string; luogo: string }[];
+  appuntiProssimi?: { data: string; titolo?: string; note?: string; testo?: string }[];
+  ordiniProssimi?: { data: string; titolo?: string; note?: string; testo?: string }[];
+  noteOggi?: string;
 }
 
 interface Props {
@@ -264,6 +269,60 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
             </View>
           )}
 
+          {/* Widget dinamico notifiche (sempre visibile sopra la chat) */}
+          {(() => {
+            const fiere = storeData.fiereProssime || [];
+            const appunti = storeData.appuntiProssimi || [];
+            const ordini = storeData.ordiniProssimi || [];
+            const nota = storeData.noteOggi || '';
+            const hasAny = fiere.length > 0 || appunti.length > 0 || ordini.length > 0 || nota.length > 0;
+            if (!hasAny) return null;
+            return (
+              <View style={st.widget}>
+                <View style={st.widgetHeader}>
+                  <Ionicons name="notifications" size={14} color="#1E7F85" />
+                  <Text style={st.widgetTitle}>RIEPILOGO SETTIMANA</Text>
+                </View>
+                {appunti.length > 0 && (
+                  <View style={st.widgetSection}>
+                    <Text style={[st.widgetSubtitle, { color: '#1E7F85' }]}>📅 Appuntamenti ({appunti.length})</Text>
+                    {appunti.slice(0, 3).map((a, i) => (
+                      <Text key={i} style={st.widgetLine} numberOfLines={1}>
+                        • {a.data} — {a.titolo || a.testo || a.note || '(senza titolo)'}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {ordini.length > 0 && (
+                  <View style={st.widgetSection}>
+                    <Text style={[st.widgetSubtitle, { color: '#E8A060' }]}>📦 Scadenze Ordini ({ordini.length})</Text>
+                    {ordini.slice(0, 3).map((o, i) => (
+                      <Text key={i} style={st.widgetLine} numberOfLines={1}>
+                        • {o.data} — {o.titolo || o.testo || o.note || '(ordine)'}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {fiere.length > 0 && (
+                  <View style={st.widgetSection}>
+                    <Text style={[st.widgetSubtitle, { color: '#D4AF37' }]}>🎪 Fiere in preventivo ({fiere.length})</Text>
+                    {fiere.slice(0, 3).map((f, i) => (
+                      <Text key={i} style={st.widgetLine} numberOfLines={1}>
+                        • {f.data} — {f.nome}{f.luogo ? ` (${f.luogo})` : ''}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {nota.length > 0 && (
+                  <View style={st.widgetSection}>
+                    <Text style={[st.widgetSubtitle, { color: '#7A5A1F' }]}>📝 Nota di oggi</Text>
+                    <Text style={st.widgetLine} numberOfLines={2}>{nota}</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
+
           {/* Messages */}
           <ScrollView
             ref={scrollRef}
@@ -356,6 +415,16 @@ const st = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8,
   },
   tipText: { fontSize: 11, color: '#7A7050', flex: 1, lineHeight: 15 },
+
+  widget: {
+    backgroundColor: '#FFF', borderRadius: 12, marginHorizontal: 16, marginTop: 8,
+    padding: 12, borderLeftWidth: 3, borderLeftColor: '#1E7F85',
+  },
+  widgetHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  widgetTitle: { fontSize: 11, fontWeight: '900', color: '#1A4040', letterSpacing: 1 },
+  widgetSection: { marginTop: 6 },
+  widgetSubtitle: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5, marginBottom: 2 },
+  widgetLine: { fontSize: 11, color: '#3A5050', lineHeight: 15 },
 
   chatArea: { flex: 1, padding: 16 },
 

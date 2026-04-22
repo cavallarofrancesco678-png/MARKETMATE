@@ -595,8 +595,19 @@ export default function StatsScreen() {
   const meteoCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     METEO_ICONS.forEach((m) => (counts[m.label] = 0));
+    // Normalizza valori storici salvati con label tradotte (bug pre-fix: erano salvati come "Nuvolo", "SOLE", etc.)
+    const normalizeMeteo = (raw: string): string => {
+      if (!raw) return 'SOLE';
+      const up = raw.toUpperCase();
+      if (up.includes('SOL') || up.includes('SUN')) return 'SOLE';
+      if (up.includes('NUV') || up.includes('CLOUD') || up.includes('NUB') || up.includes('NUAG')) return 'NUVOLO';
+      if (up.includes('PIOG') || up.includes('RAIN') || up.includes('LLUV') || up.includes('PLUI') || up.includes('CHUV')) return 'PIOGGIA';
+      if (up.includes('NEV') || up.includes('SNOW') || up.includes('NIE') || up.includes('NEIG')) return 'NEVE';
+      if (up.includes('VENT') || up.includes('WIND') || up.includes('VIEN')) return 'VENTO';
+      return 'SOLE';
+    };
     filteredData.forEach((g) => {
-      const m = g.meteo || 'SOLE';
+      const m = normalizeMeteo(g.meteo || '');
       counts[m] = (counts[m] || 0) + 1;
     });
     return counts;
