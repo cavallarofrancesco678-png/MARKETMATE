@@ -32,7 +32,7 @@ export default function AgendaScreen() {
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
   const TAB_BAR = 70 + Math.max(insets.bottom, 10) + 40;
-  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : insets.top + 16;
+  const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 4 : insets.top + 4;
   const contentH = screenH - TAB_BAR - topPad;
 
   // ═══ ORDINI E APPUNTAMENTI ═══
@@ -314,17 +314,6 @@ export default function AgendaScreen() {
     <View style={[s.root, { height: contentH, paddingTop: topPad }]}>
       {/* ═══ TITOLO ═══ */}
       <Text style={s.pageTitle}>{t('agenda.ordersAndAppointments') || 'ORDINI E APPUNTAMENTI'}</Text>
-
-      {/* ═══ SEZIONE ORDINI ═══ */}
-      <View style={s.card}>
-        <View style={s.cardHeader}>
-          <Ionicons name="calendar-outline" size={15} color="#1E7F85" />
-          <Text style={s.cardHeaderTxt}>{t('agenda.commitmentDetails') || 'DETTAGLI IMPEGNO'}</Text>
-        </View>
-        <Text style={{ fontSize: 12, color: '#7A9090', fontWeight: '700', marginTop: 4 }}>
-          Appunto per il giorno:
-        </Text>
-      </View>
 
       {/* ═══ CALENDARIO (sempre visibile) ═══ */}
       <View style={s.calCard}>

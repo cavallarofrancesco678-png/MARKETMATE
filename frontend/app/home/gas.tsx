@@ -270,7 +270,7 @@ export default function GasScreen() {
       <View style={s.inputCard}>
         <TextInput
           style={s.bigInput}
-          placeholder="€ 0.00"
+          placeholder="€ 0"
           placeholderTextColor="#B0A898"
           keyboardType="numeric"
           value={euroText}
@@ -393,7 +393,7 @@ export default function GasScreen() {
             <Text style={s.modalLabel}>{t('gas.refuelAmount')}</Text>
             <TextInput
               style={s.modalInput}
-              placeholder="€ 0.00"
+              placeholder="€ 0"
               placeholderTextColor="#B0A898"
               keyboardType="numeric"
               value={dayAmount}
