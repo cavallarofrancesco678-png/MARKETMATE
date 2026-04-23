@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Fiera, TipologiaEvento } from '../store/appStore';
 import { MiniMonthCalendar } from './MiniMonthCalendar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GIORNI_LABEL = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 const GIORNI_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
@@ -32,6 +33,7 @@ export const FiereRicorrentiSection: React.FC = () => {
   const store = useAppStore();
   const fiere = store.fiere || [];
   const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+  const insets = useSafeAreaInsets();
 
   const [expanded, setExpanded] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
@@ -282,13 +284,17 @@ export const FiereRicorrentiSection: React.FC = () => {
       {/* ═══ MODALE INFO FIERA ═══ */}
       <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
         <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={s.modal}>
+          <View style={[s.modal, { paddingTop: Math.max(insets.top + 8, 16) }]}>
             <TouchableOpacity style={s.close} onPress={() => setEditVisible(false)}>
               <Ionicons name="close" size={22} color="#1A4040" />
             </TouchableOpacity>
             <Text style={s.modalTitle}>INFO FIERA</Text>
             {editing && (
-              <View style={{ paddingBottom: 8 }}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 12, 20) }}
+              >
+                <View>
                 {/* Nome */}
                 <TextInput
                   style={[s.input, { fontWeight: '800', fontSize: 14 }]}
@@ -420,7 +426,8 @@ export const FiereRicorrentiSection: React.FC = () => {
                   <Ionicons name="save" size={18} color="#FFF" />
                   <Text style={s.saveBtnTxt}>SALVA</Text>
                 </TouchableOpacity>
-              </View>
+                </View>
+              </ScrollView>
             )}
           </View>
         </KeyboardAvoidingView>
@@ -505,9 +512,9 @@ const s = StyleSheet.create({
   addTxt: { fontSize: 12, fontWeight: '700', color: '#1E7F85' },
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#F5F0E6', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '90%' },
-  close: { position: 'absolute', top: 14, right: 14, padding: 4, zIndex: 10 },
-  modalTitle: { fontSize: 15, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 16, letterSpacing: 1 },
+  modal: { backgroundColor: '#F5F0E6', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingTop: 18, height: '95%' },
+  close: { position: 'absolute', top: 10, right: 10, padding: 6, zIndex: 10 },
+  modalTitle: { fontSize: 15, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 12, letterSpacing: 1 },
   label: { fontSize: 11, fontWeight: '800', color: '#5A7575', marginTop: 10, marginBottom: 4, letterSpacing: 0.5 },
   labelHint: { fontSize: 10, color: '#7A9090', fontStyle: 'italic', marginTop: 2, marginBottom: 4 },
   input: { backgroundColor: '#FFF', borderRadius: 10, padding: 10, fontSize: 13, color: '#1A4040', borderWidth: 1, borderColor: '#E8EDE8' },
