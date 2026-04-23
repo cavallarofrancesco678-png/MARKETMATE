@@ -15,6 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -245,6 +246,8 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
     onClose();
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <KeyboardAvoidingView style={st.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -270,79 +273,108 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
             </View>
           )}
 
-          {/* Widget dinamico notifiche (sempre visibile sopra la chat) */}
+          {/* Widget compatto: priorità PAGAMENTI > APPUNTI > ORDINI > METEO > RIFORNIMENTO */}
           {(() => {
             const fiere = storeData.fiereProssime || [];
             const appunti = storeData.appuntiProssimi || [];
             const ordini = storeData.ordiniProssimi || [];
-            const nota = storeData.noteOggi || '';
-            const pagamentiImminenti = storeData.pagamentiImminenti || [];
-            const hasAny = fiere.length > 0 || appunti.length > 0 || ordini.length > 0 || nota.length > 0 || pagamentiImminenti.length > 0;
+            const pagamenti = storeData.pagamentiImminenti || [];
+            const hasAny = fiere.length > 0 || appunti.length > 0 || ordini.length > 0 || pagamenti.length > 0 || weatherData || fuelData;
             if (!hasAny) return null;
+
+            // Parse meteo in forma compatta
+            const meteoSummary = (() => {
+              if (!weatherData) return '';
+              const m = weatherData.match(/METEO REALE ([^:]+): ([^,]+), (\-?\d+)°C/);
+              if (m) return `${m[2].trim()} ${m[3]}° · ${m[1].trim()}`;
+              return weatherData.length > 50 ? weatherData.slice(0, 50) + '…' : weatherData;
+            })();
+
+            // Parse rifornimento migliore (prima stazione elencata)
+            const fuelSummary = (() => {
+              if (!fuelData) return '';
+              const m = fuelData.match(/([A-Za-zÀ-ÿ\s\.]+) - €?(\d+[\.,]\d+)/);
+              if (m) return `${m[1].trim()} · €${m[2].replace(',', '.')}/L`;
+              return '';
+            })();
+
             return (
               <View style={st.widget}>
                 <View style={st.widgetHeader}>
-                  <Ionicons name="notifications" size={14} color="#1E7F85" />
-                  <Text style={st.widgetTitle}>RIEPILOGO SETTIMANA</Text>
+                  <Ionicons name="flash" size={14} color="#1E7F85" />
+                  <Text style={st.widgetTitle}>RIEPILOGO RAPIDO</Text>
                 </View>
 
-                {/* Pagamenti fornitori imminenti (tono colloquiale) */}
-                {pagamentiImminenti.length > 0 && (
-                  <View style={[st.widgetSection, { backgroundColor: '#FFF4DC', borderRadius: 8, padding: 8, borderLeftWidth: 2, borderLeftColor: '#E8A060' }]}>
-                    <Text style={[st.widgetSubtitle, { color: '#B07030' }]}>💸 Pagamenti in arrivo</Text>
-                    {pagamentiImminenti.slice(0, 4).map((p, i) => {
-                      const emoji = p.giorniRestanti === 0 ? '🔔' :
-                                    p.giorniRestanti === 1 ? '⏰' : '📌';
-                      const frase = p.giorniRestanti === 0
-                        ? `${emoji} Oggi scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` (€${p.importo.toFixed(0)})` : ''}. Non dimenticartene!`
-                        : p.giorniRestanti === 1
-                        ? `${emoji} Ehilà! Domani scade la fattura di ${p.fornitore}${p.numeroFattura ? ` n° ${p.numeroFattura}` : ''}${p.importo ? ` – €${p.importo.toFixed(0)}` : ''}.`
-                        : `${emoji} Ti ricordo che tra ${p.giorniRestanti} giorni scade la fattura di ${p.fornitore}${p.importo ? ` (€${p.importo.toFixed(0)})` : ''}. Segnalo da parte!`;
-                      return (
-                        <Text key={i} style={[st.widgetLine, { marginBottom: 3 }]}>
-                          {frase}
-                        </Text>
-                      );
-                    })}
+                {/* 1. PAGAMENTI (max 2 righe) */}
+                {pagamenti.length > 0 && (
+                  <View style={st.wLine}>
+                    <Text style={st.wIcon}>💸</Text>
+                    <Text style={st.wTxt} numberOfLines={1}>
+                      <Text style={st.wLabel}>Pagam.: </Text>
+                      {pagamenti.slice(0, 2).map((p, i) => {
+                        const quando = p.giorniRestanti === 0 ? 'oggi' : p.giorniRestanti === 1 ? 'domani' : `${p.giorniRestanti}g`;
+                        return `${p.fornitore} (${quando})${i < Math.min(1, pagamenti.length - 1) ? ', ' : ''}`;
+                      }).join('')}
+                      {pagamenti.length > 2 ? ` +${pagamenti.length - 2} (apri)` : ''}
+                    </Text>
                   </View>
                 )}
 
+                {/* 2. APPUNTAMENTI */}
                 {appunti.length > 0 && (
-                  <View style={st.widgetSection}>
-                    <Text style={[st.widgetSubtitle, { color: '#1E7F85' }]}>📅 Appuntamenti ({appunti.length})</Text>
-                    {appunti.slice(0, 3).map((a, i) => (
-                      <Text key={i} style={st.widgetLine} numberOfLines={1}>
-                        • {a.data} — {a.titolo || a.testo || a.note || '(senza titolo)'}
-                      </Text>
-                    ))}
+                  <View style={st.wLine}>
+                    <Text style={st.wIcon}>📅</Text>
+                    <Text style={st.wTxt} numberOfLines={1}>
+                      <Text style={st.wLabel}>Appunt.: </Text>
+                      {appunti.slice(0, 2).map((a: any) => a.testo || a.titolo || '').join(', ')}
+                      {appunti.length > 2 ? ` +${appunti.length - 2} (apri)` : ''}
+                    </Text>
                   </View>
                 )}
-                {ordini.length > 0 && pagamentiImminenti.length === 0 && (
-                  <View style={st.widgetSection}>
-                    <Text style={[st.widgetSubtitle, { color: '#E8A060' }]}>📦 Scadenze Ordini ({ordini.length})</Text>
-                    {ordini.slice(0, 3).map((o, i) => (
-                      <Text key={i} style={st.widgetLine} numberOfLines={1}>
-                        • {o.data} — {o.titolo || o.testo || o.note || '(ordine)'}
-                      </Text>
-                    ))}
+
+                {/* 3. ORDINI (solo se non sovrapposti a pagamenti) */}
+                {ordini.length > 0 && pagamenti.length === 0 && (
+                  <View style={st.wLine}>
+                    <Text style={st.wIcon}>📦</Text>
+                    <Text style={st.wTxt} numberOfLines={1}>
+                      <Text style={st.wLabel}>Ordini: </Text>
+                      {ordini.slice(0, 2).map((o: any) => o.testo || o.titolo || '').join(', ')}
+                      {ordini.length > 2 ? ` +${ordini.length - 2} (apri)` : ''}
+                    </Text>
                   </View>
                 )}
+
+                {/* 4. FIERE (solo se ci sono, compatte) */}
                 {fiere.length > 0 && (
-                  <View style={st.widgetSection}>
-                    <Text style={[st.widgetSubtitle, { color: '#D4AF37' }]}>🎪 Fiere in preventivo ({fiere.length})</Text>
-                    {fiere.slice(0, 3).map((f, i) => (
-                      <Text key={i} style={st.widgetLine} numberOfLines={1}>
-                        • {f.data} — {f.nome}{f.luogo ? ` (${f.luogo})` : ''}
-                      </Text>
-                    ))}
+                  <View style={st.wLine}>
+                    <Text style={st.wIcon}>🎪</Text>
+                    <Text style={st.wTxt} numberOfLines={1}>
+                      <Text style={st.wLabel}>Fiere: </Text>
+                      {fiere.slice(0, 2).map((f) => f.nome).join(', ')}
+                      {fiere.length > 2 ? ` +${fiere.length - 2}` : ''}
+                    </Text>
                   </View>
                 )}
-                {nota.length > 0 && (
-                  <View style={st.widgetSection}>
-                    <Text style={[st.widgetSubtitle, { color: '#7A5A1F' }]}>📝 Nota di oggi</Text>
-                    <Text style={st.widgetLine} numberOfLines={2}>{nota}</Text>
+
+                {/* 5. METEO */}
+                {meteoSummary ? (
+                  <View style={st.wLine}>
+                    <Text style={st.wIcon}>🌤️</Text>
+                    <Text style={st.wTxt} numberOfLines={1}>
+                      <Text style={st.wLabel}>Meteo: </Text>{meteoSummary}
+                    </Text>
                   </View>
-                )}
+                ) : null}
+
+                {/* 6. RIFORNIMENTO MIGLIORE */}
+                {fuelSummary ? (
+                  <View style={st.wLine}>
+                    <Text style={st.wIcon}>⛽</Text>
+                    <Text style={st.wTxt} numberOfLines={1}>
+                      <Text style={st.wLabel}>Miglior rifornim.: </Text>{fuelSummary}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             );
           })()}
@@ -381,7 +413,7 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
           </ScrollView>
 
           {/* Input bar */}
-          <View style={st.inputBar}>
+          <View style={[st.inputBar, { paddingBottom: Math.max(insets.bottom + 8, 14) }]}>
             <TouchableOpacity
               style={[st.micBtn, isListening && st.micBtnActive]}
               onPress={toggleMic}
@@ -442,13 +474,17 @@ const st = StyleSheet.create({
 
   widget: {
     backgroundColor: '#FFF', borderRadius: 12, marginHorizontal: 16, marginTop: 8,
-    padding: 12, borderLeftWidth: 3, borderLeftColor: '#1E7F85',
+    padding: 10, borderLeftWidth: 3, borderLeftColor: '#1E7F85',
   },
-  widgetHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  widgetTitle: { fontSize: 11, fontWeight: '900', color: '#1A4040', letterSpacing: 1 },
+  widgetHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  widgetTitle: { fontSize: 10, fontWeight: '900', color: '#1A4040', letterSpacing: 1 },
   widgetSection: { marginTop: 6 },
   widgetSubtitle: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5, marginBottom: 2 },
   widgetLine: { fontSize: 11, color: '#3A5050', lineHeight: 15 },
+  wLine: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3, gap: 6 },
+  wIcon: { fontSize: 13 },
+  wTxt: { flex: 1, fontSize: 11, color: '#1A4040', lineHeight: 15 },
+  wLabel: { fontWeight: '900', color: '#1E7F85', fontSize: 11 },
 
   chatArea: { flex: 1, padding: 16 },
 
