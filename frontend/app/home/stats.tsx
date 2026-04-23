@@ -1165,7 +1165,7 @@ export default function StatsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                 <PieChart items={fornitoriTotals.totale > 0 ? [
                   { label: 'Fatturata', value: fornitoriTotals.fatturata, color: '#1E7F85' },
-                  { label: 'Libera', value: fornitoriTotals.libera, color: '#E8A060' },
+                  { label: 'Contanti', value: fornitoriTotals.libera, color: '#E8A060' },
                 ] : [{ label: 'Nessun dato', value: 1, color: '#D8E4E0' }]} size={110} />
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
@@ -1175,12 +1175,12 @@ export default function StatsScreen() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#E8A060', marginRight: 8 }} />
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>Libera</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>Contanti</Text>
                     <Text style={{ marginLeft: 'auto', fontSize: 13, fontWeight: '900', color: '#E8A060' }}>€{fornitoriTotals.libera.toFixed(0)}</Text>
                   </View>
                   {fornitoriTotals.totale > 0 && (
                     <Text style={{ fontSize: 10, color: '#7A9090', fontWeight: '700', marginTop: 4 }}>
-                      Fatturata: {Math.round((fornitoriTotals.fatturata / fornitoriTotals.totale) * 100)}% | Libera: {Math.round((fornitoriTotals.libera / fornitoriTotals.totale) * 100)}%
+                      Fatturata: {Math.round((fornitoriTotals.fatturata / fornitoriTotals.totale) * 100)}%| Contanti: {Math.round((fornitoriTotals.libera / fornitoriTotals.totale) * 100)}%
                     </Text>
                   )}
                 </View>
@@ -1196,7 +1196,7 @@ export default function StatsScreen() {
                         <Ionicons name="cube-outline" size={14} color="#7A9090" />
                         <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1, marginLeft: 6 }}>{f.nome}</Text>
                         <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85', marginRight: 8 }}>F: €{f.fatturata.toFixed(0)}</Text>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060', marginRight: 6 }}>L: €{f.libera.toFixed(0)}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060', marginRight: 6 }}>C: €{f.libera.toFixed(0)}</Text>
                         <Ionicons name={isExp ? 'chevron-up' : 'chevron-down'} size={16} color="#5A7575" />
                       </View>
                     </TouchableOpacity>
@@ -1204,7 +1204,7 @@ export default function StatsScreen() {
                       <View style={{ backgroundColor: '#F4FAF7', borderRadius: 10, padding: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         <PieChart items={[
                           { label: 'Fatturata', value: f.fatturata, color: '#1E7F85' },
-                          { label: 'Libera', value: f.libera, color: '#E8A060' },
+                          { label: 'Contanti', value: f.libera, color: '#E8A060' },
                         ]} size={100} />
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 11, fontWeight: '900', color: '#1A4040', marginBottom: 6 }}>{f.nome}</Text>
@@ -1215,7 +1215,7 @@ export default function StatsScreen() {
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060', marginRight: 6 }} />
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>Libera</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>Contanti</Text>
                             <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060' }}>€{f.libera.toFixed(0)} ({Math.round((f.libera / totF) * 100)}%)</Text>
                           </View>
                           <Text style={{ fontSize: 10, color: '#5A7575', fontWeight: '700', marginTop: 4 }}>TOT: €{totF.toFixed(0)}</Text>

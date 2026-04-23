@@ -61,11 +61,46 @@ export const SpeseExtraModal: React.FC<Props> = ({
   vociGeneriche, setVociGeneriche, fornInfo, setFornInfo,
 }) => {
   const [nuovaVoce, setNuovaVoce] = useState('');
-  const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag } = useAppStore();
+  const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag, agenda } = useAppStore();
   const insets = useSafeAreaInsets();
 
   // Stato locale: quale fornitore sta aprendo il datepicker scadenza
   const [scadenzaPickerFor, setScadenzaPickerFor] = useState<string | null>(null);
+
+  // Modalità pagamento per fornitore
+  const [pagamentoMode, setPagamentoMode] = useState<Record<string, 'contanti' | 'fattura' | 'misto'>>({});
+  // Ripartizione costo per fornitore
+  const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>>({});
+  // Stato calendario ripartizione
+  const [ripartPickerFor, setRipartPickerFor] = useState<string | null>(null);
+
+  // Calcola i giorni di mercato (lavorativi) nei prossimi N giorni
+  const GIORNI_ORDER = ['LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO', 'DOMENICA'];
+  const countMarketDays = (range: 'oggi' | 'sette' | 'custom', custom: string[]): number => {
+    if (range === 'oggi') return 1;
+    if (range === 'sette') {
+      const oggi = new Date();
+      oggi.setHours(0, 0, 0, 0);
+      let count = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(oggi); d.setDate(oggi.getDate() + i);
+        const dow = (d.getDay() + 6) % 7;
+        const a = agenda?.[dow];
+        if (a?.lavorativo) count++;
+      }
+      return Math.max(1, count);
+    }
+    // custom
+    let count = 0;
+    (custom || []).forEach((iso) => {
+      const d = new Date(iso + 'T12:00:00');
+      if (isNaN(d.getTime())) return;
+      const dow = (d.getDay() + 6) % 7;
+      const a = agenda?.[dow];
+      if (a?.lavorativo) count++;
+    });
+    return Math.max(1, count);
+  };
 
   // Expansion states (fornitori + voci generiche - a pacchetto)
   const [expandedForn, setExpandedForn] = useState<Record<string, boolean>>({});
@@ -223,142 +258,239 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#5A7575" style={{ marginLeft: 6 }} />
                     </View>
                   </TouchableOpacity>
-                  {isOpen && (
-                    <>
-                      {/* Riga: Numero Fattura + Scadenza (datepicker) */}
-                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, alignItems: 'flex-end' }}>
-                        <View style={{ flex: 1.2 }}>
-                          <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>N° FATTURA</Text>
-                          <TextInput
-                            style={st.fattInput}
-                            placeholder="es. 2025/127"
-                            placeholderTextColor="#C0C0B0"
-                            value={(fornInfo[f.nome]?.numeroFattura) || ''}
-                            onChangeText={(v) => {
-                              const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
-                              setFornInfo({ ...fornInfo, [f.nome]: { ...current, numeroFattura: v } });
-                            }}
-                            returnKeyType="done"
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>DA PAGARE IL</Text>
-                          <TouchableOpacity
-                            style={st.scadenzaBtn}
-                            onPress={() => setScadenzaPickerFor(scadenzaPickerFor === f.nome ? null : f.nome)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="calendar" size={12} color="#B08050" />
-                            <Text style={{ fontSize: 11, color: fornInfo[f.nome]?.scadenza ? '#1A4040' : '#B0B0A0', fontWeight: '700', flex: 1, marginLeft: 4 }}>
-                              {fornInfo[f.nome]?.scadenza
-                                ? (() => {
-                                    const [y, m, d] = fornInfo[f.nome].scadenza.split('-');
-                                    return `${d}/${m}/${y.slice(2)}`;
-                                  })()
-                                : 'Seleziona'}
-                            </Text>
-                            {fornInfo[f.nome]?.scadenza ? (
+                  {isOpen && (() => {
+                    const mode = pagamentoMode[f.nome] || 'contanti';
+                    const rip = ripartizione[f.nome] || { modo: 'oggi' as const, dateCustom: [] };
+                    const mkDays = countMarketDays(rip.modo, rip.dateCustom);
+                    const importoFatturaNum = parseFloat((entry.importo || '0').replace(',', '.')) || 0;
+                    const importoContantiNum = parseFloat((entryLib.importo || '0').replace(',', '.')) || 0;
+                    const setMode = (m: 'contanti' | 'fattura' | 'misto') => setPagamentoMode({ ...pagamentoMode, [f.nome]: m });
+                    const setRip = (r: typeof rip) => setRipartizione({ ...ripartizione, [f.nome]: r });
+
+                    return (
+                      <>
+                        {/* ═══ 3 PULSANTI: CONTANTI | FATTURA | MISTO ═══ */}
+                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                          {([
+                            { key: 'contanti', label: 'CONTANTI', color: '#1E7F85' },
+                            { key: 'fattura', label: 'FATTURA', color: '#B08050' },
+                            { key: 'misto', label: 'MISTO', color: '#7A5E9B' },
+                          ] as const).map((opt) => {
+                            const on = mode === opt.key;
+                            return (
                               <TouchableOpacity
-                                onPress={() => {
-                                  const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
-                                  setFornInfo({ ...fornInfo, [f.nome]: { ...current, scadenza: '' } });
+                                key={opt.key}
+                                onPress={() => setMode(opt.key)}
+                                activeOpacity={0.7}
+                                style={{
+                                  flex: 1,
+                                  paddingVertical: 9,
+                                  borderRadius: 10,
+                                  backgroundColor: on ? opt.color : '#F5EFDC',
+                                  borderWidth: 1.5,
+                                  borderColor: on ? opt.color : '#E0D8C0',
+                                  alignItems: 'center',
                                 }}
-                                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                               >
-                                <Ionicons name="close" size={14} color="#D46A6A" />
+                                <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : opt.color, letterSpacing: 0.8 }}>
+                                  {opt.label}
+                                </Text>
                               </TouchableOpacity>
-                            ) : null}
-                          </TouchableOpacity>
+                            );
+                          })}
                         </View>
-                      </View>
 
-                      {/* Datepicker scadenza (calendario inline) */}
-                      {scadenzaPickerFor === f.nome && (
-                        <View style={{ marginTop: 8, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
-                          <MiniMonthCalendar
-                            selectedDates={fornInfo[f.nome]?.scadenza ? [fornInfo[f.nome].scadenza] : []}
-                            onToggleDate={(iso) => {
-                              const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
-                              // Single date selection
-                              const newScadenza = current.scadenza === iso ? '' : iso;
-                              setFornInfo({ ...fornInfo, [f.nome]: { ...current, scadenza: newScadenza } });
-                              setScadenzaPickerFor(null);
-                            }}
-                            themeColor="#B08050"
-                          />
-                        </View>
-                      )}
+                        {/* ═══ CONTANTI: solo importo ═══ */}
+                        {mode === 'contanti' && (
+                          <View style={{ marginTop: 10 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO CONTANTI €</Text>
+                            <View style={st.inputRow}>
+                              <TextInput
+                                style={st.amountInput}
+                                placeholder="0"
+                                placeholderTextColor="#B0B0A0"
+                                keyboardType="decimal-pad"
+                                value={localImporti[libKey] !== undefined ? localImporti[libKey] : (entryLib.importo || '')}
+                                onChangeText={(v) => updateEntry(libKey, 'importo', v)}
+                                onBlur={() => flushImporto(libKey)}
+                                onEndEditing={() => flushImporto(libKey)}
+                                returnKeyType="done"
+                              />
+                              <Text style={st.euro}>{'\u20AC'}</Text>
+                            </View>
+                          </View>
+                        )}
 
-                      {/* Riga: IMPORTO € */}
-                      <View style={{ marginTop: 8 }}>
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO €</Text>
-                        <View style={st.inputRow}>
-                          <TextInput
-                            style={st.amountInput}
-                            placeholder="0"
-                            placeholderTextColor="#B0B0A0"
-                            keyboardType="decimal-pad"
-                            value={localImporti[f.nome] !== undefined ? localImporti[f.nome] : (entry.importo || '')}
-                            onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
-                            onBlur={() => flushImporto(f.nome)}
-                            onEndEditing={() => flushImporto(f.nome)}
-                            returnKeyType="done"
-                          />
-                          <Text style={st.euro}>{'\u20AC'}</Text>
-                        </View>
-                      </View>
-                      {/* Riga 2: Libera (nome personalizzabile con long-press) */}
-                      <View style={{ marginTop: 4 }}>
-                        <TouchableOpacity onLongPress={() => {
-                          const currentLabel = speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera';
-                          Alert.prompt ? Alert.prompt('Rinomina', 'Come vuoi chiamare questa voce?', (text) => {
-                            if (text && text.trim()) {
-                              setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: text.trim(), periodo: 'giornaliero' } }));
-                            }
-                          }, 'plain-text', currentLabel) : (() => {
-                            const newLabel = prompt('Come vuoi chiamare questa voce?', currentLabel);
-                            if (newLabel && newLabel.trim()) {
-                              setSpeseExtraFornitore(prev => ({ ...prev, [`${f.nome}__liberaLabel`]: { importo: newLabel.trim(), periodo: 'giornaliero' } }));
-                            }
-                          })();
-                        }} delayLongPress={500}>
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#B08050', marginBottom: 2 }}>
-                            {speseExtraFornitore[`${f.nome}__liberaLabel`]?.importo || 'Libera'} <Text style={{ fontSize: 8, color: '#C0B0A0' }}>✏️</Text>
-                          </Text>
-                        </TouchableOpacity>
-                        <View style={st.inputRow}>
-                          <TextInput
-                            style={st.amountInput}
-                            placeholder="0"
-                            placeholderTextColor="#B0B0A0"
-                            keyboardType="decimal-pad"
-                            value={localImporti[libKey] !== undefined ? localImporti[libKey] : (entryLib.importo || '')}
-                            onChangeText={(v) => updateEntry(libKey, 'importo', v)}
-                            onBlur={() => flushImporto(libKey)}
-                            onEndEditing={() => flushImporto(libKey)}
-                            returnKeyType="done"
-                          />
-                          <Text style={st.euro}>{'\u20AC'}</Text>
-                        </View>
-                      </View>
-                      <View style={st.periodoRow}>
-                        {['giornaliero', 'settimanale', 'mensile'].map((per) => {
-                          const on = entry.periodo === per;
-                          return (
-                            <TouchableOpacity key={per} style={[st.periodoBtn, on && st.periodoBtnOn]} onPress={() => updateEntry(f.nome, 'periodo', per)}>
-                              <Text style={[st.periodoTxt, on && { color: '#FFF' }]}>{PERIODI_LABELS[per]}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                      {/* Mostra equivalente giornaliero per spese settimanali/mensili */}
-                      {entry.importo && parseFloat(entry.importo.replace(',', '.')) > 0 && entry.periodo !== 'giornaliero' && (
-                        <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 4, fontStyle: 'italic' }}>
-                          = €{(entry.periodo === 'settimanale' ? parseFloat(entry.importo.replace(',', '.')) / 6 : parseFloat(entry.importo.replace(',', '.')) / 26).toFixed(0)}/giorno
-                        </Text>
-                      )}
-                    </>
-                  )}
+                        {/* ═══ FATTURA: N° + scadenza + importo + ripartizione ═══ */}
+                        {(mode === 'fattura' || mode === 'misto') && (
+                          <View style={{ marginTop: 10 }}>
+                            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-end' }}>
+                              <View style={{ flex: 1.2 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>N° FATTURA</Text>
+                                <TextInput
+                                  style={st.fattInput}
+                                  placeholder="es. 2025/127"
+                                  placeholderTextColor="#C0C0B0"
+                                  value={(fornInfo[f.nome]?.numeroFattura) || ''}
+                                  onChangeText={(v) => {
+                                    const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
+                                    setFornInfo({ ...fornInfo, [f.nome]: { ...current, numeroFattura: v } });
+                                  }}
+                                  returnKeyType="done"
+                                />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>DA PAGARE IL</Text>
+                                <TouchableOpacity
+                                  style={st.scadenzaBtn}
+                                  onPress={() => setScadenzaPickerFor(scadenzaPickerFor === f.nome ? null : f.nome)}
+                                  activeOpacity={0.7}
+                                >
+                                  <Ionicons name="calendar" size={12} color="#B08050" />
+                                  <Text style={{ fontSize: 11, color: fornInfo[f.nome]?.scadenza ? '#1A4040' : '#B0B0A0', fontWeight: '700', flex: 1, marginLeft: 4 }}>
+                                    {fornInfo[f.nome]?.scadenza
+                                      ? (() => { const [y, m, d] = fornInfo[f.nome].scadenza.split('-'); return `${d}/${m}/${y.slice(2)}`; })()
+                                      : 'Scegli Data'}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+
+                            {scadenzaPickerFor === f.nome && (
+                              <View style={{ marginTop: 8, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
+                                <MiniMonthCalendar
+                                  selectedDates={fornInfo[f.nome]?.scadenza ? [fornInfo[f.nome].scadenza] : []}
+                                  onToggleDate={(iso) => {
+                                    const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
+                                    const newScadenza = current.scadenza === iso ? '' : iso;
+                                    setFornInfo({ ...fornInfo, [f.nome]: { ...current, scadenza: newScadenza } });
+                                    setScadenzaPickerFor(null);
+                                  }}
+                                  themeColor="#B08050"
+                                />
+                              </View>
+                            )}
+
+                            {/* Importo Fattura */}
+                            <View style={{ marginTop: 8 }}>
+                              <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO FATTURA €</Text>
+                              <View style={st.inputRow}>
+                                <TextInput
+                                  style={st.amountInput}
+                                  placeholder="0"
+                                  placeholderTextColor="#B0B0A0"
+                                  keyboardType="decimal-pad"
+                                  value={localImporti[f.nome] !== undefined ? localImporti[f.nome] : (entry.importo || '')}
+                                  onChangeText={(v) => updateEntry(f.nome, 'importo', v)}
+                                  onBlur={() => flushImporto(f.nome)}
+                                  onEndEditing={() => flushImporto(f.nome)}
+                                  returnKeyType="done"
+                                />
+                                <Text style={st.euro}>{'\u20AC'}</Text>
+                              </View>
+                            </View>
+
+                            {/* ═══ RIPARTIZIONE COSTO ═══ */}
+                            <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A5E9B', marginTop: 10, marginBottom: 4, letterSpacing: 0.8 }}>
+                              RIPARTIZIONE COSTO
+                            </Text>
+                            <View style={{ flexDirection: 'row', gap: 5 }}>
+                              {([
+                                { key: 'oggi' as const, label: 'OGGI' },
+                                { key: 'sette' as const, label: '7 GIORNI' },
+                                { key: 'custom' as const, label: 'PERSONALIZZA' },
+                              ]).map((opt) => {
+                                const on = rip.modo === opt.key;
+                                return (
+                                  <TouchableOpacity
+                                    key={opt.key}
+                                    onPress={() => {
+                                      setRip({ ...rip, modo: opt.key });
+                                      if (opt.key === 'custom') {
+                                        setRipartPickerFor(ripartPickerFor === f.nome ? null : f.nome);
+                                      } else {
+                                        setRipartPickerFor(null);
+                                      }
+                                    }}
+                                    activeOpacity={0.7}
+                                    style={{
+                                      flex: 1,
+                                      paddingVertical: 7,
+                                      borderRadius: 9,
+                                      backgroundColor: on ? '#1E7F85' : '#F5EFDC',
+                                      borderWidth: 1,
+                                      borderColor: on ? '#1E7F85' : '#E0D8C0',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text style={{ fontSize: 9, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.5 }}>
+                                      {opt.label}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+
+                            {ripartPickerFor === f.nome && rip.modo === 'custom' && (
+                              <View style={{ marginTop: 8, backgroundColor: '#F5F0E0', padding: 8, borderRadius: 10 }}>
+                                <MiniMonthCalendar
+                                  selectedDates={rip.dateCustom || []}
+                                  onToggleDate={(iso) => {
+                                    const list = rip.dateCustom || [];
+                                    const exists = list.includes(iso);
+                                    setRip({ ...rip, dateCustom: exists ? list.filter((x) => x !== iso) : [...list, iso].sort() });
+                                  }}
+                                  themeColor="#7A5E9B"
+                                />
+                                <Text style={{ fontSize: 9, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 4 }}>
+                                  Selezionate {(rip.dateCustom || []).length} date
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Nota ripartizione */}
+                            {importoFatturaNum > 0 && (
+                              <View style={{ marginTop: 8, backgroundColor: '#FFF8E7', borderRadius: 8, padding: 8 }}>
+                                <Text style={{ fontSize: 10, color: '#7A5E1F', lineHeight: 14 }}>
+                                  ⚠️ Il costo della fattura di {f.nome} (€{importoFatturaNum.toFixed(0)}) verrà ripartito sui mercati effettivi. Verranno detratti{' '}
+                                  <Text style={{ fontWeight: '900', color: '#B08050' }}>
+                                    €{Math.round(importoFatturaNum / mkDays)}
+                                  </Text>
+                                  {' '}per i prossimi {mkDays} {mkDays === 1 ? 'mercato' : 'mercati'}.
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+
+                        {/* ═══ MISTO: anche importo contanti ═══ */}
+                        {mode === 'misto' && (
+                          <View style={{ marginTop: 10 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO CONTANTI €</Text>
+                            <View style={st.inputRow}>
+                              <TextInput
+                                style={st.amountInput}
+                                placeholder="0"
+                                placeholderTextColor="#B0B0A0"
+                                keyboardType="decimal-pad"
+                                value={localImporti[libKey] !== undefined ? localImporti[libKey] : (entryLib.importo || '')}
+                                onChangeText={(v) => updateEntry(libKey, 'importo', v)}
+                                onBlur={() => flushImporto(libKey)}
+                                onEndEditing={() => flushImporto(libKey)}
+                                returnKeyType="done"
+                              />
+                              <Text style={st.euro}>{'\u20AC'}</Text>
+                            </View>
+                            {importoContantiNum > 0 && importoFatturaNum > 0 && (
+                              <Text style={{ fontSize: 10, color: '#7A5E9B', fontWeight: '700', textAlign: 'right', marginTop: 4 }}>
+                                Totale: €{(importoContantiNum + importoFatturaNum).toFixed(0)} (Cont. €{importoContantiNum.toFixed(0)} + Fatt. €{importoFatturaNum.toFixed(0)})
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </>
+                    );
+                  })()}
                 </View>
               );
             })}
