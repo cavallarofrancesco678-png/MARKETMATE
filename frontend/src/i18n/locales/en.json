@@ -501,7 +501,9 @@
     "datesSelected": "{{count}} dates selected",
     "splitNote": "The invoice of {{name}} (€{{amount}}) will be split across actual markets. €{{perDay}} will be deducted for the next {{days}} {{market}}.",
     "market": "market",
-    "markets": "markets"
+    "markets": "markets",
+    "fromDate": "From date",
+    "toDate": "To date"
   },
   "fiere": {
     "infoFair": "FAIR INFO",

@@ -51,8 +51,8 @@ interface Props {
   setFornInfo: (v: Record<string, FornInfoEntry>) => void;
   pagamentoMode: Record<string, 'contanti' | 'fattura' | 'misto'>;
   setPagamentoMode: (v: Record<string, 'contanti' | 'fattura' | 'misto'>) => void;
-  ripartizione: Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>;
-  setRipartizione: (v: Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>) => void;
+  ripartizione: Record<string, { modo: 'oggi' | 'custom'; from: string; to: string }>;
+  setRipartizione: (v: Record<string, { modo: 'oggi' | 'custom'; from: string; to: string }>) => void;
 }
 
 const PERIODI_LABELS: Record<string, string> = {
@@ -78,29 +78,21 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
   // Calcola i giorni di mercato (lavorativi) nei prossimi N giorni
   const GIORNI_ORDER = ['LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO', 'DOMENICA'];
-  const countMarketDays = (range: 'oggi' | 'sette' | 'custom', custom: string[]): number => {
-    if (range === 'oggi') return 1;
-    if (range === 'sette') {
-      const oggi = new Date();
-      oggi.setHours(0, 0, 0, 0);
-      let count = 0;
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(oggi); d.setDate(oggi.getDate() + i);
-        const dow = (d.getDay() + 6) % 7;
-        const a = agenda?.[dow];
-        if (a?.lavorativo) count++;
-      }
-      return Math.max(1, count);
-    }
-    // custom
+  const countMarketDays = (modo: 'oggi' | 'custom', fromIso: string, toIso: string): number => {
+    if (modo === 'oggi') return 1;
+    if (!fromIso || !toIso) return 1;
+    const from = new Date(fromIso + 'T12:00:00');
+    const to = new Date(toIso + 'T12:00:00');
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
+    const start = from <= to ? from : to;
+    const end = from <= to ? to : from;
     let count = 0;
-    (custom || []).forEach((iso) => {
-      const d = new Date(iso + 'T12:00:00');
-      if (isNaN(d.getTime())) return;
-      const dow = (d.getDay() + 6) % 7;
-      const a = agenda?.[dow];
-      if (a?.lavorativo) count++;
-    });
+    const cur = new Date(start);
+    while (cur <= end) {
+      const dow = (cur.getDay() + 6) % 7;
+      if (agenda?.[dow]?.lavorativo) count++;
+      cur.setDate(cur.getDate() + 1);
+    }
     return Math.max(1, count);
   };
 
@@ -399,7 +391,6 @@ export const SpeseExtraModal: React.FC<Props> = ({
                             <View style={{ flexDirection: 'row', gap: 5 }}>
                               {([
                                 { key: 'oggi' as const, label: t('suppliers.splitToday') },
-                                { key: 'sette' as const, label: t('suppliers.split7Days') },
                                 { key: 'custom' as const, label: t('suppliers.splitCustom') },
                               ]).map((opt) => {
                                 const on = rip.modo === opt.key;
@@ -433,20 +424,29 @@ export const SpeseExtraModal: React.FC<Props> = ({
                               })}
                             </View>
 
-                            {ripartPickerFor === f.nome && rip.modo === 'custom' && (
-                              <View style={{ marginTop: 8, backgroundColor: '#F5F0E0', padding: 8, borderRadius: 10 }}>
+                            {rip.modo === 'custom' && (
+                              <View style={{ marginTop: 8, backgroundColor: '#F5F0E0', padding: 10, borderRadius: 10 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginBottom: 4, letterSpacing: 0.5 }}>
+                                  {t('suppliers.fromDate')}
+                                </Text>
                                 <MiniMonthCalendar
-                                  selectedDates={rip.dateCustom || []}
-                                  onToggleDate={(iso) => {
-                                    const list = rip.dateCustom || [];
-                                    const exists = list.includes(iso);
-                                    setRip({ ...rip, dateCustom: exists ? list.filter((x) => x !== iso) : [...list, iso].sort() });
-                                  }}
+                                  selectedDates={rip.from ? [rip.from] : []}
+                                  onToggleDate={(iso) => { setRip({ ...rip, from: rip.from === iso ? '' : iso }); }}
                                   themeColor="#7A5E9B"
                                 />
-                                <Text style={{ fontSize: 9, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 4 }}>
-                                  Selezionate {(rip.dateCustom || []).length} date
+                                <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 }}>
+                                  {t('suppliers.toDate')}
                                 </Text>
+                                <MiniMonthCalendar
+                                  selectedDates={rip.to ? [rip.to] : []}
+                                  onToggleDate={(iso) => { setRip({ ...rip, to: rip.to === iso ? '' : iso }); }}
+                                  themeColor="#16A085"
+                                />
+                                {rip.from && rip.to && (
+                                  <Text style={{ fontSize: 10, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 6 }}>
+                                    {countMarketDays('custom', rip.from, rip.to)} {countMarketDays('custom', rip.from, rip.to) === 1 ? t('suppliers.market') : t('suppliers.markets')} in questo range
+                                  </Text>
+                                )}
                               </View>
                             )}
 

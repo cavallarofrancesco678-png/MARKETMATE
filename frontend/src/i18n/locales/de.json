@@ -499,7 +499,9 @@
     "datesSelected": "Selezionate {{count}} date",
     "splitNote": "Il costo della fattura di {{name}} (€{{amount}}) verrà ripartito sui mercati effettivi. Verranno detratti €{{perDay}} per i prossimi {{days}} {{market}}.",
     "market": "mercato",
-    "markets": "mercati"
+    "markets": "mercati",
+    "fromDate": "Vom",
+    "toDate": "Bis zum"
   },
   "fiere": {
     "infoFair": "INFO FIERA",

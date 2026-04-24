@@ -94,7 +94,7 @@ export default function HomeScreen() {
   const [excludeCollaboratori, setExcludeCollaboratori] = useState(false);
   const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
   const [fornInfo, setFornInfo] = useState<Record<string, { numeroFattura: string; scadenza: string }>>({});
-  const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>>({});
+  const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'custom'; from: string; to: string }>>({});
   const [pagamentoMode, setPagamentoMode] = useState<Record<string, 'contanti' | 'fattura' | 'misto'>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
@@ -220,6 +220,27 @@ export default function HomeScreen() {
       const p: Record<string, boolean> = {};
       collabs.forEach((c) => { p[c.nome] = false; });
       setPresenze(p);
+      // ═══ AUTO-METEO: primo caricamento → fetch meteo reale e setta icona ═══
+      (async () => {
+        try {
+          const city = freshStore.partenzaDa || '';
+          if (!city) return;
+          const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/weather`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ citta: city }),
+          });
+          const wdata = await res.json();
+          const desc = (wdata?.descrizione || wdata?.condizioni || '').toLowerCase();
+          let auto = 'SOLE';
+          if (desc.includes('pioggia') || desc.includes('rain') || desc.includes('rovesc') || desc.includes('temporal')) auto = 'PIOGGIA';
+          else if (desc.includes('neve') || desc.includes('snow')) auto = 'NEVE';
+          else if (desc.includes('vento') || desc.includes('wind')) auto = 'VENTO';
+          else if (desc.includes('nuv') || desc.includes('cloud') || desc.includes('copert') || desc.includes('cielo coperto')) auto = 'NUVOLO';
+          else if (desc.includes('sereno') || desc.includes('sole') || desc.includes('sun') || desc.includes('clear')) auto = 'SOLE';
+          setMeteo(auto);
+        } catch { /* ignore, default SOLE */ }
+      })();
     }
   }, []);
 
@@ -558,26 +579,21 @@ export default function HomeScreen() {
 
   const handleSalva = useCallback(() => {
     // Helper: conta giorni di mercato effettivi secondo ripartizione
-    const countMarketDays = (range: 'oggi' | 'sette' | 'custom', custom: string[]): number => {
-      if (range === 'oggi') return 1;
-      if (range === 'sette') {
-        const oggi = new Date();
-        oggi.setHours(0, 0, 0, 0);
-        let count = 0;
-        for (let i = 0; i < 7; i++) {
-          const d = new Date(oggi); d.setDate(oggi.getDate() + i);
-          const dow = (d.getDay() + 6) % 7;
-          if (agenda?.[dow]?.lavorativo) count++;
-        }
-        return Math.max(1, count);
-      }
+    const countMarketDays = (modo: 'oggi' | 'custom', fromIso: string, toIso: string): number => {
+      if (modo === 'oggi') return 1;
+      if (!fromIso || !toIso) return 1;
+      const from = new Date(fromIso + 'T12:00:00');
+      const to = new Date(toIso + 'T12:00:00');
+      if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
+      const start = from <= to ? from : to;
+      const end = from <= to ? to : from;
       let count = 0;
-      (custom || []).forEach((iso) => {
-        const d = new Date(iso + 'T12:00:00');
-        if (isNaN(d.getTime())) return;
-        const dow = (d.getDay() + 6) % 7;
+      const cur = new Date(start);
+      while (cur <= end) {
+        const dow = (cur.getDay() + 6) % 7;
         if (agenda?.[dow]?.lavorativo) count++;
-      });
+        cur.setDate(cur.getDate() + 1);
+      }
       return Math.max(1, count);
     };
 
@@ -602,16 +618,16 @@ export default function HomeScreen() {
         totaleGiornaliero = impContanti;
       } else if (mode === 'fattura') {
         if (impFattura > 0) {
-          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, dateCustom: [] };
-          const mkDays = countMarketDays(rip.modo, rip.dateCustom);
+          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
+          const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
           totaleGiornaliero = impFattura / mkDays;
         }
       } else if (mode === 'misto') {
         // Misto: contanti subito + fattura ripartita
         let fatturaQuota = 0;
         if (impFattura > 0) {
-          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, dateCustom: [] };
-          const mkDays = countMarketDays(rip.modo, rip.dateCustom);
+          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
+          const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
           fatturaQuota = impFattura / mkDays;
         }
         totaleGiornaliero = impContanti + fatturaQuota;
@@ -1612,6 +1628,79 @@ export default function HomeScreen() {
               netto: prev.reduce((s, g) => s + (g.netto || 0), 0),
               giorni: prev.length,
               mercato: mercatoNome,
+            };
+          })(),
+          // ═══ Settimana corrente (da lunedì ad oggi) e confronto ═══
+          settimanaCorrente: (() => {
+            const now = new Date(dataCorrente);
+            const dow = (now.getDay() + 6) % 7; // lun=0
+            const lunedi = new Date(now); lunedi.setDate(now.getDate() - dow); lunedi.setHours(0,0,0,0);
+            const curr = (store.storicoGiornate || []).filter((g) => {
+              const d = new Date(g.data);
+              return d >= lunedi && d <= now;
+            });
+            return {
+              lordo: Math.round(curr.reduce((s, g) => s + (g.lordo || 0), 0)),
+              netto: Math.round(curr.reduce((s, g) => s + (g.netto || 0), 0)),
+              giorni: curr.length,
+              mercati: Array.from(new Set(curr.map((g) => g.mercato).filter(Boolean))),
+            };
+          })(),
+          confrontoSettimana: (() => {
+            const now = new Date(dataCorrente);
+            const dow = (now.getDay() + 6) % 7;
+            const lunediCorr = new Date(now); lunediCorr.setDate(now.getDate() - dow); lunediCorr.setHours(0,0,0,0);
+            const lunediPrec = new Date(lunediCorr); lunediPrec.setDate(lunediPrec.getDate() - 7);
+            const currLordo = (store.storicoGiornate || [])
+              .filter((g) => { const d = new Date(g.data); return d >= lunediCorr && d <= now; })
+              .reduce((s, g) => s + (g.lordo || 0), 0);
+            const prevLordo = (store.storicoGiornate || [])
+              .filter((g) => { const d = new Date(g.data); return d >= lunediPrec && d < lunediCorr; })
+              .reduce((s, g) => s + (g.lordo || 0), 0);
+            const diff = Math.round(currLordo - prevLordo);
+            const pct = prevLordo > 0 ? Math.round(((currLordo - prevLordo) / prevLordo) * 100) : 0;
+            return { correnteLordo: Math.round(currLordo), precedenteLordo: Math.round(prevLordo), differenza: diff, variazionePercentuale: pct };
+          })(),
+          // ═══ Top 3 mercati + Top 3 fornitori + Ultimo mese ═══
+          topMercati: (() => {
+            const now = new Date(dataCorrente);
+            const monthAgo = new Date(now); monthAgo.setDate(now.getDate() - 30);
+            const byMkt: Record<string, { lordo: number; giorni: number }> = {};
+            (store.storicoGiornate || []).forEach((g) => {
+              const d = new Date(g.data);
+              if (d < monthAgo || d > now) return;
+              if (!g.mercato) return;
+              if (!byMkt[g.mercato]) byMkt[g.mercato] = { lordo: 0, giorni: 0 };
+              byMkt[g.mercato].lordo += g.lordo || 0;
+              byMkt[g.mercato].giorni += 1;
+            });
+            return Object.entries(byMkt)
+              .map(([nome, v]) => ({ nome, lordo: Math.round(v.lordo), giorni: v.giorni }))
+              .sort((a, b) => b.lordo - a.lordo).slice(0, 3);
+          })(),
+          topFornitori: (() => {
+            const now = new Date(dataCorrente);
+            const monthAgo = new Date(now); monthAgo.setDate(now.getDate() - 30);
+            const byForn: Record<string, number> = {};
+            (store.storicoGiornate || []).forEach((g) => {
+              const d = new Date(g.data);
+              if (d < monthAgo || d > now) return;
+              Object.entries(g.dettaglio_fornitori || {}).forEach(([n, v]) => {
+                byForn[n] = (byForn[n] || 0) + (typeof v === 'number' ? v : 0);
+              });
+            });
+            return Object.entries(byForn)
+              .map(([nome, totale]) => ({ nome, totale: Math.round(totale) }))
+              .sort((a, b) => b.totale - a.totale).slice(0, 3);
+          })(),
+          ultimoMese: (() => {
+            const now = new Date(dataCorrente);
+            const monthAgo = new Date(now); monthAgo.setDate(now.getDate() - 30);
+            const data = (store.storicoGiornate || []).filter((g) => { const d = new Date(g.data); return d >= monthAgo && d <= now; });
+            return {
+              lordo: Math.round(data.reduce((s, g) => s + (g.lordo || 0), 0)),
+              netto: Math.round(data.reduce((s, g) => s + (g.netto || 0), 0)),
+              giorni: data.length,
             };
           })(),
           ultimoCarburante: store.storicoCarburante?.length > 0

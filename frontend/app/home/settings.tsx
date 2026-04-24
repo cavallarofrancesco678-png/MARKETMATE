@@ -513,13 +513,14 @@ export default function SettingsPage() {
         speseExtraTags: (state as any).speseExtraTags || [],
         storicoGiornate: state.storicoGiornate || [],
         storicoCarburante: state.storicoCarburante || [],
-        impegni: (state as any).impegni || [],
-        appuntiGiornalieri: (state as any).appuntiGiornalieri || [],
+        appuntiAgenda: state.appuntiAgenda || [],
+        ordiniAgenda: state.ordiniAgenda || [],
+        storicoDiario: state.storicoDiario || [],
         // Impostazioni generali
-        partenzaDa: (state as any).partenzaDa || '',
+        partenzaDa: state.partenzaDa || '',
         costoPerKm: (state as any).costoPerKm || 0,
-        tipoCarburante: (state as any).tipoCarburante || '',
-        targetMensile: (state as any).targetMensile || 0,
+        tipoCarburante: state.tipoCarburante || '',
+        targetMensile: state.targetMensile || 0,
       };
 
       const json = JSON.stringify(exportData, null, 2);
