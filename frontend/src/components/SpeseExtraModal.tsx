@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/appStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MiniMonthCalendar } from './MiniMonthCalendar';
+import { useTranslation } from 'react-i18next';
 
 interface Fornitore {
   nome: string;
@@ -48,6 +49,10 @@ interface Props {
   setVociGeneriche: (v: VoceGenerica[]) => void;
   fornInfo: Record<string, FornInfoEntry>;
   setFornInfo: (v: Record<string, FornInfoEntry>) => void;
+  pagamentoMode: Record<string, 'contanti' | 'fattura' | 'misto'>;
+  setPagamentoMode: (v: Record<string, 'contanti' | 'fattura' | 'misto'>) => void;
+  ripartizione: Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>;
+  setRipartizione: (v: Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>) => void;
 }
 
 const PERIODI_LABELS: Record<string, string> = {
@@ -59,18 +64,15 @@ const PERIODI_LABELS: Record<string, string> = {
 export const SpeseExtraModal: React.FC<Props> = ({
   visible, onClose, fornitori, speseExtraFornitore, setSpeseExtraFornitore,
   vociGeneriche, setVociGeneriche, fornInfo, setFornInfo,
+  pagamentoMode, setPagamentoMode, ripartizione, setRipartizione,
 }) => {
+  const { t } = useTranslation();
   const [nuovaVoce, setNuovaVoce] = useState('');
   const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag, agenda } = useAppStore();
   const insets = useSafeAreaInsets();
 
   // Stato locale: quale fornitore sta aprendo il datepicker scadenza
   const [scadenzaPickerFor, setScadenzaPickerFor] = useState<string | null>(null);
-
-  // Modalità pagamento per fornitore
-  const [pagamentoMode, setPagamentoMode] = useState<Record<string, 'contanti' | 'fattura' | 'misto'>>({});
-  // Ripartizione costo per fornitore
-  const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>>({});
   // Stato calendario ripartizione
   const [ripartPickerFor, setRipartPickerFor] = useState<string | null>(null);
 
@@ -272,9 +274,9 @@ export const SpeseExtraModal: React.FC<Props> = ({
                         {/* ═══ 3 PULSANTI: CONTANTI | FATTURA | MISTO ═══ */}
                         <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
                           {([
-                            { key: 'contanti', label: 'CONTANTI', color: '#1E7F85' },
-                            { key: 'fattura', label: 'FATTURA', color: '#B08050' },
-                            { key: 'misto', label: 'MISTO', color: '#7A5E9B' },
+                            { key: 'contanti', label: t('suppliers.cash'), color: '#1E7F85' },
+                            { key: 'fattura', label: t('suppliers.invoice'), color: '#B08050' },
+                            { key: 'misto', label: t('suppliers.mixed'), color: '#7A5E9B' },
                           ] as const).map((opt) => {
                             const on = mode === opt.key;
                             return (
@@ -303,7 +305,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                         {/* ═══ CONTANTI: solo importo ═══ */}
                         {mode === 'contanti' && (
                           <View style={{ marginTop: 10 }}>
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO CONTANTI €</Text>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>{t('suppliers.cashAmount')}</Text>
                             <View style={st.inputRow}>
                               <TextInput
                                 style={st.amountInput}
@@ -326,7 +328,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           <View style={{ marginTop: 10 }}>
                             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-end' }}>
                               <View style={{ flex: 1.2 }}>
-                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>N° FATTURA</Text>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>{t('suppliers.invoiceNumber')}</Text>
                                 <TextInput
                                   style={st.fattInput}
                                   placeholder="es. 2025/127"
@@ -340,7 +342,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                 />
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>DA PAGARE IL</Text>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>{t('suppliers.dueDate')}</Text>
                                 <TouchableOpacity
                                   style={st.scadenzaBtn}
                                   onPress={() => setScadenzaPickerFor(scadenzaPickerFor === f.nome ? null : f.nome)}
@@ -350,7 +352,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                   <Text style={{ fontSize: 11, color: fornInfo[f.nome]?.scadenza ? '#1A4040' : '#B0B0A0', fontWeight: '700', flex: 1, marginLeft: 4 }}>
                                     {fornInfo[f.nome]?.scadenza
                                       ? (() => { const [y, m, d] = fornInfo[f.nome].scadenza.split('-'); return `${d}/${m}/${y.slice(2)}`; })()
-                                      : 'Scegli Data'}
+                                      : t('suppliers.chooseDate')}
                                   </Text>
                                 </TouchableOpacity>
                               </View>
@@ -373,7 +375,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
                             {/* Importo Fattura */}
                             <View style={{ marginTop: 8 }}>
-                              <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO FATTURA €</Text>
+                              <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>{t('suppliers.invoiceAmount')}</Text>
                               <View style={st.inputRow}>
                                 <TextInput
                                   style={st.amountInput}
@@ -392,13 +394,13 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
                             {/* ═══ RIPARTIZIONE COSTO ═══ */}
                             <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A5E9B', marginTop: 10, marginBottom: 4, letterSpacing: 0.8 }}>
-                              RIPARTIZIONE COSTO
+                              {t('suppliers.splitCost')}
                             </Text>
                             <View style={{ flexDirection: 'row', gap: 5 }}>
                               {([
-                                { key: 'oggi' as const, label: 'OGGI' },
-                                { key: 'sette' as const, label: '7 GIORNI' },
-                                { key: 'custom' as const, label: 'PERSONALIZZA' },
+                                { key: 'oggi' as const, label: t('suppliers.splitToday') },
+                                { key: 'sette' as const, label: t('suppliers.split7Days') },
+                                { key: 'custom' as const, label: t('suppliers.splitCustom') },
                               ]).map((opt) => {
                                 const on = rip.modo === opt.key;
                                 return (
@@ -466,7 +468,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                         {/* ═══ MISTO: anche importo contanti ═══ */}
                         {mode === 'misto' && (
                           <View style={{ marginTop: 10 }}>
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>IMPORTO CONTANTI €</Text>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>{t('suppliers.cashAmount')}</Text>
                             <View style={st.inputRow}>
                               <TextInput
                                 style={st.amountInput}

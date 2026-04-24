@@ -163,12 +163,35 @@ ${weatherData ? '\n' + weatherData : 'Nessun dato meteo reale'}
 ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
   }, [storeData, fuelData, weatherData]);
 
-  // Auto-send welcome message AFTER fuel+weather data is ready
+  // Auto-send welcome message AFTER fuel+weather data is ready (senza mostrare messaggio utente)
   useEffect(() => {
     if (visible && dataReady && messages.length === 0) {
-      sendMessage('Buongiorno! Come si presenta la giornata di oggi?');
+      sendInvisibleGreeting();
     }
   }, [visible, dataReady]);
+
+  const sendInvisibleGreeting = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: '__INIT_GREETING__',
+          session_id: sessionId.current,
+          context: contextStr,
+        }),
+      });
+      const data = await res.json();
+      if (data.response) {
+        setMessages([{ role: 'assistant', text: data.response }]);
+      }
+    } catch (e) {
+      setMessages([{ role: 'assistant', text: `Ciao ${storeData.nomeTitolare || ''}! 👋` }]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -320,37 +343,37 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                   </View>
                 )}
 
-                {/* 2. APPUNTAMENTI */}
+                {/* 2. APPUNTAMENTI con luogo */}
                 {appunti.length > 0 && (
                   <View style={st.wLine}>
                     <Text style={st.wIcon}>📅</Text>
                     <Text style={st.wTxt} numberOfLines={1}>
                       <Text style={st.wLabel}>Appunt.: </Text>
-                      {appunti.slice(0, 2).map((a: any) => a.testo || a.titolo || '').join(', ')}
+                      {appunti.slice(0, 2).map((a: any) => `${a.testo || a.titolo || ''}${a.luogo ? ' @ ' + a.luogo : ''}`).join(', ')}
                       {appunti.length > 2 ? ` +${appunti.length - 2} (apri)` : ''}
                     </Text>
                   </View>
                 )}
 
-                {/* 3. ORDINI (solo se non sovrapposti a pagamenti) */}
+                {/* 3. ORDINI con luogo */}
                 {ordini.length > 0 && pagamenti.length === 0 && (
                   <View style={st.wLine}>
                     <Text style={st.wIcon}>📦</Text>
                     <Text style={st.wTxt} numberOfLines={1}>
                       <Text style={st.wLabel}>Ordini: </Text>
-                      {ordini.slice(0, 2).map((o: any) => o.testo || o.titolo || '').join(', ')}
+                      {ordini.slice(0, 2).map((o: any) => `${o.testo || o.titolo || ''}${o.luogo ? ' @ ' + o.luogo : ''}`).join(', ')}
                       {ordini.length > 2 ? ` +${ordini.length - 2} (apri)` : ''}
                     </Text>
                   </View>
                 )}
 
-                {/* 4. FIERE (solo se ci sono, compatte) */}
+                {/* 4. FIERE con luogo */}
                 {fiere.length > 0 && (
                   <View style={st.wLine}>
                     <Text style={st.wIcon}>🎪</Text>
                     <Text style={st.wTxt} numberOfLines={1}>
                       <Text style={st.wLabel}>Fiere: </Text>
-                      {fiere.slice(0, 2).map((f) => f.nome).join(', ')}
+                      {fiere.slice(0, 2).map((f) => `${f.nome}${f.luogo ? ' @ ' + f.luogo : ''}`).join(', ')}
                       {fiere.length > 2 ? ` +${fiere.length - 2}` : ''}
                     </Text>
                   </View>

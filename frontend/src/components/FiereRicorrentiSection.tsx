@@ -16,13 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, Fiera, TipologiaEvento } from '../store/appStore';
 import { MiniMonthCalendar } from './MiniMonthCalendar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 const GIORNI_LABEL = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 const GIORNI_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const TIPOLOGIE_UI: Array<{ value: TipologiaEvento; label: string; color: string }> = [
-  { value: 'Fiera', label: 'FIERA', color: '#D4AF37' },
-  { value: 'Sagra', label: 'SAGRA', color: '#9B59B6' },
-  { value: 'Evento Speciale', label: 'EVENTO', color: '#16A085' },
+const TIPOLOGIE_UI_BASE: Array<{ value: TipologiaEvento; labelKey: string; color: string }> = [
+  { value: 'Fiera' as const, labelKey: 'fiere.fair', color: '#D4AF37' },
+  { value: 'Sagra' as const, labelKey: 'fiere.festival', color: '#9B59B6' },
+  { value: 'Evento Speciale' as const, labelKey: 'fiere.event', color: '#16A085' },
 ];
 
 function genId() {
@@ -30,6 +31,8 @@ function genId() {
 }
 
 export const FiereRicorrentiSection: React.FC = () => {
+  const { t } = useTranslation();
+  const TIPOLOGIE_UI = React.useMemo(() => TIPOLOGIE_UI_BASE.map((x) => ({ value: x.value, label: t(x.labelKey), color: x.color })), [t]);
   const store = useAppStore();
   const fiere = store.fiere || [];
   const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
@@ -276,7 +279,7 @@ export const FiereRicorrentiSection: React.FC = () => {
           ))}
           <TouchableOpacity style={s.addBtn} onPress={startNew}>
             <Ionicons name="add" size={16} color="#1E7F85" />
-            <Text style={s.addTxt}>Aggiungi Fiera</Text>
+            <Text style={s.addTxt}>{t('fiere.addFair')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -288,7 +291,7 @@ export const FiereRicorrentiSection: React.FC = () => {
             <TouchableOpacity style={s.close} onPress={() => setEditVisible(false)}>
               <Ionicons name="close" size={22} color="#1A4040" />
             </TouchableOpacity>
-            <Text style={s.modalTitle}>INFO FIERA</Text>
+            <Text style={s.modalTitle}>{t('fiere.infoFair')}</Text>
             {editing && (
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -298,7 +301,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                 {/* Nome */}
                 <TextInput
                   style={[s.input, { fontWeight: '800', fontSize: 14 }]}
-                  placeholder="Nome fiera *"
+                  placeholder={t('fiere.fairName')}
                   placeholderTextColor="#B0A898"
                   value={editing.nome}
                   onChangeText={(v) => setEditing({ ...editing, nome: v })}
@@ -336,7 +339,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                 {/* Luogo */}
                 <TextInput
                   style={[s.input, { marginTop: 8 }]}
-                  placeholder="Luogo / Città"
+                  placeholder={t('fiere.locationCity')}
                   placeholderTextColor="#B0A898"
                   value={editing.luogo}
                   onChangeText={(v) => setEditing({ ...editing, luogo: v })}
@@ -345,7 +348,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                 />
 
                 {/* Data Evento con DatePicker (MiniMonthCalendar) */}
-                <Text style={[s.label, { marginTop: 8 }]}>Data evento</Text>
+                <Text style={[s.label, { marginTop: 8 }]}>{t('fiere.eventDate')}</Text>
                 <MiniMonthCalendar
                   selectedDates={editing.dateSpecifiche || []}
                   onToggleDate={(iso) => {
@@ -356,13 +359,13 @@ export const FiereRicorrentiSection: React.FC = () => {
                       dateSpecifiche: exists ? list.filter((x) => x !== iso) : [...list, iso].sort(),
                     });
                   }}
-                  themeColor={TIPOLOGIE_UI.find(t => t.value === (editing.tipologia === 'Festa Patronale' ? 'Evento Speciale' : (editing.tipologia || 'Fiera')))?.color || '#D4AF37'}
+                  themeColor={TIPOLOGIE_UI.find((tip: any) => tip.value === (editing.tipologia === 'Festa Patronale' ? 'Evento Speciale' : (editing.tipologia || 'Fiera')))?.color || '#D4AF37'}
                 />
 
                 {/* Riga inline: Dalle | Alle | Km A/R | Plateatico */}
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Dalle</Text>
+                    <Text style={s.miniLabel}>{t('fiere.from')}</Text>
                     <TextInput
                       style={s.miniInput}
                       placeholder="18:00"
@@ -372,7 +375,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Alle</Text>
+                    <Text style={s.miniLabel}>{t('fiere.to')}</Text>
                     <TextInput
                       style={s.miniInput}
                       placeholder="23:30"
@@ -382,7 +385,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Km A/R</Text>
+                    <Text style={s.miniLabel}>{t('fiere.kmRt')}</Text>
                     <TextInput
                       style={s.miniInput}
                       placeholder="0"
@@ -393,7 +396,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Plat. €</Text>
+                    <Text style={s.miniLabel}>{t('fiere.pitch')}</Text>
                     <TextInput
                       style={s.miniInput}
                       placeholder="0"
@@ -408,7 +411,7 @@ export const FiereRicorrentiSection: React.FC = () => {
                 {/* Note */}
                 <TextInput
                   style={[s.input, { height: 48, textAlignVertical: 'top', marginTop: 8, fontSize: 12 }]}
-                  placeholder="Note (contatto, referente, ecc.)"
+                  placeholder={t('fiere.notes')}
                   placeholderTextColor="#B0A898"
                   multiline
                   value={editing.note || ''}
@@ -419,12 +422,12 @@ export const FiereRicorrentiSection: React.FC = () => {
                 <FieraHistoryChart
                   fieraNome={editing.nome}
                   storicoGiornate={store.storicoGiornate || []}
-                  themeColor={TIPOLOGIE_UI.find(t => t.value === (editing.tipologia === 'Festa Patronale' ? 'Evento Speciale' : (editing.tipologia || 'Fiera')))?.color || '#D4AF37'}
+                  themeColor={TIPOLOGIE_UI.find((tip: any) => tip.value === (editing.tipologia === 'Festa Patronale' ? 'Evento Speciale' : (editing.tipologia || 'Fiera')))?.color || '#D4AF37'}
                 />
 
                 <TouchableOpacity style={s.saveBtn} onPress={save}>
                   <Ionicons name="save" size={18} color="#FFF" />
-                  <Text style={s.saveBtnTxt}>SALVA</Text>
+                  <Text style={s.saveBtnTxt}>{t('fiere.save')}</Text>
                 </TouchableOpacity>
                 </View>
               </ScrollView>

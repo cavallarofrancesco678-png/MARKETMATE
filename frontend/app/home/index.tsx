@@ -94,6 +94,8 @@ export default function HomeScreen() {
   const [excludeCollaboratori, setExcludeCollaboratori] = useState(false);
   const [speseExtraFornitore, setSpeseExtraFornitore] = useState<Record<string, { importo: string; periodo: string }>>({});
   const [fornInfo, setFornInfo] = useState<Record<string, { numeroFattura: string; scadenza: string }>>({});
+  const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'sette' | 'custom'; dateCustom: string[] }>>({});
+  const [pagamentoMode, setPagamentoMode] = useState<Record<string, 'contanti' | 'fattura' | 'misto'>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
   
@@ -211,6 +213,8 @@ export default function HomeScreen() {
       setInvenduto('0');
       setSpeseExtraFornitore({});
       setFornInfo({});
+      setRipartizione({});
+      setPagamentoMode({});
       setVociGeneriche([]);
       setCostiOverride({});
       const p: Record<string, boolean> = {};
@@ -553,16 +557,72 @@ export default function HomeScreen() {
   };
 
   const handleSalva = useCallback(() => {
-    // Build dettaglio_fornitori from speseExtraFornitore
+    // Helper: conta giorni di mercato effettivi secondo ripartizione
+    const countMarketDays = (range: 'oggi' | 'sette' | 'custom', custom: string[]): number => {
+      if (range === 'oggi') return 1;
+      if (range === 'sette') {
+        const oggi = new Date();
+        oggi.setHours(0, 0, 0, 0);
+        let count = 0;
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(oggi); d.setDate(oggi.getDate() + i);
+          const dow = (d.getDay() + 6) % 7;
+          if (agenda?.[dow]?.lavorativo) count++;
+        }
+        return Math.max(1, count);
+      }
+      let count = 0;
+      (custom || []).forEach((iso) => {
+        const d = new Date(iso + 'T12:00:00');
+        if (isNaN(d.getTime())) return;
+        const dow = (d.getDay() + 6) % 7;
+        if (agenda?.[dow]?.lavorativo) count++;
+      });
+      return Math.max(1, count);
+    };
+
+    // Build dettaglio_fornitori con ripartizione costo su giorni mercato
     const dettaglioForn: Record<string, number> = {};
-    Object.entries(speseExtraFornitore).forEach(([nome, v]) => {
-      // Ignora chiavi meta (numeri fattura, label testuali) ma TIENI __libera
-      if (nome.endsWith('__fattn') || nome.endsWith('__liberaLabel')) return;
-      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
-      if (imp > 0) {
-        if (v.periodo === 'settimanale') dettaglioForn[nome] = imp / 6;
-        else if (v.periodo === 'mensile') dettaglioForn[nome] = imp / 26;
-        else dettaglioForn[nome] = imp;
+    const fornitoriNomi = new Set<string>();
+    Object.keys(speseExtraFornitore).forEach((k) => {
+      if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+      fornitoriNomi.add(k.replace(/__libera$/, ''));
+    });
+
+    fornitoriNomi.forEach((nomeBase) => {
+      const mode = pagamentoMode[nomeBase] || 'contanti';
+      const fatturaEntry = speseExtraFornitore[nomeBase];
+      const contantiEntry = speseExtraFornitore[`${nomeBase}__libera`];
+      const impFattura = parseFloat((fatturaEntry?.importo || '0').replace(',', '.')) || 0;
+      const impContanti = parseFloat((contantiEntry?.importo || '0').replace(',', '.')) || 0;
+      let totaleGiornaliero = 0;
+
+      // Ripartizione solo su fattura (contanti va tutto oggi)
+      if (mode === 'contanti') {
+        totaleGiornaliero = impContanti;
+      } else if (mode === 'fattura') {
+        if (impFattura > 0) {
+          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, dateCustom: [] };
+          const mkDays = countMarketDays(rip.modo, rip.dateCustom);
+          totaleGiornaliero = impFattura / mkDays;
+        }
+      } else if (mode === 'misto') {
+        // Misto: contanti subito + fattura ripartita
+        let fatturaQuota = 0;
+        if (impFattura > 0) {
+          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, dateCustom: [] };
+          const mkDays = countMarketDays(rip.modo, rip.dateCustom);
+          fatturaQuota = impFattura / mkDays;
+        }
+        totaleGiornaliero = impContanti + fatturaQuota;
+      }
+
+      // Applica periodicità legacy se presente (giornaliero/settimanale/mensile)
+      if (fatturaEntry?.periodo === 'settimanale') totaleGiornaliero = totaleGiornaliero / 6;
+      else if (fatturaEntry?.periodo === 'mensile') totaleGiornaliero = totaleGiornaliero / 26;
+
+      if (totaleGiornaliero > 0) {
+        dettaglioForn[nomeBase] = Math.round(totaleGiornaliero * 100) / 100;
       }
     });
 
@@ -1510,6 +1570,10 @@ export default function HomeScreen() {
         setVociGeneriche={setVociGeneriche}
         fornInfo={fornInfo}
         setFornInfo={setFornInfo}
+        pagamentoMode={pagamentoMode}
+        setPagamentoMode={setPagamentoMode}
+        ripartizione={ripartizione}
+        setRipartizione={setRipartizione}
       />
 
       {/* Buongiorno AI Modal */}
@@ -1562,18 +1626,20 @@ export default function HomeScreen() {
           tipoCarburante: store.tipoCarburante || 'benzina',
           mediaScontrino: mercatoOggi?.mediaScontrino || 0,
           // ── Prossimi 7 giorni: fiere, appuntamenti, ordini ──
-          fiereProssime: fiereProssime.map((f) => ({
-            data: f.data.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
+          fiereProssime: (fiereProssime || []).map((f: any) => ({
+            data: new Date(f.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
             nome: f.nome,
-            luogo: f.luogo,
+            luogo: f.luogo || '',
           })),
           appuntiProssimi: (appuntiProssimi || []).map((a: any) => ({
             data: new Date(a.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
             testo: a.testo || a.titolo || '',
+            luogo: a.luogo || '',
           })),
           ordiniProssimi: (ordiniProssimi || []).map((o: any) => ({
             data: new Date(o.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
             testo: o.testo || o.fornitore || o.titolo || '',
+            luogo: o.luogo || '',
           })),
           pagamentiImminenti: pagamentiImminenti,
           noteOggi: (() => {

@@ -482,5 +482,55 @@
       "fuel": "Kraftstoff",
       "fuelDesc": "Typ und Abfahrtsstadt."
     }
+  },
+  "suppliers": {
+    "cash": "CONTANTI",
+    "invoice": "FATTURA",
+    "mixed": "MISTO",
+    "invoiceNumber": "N° FATTURA",
+    "dueDate": "DA PAGARE IL",
+    "chooseDate": "Scegli Data",
+    "invoiceAmount": "IMPORTO FATTURA €",
+    "cashAmount": "IMPORTO CONTANTI €",
+    "splitCost": "RIPARTIZIONE COSTO",
+    "splitToday": "OGGI",
+    "split7Days": "7 GIORNI",
+    "splitCustom": "PERSONALIZZA",
+    "datesSelected": "Selezionate {{count}} date",
+    "splitNote": "Il costo della fattura di {{name}} (€{{amount}}) verrà ripartito sui mercati effettivi. Verranno detratti €{{perDay}} per i prossimi {{days}} {{market}}.",
+    "market": "mercato",
+    "markets": "mercati"
+  },
+  "fiere": {
+    "infoFair": "INFO FIERA",
+    "fairName": "Nome fiera *",
+    "locationCity": "Luogo / Città",
+    "eventDate": "Data evento",
+    "from": "Dalle",
+    "to": "Alle",
+    "kmRt": "Km A/R",
+    "pitch": "Plat. €",
+    "notes": "Note (contatto, referente, ecc.)",
+    "history4y": "STORICO ULTIMI 4 ANNI",
+    "noHistory": "Nessun dato storico disponibile",
+    "fairsThisMonth": "FIERE DI QUESTO MESE",
+    "allFairs": "TUTTE LE FIERE",
+    "addFair": "Aggiungi Fiera",
+    "noFairsMonth": "Nessuna fiera registrata per questo mese",
+    "save": "SALVA",
+    "tapDateToAdd": "Tocca una data per aggiungere/modificare una fiera",
+    "fair": "FIERA",
+    "festival": "SAGRA",
+    "event": "EVENTO"
+  },
+  "buongiorno": {
+    "quickSummary": "RIEPILOGO RAPIDO",
+    "payments": "Pagam.: ",
+    "appointments": "Appunt.: ",
+    "orders": "Ordini: ",
+    "fairs": "Fiere: ",
+    "weather": "Meteo: ",
+    "bestFuel": "Miglior rifornim.: ",
+    "open": "(apri)"
   }
 }

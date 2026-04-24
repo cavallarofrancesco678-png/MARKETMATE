@@ -484,5 +484,55 @@
       "fuel": "Fuel",
       "fuelDesc": "Type and departure city."
     }
+  },
+  "suppliers": {
+    "cash": "CASH",
+    "invoice": "INVOICE",
+    "mixed": "MIXED",
+    "invoiceNumber": "INVOICE N°",
+    "dueDate": "PAY BY",
+    "chooseDate": "Pick Date",
+    "invoiceAmount": "INVOICE AMOUNT €",
+    "cashAmount": "CASH AMOUNT €",
+    "splitCost": "COST SPLIT",
+    "splitToday": "TODAY",
+    "split7Days": "7 DAYS",
+    "splitCustom": "CUSTOM",
+    "datesSelected": "{{count}} dates selected",
+    "splitNote": "The invoice of {{name}} (€{{amount}}) will be split across actual markets. €{{perDay}} will be deducted for the next {{days}} {{market}}.",
+    "market": "market",
+    "markets": "markets"
+  },
+  "fiere": {
+    "infoFair": "FAIR INFO",
+    "fairName": "Fair name *",
+    "locationCity": "Location / City",
+    "eventDate": "Event date",
+    "from": "From",
+    "to": "To",
+    "kmRt": "Km RT",
+    "pitch": "Pitch €",
+    "notes": "Notes (contact, reference, etc.)",
+    "history4y": "LAST 4 YEARS HISTORY",
+    "noHistory": "No historical data available",
+    "fairsThisMonth": "FAIRS THIS MONTH",
+    "allFairs": "ALL FAIRS",
+    "addFair": "Add Fair",
+    "noFairsMonth": "No fair scheduled for this month",
+    "save": "SAVE",
+    "tapDateToAdd": "Tap a date to add/edit a fair",
+    "fair": "FAIR",
+    "festival": "FESTIVAL",
+    "event": "EVENT"
+  },
+  "buongiorno": {
+    "quickSummary": "QUICK SUMMARY",
+    "payments": "Payments: ",
+    "appointments": "Appoint.: ",
+    "orders": "Orders: ",
+    "fairs": "Fairs: ",
+    "weather": "Weather: ",
+    "bestFuel": "Best fuel: ",
+    "open": "(open)"
   }
 }
