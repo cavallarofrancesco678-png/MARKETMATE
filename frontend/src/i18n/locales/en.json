@@ -435,59 +435,91 @@
     "marketRegulations": "In the US and UK, stand fees or pitch fees are paid to the market operator for allocated space."
   },
   "tutorial": {
-    "prev": "Back",
-    "next": "Next",
-    "skip": "Skip",
-    "done": "Done!",
-    "home": {
-      "welcome": "Your day starts here",
-      "welcomeDesc": "Enter data as you read. Tap the cards!",
-      "lordo": "Enter Gross",
-      "lordoDesc": "Tap GROSS → type revenue. Cash+POS auto-sum.",
-      "spese": "Today's expenses",
-      "speseDesc": "Tap EXPENSES → enter supplier costs.",
-      "salva": "Save everything",
-      "salvaDesc": "Auto-saves after 1.5 seconds too.",
-      "meteo": "Weather",
-      "meteoDesc": "Tap to set today's weather.",
-      "collaboratori": "Collaborators",
-      "collaboratoriDesc": "Mark who's working today.",
-      "buongiorno": "AI Assistant",
-      "buongiornoDesc": "Weather, fuel & tips."
+    "common": {
+      "next": "Next",
+      "skip": "Skip tutorial",
+      "back": "Back",
+      "close": "Close",
+      "restart": "Restart tutorial",
+      "progress": "Step {{current}} of {{total}}",
+      "letsgo": "Let's go!",
+      "finish": "Done!",
+      "save": "Save"
     },
-    "agenda": {
-      "calendar": "Your month",
-      "calendarDesc": "Green = worked. Tap a day for notes.",
-      "colors": "Colors",
-      "colorsDesc": "Green=work, Teal=appointment, Orange=order.",
-      "notes": "Notes",
-      "notesDesc": "Write notes for each day."
-    },
-    "gas": {
-      "search": "Find cheapest gas",
-      "searchDesc": "Search along your home→market route.",
-      "prices": "Real prices",
-      "pricesDesc": "From Ministry, updated.",
-      "history": "History",
-      "historyDesc": "Track refueling."
-    },
-    "stats": {
-      "charts": "Your numbers",
-      "chartsDesc": "Revenue charts by week, month or year.",
-      "filters": "Filter",
-      "filtersDesc": "Week / Month / Year.",
-      "days": "Working days",
-      "daysDesc": "From first data entry."
-    },
-    "settings": {
-      "agenda": "Weekly markets",
-      "agendaDesc": "Open a day → type name and km. Auto-calculated!",
-      "collab": "Collaborators",
-      "collabDesc": "Add name and daily cost.",
-      "spese": "Annual expenses",
-      "speseDesc": "Insurance, tax... divided per day.",
-      "fuel": "Fuel",
-      "fuelDesc": "Type and departure city."
+    "steps": {
+      "welcome": {
+        "title": "Hi! 👋 I'm your guide",
+        "body": "I'll help you set up MarketMate in 2 minutes. If you don't have some data, no problem — add it later. The more you add now, the more accurate the app will be! 😊"
+      },
+      "nomeAttivita": {
+        "title": "What's your business name? 🏪",
+        "body": "Type the name of your shop or business here. You can always change it later.",
+        "placeholder": "e.g. Rossi Bakery"
+      },
+      "nomeTitolare": {
+        "title": "And what's your name? 😄",
+        "body": "Your name will appear in the Good Morning greeting. Use the name you like to be called!",
+        "placeholder": "e.g. Mario"
+      },
+      "partenzaDa": {
+        "title": "Where do you leave from in the morning? 🚚",
+        "body": "Needed to calculate kilometers and suggest the cheapest gas stations along your route.",
+        "placeholder": "e.g. 12 Rome St., Rome"
+      },
+      "carburante": {
+        "title": "Which fuel do you use? ⛽",
+        "body": "We need it to calculate real cost per km. Tap the right one."
+      },
+      "agendaMercati": {
+        "title": "Now your markets! 📅",
+        "body": "In Settings there's a weekly agenda: indicate where you go each day. You can skip and do it later — the app still works."
+      },
+      "fornitori": {
+        "title": "Your suppliers 🚛",
+        "body": "Add who supplies your goods. Useful for invoice tracking. (Optional)"
+      },
+      "collaboratori": {
+        "title": "Working with someone? 👥",
+        "body": "Add collaborators with hourly pay. The app automatically calculates labor cost each day. (Optional)"
+      },
+      "goHome": {
+        "title": "Great job! 🎉",
+        "body": "Now let's go to HOME where you enter daily data. Let me show you!"
+      },
+      "home_meteo": {
+        "title": "Today's weather ☀️",
+        "body": "Tap the icon matching today's weather. The app auto-selects it based on real-time forecast."
+      },
+      "home_lordo": {
+        "title": "How much did you earn? 💰",
+        "body": "Try entering a sample amount below. Tap NEXT to save it in HOME.",
+        "placeholder": "e.g. 250"
+      },
+      "home_scontrini": {
+        "title": "How many receipts? 🧾",
+        "body": "Enter the number of receipts. The app calculates the average receipt to see if you're growing!",
+        "placeholder": "e.g. 45"
+      },
+      "home_spese": {
+        "title": "EXTRA EXPENSES 💸",
+        "body": "Put daily expenses here: fuel, parking, lunches... And also supplier invoices with smart cost splitting!"
+      },
+      "home_salva": {
+        "title": "Save the day ✅",
+        "body": "When done, tap SAVE. The day goes into history and you can see it in STATS."
+      },
+      "stats": {
+        "title": "Your STATS 📊",
+        "body": "In the Stats section you see charts of earnings, expenses, suppliers and best markets. Understand where you earn most!"
+      },
+      "buongiorno": {
+        "title": "GOOD MORNING AI 🤖",
+        "body": "Every morning the AI assistant gives you a briefing: weather, appointments, due invoices, fuel prices. You can also ask questions!"
+      },
+      "done": {
+        "title": "You're a legend! 🏆",
+        "body": "You've finished the tour. You can always reopen it from Settings. Now it's your turn: happy work! 🚀"
+      }
     }
   },
   "suppliers": {

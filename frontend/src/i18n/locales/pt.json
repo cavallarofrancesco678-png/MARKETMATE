@@ -433,59 +433,91 @@
     "marketRegulations": "Em Portugal, a taxa de banca é uma taxa municipal paga pela ocupação de espaço em feiras e mercados."
   },
   "tutorial": {
-    "prev": "Voltar",
-    "next": "Próximo",
-    "skip": "Pular",
-    "done": "Pronto!",
-    "home": {
-      "welcome": "Seu dia começa aqui",
-      "welcomeDesc": "Insira dados enquanto lê. Toque nos cards!",
-      "lordo": "Inserir Bruto",
-      "lordoDesc": "Toque BRUTO → digite a receita.",
-      "spese": "Despesas do dia",
-      "speseDesc": "Toque DESPESAS → insira os custos.",
-      "salva": "Salvar tudo",
-      "salvaDesc": "Salva sozinho após 1.5 segundos.",
-      "meteo": "Clima",
-      "meteoDesc": "Toque para registrar o clima.",
-      "collaboratori": "Colaboradores",
-      "collaboratoriDesc": "Marque quem trabalha hoje.",
-      "buongiorno": "Assistente IA",
-      "buongiornoDesc": "Clima, combustível e dicas."
+    "common": {
+      "next": "Próximo",
+      "skip": "Pular tutorial",
+      "back": "Voltar",
+      "close": "Fechar",
+      "restart": "Reiniciar tutorial",
+      "progress": "Passo {{current}} de {{total}}",
+      "letsgo": "Vamos lá!",
+      "finish": "Pronto!",
+      "save": "Salvar"
     },
-    "agenda": {
-      "calendar": "Seu mês",
-      "calendarDesc": "Verde = trabalhou. Toque um dia.",
-      "colors": "Cores",
-      "colorsDesc": "Verde=trabalho, Teal=compromisso, Laranja=pedido.",
-      "notes": "Notas",
-      "notesDesc": "Escreva notas por dia."
-    },
-    "gas": {
-      "search": "Posto mais barato",
-      "searchDesc": "Busca na sua rota.",
-      "prices": "Preços reais",
-      "pricesDesc": "Do Ministério.",
-      "history": "Histórico",
-      "historyDesc": "Registre abastecimentos."
-    },
-    "stats": {
-      "charts": "Seus números",
-      "chartsDesc": "Gráficos por semana, mês ou ano.",
-      "filters": "Filtrar",
-      "filtersDesc": "Sem. / Mês / Ano.",
-      "days": "Dias trabalhados",
-      "daysDesc": "Desde o primeiro dado."
-    },
-    "settings": {
-      "agenda": "Mercados semanais",
-      "agendaDesc": "Abra um dia → nome e km.",
-      "collab": "Colaboradores",
-      "collabDesc": "Nome e custo diário.",
-      "spese": "Despesas anuais",
-      "speseDesc": "Seguro, impostos... por dia.",
-      "fuel": "Combustível",
-      "fuelDesc": "Tipo e cidade de partida."
+    "steps": {
+      "welcome": {
+        "title": "Olá! 👋 Sou seu guia",
+        "body": "Ajudo você a configurar o MarketMate em 2 minutos. Se faltar algum dado, tudo bem, coloca depois. Quanto mais colocar agora, mais preciso o app! 😊"
+      },
+      "nomeAttivita": {
+        "title": "Nome do seu negócio? 🏪",
+        "body": "Escreva o nome da sua loja ou atividade. Pode mudar depois.",
+        "placeholder": "Ex. Padaria Rossi"
+      },
+      "nomeTitolare": {
+        "title": "E você, como se chama? 😄",
+        "body": "Seu nome aparecerá no Bom Dia. Use o nome que prefere!",
+        "placeholder": "Ex. Mario"
+      },
+      "partenzaDa": {
+        "title": "De onde você sai de manhã? 🚚",
+        "body": "Para calcular quilômetros e sugerir postos mais baratos no trajeto.",
+        "placeholder": "Ex. Rua Roma 12, Roma"
+      },
+      "carburante": {
+        "title": "Qual combustível? ⛽",
+        "body": "Precisamos pra calcular o custo real por km. Toque o certo."
+      },
+      "agendaMercati": {
+        "title": "Agora os mercados! 📅",
+        "body": "Em Configurações tem a agenda semanal. Pode pular — o app funciona igual."
+      },
+      "fornitori": {
+        "title": "Seus fornecedores 🚛",
+        "body": "Adicione quem fornece mercadoria. Útil para notas fiscais. (Opcional)"
+      },
+      "collaboratori": {
+        "title": "Trabalha com alguém? 👥",
+        "body": "Adicione colaboradores com pagamento por hora. O app calcula o custo. (Opcional)"
+      },
+      "goHome": {
+        "title": "Excelente! 🎉",
+        "body": "Agora vamos pra HOME onde você insere dados diários. Vou mostrar!"
+      },
+      "home_meteo": {
+        "title": "Tempo de hoje ☀️",
+        "body": "Toque o ícone do tempo de hoje. O app pré-seleciona pelo clima real."
+      },
+      "home_lordo": {
+        "title": "Quanto você ganhou? 💰",
+        "body": "Tente um valor de exemplo. PRÓXIMO salva na HOME.",
+        "placeholder": "Ex. 250"
+      },
+      "home_scontrini": {
+        "title": "Quantos tickets? 🧾",
+        "body": "Número de tickets. O app calcula a média para ver se cresce!",
+        "placeholder": "Ex. 45"
+      },
+      "home_spese": {
+        "title": "GASTOS EXTRA 💸",
+        "body": "Gastos do dia: combustível, estacionamento, refeições... E notas com divisão inteligente!"
+      },
+      "home_salva": {
+        "title": "Salvar o dia ✅",
+        "body": "No final, toque SALVAR. O dia vai pra histórico e pras ESTATÍSTICAS."
+      },
+      "stats": {
+        "title": "Suas ESTATÍSTICAS 📊",
+        "body": "Em Estatísticas tem gráficos de ganhos, gastos, fornecedores, melhores mercados!"
+      },
+      "buongiorno": {
+        "title": "BOM DIA AI 🤖",
+        "body": "Toda manhã o AI te dá briefing: clima, compromissos, notas, preços combustível. Pode fazer perguntas!"
+      },
+      "done": {
+        "title": "Você é um mito! 🏆",
+        "body": "Terminou o tour. Pode reabrir em Configurações. Agora é com você: bom trabalho! 🚀"
+      }
     }
   },
   "suppliers": {

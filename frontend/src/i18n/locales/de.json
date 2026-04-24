@@ -433,59 +433,91 @@
     "marketRegulations": "In Deutschland wird eine Standgebühr (Marktgebühr) an den Marktveranstalter für den zugewiesenen Platz gezahlt."
   },
   "tutorial": {
-    "prev": "Zurück",
-    "next": "Weiter",
-    "skip": "Überspringen",
-    "done": "Fertig!",
-    "home": {
-      "welcome": "Ihr Tag beginnt hier",
-      "welcomeDesc": "Geben Sie Daten ein während Sie lesen!",
-      "lordo": "Brutto eingeben",
-      "lordoDesc": "Tippen Sie BRUTTO → Einnahmen eingeben.",
-      "spese": "Tagesausgaben",
-      "speseDesc": "Tippen Sie AUSGABEN → Kosten eingeben.",
-      "salva": "Alles speichern",
-      "salvaDesc": "Automatisch nach 1.5 Sekunden.",
-      "meteo": "Wetter",
-      "meteoDesc": "Tippen für Wetter.",
-      "collaboratori": "Mitarbeiter",
-      "collaboratoriDesc": "Wer arbeitet heute?",
-      "buongiorno": "KI-Assistent",
-      "buongiornoDesc": "Wetter, Tankstelle & Tipps."
+    "common": {
+      "next": "Weiter",
+      "skip": "Tutorial überspringen",
+      "back": "Zurück",
+      "close": "Schließen",
+      "restart": "Tutorial neu starten",
+      "progress": "Schritt {{current}} von {{total}}",
+      "letsgo": "Los geht's!",
+      "finish": "Fertig!",
+      "save": "Speichern"
     },
-    "agenda": {
-      "calendar": "Ihr Monat",
-      "calendarDesc": "Grün = gearbeitet.",
-      "colors": "Farben",
-      "colorsDesc": "Grün=Arbeit, Teal=Termin, Orange=Bestellung.",
-      "notes": "Notizen",
-      "notesDesc": "Schreiben Sie Notizen."
-    },
-    "gas": {
-      "search": "Günstigste Tankstelle",
-      "searchDesc": "Suche auf Ihrer Route.",
-      "prices": "Echte Preise",
-      "pricesDesc": "Vom Ministerium.",
-      "history": "Verlauf",
-      "historyDesc": "Tankvorgänge verfolgen."
-    },
-    "stats": {
-      "charts": "Ihre Zahlen",
-      "chartsDesc": "Einnahmen-Diagramme.",
-      "filters": "Filtern",
-      "filtersDesc": "Woche / Monat / Jahr.",
-      "days": "Arbeitstage",
-      "daysDesc": "Seit erster Eingabe."
-    },
-    "settings": {
-      "agenda": "Wochenmärkte",
-      "agendaDesc": "Tag öffnen → Name und km.",
-      "collab": "Mitarbeiter",
-      "collabDesc": "Name und Tageskosten.",
-      "spese": "Jahresausgaben",
-      "speseDesc": "Versicherung... pro Tag geteilt.",
-      "fuel": "Kraftstoff",
-      "fuelDesc": "Typ und Abfahrtsstadt."
+    "steps": {
+      "welcome": {
+        "title": "Hi! 👋 Ich bin dein Guide",
+        "body": "Ich helfe dir MarketMate in 2 Minuten einzurichten. Falls du Daten nicht hast, kein Problem — später hinzufügen. Je mehr du jetzt einträgst, desto präziser wird die App! 😊"
+      },
+      "nomeAttivita": {
+        "title": "Wie heißt dein Geschäft? 🏪",
+        "body": "Schreib hier den Namen deines Ladens. Kannst du jederzeit ändern.",
+        "placeholder": "z.B. Bäckerei Rossi"
+      },
+      "nomeTitolare": {
+        "title": "Und wie heißt du? 😄",
+        "body": "Dein Name erscheint im Guten-Morgen-Gruß. Wie möchtest du genannt werden?",
+        "placeholder": "z.B. Mario"
+      },
+      "partenzaDa": {
+        "title": "Wo startest du morgens? 🚚",
+        "body": "Für Kilometerberechnung und Vorschläge günstiger Tankstellen auf der Strecke.",
+        "placeholder": "z.B. Romstraße 12, Rom"
+      },
+      "carburante": {
+        "title": "Welcher Kraftstoff? ⛽",
+        "body": "Für echte Kosten pro km. Tippe den richtigen."
+      },
+      "agendaMercati": {
+        "title": "Jetzt die Märkte! 📅",
+        "body": "In Einstellungen gibt's einen Wochenplan. Überspringbar — die App funktioniert trotzdem."
+      },
+      "fornitori": {
+        "title": "Deine Lieferanten 🚛",
+        "body": "Wer beliefert dich? Nützlich für Rechnungstracking. (Optional)"
+      },
+      "collaboratori": {
+        "title": "Arbeitest du mit jemandem? 👥",
+        "body": "Mitarbeiter mit Stundenlohn hinzufügen. Die App rechnet Lohnkosten automatisch. (Optional)"
+      },
+      "goHome": {
+        "title": "Super Arbeit! 🎉",
+        "body": "Jetzt zum HOME-Screen für Tageseingaben. Ich zeig's dir!"
+      },
+      "home_meteo": {
+        "title": "Heutiges Wetter ☀️",
+        "body": "Tippe das passende Wetter-Icon. Die App wählt es nach Echtzeitwetter vor."
+      },
+      "home_lordo": {
+        "title": "Wie viel verdient? 💰",
+        "body": "Tippe einen Beispielbetrag. WEITER speichert ihn in HOME.",
+        "placeholder": "z.B. 250"
+      },
+      "home_scontrini": {
+        "title": "Wie viele Belege? 🧾",
+        "body": "Anzahl der Belege eintragen. Die App berechnet den Durchschnitt für Wachstum!",
+        "placeholder": "z.B. 45"
+      },
+      "home_spese": {
+        "title": "EXTRA AUSGABEN 💸",
+        "body": "Tägliche Ausgaben: Sprit, Parken, Essen... Auch Lieferantenrechnungen mit smarter Aufteilung!"
+      },
+      "home_salva": {
+        "title": "Tag speichern ✅",
+        "body": "Am Ende SPEICHERN tippen. Der Tag geht in Historie und STATISTIK."
+      },
+      "stats": {
+        "title": "Deine STATS 📊",
+        "body": "In Statistik: Diagramme von Einnahmen, Ausgaben, Lieferanten, besten Märkten. Wo verdienst du am meisten?"
+      },
+      "buongiorno": {
+        "title": "GUTEN MORGEN AI 🤖",
+        "body": "Jeden Morgen Briefing vom AI: Wetter, Termine, fällige Rechnungen, Spritpreise. Fragen erlaubt!"
+      },
+      "done": {
+        "title": "Du bist ein Held! 🏆",
+        "body": "Tutorial beendet. Kannst du aus Einstellungen wieder öffnen. Jetzt bist du dran: gute Arbeit! 🚀"
+      }
     }
   },
   "suppliers": {

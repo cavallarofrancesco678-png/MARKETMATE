@@ -338,7 +338,7 @@
     "upcoming": "PROSSIMI IMPEGNI SALVATI",
     "noAppointments": "Nessun ordine o appuntamento in programma.",
     "allNotes": "TUTTE LE ANNOTAZIONI",
-    "noNotes": "Nessuna annotazione salvata.",
+    "noNotes": "Nessuna nota salvata",
     "deleteNote": "Eliminare questo appunto?",
     "noteSaved": "Nota salvata!",
     "enterText": "Inserisci un testo",
@@ -370,8 +370,7 @@
     "tabFiere": "Fiere",
     "tabFatture": "Fatture",
     "noFiere": "Nessuna fiera in programma",
-    "noFatture": "Nessuna fattura in scadenza",
-    "noNotes": "Nessuna nota salvata"
+    "noFatture": "Nessuna fattura in scadenza"
   },
   "modals": {
     "market": "FIERA / MERCATO",
@@ -436,59 +435,91 @@
     "marketRegulations": "In Italia il plateatico è la tassa per l'occupazione del suolo pubblico nei mercati."
   },
   "tutorial": {
-    "prev": "Indietro",
-    "next": "Avanti",
-    "skip": "Salta",
-    "done": "Fatto!",
-    "home": {
-      "welcome": "La tua giornata inizia qui",
-      "welcomeDesc": "Inserisci i dati mentre leggi. Tocca le card!",
-      "lordo": "Inserisci il Lordo",
-      "lordoDesc": "Tocca LORDO → scrivi l'incasso. Contanti+POS si sommano.",
-      "spese": "Spese del giorno",
-      "speseDesc": "Tocca SPESE → inserisci le spese dai fornitori.",
-      "salva": "Salva tutto",
-      "salvaDesc": "I dati si salvano anche da soli dopo 1.5 secondi.",
-      "meteo": "Meteo",
-      "meteoDesc": "Tocca per segnare il tempo.",
-      "collaboratori": "Collaboratori",
-      "collaboratoriDesc": "Segna chi lavora oggi.",
-      "buongiorno": "Assistente AI",
-      "buongiornoDesc": "Meteo, benzina e consigli."
+    "common": {
+      "next": "Avanti",
+      "skip": "Salta la guida",
+      "back": "Indietro",
+      "close": "Chiudi",
+      "restart": "Riavvia la guida",
+      "progress": "Passo {{current}} di {{total}}",
+      "letsgo": "Iniziamo!",
+      "finish": "Finito!",
+      "save": "Salva"
     },
-    "agenda": {
-      "calendar": "Il tuo mese",
-      "calendarDesc": "Verde = hai lavorato. Tocca un giorno per note e ordini.",
-      "colors": "Colori",
-      "colorsDesc": "Verde=lavoro, Teal=appuntamento, Arancio=ordine.",
-      "notes": "Note",
-      "notesDesc": "Scrivi appunti per ogni giorno."
-    },
-    "gas": {
-      "search": "Trova il benzinaio più economico",
-      "searchDesc": "Cerca lungo il tuo tragitto casa→mercato.",
-      "prices": "Prezzi reali",
-      "pricesDesc": "Dal Ministero, aggiornati.",
-      "history": "Storico",
-      "historyDesc": "Tieni traccia dei rifornimenti."
-    },
-    "stats": {
-      "charts": "I tuoi numeri",
-      "chartsDesc": "Grafici incassi per settimana, mese o anno.",
-      "filters": "Filtra",
-      "filtersDesc": "Sett. / Mese / Anno.",
-      "days": "Giorni lavorati",
-      "daysDesc": "Dal primo dato inserito."
-    },
-    "settings": {
-      "agenda": "Mercati settimanali",
-      "agendaDesc": "Apri un giorno → scrivi nome e km. Si calcola da solo!",
-      "collab": "Collaboratori",
-      "collabDesc": "Aggiungi nome e costo giornaliero.",
-      "spese": "Spese annue",
-      "speseDesc": "Assicurazione, bollo... divise per giorno.",
-      "fuel": "Carburante",
-      "fuelDesc": "Tipo e città di partenza."
+    "steps": {
+      "welcome": {
+        "title": "Ciao! 👋 Sono la tua guida",
+        "body": "Ti aiuto a configurare MarketMate in 2 minuti. Se non hai un dato non importa, lo aggiungi dopo. Più dati metti ora, più l'app sarà precisa! 😊"
+      },
+      "nomeAttivita": {
+        "title": "Come si chiama la tua attività? 🏪",
+        "body": "Scrivi qui sotto il nome del tuo negozio o della tua attività. Puoi sempre cambiarlo dopo.",
+        "placeholder": "Es. Pane Forno Rossi"
+      },
+      "nomeTitolare": {
+        "title": "E tu come ti chiami? 😄",
+        "body": "Il tuo nome apparirà nel saluto di Buongiorno. Mettilo come vuoi essere chiamato!",
+        "placeholder": "Es. Mario"
+      },
+      "partenzaDa": {
+        "title": "Dove parti al mattino? 🚚",
+        "body": "Serve per calcolare i chilometri e suggerirti i distributori più convenienti lungo il tragitto.",
+        "placeholder": "Es. Via Roma 12, Roma"
+      },
+      "carburante": {
+        "title": "Che carburante usi? ⛽",
+        "body": "Ci serve per calcolare il costo reale ogni km. Tocca quello giusto."
+      },
+      "agendaMercati": {
+        "title": "Ora mettiamo i mercati! 📅",
+        "body": "In Impostazioni trovi l'agenda settimanale: indica per ogni giorno dove vai. Puoi saltare questo passo e farlo dopo — l'app funziona lo stesso."
+      },
+      "fornitori": {
+        "title": "I tuoi fornitori 🚛",
+        "body": "Aggiungi chi ti fornisce la merce. Ti servirà per tracciare le fatture. (Passo opzionale)"
+      },
+      "collaboratori": {
+        "title": "Lavori con qualcuno? 👥",
+        "body": "Aggiungi collaboratori con la loro paga oraria. L'app calcola in automatico il costo del lavoro ogni giorno. (Opzionale)"
+      },
+      "goHome": {
+        "title": "Ottimo lavoro! 🎉",
+        "body": "Ora andiamo in HOME dove inserisci i dati di ogni giornata. Ti mostro tutto!"
+      },
+      "home_meteo": {
+        "title": "Il meteo di oggi ☀️",
+        "body": "Tocca l'icona che rappresenta il meteo oggi. L'app lo preseleziona già in automatico in base al tempo reale."
+      },
+      "home_lordo": {
+        "title": "Quanto hai incassato? 💰",
+        "body": "Prova a mettere un numero di esempio qui sotto. Tocca AVANTI per salvarlo in HOME.",
+        "placeholder": "Es. 250"
+      },
+      "home_scontrini": {
+        "title": "Quanti scontrini? 🧾",
+        "body": "Scrivi il numero di scontrini. L'app calcola da sola la media scontrino per capire se stai crescendo!",
+        "placeholder": "Es. 45"
+      },
+      "home_spese": {
+        "title": "SPESE EXTRA 💸",
+        "body": "Qui metti le spese del giorno: carburante, parcheggi, pranzi... E anche le fatture dei fornitori con ripartizione intelligente!"
+      },
+      "home_salva": {
+        "title": "Salva la giornata ✅",
+        "body": "Quando hai finito, premi SALVA. La giornata va nello storico e puoi vederla nelle STATISTICHE."
+      },
+      "stats": {
+        "title": "Le tue STATISTICHE 📊",
+        "body": "Nella sezione Statistiche vedi grafici dei tuoi incassi, delle spese, dei fornitori e dei mercati migliori. Ti permette di capire dove guadagni di più!"
+      },
+      "buongiorno": {
+        "title": "BUONGIORNO AI 🤖",
+        "body": "Ogni mattina l'assistente AI ti dà un briefing: meteo, appuntamenti, fatture in scadenza, prezzi carburante. Puoi anche fargli domande!"
+      },
+      "done": {
+        "title": "Sei un mito! 🏆",
+        "body": "Hai finito la guida. Puoi sempre riaprirla dalle Impostazioni in fondo alla pagina. Ora tocca a te: buon lavoro! 🚀"
+      }
     }
   },
   "suppliers": {

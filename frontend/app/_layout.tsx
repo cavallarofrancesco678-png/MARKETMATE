@@ -8,6 +8,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../src/i18n';
 import { useAppStore } from '../src/store/appStore';
 import { useAuthStore } from '../src/store/authStore';
+import { useTutorialStore } from '../src/store/tutorialStore';
+import { TutorialOverlay } from '../src/components/TutorialOverlay';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,29 +22,41 @@ export default function RootLayout() {
   const loadFromStorage = useAppStore((s) => s.loadFromStorage);
   const authHydrate = useAuthStore((s) => s.hydrate);
   const authHydrated = useAuthStore((s) => s.isHydrated);
+  const tutHydrate = useTutorialStore((s) => s.hydrate);
+  const tutHydrated = useTutorialStore((s) => s.isHydrated);
+  const tutHasCompleted = useTutorialStore((s) => s.hasCompletedOnce);
+  const tutStart = useTutorialStore((s) => s.start);
+  const isConfigured = useAppStore((s) => s.isConfigured);
 
   const onLayoutReady = useCallback(async () => {
-    if (fontsLoaded && storageHydrated && authHydrated) {
+    if (fontsLoaded && storageHydrated && authHydrated && tutHydrated) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, storageHydrated, authHydrated]);
+  }, [fontsLoaded, storageHydrated, authHydrated, tutHydrated]);
 
-  // ═══ IDRATA LO STORE AL PRIMO RENDER (necessario per F5 su /home, /home/stats ecc.) ═══
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try { await loadFromStorage(); } catch (e) { console.warn('loadFromStorage failed', e); }
       try { await authHydrate(); } catch (e) { console.warn('auth hydrate failed', e); }
+      try { await tutHydrate(); } catch (e) { console.warn('tut hydrate failed', e); }
       if (!cancelled) setStorageHydrated(true);
     })();
     return () => { cancelled = true; };
-  }, [loadFromStorage, authHydrate]);
+  }, [loadFromStorage, authHydrate, tutHydrate]);
 
+  // ═══ AUTO-START tutorial per nuovi utenti ═══
   useEffect(() => {
-    onLayoutReady();
-  }, [onLayoutReady]);
+    if (storageHydrated && tutHydrated && !tutHasCompleted && !isConfigured) {
+      // Piccolo delay per far montare il resto dell'app
+      const t = setTimeout(() => tutStart(), 900);
+      return () => clearTimeout(t);
+    }
+  }, [storageHydrated, tutHydrated, tutHasCompleted, isConfigured, tutStart]);
 
-  if (!fontsLoaded || !storageHydrated || !authHydrated) return null;
+  useEffect(() => { onLayoutReady(); }, [onLayoutReady]);
+
+  if (!fontsLoaded || !storageHydrated || !authHydrated || !tutHydrated) return null;
 
   return (
     <SafeAreaProvider>
@@ -53,6 +67,8 @@ export default function RootLayout() {
         <Stack.Screen name="home" />
         <Stack.Screen name="auth/index" options={{ presentation: 'modal' }} />
       </Stack>
+      {/* Tutorial overlay sopra tutte le schermate */}
+      <TutorialOverlay />
     </SafeAreaProvider>
   );
 }
