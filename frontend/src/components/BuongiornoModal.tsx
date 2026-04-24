@@ -29,6 +29,12 @@ interface StoreData {
   mercatoOggi: string;
   settimanaPrec: { lordo: number; netto: number; giorni: number };
   settimanaPrecMercato?: { lordo: number; netto: number; giorni: number; mercato: string };
+  // Stats avanzati
+  settimanaCorrente?: { lordo: number; netto: number; giorni: number; mercati: string[] };
+  confrontoSettimana?: { correnteLordo: number; precedenteLordo: number; differenza: number; variazionePercentuale: number };
+  topMercati?: { nome: string; lordo: number; giorni: number }[];
+  topFornitori?: { nome: string; totale: number }[];
+  ultimoMese?: { lordo: number; netto: number; giorni: number };
   ultimoCarburante: { data: string; euro: number } | null;
   kmOggi: number;
   collaboratori: string[];
@@ -147,6 +153,40 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
       : 'Nessun dato carburante';
     const mediaSc = s.mediaScontrino > 0 ? `€${s.mediaScontrino.toFixed(0)}` : 'Non calcolata';
 
+    // ═══ STATS SETTIMANA/MESE ═══
+    const settCorr = s.settimanaCorrente && s.settimanaCorrente.giorni > 0
+      ? `Lordo: €${s.settimanaCorrente.lordo}, Netto: €${s.settimanaCorrente.netto}, ${s.settimanaCorrente.giorni} giornate (mercati: ${(s.settimanaCorrente.mercati || []).join(', ') || 'nessuno'})`
+      : 'Nessun dato per questa settimana';
+    const confr = s.confrontoSettimana
+      ? `Sett. corrente €${s.confrontoSettimana.correnteLordo} vs sett. precedente €${s.confrontoSettimana.precedenteLordo} (differenza €${s.confrontoSettimana.differenza}, ${s.confrontoSettimana.variazionePercentuale >= 0 ? '+' : ''}${s.confrontoSettimana.variazionePercentuale}%)`
+      : 'Nessun confronto disponibile';
+    const topMk = (s.topMercati && s.topMercati.length > 0)
+      ? s.topMercati.map((m, i) => `${i + 1}) ${m.nome} €${m.lordo} (${m.giorni} gg)`).join('; ')
+      : 'Nessun mercato';
+    const topForn = (s.topFornitori && s.topFornitori.length > 0)
+      ? s.topFornitori.map((f, i) => `${i + 1}) ${f.nome} €${f.totale}`).join('; ')
+      : 'Nessun fornitore';
+    const ultMese = s.ultimoMese && s.ultimoMese.giorni > 0
+      ? `Lordo: €${s.ultimoMese.lordo}, Netto: €${s.ultimoMese.netto}, ${s.ultimoMese.giorni} giornate`
+      : 'Nessun dato ultimo mese';
+
+    // ═══ NOTIFICHE ═══
+    const fiereLst = (s.fiereProssime && s.fiereProssime.length > 0)
+      ? s.fiereProssime.map((f) => `${f.data}: ${f.nome}${f.luogo ? ` @ ${f.luogo}` : ''}`).join(' | ')
+      : 'nessuna';
+    const appuntiLst = (s.appuntiProssimi && s.appuntiProssimi.length > 0)
+      ? s.appuntiProssimi.map((a) => `${a.data}: ${a.testo || a.titolo || ''}`).join(' | ')
+      : 'nessuno';
+    const ordiniLst = (s.ordiniProssimi && s.ordiniProssimi.length > 0)
+      ? s.ordiniProssimi.map((o) => `${o.data}: ${o.testo || o.titolo || ''}`).join(' | ')
+      : 'nessuno';
+    const pagLst = (s.pagamentiImminenti && s.pagamentiImminenti.length > 0)
+      ? s.pagamentiImminenti.map((p) => `${p.fornitore} fatt.${p.numeroFattura} €${p.importo} (${p.giorniRestanti}gg a ${p.scadenza})`).join(' | ')
+      : 'nessuno';
+
+    const collabLst = (s.collaboratori && s.collaboratori.length > 0) ? s.collaboratori.join(', ') : 'nessuno';
+    const fornLst = (s.fornitori && s.fornitori.length > 0) ? s.fornitori.join(', ') : 'nessuno';
+
     return `Attivita: ${s.nomeAttivita}
 Titolare: ${s.nomeTitolare}
 Mercato oggi: ${s.mercatoOggi}
@@ -155,10 +195,28 @@ Km oggi: ${s.kmOggi}
 Partenza da: ${s.partenzaDa || 'Non specificata'}
 Tipo carburante: ${s.tipoCarburante || 'benzina'}
 Costo/km: €${s.costoKm.toFixed(3)}
+
+═══ STATISTICHE STORICHE (da database locale) ═══
+Settimana CORRENTE: ${settCorr}
 Settimana precedente totale: ${settPrec}
-Settimana precedente mercato specifico: ${settPrecMerc}
-Media scontrino attuale: ${mediaSc}
+Settimana precedente (mercato specifico): ${settPrecMerc}
+Confronto settimane: ${confr}
+Top 3 mercati ultimo mese: ${topMk}
+Top 3 fornitori ultimo mese: ${topForn}
+Ultimo mese totale: ${ultMese}
+Media scontrino: ${mediaSc}
+
+═══ ORGANIZZAZIONE ═══
+Collaboratori: ${collabLst}
+Fornitori: ${fornLst}
 Carburante: ${carb}
+
+═══ NOTIFICHE / PROSSIMI IMPEGNI ═══
+Fiere prossime (7gg): ${fiereLst}
+Appuntamenti prossimi (7gg): ${appuntiLst}
+Ordini prossimi (7gg): ${ordiniLst}
+Pagamenti imminenti: ${pagLst}
+${s.noteOggi ? `\nNota del giorno: ${s.noteOggi}` : ''}
 ${weatherData ? '\n' + weatherData : 'Nessun dato meteo reale'}
 ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
   }, [storeData, fuelData, weatherData]);

@@ -196,6 +196,15 @@ interface AppState {
   storicoDiario: DiarioEntry[];
   speseExtraTags: string[];
   storicoScontrini: ScontrinoRecord[];
+  // ═══ SESSIONE SPESE EXTRA (persistente fino a 23:59 del giorno successivo) ═══
+  speseExtraSession: {
+    speseExtraFornitore: Record<string, { importo: string; periodo: string }>;
+    vociGeneriche: Array<{ nome: string; importo: string; attivo: boolean; ripMode?: 'oggi' | 'custom'; ripFrom?: string; ripTo?: string; periodo?: string }>;
+    fornInfo: Record<string, { numeroFattura: string; scadenza: string }>;
+    pagamentoMode: Record<string, 'contanti' | 'fattura' | 'misto'>;
+    ripartizione: Record<string, { modo: 'oggi' | 'custom'; from: string; to: string }>;
+    createdAt: string; // ISO timestamp della creazione/ultima modifica
+  } | null;
   
   // Actions
   setConfig: (config: Partial<AppState>) => void;
@@ -226,6 +235,9 @@ interface AppState {
   removeSpeseExtraTag: (tag: string) => void;
   addScontrino: (s: ScontrinoRecord) => void;
   getScontriniForMercato: (mercato: string) => ScontrinoRecord[];
+  // Sessione Spese Extra
+  setSpeseExtraSession: (session: AppState['speseExtraSession']) => void;
+  clearSpeseExtraSession: () => void;
   // Codici invito collaboratori
   addCodiceInvito: (c: CodiceInvito) => void;
   removeCodiceInvito: (codice: string) => void;
@@ -279,6 +291,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   storicoDiario: [],
   speseExtraTags: [],
   storicoScontrini: [],
+  speseExtraSession: null,
   
   // Actions
   setConfig: (config) => {
@@ -554,6 +567,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
 
+  setSpeseExtraSession: (session) => {
+    set({ speseExtraSession: session });
+    get().saveToStorage();
+  },
+
+  clearSpeseExtraSession: () => {
+    set({ speseExtraSession: null });
+    get().saveToStorage();
+  },
+
   loadFromStorage: async () => {
     try {
       const data = await storage.getItem('marketmate_data');
@@ -599,6 +622,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         speseExtraTags: state.speseExtraTags,
         storicoScontrini: state.storicoScontrini,
         codiciInvito: state.codiciInvito || [],
+        speseExtraSession: (state as any).speseExtraSession || null,
       };
       await storage.setItem('marketmate_data', JSON.stringify(dataToSave));
     } catch (e) {

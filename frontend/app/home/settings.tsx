@@ -504,6 +504,7 @@ export default function SettingsPage() {
         app: 'MarketMate v3.9',
         produttore: 'T.V.S di Francesco Cavallaro',
         nomeAttivita: state.nomeAttivita || '',
+        nomeTitolare: (state as any).nomeTitolare || '',
         isAlimentare: state.isAlimentare,
         agenda: state.agenda || [],
         collaboratori: state.collaboratori || [],
@@ -516,15 +517,21 @@ export default function SettingsPage() {
         appuntiAgenda: state.appuntiAgenda || [],
         ordiniAgenda: state.ordiniAgenda || [],
         storicoDiario: state.storicoDiario || [],
+        storicoScontrini: (state as any).storicoScontrini || [],
+        codiciInvito: (state as any).codiciInvito || [],
         // Impostazioni generali
         partenzaDa: state.partenzaDa || '',
         costoPerKm: (state as any).costoPerKm || 0,
         tipoCarburante: state.tipoCarburante || '',
         targetMensile: state.targetMensile || 0,
+        themeColor: (state as any).themeColor || '',
+        speseFisseDisabilitate: (state as any).speseFisseDisabilitate || [],
+        speseAnnueDisabilitate: (state as any).speseAnnueDisabilitate || [],
       };
 
       const json = JSON.stringify(exportData, null, 2);
       const fileName = `MarketMate_${new Date().toISOString().split('T')[0]}.json`;
+      const sizeKB = Math.round(json.length / 1024);
 
       if (Platform.OS === 'web') {
         const blob = new Blob([json], { type: 'application/json' });
@@ -532,30 +539,57 @@ export default function SettingsPage() {
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
         playSuccess();
-      } else {
-        const dirPath = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-        if (!dirPath) {
-          Alert.alert('Export', 'Directory non disponibile. Riprova.');
-          return;
-        }
-        const filePath = `${dirPath}${fileName}`;
-        await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
-        
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
+        // Conferma all'utente
+        window.alert(`Esportazione completata!\nFile: ${fileName} (${sizeKB} KB)\nScaricato automaticamente dal browser.`);
+        return;
+      }
+
+      // Mobile (iOS/Android)
+      // Usa documentDirectory (persistente e scrivibile in modo affidabile)
+      const dirPath = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+      if (!dirPath) {
+        Alert.alert('Errore Export', 'Nessuna directory scrivibile disponibile sul dispositivo.');
+        return;
+      }
+      const filePath = `${dirPath}${fileName}`;
+      await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
+
+      // Verifica la scrittura
+      const info = await FileSystem.getInfoAsync(filePath);
+      if (!info.exists) {
+        Alert.alert('Errore Export', 'Il file non è stato creato correttamente.');
+        return;
+      }
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        try {
           await Sharing.shareAsync(filePath, {
             mimeType: 'application/json',
-            dialogTitle: 'Esporta dati MarketMate',
+            dialogTitle: `Esporta dati MarketMate (${sizeKB} KB)`,
+            UTI: 'public.json',
           });
           playSuccess();
-        } else {
-          Alert.alert('Export', 'Dati salvati! Condivisione non disponibile su questo dispositivo.');
+        } catch (shareErr: any) {
+          // Utente ha annullato o errore di share — il file comunque esiste
+          Alert.alert(
+            'File salvato',
+            `File creato: ${fileName}\n(${sizeKB} KB)\n\nPercorso: ${filePath}\n\nCondivisione annullata o non completata.`,
+          );
         }
+      } else {
+        Alert.alert(
+          'File salvato',
+          `File creato: ${fileName}\n(${sizeKB} KB)\n\nPercorso: ${filePath}\n\nCondivisione non disponibile su questo dispositivo.`,
+        );
       }
     } catch (err: any) {
+      console.warn('Export error:', err);
       Alert.alert('Errore Export', `${err?.message || 'Errore sconosciuto'}. Riprova.`);
     }
   };

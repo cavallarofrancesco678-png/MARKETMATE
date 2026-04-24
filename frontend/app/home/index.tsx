@@ -118,6 +118,64 @@ export default function HomeScreen() {
     setPresenze(p);
   }, [collaboratori]);
 
+  /* ═══ PERSISTENZA SPESE EXTRA (fino a 23:59 del giorno successivo alla creazione) ═══ */
+  const isSpeseSessionValid = (createdAt: string): boolean => {
+    const created = new Date(createdAt);
+    if (isNaN(created.getTime())) return false;
+    const endOfNextDay = new Date(created);
+    endOfNextDay.setDate(endOfNextDay.getDate() + 1);
+    endOfNextDay.setHours(23, 59, 59, 999);
+    return new Date() <= endOfNextDay;
+  };
+
+  // On mount: restore session if still valid
+  const speseExtraMountedRef = useRef(false);
+  useEffect(() => {
+    if (speseExtraMountedRef.current) return;
+    speseExtraMountedRef.current = true;
+    const stored = (store as any).speseExtraSession;
+    if (stored && isSpeseSessionValid(stored.createdAt)) {
+      setSpeseExtraFornitore(stored.speseExtraFornitore || {});
+      setVociGeneriche(stored.vociGeneriche || []);
+      setFornInfo(stored.fornInfo || {});
+      setPagamentoMode(stored.pagamentoMode || {});
+      setRipartizione(stored.ripartizione || {});
+    } else if (stored) {
+      // Scaduta — ripulisci
+      (store as any).clearSpeseExtraSession?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist changes (debounced)
+  const speseExtraSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!speseExtraMountedRef.current) return;
+    if (speseExtraSaveTimerRef.current) clearTimeout(speseExtraSaveTimerRef.current);
+    speseExtraSaveTimerRef.current = setTimeout(() => {
+      const hasSupplierData = Object.values(speseExtraFornitore).some(v => (v?.importo || '').trim() !== '');
+      const hasVoci = vociGeneriche.some(v => (v?.importo || '').trim() !== '' || v.attivo);
+      if (!hasSupplierData && !hasVoci) {
+        if ((store as any).speseExtraSession) (store as any).clearSpeseExtraSession?.();
+        return;
+      }
+      const existingCreatedAt = (store as any).speseExtraSession?.createdAt;
+      const createdAt = existingCreatedAt && isSpeseSessionValid(existingCreatedAt)
+        ? existingCreatedAt
+        : new Date().toISOString();
+      (store as any).setSpeseExtraSession?.({
+        speseExtraFornitore,
+        vociGeneriche,
+        fornInfo,
+        pagamentoMode,
+        ripartizione,
+        createdAt,
+      });
+    }, 600);
+    return () => { if (speseExtraSaveTimerRef.current) clearTimeout(speseExtraSaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speseExtraFornitore, vociGeneriche, fornInfo, pagamentoMode, ripartizione]);
+
   /* ── Funzione per caricare i dati salvati di una data ── */
   const loadSavedData = useCallback((targetDate: Date) => {
     // CRITICAL: Read FRESH state from store to avoid stale closure

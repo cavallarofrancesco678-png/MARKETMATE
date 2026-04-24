@@ -444,24 +444,20 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
                             {rip.modo === 'custom' && (
                               <View style={{ marginTop: 8, backgroundColor: '#F5F0E0', padding: 10, borderRadius: 10 }}>
-                                <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginBottom: 4, letterSpacing: 0.5 }}>
-                                  {t('suppliers.fromDate')}
+                                <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A5E9B', marginBottom: 6, letterSpacing: 0.5, textAlign: 'center' }}>
+                                  {rip.from && !rip.to ? '📅 Tocca la data finale del range' : rip.from && rip.to ? `📅 Range: ${rip.from.slice(8, 10)}/${rip.from.slice(5, 7)} → ${rip.to.slice(8, 10)}/${rip.to.slice(5, 7)}` : '📅 Tocca la data iniziale del range'}
                                 </Text>
                                 <MiniMonthCalendar
-                                  selectedDates={rip.from ? [rip.from] : []}
-                                  onToggleDate={(iso) => { setRip({ ...rip, from: rip.from === iso ? '' : iso }); }}
+                                  selectedDates={[]}
+                                  onToggleDate={() => {}}
+                                  rangeMode
+                                  rangeFrom={rip.from}
+                                  rangeTo={rip.to}
+                                  onRangeChange={(from, to) => setRip({ ...rip, from, to })}
                                   themeColor="#7A5E9B"
                                 />
-                                <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 }}>
-                                  {t('suppliers.toDate')}
-                                </Text>
-                                <MiniMonthCalendar
-                                  selectedDates={rip.to ? [rip.to] : []}
-                                  onToggleDate={(iso) => { setRip({ ...rip, to: rip.to === iso ? '' : iso }); }}
-                                  themeColor="#16A085"
-                                />
                                 {rip.from && rip.to && (
-                                  <Text style={{ fontSize: 10, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 6 }}>
+                                  <Text style={{ fontSize: 11, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 8, fontWeight: '700' }}>
                                     {countMarketDays('custom', rip.from, rip.to)} {countMarketDays('custom', rip.from, rip.to) === 1 ? t('suppliers.market') : t('suppliers.markets')} in questo range
                                   </Text>
                                 )}
@@ -604,24 +600,23 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
                         {ripMode === 'custom' && (
                           <View style={{ marginTop: 8, backgroundColor: '#F5F0E0', padding: 10, borderRadius: 10 }}>
-                            <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginBottom: 4, letterSpacing: 0.5 }}>
-                              {t('suppliers.fromDate')}
+                            <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A5E9B', marginBottom: 6, letterSpacing: 0.5, textAlign: 'center' }}>
+                              {ripFrom && !ripTo ? '📅 Tocca la data finale del range' : ripFrom && ripTo ? `📅 Range: ${ripFrom.slice(8, 10)}/${ripFrom.slice(5, 7)} → ${ripTo.slice(8, 10)}/${ripTo.slice(5, 7)}` : '📅 Tocca la data iniziale del range'}
                             </Text>
                             <MiniMonthCalendar
-                              selectedDates={ripFrom ? [ripFrom] : []}
-                              onToggleDate={(iso) => updateVoce(idx, 'ripFrom', ripFrom === iso ? '' : iso)}
+                              selectedDates={[]}
+                              onToggleDate={() => {}}
+                              rangeMode
+                              rangeFrom={ripFrom}
+                              rangeTo={ripTo}
+                              onRangeChange={(from, to) => {
+                                updateVoce(idx, 'ripFrom', from);
+                                updateVoce(idx, 'ripTo', to);
+                              }}
                               themeColor="#7A5E9B"
                             />
-                            <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 }}>
-                              {t('suppliers.toDate')}
-                            </Text>
-                            <MiniMonthCalendar
-                              selectedDates={ripTo ? [ripTo] : []}
-                              onToggleDate={(iso) => updateVoce(idx, 'ripTo', ripTo === iso ? '' : iso)}
-                              themeColor="#16A085"
-                            />
                             {ripFrom && ripTo && (
-                              <Text style={{ fontSize: 10, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 6 }}>
+                              <Text style={{ fontSize: 11, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 8, fontWeight: '700' }}>
                                 {countMarketDays('custom', ripFrom, ripTo)} {countMarketDays('custom', ripFrom, ripTo) === 1 ? t('suppliers.market') : t('suppliers.markets')} in questo range
                               </Text>
                             )}

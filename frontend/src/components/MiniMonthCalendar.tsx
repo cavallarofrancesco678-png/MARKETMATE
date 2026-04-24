@@ -8,6 +8,11 @@ type Props = {
   highlightedDates?: string[]; // altre date da evidenziare (es. oggi, eventi configurati)
   themeColor?: string;
   mode?: 'toggle' | 'view'; // toggle = click per selezionare; view = solo visualizzazione
+  // ═══ RANGE MODE ═══
+  rangeMode?: boolean; // Se true, la selezione funziona come range (da/a)
+  rangeFrom?: string; // data inizio range (ISO)
+  rangeTo?: string;   // data fine range (ISO)
+  onRangeChange?: (from: string, to: string) => void;
 };
 
 const GIORNI = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -36,6 +41,7 @@ function buildGrid(year: number, month: number) {
 
 export const MiniMonthCalendar: React.FC<Props> = ({
   selectedDates, onToggleDate, highlightedDates = [], themeColor = '#D4AF37', mode = 'toggle',
+  rangeMode = false, rangeFrom = '', rangeTo = '', onRangeChange,
 }) => {
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -43,6 +49,34 @@ export const MiniMonthCalendar: React.FC<Props> = ({
   const grid = buildGrid(viewMonth.getFullYear(), viewMonth.getMonth());
   const selSet = new Set(selectedDates);
   const hlSet = new Set(highlightedDates);
+
+  // ═══ Range helpers ═══
+  const isInRange = (iso: string): boolean => {
+    if (!rangeMode || !rangeFrom || !rangeTo) return false;
+    return iso >= rangeFrom && iso <= rangeTo;
+  };
+  const isRangeStart = (iso: string): boolean => rangeMode && iso === rangeFrom;
+  const isRangeEnd = (iso: string): boolean => rangeMode && iso === rangeTo;
+
+  const handleRangeTap = (iso: string) => {
+    if (!onRangeChange) return;
+    // Logica: se nessun from → set from
+    // Se from ma non to → set to (se iso >= from) o resetta from
+    // Se entrambi → ricomincia
+    if (!rangeFrom) {
+      onRangeChange(iso, '');
+    } else if (rangeFrom && !rangeTo) {
+      if (iso < rangeFrom) {
+        // Nuovo inizio
+        onRangeChange(iso, '');
+      } else {
+        onRangeChange(rangeFrom, iso);
+      }
+    } else {
+      // Entrambi presenti, ricomincia
+      onRangeChange(iso, '');
+    }
+  };
 
   const prevMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1));
   const nextMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1));
@@ -73,28 +107,48 @@ export const MiniMonthCalendar: React.FC<Props> = ({
             if (!day) return <View key={di} style={s.cell} />;
             const date = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day);
             const iso = toIso(date);
-            const isSelected = selSet.has(iso);
+            const isSelected = !rangeMode && selSet.has(iso);
             const isHighlighted = hlSet.has(iso);
             const isToday = date.toDateString() === today.toDateString();
+            const inRange = isInRange(iso);
+            const isStart = isRangeStart(iso);
+            const isEnd = isRangeEnd(iso);
+            const isRangeEdge = isStart || isEnd;
+            // Stile cella
+            let cellStyle: any = null;
+            let txtStyle: any = null;
+            if (rangeMode) {
+              if (isRangeEdge) {
+                cellStyle = { backgroundColor: themeColor };
+                txtStyle = { color: '#FFF', fontWeight: '900' };
+              } else if (inRange) {
+                cellStyle = { backgroundColor: `${themeColor}55` };
+                txtStyle = { color: themeColor, fontWeight: '800' };
+              } else if (isToday) {
+                cellStyle = { borderWidth: 1, borderColor: themeColor };
+                txtStyle = { color: themeColor, fontWeight: '800' };
+              }
+            } else {
+              if (isSelected) {
+                cellStyle = { backgroundColor: themeColor };
+                txtStyle = { color: '#FFF', fontWeight: '900' };
+              } else if (isHighlighted) {
+                cellStyle = { backgroundColor: `${themeColor}33`, borderWidth: 1, borderColor: themeColor };
+                txtStyle = { color: themeColor, fontWeight: '800' };
+              } else if (isToday) {
+                cellStyle = { borderWidth: 1, borderColor: themeColor };
+                txtStyle = { color: themeColor, fontWeight: '800' };
+              }
+            }
             return (
               <TouchableOpacity
                 key={di}
-                style={[
-                  s.cell,
-                  isSelected && { backgroundColor: themeColor },
-                  !isSelected && isHighlighted && { backgroundColor: `${themeColor}33`, borderWidth: 1, borderColor: themeColor },
-                  !isSelected && !isHighlighted && isToday && { borderWidth: 1, borderColor: themeColor },
-                ]}
+                style={[s.cell, cellStyle]}
                 disabled={mode === 'view'}
-                onPress={() => onToggleDate(iso)}
+                onPress={() => rangeMode ? handleRangeTap(iso) : onToggleDate(iso)}
                 activeOpacity={0.6}
               >
-                <Text style={[
-                  s.dayTxt,
-                  isSelected && { color: '#FFF', fontWeight: '900' },
-                  !isSelected && isHighlighted && { color: themeColor, fontWeight: '800' },
-                  isToday && !isSelected && { color: themeColor, fontWeight: '800' },
-                ]}>
+                <Text style={[s.dayTxt, txtStyle]}>
                   {day}
                 </Text>
               </TouchableOpacity>
