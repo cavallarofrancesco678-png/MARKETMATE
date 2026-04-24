@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
+  Share as RNShare,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
@@ -549,43 +550,67 @@ export default function SettingsPage() {
         return;
       }
 
-      // Mobile (iOS/Android)
-      // Usa documentDirectory (persistente e scrivibile in modo affidabile)
-      const dirPath = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-      if (!dirPath) {
-        Alert.alert('Errore Export', 'Nessuna directory scrivibile disponibile sul dispositivo.');
-        return;
-      }
-      const filePath = `${dirPath}${fileName}`;
-      await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
-
-      // Verifica la scrittura
-      const info = await FileSystem.getInfoAsync(filePath);
-      if (!info.exists) {
-        Alert.alert('Errore Export', 'Il file non è stato creato correttamente.');
-        return;
-      }
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        try {
-          await Sharing.shareAsync(filePath, {
-            mimeType: 'application/json',
-            dialogTitle: `Esporta dati MarketMate (${sizeKB} KB)`,
-            UTI: 'public.json',
-          });
-          playSuccess();
-        } catch (shareErr: any) {
-          // Utente ha annullato o errore di share — il file comunque esiste
-          Alert.alert(
-            'File salvato',
-            `File creato: ${fileName}\n(${sizeKB} KB)\n\nPercorso: ${filePath}\n\nCondivisione annullata o non completata.`,
-          );
+      // Mobile (iOS/Android): strategia a 3 livelli
+      // 1. Salva file in documentDirectory
+      // 2. Usa expo-sharing se disponibile (miglior UX)
+      // 3. Fallback: React Native Share con il JSON inline
+      let fileWritten = false;
+      let filePath = '';
+      try {
+        const dirPath = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+        if (dirPath) {
+          filePath = `${dirPath}${fileName}`;
+          await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
+          const info = await FileSystem.getInfoAsync(filePath);
+          fileWritten = !!info.exists;
         }
-      } else {
+      } catch (writeErr) {
+        console.warn('FileSystem write failed:', writeErr);
+      }
+
+      // Prova expo-sharing (condivide il file)
+      let sharingOk = false;
+      if (fileWritten) {
+        try {
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(filePath, {
+              mimeType: 'application/json',
+              dialogTitle: `Esporta dati MarketMate (${sizeKB} KB)`,
+              UTI: 'public.json',
+            });
+            sharingOk = true;
+            playSuccess();
+          }
+        } catch (shareErr) {
+          console.warn('Sharing failed:', shareErr);
+        }
+      }
+
+      // Fallback: usa React Native Share (condivide il testo JSON)
+      if (!sharingOk) {
+        try {
+          const result = await RNShare.share({
+            message: json,
+            title: fileName,
+          }, {
+            dialogTitle: `Esporta dati MarketMate (${sizeKB} KB)`,
+          });
+          if (result.action !== RNShare.dismissedAction) {
+            playSuccess();
+            sharingOk = true;
+          }
+        } catch (rnShareErr) {
+          console.warn('RNShare failed:', rnShareErr);
+        }
+      }
+
+      if (!sharingOk) {
         Alert.alert(
-          'File salvato',
-          `File creato: ${fileName}\n(${sizeKB} KB)\n\nPercorso: ${filePath}\n\nCondivisione non disponibile su questo dispositivo.`,
+          fileWritten ? 'File salvato' : 'Export',
+          fileWritten
+            ? `File creato:\n${fileName}\n(${sizeKB} KB)\n\nPercorso:\n${filePath}\n\nLa condivisione è stata annullata o non è disponibile.`
+            : `Impossibile salvare il file. Dimensione dati: ${sizeKB} KB. Riprova o controlla lo spazio disponibile.`,
         );
       }
     } catch (err: any) {

@@ -128,24 +128,30 @@ export default function HomeScreen() {
     return new Date() <= endOfNextDay;
   };
 
-  // On mount: restore session if still valid
+  // On mount/hydration: restore session if still valid
   const speseExtraMountedRef = useRef(false);
+  const speseExtraSessionFromStore = (store as any).speseExtraSession;
   useEffect(() => {
     if (speseExtraMountedRef.current) return;
-    speseExtraMountedRef.current = true;
-    const stored = (store as any).speseExtraSession;
-    if (stored && isSpeseSessionValid(stored.createdAt)) {
-      setSpeseExtraFornitore(stored.speseExtraFornitore || {});
-      setVociGeneriche(stored.vociGeneriche || []);
-      setFornInfo(stored.fornInfo || {});
-      setPagamentoMode(stored.pagamentoMode || {});
-      setRipartizione(stored.ripartizione || {});
-    } else if (stored) {
-      // Scaduta — ripulisci
-      (store as any).clearSpeseExtraSession?.();
+    // Attendi che il store abbia finito di caricare: aspetta almeno che isConfigured o agenda siano popolati
+    // (se speseExtraSession è null ma il render è il primo, potrebbe essere perché lo store non è ancora idratato)
+    const stored = speseExtraSessionFromStore;
+    if (stored !== undefined && stored !== null) {
+      if (isSpeseSessionValid(stored.createdAt)) {
+        setSpeseExtraFornitore(stored.speseExtraFornitore || {});
+        setVociGeneriche(stored.vociGeneriche || []);
+        setFornInfo(stored.fornInfo || {});
+        setPagamentoMode(stored.pagamentoMode || {});
+        setRipartizione(stored.ripartizione || {});
+      } else {
+        // Scaduta — ripulisci
+        (store as any).clearSpeseExtraSession?.();
+      }
+      speseExtraMountedRef.current = true;
     }
+    // Se stored === null/undefined, aspettiamo il prossimo render (il dep cambierà)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [speseExtraSessionFromStore]);
 
   // Persist changes (debounced)
   const speseExtraSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -567,14 +573,19 @@ export default function HomeScreen() {
       if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
       const start = from <= to ? from : to;
       const end = from <= to ? to : from;
-      let count = 0;
+      let mercatoCount = 0;
+      let totalDays = 0;
       const cur = new Date(start);
       while (cur <= end) {
         const dow = (cur.getDay() + 6) % 7;
-        if (agenda?.[dow]?.lavorativo) count++;
+        const g = agenda?.[dow];
+        if (g && (g.lavorativo === true || (g.mercato && String(g.mercato).trim() !== ''))) {
+          mercatoCount++;
+        }
+        totalDays++;
         cur.setDate(cur.getDate() + 1);
       }
-      return Math.max(1, count);
+      return Math.max(1, mercatoCount > 0 ? mercatoCount : totalDays);
     };
     let tot = 0;
     vociGeneriche.forEach((v: any) => {
@@ -672,14 +683,19 @@ export default function HomeScreen() {
       if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
       const start = from <= to ? from : to;
       const end = from <= to ? to : from;
-      let count = 0;
+      let mercatoCount = 0;
+      let totalDays = 0;
       const cur = new Date(start);
       while (cur <= end) {
         const dow = (cur.getDay() + 6) % 7;
-        if (agenda?.[dow]?.lavorativo) count++;
+        const g = agenda?.[dow];
+        if (g && (g.lavorativo === true || (g.mercato && String(g.mercato).trim() !== ''))) {
+          mercatoCount++;
+        }
+        totalDays++;
         cur.setDate(cur.getDate() + 1);
       }
-      return Math.max(1, count);
+      return Math.max(1, mercatoCount > 0 ? mercatoCount : totalDays);
     };
 
     // Build dettaglio_fornitori con ripartizione costo su giorni mercato

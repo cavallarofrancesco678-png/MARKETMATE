@@ -82,7 +82,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
   // Stato calendario ripartizione
   const [ripartPickerFor, setRipartPickerFor] = useState<string | null>(null);
 
-  // Calcola i giorni di mercato (lavorativi) nei prossimi N giorni
+  // Calcola i giorni di mercato nel range (lavorativo OR con mercato configurato)
   const GIORNI_ORDER = ['LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO', 'DOMENICA'];
   const countMarketDays = (modo: 'oggi' | 'custom', fromIso: string, toIso: string): number => {
     if (modo === 'oggi') return 1;
@@ -92,14 +92,22 @@ export const SpeseExtraModal: React.FC<Props> = ({
     if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
     const start = from <= to ? from : to;
     const end = from <= to ? to : from;
-    let count = 0;
+    let mercatoCount = 0;
+    let totalDays = 0;
     const cur = new Date(start);
     while (cur <= end) {
       const dow = (cur.getDay() + 6) % 7;
-      if (agenda?.[dow]?.lavorativo) count++;
+      const g = agenda?.[dow];
+      // Un giorno è "di mercato" se: lavorativo=true OPPURE mercato è impostato (non vuoto)
+      if (g && (g.lavorativo === true || (g.mercato && String(g.mercato).trim() !== ''))) {
+        mercatoCount++;
+      }
+      totalDays++;
       cur.setDate(cur.getDate() + 1);
     }
-    return Math.max(1, count);
+    // Se ci sono giorni mercato nel range, usa quelli.
+    // Altrimenti fallback ai giorni di calendario (più utile che '1').
+    return Math.max(1, mercatoCount > 0 ? mercatoCount : totalDays);
   };
 
   // Expansion states (fornitori + voci generiche - a pacchetto)
