@@ -530,6 +530,12 @@ async def get_weather(req: WeatherRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
+# ═══ AUTH & MULTI-USER + SYNC ═══
+from auth_module import auth_router, sync_router, init_auth_db
+init_auth_db(db)
+app.include_router(auth_router)
+app.include_router(sync_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

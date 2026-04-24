@@ -102,7 +102,20 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Comprehensive frontend E2E test of MarketMate app after multiple bug fixes and feature additions. Test all recent changes: NOTES overhaul, range picker unified, Spese Extra persistence, divisione mercati fix, Export/Import dati, Buongiorno AI proactive, auto-weather icon."
+backend:
+  - task: "Auth + Multi-user module (/api/auth/*)"
+    implemented: true
+    working: true
+    file: "backend/auth_module.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Complete auth system: register/login (JWT, bcrypt), invite codes (8-char, unique), role-based (owner/full/operativo), max 2 collaborators per owner. Sync endpoints /api/sync/push and /api/sync/pull with operativo role restrictions (can only push journal fields, not config). Verified end-to-end via curl + playwright: register OK, login OK, create_invite OK, redeem_invite OK, list_collaborators OK, sync push/pull OK. JWT_SECRET_KEY generated in backend/.env. MongoDB collections: users (indexed on email), invite_codes (indexed on code+owner), account_data (per-account data blob)."
+
+user_problem_statement: "Phase 1 of monetization prep: Multi-user auth system (email/password). Goal: account cloud + up to 3 persons (1 owner + 2 collaborators with role operativo|full). OPTION 2 from roadmap ACTIVE — subscription/paywall is NOT active yet (SUBSCRIPTION_ENABLED=false feature flag)."
 
 frontend:
   - task: "NOTES page overhaul (renamed from 'Ordini e Appuntamenti')"

@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../src/i18n';
 import { useAppStore } from '../src/store/appStore';
+import { useAuthStore } from '../src/store/authStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,28 +18,31 @@ export default function RootLayout() {
   });
   const [storageHydrated, setStorageHydrated] = useState(false);
   const loadFromStorage = useAppStore((s) => s.loadFromStorage);
+  const authHydrate = useAuthStore((s) => s.hydrate);
+  const authHydrated = useAuthStore((s) => s.isHydrated);
 
   const onLayoutReady = useCallback(async () => {
-    if (fontsLoaded && storageHydrated) {
+    if (fontsLoaded && storageHydrated && authHydrated) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, storageHydrated]);
+  }, [fontsLoaded, storageHydrated, authHydrated]);
 
   // ═══ IDRATA LO STORE AL PRIMO RENDER (necessario per F5 su /home, /home/stats ecc.) ═══
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try { await loadFromStorage(); } catch (e) { console.warn('loadFromStorage failed', e); }
+      try { await authHydrate(); } catch (e) { console.warn('auth hydrate failed', e); }
       if (!cancelled) setStorageHydrated(true);
     })();
     return () => { cancelled = true; };
-  }, [loadFromStorage]);
+  }, [loadFromStorage, authHydrate]);
 
   useEffect(() => {
     onLayoutReady();
   }, [onLayoutReady]);
 
-  if (!fontsLoaded || !storageHydrated) return null;
+  if (!fontsLoaded || !storageHydrated || !authHydrated) return null;
 
   return (
     <SafeAreaProvider>
@@ -47,6 +51,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="home" />
+        <Stack.Screen name="auth/index" options={{ presentation: 'modal' }} />
       </Stack>
     </SafeAreaProvider>
   );

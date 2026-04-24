@@ -23,6 +23,79 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
+import { useAuthStore } from '../../src/store/authStore';
+import { router } from 'expo-router';
+
+// ═══════════════════════════════════════════════════════════════
+// AccountSection — Login/Register/Multi-user entrypoint
+// ═══════════════════════════════════════════════════════════════
+function AccountSection() {
+  const { user, isAuthenticated, logout } = useAuthStore();
+  if (!isAuthenticated) {
+    return (
+      <View style={[s.card, { marginTop: 20 }]}>
+        <View style={s.sectionHeader}>
+          <Ionicons name="cloud-outline" size={20} color="#1E7F85" />
+          <Text style={s.sectionTitle}>ACCOUNT & COLLABORATORI</Text>
+        </View>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 10, lineHeight: 16 }}>
+          Crea un account cloud per sincronizzare i dati su più dispositivi e invitare fino a 2 collaboratori (totale 3 persone).
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onPress={() => router.push('/auth')}
+        >
+          <Ionicons name="person-add" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>ABILITA ACCOUNT CLOUD</Text>
+        </TouchableOpacity>
+        <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>
+          Opzionale. Puoi continuare a usare l'app anche senza account.
+        </Text>
+      </View>
+    );
+  }
+  const isOwner = user?.role === 'owner';
+  return (
+    <View style={[s.card, { marginTop: 20 }]}>
+      <View style={s.sectionHeader}>
+        <Ionicons name="cloud-done" size={20} color="#1E7F85" />
+        <Text style={s.sectionTitle}>ACCOUNT CLOUD</Text>
+      </View>
+      <View style={{ backgroundColor: '#E3F5EF', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+        <Text style={{ fontSize: 13, fontWeight: '900', color: '#1E7F85' }}>{user?.email}</Text>
+        <Text style={{ fontSize: 11, color: '#5A7575', marginTop: 2 }}>
+          Ruolo: {user?.role === 'owner' ? 'TITOLARE' : user?.role === 'full' ? 'COLLABORATORE FULL' : 'COLLABORATORE OPERATIVO'}
+        </Text>
+      </View>
+      {isOwner && (
+        <TouchableOpacity
+          style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}
+          onPress={() => router.push('/home/collaborators')}
+        >
+          <Ionicons name="people" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>GESTISCI COLLABORATORI</Text>
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity
+        style={{ backgroundColor: '#F5EFDC', borderRadius: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#D46A6A' }}
+        onPress={() => {
+          if (Platform.OS === 'web') {
+            if (window.confirm('Uscire dall\'account? I dati locali sul dispositivo restano, ma non saranno più sincronizzati.')) logout();
+          } else {
+            Alert.alert('Esci dall\'account', 'I dati locali restano, ma non saranno più sincronizzati.', [
+              { text: 'Annulla', style: 'cancel' },
+              { text: 'Esci', style: 'destructive', onPress: () => logout() },
+            ]);
+          }
+        }}
+      >
+        <Ionicons name="log-out" size={18} color="#D46A6A" />
+        <Text style={{ color: '#D46A6A', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>ESCI DALL'ACCOUNT</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FiereRicorrentiSection } from '../../src/components/FiereRicorrentiSection';
 import * as DocumentPicker from 'expo-document-picker';
@@ -1310,6 +1383,9 @@ export default function SettingsPage() {
           {t('settings.fullResetDesc') || 'Elimina TUTTO: mercati, fornitori, collaboratori, impostazioni. Ripristina lo stato di fabbrica.'}
         </Text>
       </View>
+
+      {/* ─── ACCOUNT & COLLABORATORI ─── */}
+      <AccountSection />
 
       {/* ─── EXPORT DATI ─── */}
       <View style={[s.card, { marginTop: 20 }]}>
