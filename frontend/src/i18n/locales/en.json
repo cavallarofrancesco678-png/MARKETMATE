@@ -444,7 +444,8 @@
       "progress": "Step {{current}} of {{total}}",
       "letsgo": "Let's go!",
       "finish": "Done!",
-      "save": "Save"
+      "save": "Save",
+      "restartDesc": "Relaunch the step-by-step interactive guide to review all app features."
     },
     "steps": {
       "welcome": {

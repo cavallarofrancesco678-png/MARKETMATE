@@ -42,12 +42,13 @@ export const TutorialOverlay: React.FC = () => {
   const setFieldValue = (val: string) => {
     if (!step) return;
     if (step.type === 'input' && step.field) {
-      // Salva LIVE nello appStore. Il store chiamerà saveToStorage internamente.
-      const setter = (appStore as any).setField || null;
-      if (setter) setter(step.field, val);
-      else (useAppStore.setState as any)({ [step.field]: val });
-      // Trigger save (the store save is debounced by zustand pattern)
-      if (appStore.saveToStorage) appStore.saveToStorage();
+      // Salva LIVE nello appStore tramite setConfig (persiste automaticamente)
+      if (appStore.setConfig) {
+        appStore.setConfig({ [step.field]: val } as any);
+      } else {
+        (useAppStore.setState as any)({ [step.field]: val });
+        if (appStore.saveToStorage) appStore.saveToStorage();
+      }
     } else if (step.sampleField === 'lordo') {
       setSampleLordo(val);
     } else if (step.sampleField === 'scontrini') {
@@ -62,8 +63,12 @@ export const TutorialOverlay: React.FC = () => {
 
   const setSelectValue = (val: string) => {
     if (!step || step.type !== 'select' || !step.field) return;
-    (useAppStore.setState as any)({ [step.field]: val });
-    if (appStore.saveToStorage) appStore.saveToStorage();
+    if (appStore.setConfig) {
+      appStore.setConfig({ [step.field]: val } as any);
+    } else {
+      (useAppStore.setState as any)({ [step.field]: val });
+      if (appStore.saveToStorage) appStore.saveToStorage();
+    }
   };
 
   if (!active || !step) return null;

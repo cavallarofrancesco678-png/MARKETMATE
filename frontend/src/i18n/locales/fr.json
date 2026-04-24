@@ -442,7 +442,8 @@
       "progress": "Étape {{current}} sur {{total}}",
       "letsgo": "C'est parti !",
       "finish": "Terminé !",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "restartDesc": "Relancez le guide interactif étape par étape pour revoir toutes les fonctions de l'application."
     },
     "steps": {
       "welcome": {

@@ -14,7 +14,7 @@ import {
   StatusBar,
   Share as RNShare,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
 import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../../src/store/authStore';
+import { useTutorialStore } from '../../src/store/tutorialStore';
 import { router } from 'expo-router';
 
 // ═══════════════════════════════════════════════════════════════
@@ -315,6 +316,7 @@ const InputModal = ({
 export default function SettingsPage() {
   const store = useAppStore();
   const { t, i18n } = useTranslation();
+  const tutStart = useTutorialStore((s) => s.start);
   const safeInsets = useSafeAreaInsets();
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
 
@@ -1409,6 +1411,28 @@ export default function SettingsPage() {
         >
           <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
           <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>IMPORTA DATI</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ─── RIAVVIA TUTORIAL ─── */}
+      <View style={[s.card, { marginTop: 20 }]}>
+        <View style={s.sectionHeader}>
+          <MaterialCommunityIcons name="school" size={20} color="#1E7F85" />
+          <Text style={s.sectionTitle}>{(t('tutorial.common.restart') || 'Riavvia la guida').toUpperCase()}</Text>
+        </View>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12 }}>
+          {t('tutorial.common.restartDesc') || 'Rilancia la guida interattiva passo-passo per rivedere tutte le funzioni dell\'app.'}
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onPress={() => tutStart()}
+          activeOpacity={0.8}
+          testID="restart-tutorial-btn"
+        >
+          <MaterialCommunityIcons name="rocket-launch" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>
+            {(t('tutorial.common.restart') || 'Riavvia la guida').toUpperCase()}
+          </Text>
         </TouchableOpacity>
       </View>
 

@@ -442,7 +442,8 @@
       "progress": "Schritt {{current}} von {{total}}",
       "letsgo": "Los geht's!",
       "finish": "Fertig!",
-      "save": "Speichern"
+      "save": "Speichern",
+      "restartDesc": "Starten Sie die schrittweise interaktive Anleitung neu, um alle App-Funktionen zu überprüfen."
     },
     "steps": {
       "welcome": {

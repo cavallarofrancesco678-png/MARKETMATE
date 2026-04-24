@@ -444,7 +444,8 @@
       "progress": "Passo {{current}} di {{total}}",
       "letsgo": "Iniziamo!",
       "finish": "Finito!",
-      "save": "Salva"
+      "save": "Salva",
+      "restartDesc": "Rilancia la guida interattiva passo-passo per rivedere tutte le funzioni dell'app."
     },
     "steps": {
       "welcome": {
