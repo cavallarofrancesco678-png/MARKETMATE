@@ -107,11 +107,11 @@ user_problem_statement: "Comprehensive frontend E2E test of MarketMate app after
 frontend:
   - task: "NOTES page overhaul (renamed from 'Ordini e Appuntamenti')"
     implemented: true
-    working: false
+    working: true
     file: "frontend/app/home/agenda.tsx"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
@@ -143,7 +143,7 @@ frontend:
 
   - task: "Spese Extra persistence (until 23:59 next day)"
     implemented: true
-    working: false
+    working: true
     file: "frontend/src/store/appStore.ts, frontend/app/home/index.tsx"
     stuck_count: 1
     priority: "high"
@@ -194,7 +194,7 @@ frontend:
 
   - task: "Buongiorno AI proactive with historical data"
     implemented: true
-    working: false
+    working: true
     file: "frontend/src/components/BuongiornoModal.tsx"
     stuck_count: 1
     priority: "high"
@@ -322,14 +322,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "NOTES page overhaul (renamed from 'Ordini e Appuntamenti')"
-    - "Range Picker unified (OGGI | PERSONALIZZA)"
-    - "Spese Extra persistence (until 23:59 next day)"
-    - "Divisione costo mercati (countMarketDays fix)"
-    - "Export/Import dati in Settings"
-    - "Buongiorno AI proactive with historical data"
-    - "Auto weather icon selection"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

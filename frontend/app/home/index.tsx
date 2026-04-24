@@ -456,9 +456,10 @@ export default function HomeScreen() {
   /* ── All products from all fornitori ── */
   const tuttiProdotti = useMemo(() => {
     const prods: { fornitore: string; nome: string; prezzo: number }[] = [];
-    (fornitori || []).forEach((f) => {
-      f.prodotti.forEach((p) => {
-        prods.push({ fornitore: f.nome, nome: p.nome, prezzo: p.prezzo });
+    (fornitori || []).forEach((f: any) => {
+      (f?.prodotti || []).forEach((p: any) => {
+        if (!p) return;
+        prods.push({ fornitore: f.nome || '', nome: p.nome || '', prezzo: Number(p.prezzo) || 0 });
       });
     });
     return prods;
@@ -489,12 +490,13 @@ export default function HomeScreen() {
 
   /* ── Build itemized spese fisse list ── */
   const speseFisseItems = useMemo(() => {
-    const gg = agenda.filter((m) => m.lavorativo).length || 6;
+    const gg = (Array.isArray(agenda) ? agenda : []).filter((m: any) => m?.lavorativo).length || 6;
     const items: { id: string; label: string; importoGG: number }[] = [];
 
     // Annual expenses → divided by working days (48 weeks × workdays/week)
-    speseAnnue.forEach((sp) => {
-      items.push({ id: `sp_${sp.voce}`, label: sp.voce, importoGG: sp.importo / (48 * gg) });
+    (speseAnnue || []).forEach((sp: any) => {
+      if (!sp) return;
+      items.push({ id: `sp_${sp.voce}`, label: sp.voce || '', importoGG: (Number(sp.importo) || 0) / (48 * gg) });
     });
 
     // Plateatico for ALL markets → use p_giornaliero directly when available
