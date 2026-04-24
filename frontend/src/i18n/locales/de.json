@@ -336,7 +336,7 @@
     "upcoming": "NÄCHSTE GESPEICHERTE TERMINE",
     "noAppointments": "Keine Bestellungen oder Termine geplant.",
     "allNotes": "ALLE NOTIZEN",
-    "noNotes": "Keine Notizen gespeichert.",
+    "noNotes": "Keine Notizen gespeichert",
     "deleteNote": "Diese Notiz löschen?",
     "noteSaved": "Notiz gespeichert!",
     "enterText": "Text eingeben",
@@ -352,7 +352,7 @@
     "noteSavedArchive": "Notiz im Archiv gespeichert",
     "enterAppointmentDetail": "Termindetail eingeben",
     "appointmentSavedToday": "Termin für heute gespeichert",
-    "ordersAndAppointments": "BESTELLUNGEN UND TERMINE",
+    "ordersAndAppointments": "NOTES",
     "commitmentDetails": "TERMINDETAILS",
     "describeOrder": "Bestellung oder Termin beschreiben...",
     "close": "SCHLIESSEN",
@@ -363,7 +363,12 @@
     "notePlaceholder": "Notiz schreiben...",
     "saveNote": "NOTIZ SPEICHERN",
     "archive": "ARCHIV",
-    "noteArchive": "NOTIZEN-ARCHIV"
+    "noteArchive": "NOTIZEN-ARCHIV",
+    "tabNotes": "Notizen",
+    "tabFiere": "Messen",
+    "tabFatture": "Rechnungen",
+    "noFiere": "Keine Messen geplant",
+    "noFatture": "Keine fälligen Rechnungen"
   },
   "modals": {
     "market": "MESSE / MARKT",

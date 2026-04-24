@@ -626,8 +626,12 @@ export default function SettingsPage() {
       if (Array.isArray(data.speseExtraTags)) updates.speseExtraTags = data.speseExtraTags;
       if (Array.isArray(data.storicoGiornate)) updates.storicoGiornate = data.storicoGiornate;
       if (Array.isArray(data.storicoCarburante)) updates.storicoCarburante = data.storicoCarburante;
-      if (Array.isArray(data.impegni)) updates.impegni = data.impegni;
-      if (Array.isArray(data.appuntiGiornalieri)) updates.appuntiGiornalieri = data.appuntiGiornalieri;
+      if (Array.isArray(data.appuntiAgenda)) updates.appuntiAgenda = data.appuntiAgenda;
+      if (Array.isArray(data.ordiniAgenda)) updates.ordiniAgenda = data.ordiniAgenda;
+      if (Array.isArray(data.storicoDiario)) updates.storicoDiario = data.storicoDiario;
+      // Retrocompatibilità: chiavi vecchie
+      if (Array.isArray(data.impegni) && !Array.isArray(data.appuntiAgenda)) updates.appuntiAgenda = data.impegni;
+      if (Array.isArray(data.appuntiGiornalieri) && !Array.isArray(data.storicoDiario)) updates.storicoDiario = data.appuntiGiornalieri;
       if (data.partenzaDa !== undefined) updates.partenzaDa = data.partenzaDa;
       if (typeof data.costoPerKm === 'number') updates.costoPerKm = data.costoPerKm;
       if (data.tipoCarburante !== undefined) updates.tipoCarburante = data.tipoCarburante;

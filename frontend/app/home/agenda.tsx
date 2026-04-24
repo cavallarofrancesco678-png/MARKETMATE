@@ -26,7 +26,7 @@ export default function AgendaScreen() {
   const {
     appuntiAgenda, addAppunto, removeAppunto,
     ordiniAgenda, addOrdine, removeOrdine,
-    storicoDiario, addDiario, getDiarioForDate,
+    storicoDiario, addDiario, removeDiario, getDiarioForDate,
   } = useAppStore();
   const store = useAppStore();
   const insets = useSafeAreaInsets();
@@ -49,6 +49,7 @@ export default function AgendaScreen() {
   // ═══ NOTE DEL GIORNO ═══
   const [noteText, setNoteText] = useState('');
   const [showArchive, setShowArchive] = useState(false);
+  const [archiveTab, setArchiveTab] = useState<'note' | 'fiere' | 'fatture'>('note');
 
   // Carica nota di oggi
   React.useEffect(() => {
@@ -161,8 +162,73 @@ export default function AgendaScreen() {
     return (storicoDiario || [])
       .map(d => ({ ...d, data: new Date(d.data) }))
       .sort((a, b) => b.data.getTime() - a.data.getTime())
-      .slice(0, 15);
+      .slice(0, 30);
   }, [storicoDiario]);
+
+  /* ═══ ARCHIVIO FIERE (prossime + ricorrenti attive) ═══ */
+  const fiereArchive = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const arr: { id: string; nome: string; luogo: string; tipologia: string; next?: Date; ricorrente?: boolean }[] = [];
+    (store.fiere || []).forEach((f: any) => {
+      if (!f.attiva) return;
+      // Calcola la prossima data utile (dateSpecifiche + ricorrenti nei prossimi 90 giorni)
+      const datesSpec = (f.dateSpecifiche || [])
+        .map((iso: string) => new Date(iso + 'T12:00:00'))
+        .filter((d: Date) => !isNaN(d.getTime()) && d >= now);
+      let nextDate: Date | undefined = datesSpec.sort((a: Date, b: Date) => a.getTime() - b.getTime())[0];
+
+      // Se ha giorni ricorrenti, trova il prossimo tra 7 giorni
+      if ((f.giorni || []).length > 0) {
+        for (let i = 0; i < 90; i++) {
+          const cur = new Date(now);
+          cur.setDate(cur.getDate() + i);
+          const dow = (cur.getDay() + 6) % 7;
+          if (f.giorni.includes(dow)) {
+            if (!nextDate || cur < nextDate) nextDate = cur;
+            break;
+          }
+        }
+      }
+      arr.push({
+        id: f.id,
+        nome: f.nome,
+        luogo: f.luogo || '',
+        tipologia: f.tipologia || 'Fiera',
+        next: nextDate,
+        ricorrente: (f.giorni || []).length > 0,
+      });
+    });
+    return arr.sort((a, b) => (a.next?.getTime() || Infinity) - (b.next?.getTime() || Infinity));
+  }, [store.fiere]);
+
+  /* ═══ ARCHIVIO FATTURE (estratte da ordiniAgenda, pattern "Fornitore ... – Fatt. XXX – €NN") ═══ */
+  const fattureArchive = useMemo(() => {
+    const today0 = new Date();
+    today0.setHours(0, 0, 0, 0);
+    const items: { id: string; data: Date; fornitore: string; numero: string; importo: string; overdue: boolean; testo: string }[] = [];
+    (ordiniAgenda || []).forEach((o: any) => {
+      const txt = o.testo || '';
+      // Matches: "FORNITORE – Fatt. NUM – €AMT"  o senza numero "FORNITORE – €AMT"
+      const mFull = txt.match(/^(.+?)\s+[–-]\s+Fatt\.\s+([^\s–-]+)\s+[–-]\s+€?([\d.,]+)/i);
+      const mSimple = !mFull && txt.match(/^(.+?)\s+[–-]\s+€([\d.,]+)/);
+      if (!mFull && !mSimple) return;
+      const fornitore = (mFull ? mFull[1] : mSimple![1]).trim();
+      const numero = mFull ? mFull[2] : '';
+      const importo = (mFull ? mFull[3] : mSimple![2]).replace(',', '.');
+      const dd = new Date(o.data);
+      items.push({
+        id: `${o.data}_${txt}`,
+        data: dd,
+        fornitore,
+        numero,
+        importo,
+        overdue: dd < today0,
+        testo: txt,
+      });
+    });
+    return items.sort((a, b) => a.data.getTime() - b.data.getTime());
+  }, [ordiniAgenda]);
 
   const today = new Date();
   /* ═══ GIORNI LAVORATI NEL MESE (dal storico giornate) ═══ */
@@ -313,7 +379,7 @@ export default function AgendaScreen() {
   return (
     <View style={[s.root, { height: contentH, paddingTop: topPad }]}>
       {/* ═══ TITOLO ═══ */}
-      <Text style={s.pageTitle}>{t('agenda.ordersAndAppointments') || 'ORDINI E APPUNTAMENTI'}</Text>
+      <Text style={s.pageTitle}>{t('agenda.ordersAndAppointments') || 'NOTES'}</Text>
 
       {/* ═══ CALENDARIO (sempre visibile) ═══ */}
       <View style={s.calCard}>
@@ -453,20 +519,149 @@ export default function AgendaScreen() {
           <Ionicons name={showArchive ? 'chevron-up' : 'chevron-down'} size={14} color="#7A9090" />
         </TouchableOpacity>
         {showArchive && (
-          <View style={s.archiveList}>
-            {noteArchive.length === 0 ? (
-              <Text style={s.archiveEmpty}>Nessuna nota salvata</Text>
-            ) : (
-              noteArchive.map((n, i) => (
-                <View key={i} style={s.archiveItem}>
-                  <Text style={s.archiveDate}>
-                    {n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
-                  </Text>
-                  <Text style={s.archiveTxt} numberOfLines={2}>{n.testo}</Text>
-                </View>
-              ))
+          <>
+            {/* ═══ TABS: Note | Fiere | Fatture ═══ */}
+            <View style={s.archiveTabs}>
+              {([
+                { key: 'note' as const, icon: 'document-text' as const, label: t('agenda.tabNotes') || 'Note', color: '#E8A060', count: noteArchive.length },
+                { key: 'fiere' as const, icon: 'star' as const, label: t('agenda.tabFiere') || 'Fiere', color: '#D4AF37', count: fiereArchive.length },
+                { key: 'fatture' as const, icon: 'receipt' as const, label: t('agenda.tabFatture') || 'Fatture', color: '#B08050', count: fattureArchive.length },
+              ]).map((tab) => {
+                const on = archiveTab === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[s.archiveTab, on && { backgroundColor: tab.color, borderColor: tab.color }]}
+                    onPress={() => setArchiveTab(tab.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name={tab.icon} size={12} color={on ? '#FFF' : tab.color} />
+                    <Text style={[s.archiveTabTxt, on && { color: '#FFF' }]}>{tab.label}</Text>
+                    {tab.count > 0 && (
+                      <View style={[s.archiveBadge, { backgroundColor: on ? '#FFF' : tab.color }]}>
+                        <Text style={[s.archiveBadgeTxt, { color: on ? tab.color : '#FFF' }]}>{tab.count}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* ═══ TAB: NOTE ═══ */}
+            {archiveTab === 'note' && (
+              <View style={s.archiveList}>
+                {noteArchive.length === 0 ? (
+                  <Text style={s.archiveEmpty}>{t('agenda.noNotes') || 'Nessuna nota salvata'}</Text>
+                ) : (
+                  noteArchive.map((n, i) => (
+                    <View key={i} style={s.archiveItem}>
+                      <Text style={s.archiveDate}>
+                        {n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
+                      </Text>
+                      <Text style={s.archiveTxt} numberOfLines={2}>{n.testo}</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          removeDiario(n.data);
+                          // Se era oggi, pulisci il campo note
+                          const today = new Date();
+                          if (n.data.toDateString() === today.toDateString()) setNoteText('');
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{ padding: 2 }}
+                      >
+                        <Ionicons name="close-circle" size={18} color="#D46A6A" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
             )}
-          </View>
+
+            {/* ═══ TAB: FIERE ═══ */}
+            {archiveTab === 'fiere' && (
+              <View style={s.archiveList}>
+                {fiereArchive.length === 0 ? (
+                  <Text style={s.archiveEmpty}>{t('agenda.noFiere') || 'Nessuna fiera in programma'}</Text>
+                ) : (
+                  fiereArchive.map((f, i) => {
+                    const col = getTipologiaColor(f.tipologia);
+                    return (
+                      <View key={f.id + i} style={s.archiveItem}>
+                        <View style={{ backgroundColor: col, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
+                            {f.next ? `${f.next.getDate()} ${MESI[f.next.getMonth()].substring(0, 3)}` : (f.ricorrente ? 'RIC.' : '—')}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.archiveTxt, { color: col }]} numberOfLines={1}>{f.nome}</Text>
+                          {f.luogo ? (
+                            <Text style={{ fontSize: 9, color: '#7A9090', fontWeight: '600' }}>{f.luogo}</Text>
+                          ) : null}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (Platform.OS === 'web') {
+                              if (window.confirm(`Eliminare la fiera "${f.nome}"?`)) store.removeFiera(f.id);
+                            } else {
+                              Alert.alert(
+                                'Elimina fiera',
+                                `Eliminare "${f.nome}"?`,
+                                [
+                                  { text: 'Annulla', style: 'cancel' },
+                                  { text: 'Elimina', style: 'destructive', onPress: () => store.removeFiera(f.id) },
+                                ],
+                              );
+                            }
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{ padding: 2 }}
+                        >
+                          <Ionicons name="close-circle" size={18} color="#D46A6A" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            )}
+
+            {/* ═══ TAB: FATTURE ═══ */}
+            {archiveTab === 'fatture' && (
+              <View style={s.archiveList}>
+                {fattureArchive.length === 0 ? (
+                  <Text style={s.archiveEmpty}>{t('agenda.noFatture') || 'Nessuna fattura in scadenza'}</Text>
+                ) : (
+                  fattureArchive.map((ft, i) => {
+                    const color = ft.overdue ? '#D46A6A' : '#B08050';
+                    return (
+                      <View key={ft.id + i} style={s.archiveItem}>
+                        <View style={{ backgroundColor: color, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
+                            {ft.data.getDate()} {MESI[ft.data.getMonth()].substring(0, 3)}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.archiveTxt, { color: '#1A4040' }]} numberOfLines={1}>
+                            {ft.fornitore}{ft.numero ? ` • Fatt. ${ft.numero}` : ''}
+                          </Text>
+                          <Text style={{ fontSize: 10, color, fontWeight: '900' }}>
+                            €{parseFloat(ft.importo).toFixed(0)}{ft.overdue ? ' · SCADUTA' : ''}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => removeOrdine(ft.data, ft.testo)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{ padding: 2 }}
+                        >
+                          <Ionicons name="close-circle" size={18} color="#D46A6A" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            )}
+          </>
         )}
       </View>
 
@@ -740,6 +935,7 @@ const s = StyleSheet.create({
   calWeekRow: {
     flexDirection: 'row',
     marginBottom: 2,
+    paddingHorizontal: 1,
   },
   calWeekTxt: {
     flex: 1,
@@ -747,6 +943,7 @@ const s = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     color: '#7A9090',
+    marginHorizontal: 1,
   },
   calRow: {
     flexDirection: 'row',
@@ -821,11 +1018,48 @@ const s = StyleSheet.create({
   },
   archiveItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderBottomWidth: 1,
     borderBottomColor: '#F0EBE1',
+  },
+  archiveTabs: {
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  archiveTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#E8E3D5',
+    backgroundColor: '#F5F0E6',
+  },
+  archiveTabTxt: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#5A7575',
+    letterSpacing: 0.3,
+  },
+  archiveBadge: {
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  archiveBadgeTxt: {
+    fontSize: 9,
+    fontWeight: '900',
   },
   archiveDate: {
     fontSize: 9,

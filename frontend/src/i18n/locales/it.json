@@ -354,7 +354,7 @@
     "noteSavedArchive": "Nota salvata nell'archivio",
     "enterAppointmentDetail": "Inserisci il dettaglio dell'impegno",
     "appointmentSavedToday": "Impegno salvato per oggi",
-    "ordersAndAppointments": "ORDINI E APPUNTAMENTI",
+    "ordersAndAppointments": "NOTES",
     "commitmentDetails": "DETTAGLI IMPEGNO",
     "describeOrder": "Descrivi l'ordine o appuntamento...",
     "close": "CHIUDI",
@@ -365,7 +365,13 @@
     "notePlaceholder": "Scrivi una nota...",
     "saveNote": "SALVA NOTA",
     "archive": "ARCHIVIO",
-    "noteArchive": "ARCHIVIO NOTE"
+    "noteArchive": "ARCHIVIO NOTE",
+    "tabNotes": "Note",
+    "tabFiere": "Fiere",
+    "tabFatture": "Fatture",
+    "noFiere": "Nessuna fiera in programma",
+    "noFatture": "Nessuna fattura in scadenza",
+    "noNotes": "Nessuna nota salvata"
   },
   "modals": {
     "market": "FIERA / MERCATO",

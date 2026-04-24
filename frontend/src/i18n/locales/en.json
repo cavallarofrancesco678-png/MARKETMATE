@@ -338,7 +338,7 @@
     "upcoming": "UPCOMING SAVED",
     "noAppointments": "No orders or appointments scheduled.",
     "allNotes": "ALL NOTES",
-    "noNotes": "No notes saved.",
+    "noNotes": "No notes saved",
     "deleteNote": "Delete this note?",
     "noteSaved": "Note saved!",
     "enterText": "Enter text",
@@ -354,7 +354,7 @@
     "noteSavedArchive": "Note saved to archive",
     "enterAppointmentDetail": "Enter the appointment detail",
     "appointmentSavedToday": "Appointment saved for today",
-    "ordersAndAppointments": "ORDERS AND APPOINTMENTS",
+    "ordersAndAppointments": "NOTES",
     "commitmentDetails": "COMMITMENT DETAILS",
     "describeOrder": "Describe the order or appointment...",
     "close": "CLOSE",
@@ -365,7 +365,12 @@
     "notePlaceholder": "Write a note...",
     "saveNote": "SAVE NOTE",
     "archive": "ARCHIVE",
-    "noteArchive": "NOTES ARCHIVE"
+    "noteArchive": "NOTES ARCHIVE",
+    "tabNotes": "Notes",
+    "tabFiere": "Markets",
+    "tabFatture": "Invoices",
+    "noFiere": "No upcoming markets",
+    "noFatture": "No upcoming invoices"
   },
   "modals": {
     "market": "FAIR / MARKET",

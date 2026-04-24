@@ -336,7 +336,7 @@
     "upcoming": "PRÓXIMOS COMPROMISSOS",
     "noAppointments": "Nenhuma encomenda ou compromisso agendado.",
     "allNotes": "TODAS AS ANOTAÇÕES",
-    "noNotes": "Nenhuma anotação guardada.",
+    "noNotes": "Sem notas salvas",
     "deleteNote": "Eliminar esta nota?",
     "noteSaved": "Nota salva!",
     "enterText": "Introduza um texto",
@@ -352,7 +352,7 @@
     "noteSavedArchive": "Nota salva no arquivo",
     "enterAppointmentDetail": "Insira o detalhe do compromisso",
     "appointmentSavedToday": "Compromisso salvo para hoje",
-    "ordersAndAppointments": "PEDIDOS E COMPROMISSOS",
+    "ordersAndAppointments": "NOTES",
     "commitmentDetails": "DETALHES DO COMPROMISSO",
     "describeOrder": "Descreva o pedido ou compromisso...",
     "close": "FECHAR",
@@ -363,7 +363,12 @@
     "notePlaceholder": "Escreva uma nota...",
     "saveNote": "SALVAR NOTA",
     "archive": "ARQUIVO",
-    "noteArchive": "ARQUIVO DE NOTAS"
+    "noteArchive": "ARQUIVO DE NOTAS",
+    "tabNotes": "Notas",
+    "tabFiere": "Feiras",
+    "tabFatture": "Faturas",
+    "noFiere": "Sem feiras programadas",
+    "noFatture": "Sem faturas pendentes"
   },
   "modals": {
     "market": "FEIRA / MERCADO",

@@ -501,12 +501,39 @@ export default function HomeScreen() {
 
   /* ── Spese Extra generiche totale ── */
   const speseExtraGenTotale = useMemo(() => {
+    // Helper locale: conta i giorni lavorativi in un range
+    const countMkDaysLocal = (fromIso: string, toIso: string): number => {
+      if (!fromIso || !toIso) return 1;
+      const from = new Date(fromIso + 'T12:00:00');
+      const to = new Date(toIso + 'T12:00:00');
+      if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
+      const start = from <= to ? from : to;
+      const end = from <= to ? to : from;
+      let count = 0;
+      const cur = new Date(start);
+      while (cur <= end) {
+        const dow = (cur.getDay() + 6) % 7;
+        if (agenda?.[dow]?.lavorativo) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return Math.max(1, count);
+    };
     let tot = 0;
-    vociGeneriche.forEach((v) => {
-      if (v.attivo) tot += parseFloat((v.importo || '0').replace(',', '.')) || 0;
+    vociGeneriche.forEach((v: any) => {
+      if (!v.attivo) return;
+      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+      if (imp <= 0) return;
+      if (v.ripMode === 'custom' && v.ripFrom && v.ripTo) {
+        const mk = countMkDaysLocal(v.ripFrom, v.ripTo);
+        tot += imp / Math.max(1, mk);
+        return;
+      }
+      if (v.periodo === 'settimanale') tot += imp / 6;
+      else if (v.periodo === 'mensile') tot += imp / 26;
+      else tot += imp;
     });
     return tot;
-  }, [vociGeneriche]);
+  }, [vociGeneriche, agenda]);
 
   /* ── Plateatico Fiera → aggiungere a spese fisse ── */
   const fieraPlatNum = parseFloat((fieraPlat || '0').replace(',', '.')) || 0;
@@ -644,11 +671,18 @@ export default function HomeScreen() {
 
     // Build dettaglio_spese_extra from vociGeneriche (per-item names for stats pie chart)
     const dettaglioExtra: Record<string, number> = {};
-    vociGeneriche.forEach((v) => {
+    vociGeneriche.forEach((v: any) => {
       if (!v.attivo) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (imp > 0) {
-        const per = (v as any).periodo || 'giornaliero';
+        // Nuovo sistema: ripartizione OGGI / PERSONALIZZA
+        if (v.ripMode === 'custom' && v.ripFrom && v.ripTo) {
+          const mk = countMarketDays('custom', v.ripFrom, v.ripTo);
+          dettaglioExtra[v.nome] = imp / Math.max(1, mk);
+          return;
+        }
+        // Legacy periodicità
+        const per = v.periodo || 'giornaliero';
         if (per === 'settimanale') dettaglioExtra[v.nome] = imp / 6;
         else if (per === 'mensile') dettaglioExtra[v.nome] = imp / 26;
         else dettaglioExtra[v.nome] = imp;

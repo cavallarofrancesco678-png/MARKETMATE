@@ -32,6 +32,12 @@ interface VoceGenerica {
   nome: string;
   importo: string;
   attivo: boolean;
+  // Ripartizione costo (nuovo sistema): OGGI o PERSONALIZZA (range date)
+  ripMode?: 'oggi' | 'custom';
+  ripFrom?: string;
+  ripTo?: string;
+  // Legacy: periodicità (giornaliero/settimanale/mensile)
+  periodo?: string;
 }
 
 interface FornInfoEntry {
@@ -192,7 +198,19 @@ export const SpeseExtraModal: React.FC<Props> = ({
       else tot += imp;
     });
     vociGeneriche.forEach((v) => {
-      if (v.attivo) tot += parseFloat((v.importo || '0').replace(',', '.')) || 0;
+      if (!v.attivo) return;
+      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+      if (imp <= 0) return;
+      // Nuovo sistema: ripMode custom → riparti sull'intervallo
+      if (v.ripMode === 'custom' && v.ripFrom && v.ripTo) {
+        const mk = countMarketDays('custom', v.ripFrom, v.ripTo);
+        tot += imp / Math.max(1, mk);
+        return;
+      }
+      // Legacy periodicità
+      if (v.periodo === 'settimanale') tot += imp / 6;
+      else if (v.periodo === 'mensile') tot += imp / 26;
+      else tot += imp;
     });
     return tot;
   };
@@ -254,8 +272,8 @@ export const SpeseExtraModal: React.FC<Props> = ({
                   </TouchableOpacity>
                   {isOpen && (() => {
                     const mode = pagamentoMode[f.nome] || 'contanti';
-                    const rip = ripartizione[f.nome] || { modo: 'oggi' as const, dateCustom: [] };
-                    const mkDays = countMarketDays(rip.modo, rip.dateCustom);
+                    const rip = ripartizione[f.nome] || { modo: 'oggi' as const, from: '', to: '' };
+                    const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
                     const importoFatturaNum = parseFloat((entry.importo || '0').replace(',', '.')) || 0;
                     const importoContantiNum = parseFloat((entryLib.importo || '0').replace(',', '.')) || 0;
                     const setMode = (m: 'contanti' | 'fattura' | 'misto') => setPagamentoMode({ ...pagamentoMode, [f.nome]: m });
@@ -520,41 +538,111 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#5A7575" style={{ marginLeft: 6 }} />
                     </View>
                   </TouchableOpacity>
-                  {isOpen && (
-                    <>
-                      <View style={st.inputRow}>
-                        <TextInput
-                          style={st.amountInput}
-                          placeholder="0"
-                          placeholderTextColor="#B0B0A0"
-                          keyboardType="decimal-pad"
-                          value={v.importo}
-                          onChangeText={(val) => updateVoce(idx, 'importo', val)}
-                          returnKeyType="done"
-                        />
-                        <Text style={st.euro}>{'\u20AC'}</Text>
-                      </View>
-                      {/* Periodo: giorno / settimana / mese */}
-                      <View style={st.periodoRow}>
-                        {['giornaliero', 'settimanale', 'mensile'].map((per) => {
-                          const on = (v as any).periodo === per || (!((v as any).periodo) && per === 'giornaliero');
-                          return (
-                            <TouchableOpacity key={per} style={[st.periodoBtn, on && st.periodoBtnOn]} onPress={() => updateVoce(idx, 'periodo', per)}>
-                              <Text style={[st.periodoTxt, on && { color: '#FFF' }]}>
-                                {per === 'giornaliero' ? 'Giorno' : per === 'settimanale' ? 'Sett.' : 'Mese'}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                      {/* Mostra equivalente giornaliero */}
-                      {v.importo && parseFloat(v.importo.replace(',', '.')) > 0 && (v as any).periodo && (v as any).periodo !== 'giornaliero' && (
-                        <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 2, fontStyle: 'italic' }}>
-                          = €{((v as any).periodo === 'settimanale' ? parseFloat(v.importo.replace(',', '.')) / 6 : parseFloat(v.importo.replace(',', '.')) / 26).toFixed(0)}/giorno
+                  {isOpen && (() => {
+                    const importoNumLocal = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+                    const ripMode: 'oggi' | 'custom' = (v.ripMode || 'oggi') as any;
+                    const ripFrom = v.ripFrom || '';
+                    const ripTo = v.ripTo || '';
+                    const mkDays = countMarketDays(ripMode, ripFrom, ripTo);
+                    const ripPickerKey = `__voce_${idx}`;
+                    return (
+                      <>
+                        <View style={st.inputRow}>
+                          <TextInput
+                            style={st.amountInput}
+                            placeholder="0"
+                            placeholderTextColor="#B0B0A0"
+                            keyboardType="decimal-pad"
+                            value={v.importo}
+                            onChangeText={(val) => updateVoce(idx, 'importo', val)}
+                            returnKeyType="done"
+                          />
+                          <Text style={st.euro}>{'\u20AC'}</Text>
+                        </View>
+
+                        {/* ═══ RIPARTIZIONE COSTO: OGGI | PERSONALIZZA ═══ */}
+                        <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A5E9B', marginTop: 4, marginBottom: 4, letterSpacing: 0.8 }}>
+                          {t('suppliers.splitCost')}
                         </Text>
-                      )}
-                    </>
-                  )}
+                        <View style={{ flexDirection: 'row', gap: 5 }}>
+                          {([
+                            { key: 'oggi' as const, label: t('suppliers.splitToday') },
+                            { key: 'custom' as const, label: t('suppliers.splitCustom') },
+                          ]).map((opt) => {
+                            const on = ripMode === opt.key;
+                            return (
+                              <TouchableOpacity
+                                key={opt.key}
+                                onPress={() => {
+                                  updateVoce(idx, 'ripMode', opt.key);
+                                  // Reset legacy periodo when using new system
+                                  updateVoce(idx, 'periodo', 'giornaliero');
+                                  if (opt.key === 'custom') {
+                                    setRipartPickerFor(ripartPickerFor === ripPickerKey ? null : ripPickerKey);
+                                  } else {
+                                    setRipartPickerFor(null);
+                                  }
+                                }}
+                                activeOpacity={0.7}
+                                style={{
+                                  flex: 1,
+                                  paddingVertical: 7,
+                                  borderRadius: 9,
+                                  backgroundColor: on ? '#1E7F85' : '#F5EFDC',
+                                  borderWidth: 1,
+                                  borderColor: on ? '#1E7F85' : '#E0D8C0',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Text style={{ fontSize: 9, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.5 }}>
+                                  {opt.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+
+                        {ripMode === 'custom' && (
+                          <View style={{ marginTop: 8, backgroundColor: '#F5F0E0', padding: 10, borderRadius: 10 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginBottom: 4, letterSpacing: 0.5 }}>
+                              {t('suppliers.fromDate')}
+                            </Text>
+                            <MiniMonthCalendar
+                              selectedDates={ripFrom ? [ripFrom] : []}
+                              onToggleDate={(iso) => updateVoce(idx, 'ripFrom', ripFrom === iso ? '' : iso)}
+                              themeColor="#7A5E9B"
+                            />
+                            <Text style={{ fontSize: 9, fontWeight: '900', color: '#7A5E9B', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 }}>
+                              {t('suppliers.toDate')}
+                            </Text>
+                            <MiniMonthCalendar
+                              selectedDates={ripTo ? [ripTo] : []}
+                              onToggleDate={(iso) => updateVoce(idx, 'ripTo', ripTo === iso ? '' : iso)}
+                              themeColor="#16A085"
+                            />
+                            {ripFrom && ripTo && (
+                              <Text style={{ fontSize: 10, color: '#7A5E9B', fontStyle: 'italic', textAlign: 'center', marginTop: 6 }}>
+                                {countMarketDays('custom', ripFrom, ripTo)} {countMarketDays('custom', ripFrom, ripTo) === 1 ? t('suppliers.market') : t('suppliers.markets')} in questo range
+                              </Text>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Nota ripartizione */}
+                        {importoNumLocal > 0 && ripMode === 'custom' && ripFrom && ripTo && (
+                          <View style={{ marginTop: 8, backgroundColor: '#FFF8E7', borderRadius: 8, padding: 8 }}>
+                            <Text style={{ fontSize: 10, color: '#7A5E1F', lineHeight: 14 }}>
+                              ⚠️ €{importoNumLocal.toFixed(0)} verrà ripartito su {mkDays} {mkDays === 1 ? 'mercato' : 'mercati'}: {' '}
+                              <Text style={{ fontWeight: '900', color: '#B08050' }}>
+                                €{Math.round(importoNumLocal / mkDays)}
+                              </Text>
+                              {' '}/mercato.
+                            </Text>
+                          </View>
+                        )}
+                      </>
+                    );
+                  })()}
                 </View>
               );
             })}
