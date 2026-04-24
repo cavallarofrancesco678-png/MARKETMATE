@@ -202,27 +202,35 @@ export default function AgendaScreen() {
     return arr.sort((a, b) => (a.next?.getTime() || Infinity) - (b.next?.getTime() || Infinity));
   }, [store.fiere]);
 
-  /* ═══ ARCHIVIO FATTURE (estratte da ordiniAgenda, pattern "Fornitore ... – Fatt. XXX – €NN") ═══ */
+  /* ═══ ARCHIVIO FATTURE (estratte da ordiniAgenda, accetta – / - / • / : come separatori, € opzionale) ═══ */
   const fattureArchive = useMemo(() => {
     const today0 = new Date();
     today0.setHours(0, 0, 0, 0);
     const items: { id: string; data: Date; fornitore: string; numero: string; importo: string; overdue: boolean; testo: string }[] = [];
+    // Separatore flessibile (em-dash, en-dash, hyphen, bullet, colon, comma con spazi)
+    const SEP = '(?:\\s*[–—\\-•:]\\s*|,\\s*)';
+    const reFull = new RegExp('^(.+?)' + SEP + 'Fatt\\.?\\s+([^\\s–—\\-•:]+)' + SEP + '€?\\s*([\\d.,]+)', 'i');
+    const reSimple = new RegExp('^(.+?)' + SEP + '€?\\s*([\\d.,]+)\\s*$');
     (ordiniAgenda || []).forEach((o: any) => {
-      const txt = o.testo || '';
-      // Matches: "FORNITORE – Fatt. NUM – €AMT"  o senza numero "FORNITORE – €AMT"
-      const mFull = txt.match(/^(.+?)\s+[–-]\s+Fatt\.\s+([^\s–-]+)\s+[–-]\s+€?([\d.,]+)/i);
-      const mSimple = !mFull && txt.match(/^(.+?)\s+[–-]\s+€([\d.,]+)/);
+      const txt = String(o.testo || '').trim();
+      if (!txt) return;
+      const mFull = txt.match(reFull);
+      const mSimple = !mFull ? txt.match(reSimple) : null;
       if (!mFull && !mSimple) return;
       const fornitore = (mFull ? mFull[1] : mSimple![1]).trim();
       const numero = mFull ? mFull[2] : '';
-      const importo = (mFull ? mFull[3] : mSimple![2]).replace(',', '.');
+      const importoRaw = (mFull ? mFull[3] : mSimple![2]).replace(/\./g, '').replace(',', '.');
+      // Solo se l'importo è un numero valido
+      const importoNum = parseFloat(importoRaw);
+      if (!isFinite(importoNum) || importoNum <= 0) return;
       const dd = new Date(o.data);
+      if (isNaN(dd.getTime())) return;
       items.push({
         id: `${o.data}_${txt}`,
         data: dd,
         fornitore,
         numero,
-        importo,
+        importo: String(importoNum),
         overdue: dd < today0,
         testo: txt,
       });
