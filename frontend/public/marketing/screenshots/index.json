@@ -1,0 +1,85 @@
+{
+  "app": "MarketMate",
+  "description": "App gestionale per ambulanti e venditori ai mercati",
+  "baseUrl": "https://marketmate-hub-1.preview.emergentagent.com/marketing/screenshots/",
+  "liveDemo": "https://marketmate-hub-1.preview.emergentagent.com/home",
+  "screenshots": [
+    {
+      "id": "home",
+      "file": "01_home.jpeg",
+      "title": "Dashboard Principale",
+      "description": "Inserimento rapido dei dati giornalieri: lordo, contanti, POS, collaboratori, meteo e mercato del giorno",
+      "category": "home"
+    },
+    {
+      "id": "stats",
+      "file": "02_stats.jpeg",
+      "title": "Statistiche Complete",
+      "description": "Analisi settimanale/mensile/annuale con grafici su lordo/netto, fornitori, spese e confronti",
+      "category": "stats"
+    },
+    {
+      "id": "notes",
+      "file": "03_notes.jpeg",
+      "title": "NOTES – Calendario & Archivio",
+      "description": "Calendario unificato con note personali, fiere programmate e fatture in scadenza",
+      "category": "notes"
+    },
+    {
+      "id": "gas",
+      "file": "04_gas.jpeg",
+      "title": "Gestione Carburante",
+      "description": "Tracciamento rifornimenti con calcolo €/km, consumo e trend mensile",
+      "category": "gas"
+    },
+    {
+      "id": "settings",
+      "file": "05_settings.jpeg",
+      "title": "Impostazioni & Configurazione",
+      "description": "Multi-lingua (IT/EN/ES/FR/DE/PT), collaboratori, mercati, fiere ricorrenti, eventi",
+      "category": "settings"
+    },
+    {
+      "id": "buongiorno",
+      "file": "07_buongiorno.jpeg",
+      "title": "Buongiorno AI",
+      "description": "Assistente intelligente proattivo che analizza dati storici, meteo e suggerisce strategie",
+      "category": "ai"
+    },
+    {
+      "id": "fiere",
+      "file": "08_fiere.jpeg",
+      "title": "Modalità Fiere",
+      "description": "Vista dedicata per sagre, fiere ed eventi con gestione posteggio e location",
+      "category": "events"
+    },
+    {
+      "id": "spese",
+      "file": "09_spese_extra.jpeg",
+      "title": "Spese Extra con Ripartizione",
+      "description": "Gestione spese fornitori con 3 modalità pagamento (Contanti/Fattura/Misto) e ripartizione intelligente del costo sui mercati",
+      "category": "expenses"
+    }
+  ],
+  "branding": {
+    "name": "MarketMate",
+    "tagline": "Il gestionale intelligente per ambulanti",
+    "primaryColor": "#1E7F85",
+    "secondaryColor": "#E8A060",
+    "bgColor": "#D8E6E2"
+  },
+  "features": [
+    "Inserimento giornaliero rapido (30 secondi)",
+    "Statistiche avanzate (giorno/settimana/mese/anno)",
+    "AI Assistant proattivo con dati storici",
+    "Calendario unificato NOTES (note, fiere, fatture)",
+    "Gestione fornitori con split costi intelligente",
+    "Tracciamento carburante con €/km",
+    "Multi-lingua (6 lingue)",
+    "Multi-collaboratore con paghe automatiche",
+    "Export/Import dati (backup)",
+    "Meteo integrato + stazioni carburante vicine",
+    "Funziona 100% offline (sync opzionale)",
+    "Design mobile-first ottimizzato"
+  ]
+}
