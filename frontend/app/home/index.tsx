@@ -714,34 +714,37 @@ export default function HomeScreen() {
       const contantiEntry = speseExtraFornitore[`${nomeBase}__libera`];
       const impFattura = parseFloat((fatturaEntry?.importo || '0').replace(',', '.')) || 0;
       const impContanti = parseFloat((contantiEntry?.importo || '0').replace(',', '.')) || 0;
-      let totaleGiornaliero = 0;
 
-      // Ripartizione solo su fattura (contanti va tutto oggi)
+      // ═══ SPLIT FATTURA + CONTANTI per breakdown corretto in stats ═══
+      let fatturaQuota = 0;  // quota giornaliera fattura ripartita
+      let contantiQuota = 0; // contanti del giorno
+      const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
+      const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
+
       if (mode === 'contanti') {
-        totaleGiornaliero = impContanti;
+        contantiQuota = impContanti;
       } else if (mode === 'fattura') {
         if (impFattura > 0) {
-          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
-          const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
-          totaleGiornaliero = impFattura / mkDays;
-        }
-      } else if (mode === 'misto') {
-        // Misto: contanti subito + fattura ripartita
-        let fatturaQuota = 0;
-        if (impFattura > 0) {
-          const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
-          const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
           fatturaQuota = impFattura / mkDays;
         }
-        totaleGiornaliero = impContanti + fatturaQuota;
+      } else if (mode === 'misto') {
+        if (impFattura > 0) {
+          fatturaQuota = impFattura / mkDays;
+        }
+        contantiQuota = impContanti;
       }
 
       // Applica periodicità legacy se presente (giornaliero/settimanale/mensile)
-      if (fatturaEntry?.periodo === 'settimanale') totaleGiornaliero = totaleGiornaliero / 6;
-      else if (fatturaEntry?.periodo === 'mensile') totaleGiornaliero = totaleGiornaliero / 26;
+      if (fatturaEntry?.periodo === 'settimanale') fatturaQuota = fatturaQuota / 6;
+      else if (fatturaEntry?.periodo === 'mensile') fatturaQuota = fatturaQuota / 26;
 
-      if (totaleGiornaliero > 0) {
-        dettaglioForn[nomeBase] = Math.round(totaleGiornaliero * 100) / 100;
+      // Salva chiavi separate: nomeBase (fattura) + nomeBase__libera (contanti)
+      // così stats.tsx può distinguere correttamente Fatturata vs Contanti.
+      if (fatturaQuota > 0) {
+        dettaglioForn[nomeBase] = Math.round(fatturaQuota * 100) / 100;
+      }
+      if (contantiQuota > 0) {
+        dettaglioForn[`${nomeBase}__libera`] = Math.round(contantiQuota * 100) / 100;
       }
     });
 

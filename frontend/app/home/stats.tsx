@@ -502,8 +502,19 @@ export default function StatsScreen() {
       });
     });
     // 2. Plateatico annuo per ogni mercato (p_annuo)
-    (agenda || []).forEach((m) => {
+    // FILTRO: se filtroTipo è un giorno specifico (LUN..DOM), mostra solo quel mercato.
+    const targetDayIdx = (() => {
+      if (filtroTipo === 'TUTTO' || filtroTipo === 'FIERE') return -1;
+      // GIORNO_MAP ha valori per Date.getDay() (0=DOM..6=SAB).
+      // Agenda è indicizzata 0=LUN..6=DOM ⇒ converti.
+      const jsDay = GIORNO_MAP[filtroTipo];
+      if (jsDay === undefined || jsDay < 0) return -1;
+      return jsDay === 0 ? 6 : jsDay - 1; // LUN=0, DOM=6
+    })();
+    (agenda || []).forEach((m, idx) => {
       if ((m as any).p_annuo && (m as any).p_annuo > 0) {
+        // Se filtraggio per giorno specifico, salta gli altri mercati
+        if (targetDayIdx >= 0 && idx !== targetDayIdx) return;
         items.push({
           label: `Plat. ${m.mercato}`,
           value: Math.max(Math.round((m as any).p_annuo * fattore), 1),
@@ -527,7 +538,7 @@ export default function StatsScreen() {
       });
     }
     return items;
-  }, [speseAnnue, agenda, storicoCarburante, storicoGiornate, filteredData, filtroTempo, persDateFrom, persDateTo]);
+  }, [speseAnnue, agenda, storicoCarburante, storicoGiornate, filteredData, filtroTempo, filtroTipo, persDateFrom, persDateTo]);
 
   const speseExtraItems = useMemo(() => {
     // Aggrega per nome voce dalle dettaglio_spese_extra di ogni giornata
@@ -1185,6 +1196,44 @@ export default function StatsScreen() {
                   )}
                 </View>
               </View>
+
+              {/* ═══ AREOGRAMMA PER FORNITORE — quota di ognuno sul totale ═══ */}
+              {fornitoriTotals.perFornitore.length > 0 && fornitoriTotals.totale > 0 && (
+                <View style={{ marginBottom: 14, paddingTop: 10, borderTopWidth: 1, borderColor: '#E8EDE8' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 1, marginBottom: 8 }}>
+                    📊 RIPARTIZIONE PER FORNITORE
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                    <PieChart
+                      items={fornitoriTotals.perFornitore.map((f, i) => ({
+                        label: f.nome,
+                        value: f.fatturata + f.libera,
+                        color: PALETTE[i % PALETTE.length],
+                      })).filter(x => x.value > 0)}
+                      size={120}
+                    />
+                    <View style={{ flex: 1 }}>
+                      {fornitoriTotals.perFornitore.slice(0, 6).map((f, i) => {
+                        const totF = f.fatturata + f.libera;
+                        const pct = fornitoriTotals.totale > 0 ? Math.round((totF / fornitoriTotals.totale) * 100) : 0;
+                        return (
+                          <View key={f.nome} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: PALETTE[i % PALETTE.length], marginRight: 6 }} />
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }} numberOfLines={1}>{f.nome}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575' }}>{pct}%</Text>
+                          </View>
+                        );
+                      })}
+                      {fornitoriTotals.perFornitore.length > 6 && (
+                        <Text style={{ fontSize: 9, color: '#7A9090', fontStyle: 'italic', marginTop: 2 }}>
+                          +{fornitoriTotals.perFornitore.length - 6} altri fornitori
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              )}
+
               {/* Dettaglio per fornitore - click per espandere personale */}
               {fornitoriTotals.perFornitore.map((f, i) => {
                 const isExp = expandedFornitore === f.nome;

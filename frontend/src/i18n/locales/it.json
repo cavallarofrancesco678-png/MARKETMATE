@@ -207,7 +207,17 @@
     "enterPhoneFirst": "Inserisci prima il numero di telefono",
     "type": "TIPO",
     "exitApp": "ESCI DALL'APP",
-    "exitAppConfirm": "Vuoi chiudere MarketMate?"
+    "exitAppConfirm": "Vuoi chiudere MarketMate?",
+    "cloudAccountTitle": "ACCOUNT CLOUD",
+    "cloudAccountDesc": "Crea un account cloud per sincronizzare i dati su più dispositivi e invitare fino a 2 collaboratori (totale 3 persone).",
+    "enableCloudBtn": "ABILITA ACCOUNT CLOUD",
+    "backupTitle": "BACKUP DATI",
+    "backupDesc": "Esporta un file di backup con tutti i tuoi dati. Puoi inviarlo via WhatsApp, email o salvarlo. Usa \"Importa\" per ripristinare i dati su un nuovo dispositivo o dopo una reinstallazione.",
+    "exportBtn": "ESPORTA DATI",
+    "importBtn": "IMPORTA DATI",
+    "version": "Versione 3.9",
+    "allRights": "Tutti i diritti riservati",
+    "dataProtected": "Dati protetti e crittografati sul dispositivo"
   },
   "stats": {
     "title": "STATISTICHE",

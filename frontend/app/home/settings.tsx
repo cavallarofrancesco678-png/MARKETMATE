@@ -32,26 +32,24 @@ import { router } from 'expo-router';
 // ═══════════════════════════════════════════════════════════════
 function AccountSection() {
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { t } = useTranslation();
   if (!isAuthenticated) {
     return (
       <View style={[s.card, { marginTop: 20 }]}>
         <View style={s.sectionHeader}>
           <Ionicons name="cloud-outline" size={20} color="#1E7F85" />
-          <Text style={s.sectionTitle}>ACCOUNT & COLLABORATORI</Text>
+          <Text style={s.sectionTitle}>{t('settings.cloudAccountTitle') || 'ACCOUNT CLOUD'}</Text>
         </View>
         <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 10, lineHeight: 16 }}>
-          Crea un account cloud per sincronizzare i dati su più dispositivi e invitare fino a 2 collaboratori (totale 3 persone).
+          {t('settings.cloudAccountDesc') || 'Crea un account cloud per sincronizzare i dati su più dispositivi.'}
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           onPress={() => router.push('/auth')}
         >
           <Ionicons name="person-add" size={18} color="#FFF" />
-          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>ABILITA ACCOUNT CLOUD</Text>
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>{t('settings.enableCloudBtn') || 'ABILITA ACCOUNT CLOUD'}</Text>
         </TouchableOpacity>
-        <Text style={{ fontSize: 10, color: '#7A9090', textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>
-          Opzionale. Puoi continuare a usare l'app anche senza account.
-        </Text>
       </View>
     );
   }
@@ -60,7 +58,7 @@ function AccountSection() {
     <View style={[s.card, { marginTop: 20 }]}>
       <View style={s.sectionHeader}>
         <Ionicons name="cloud-done" size={20} color="#1E7F85" />
-        <Text style={s.sectionTitle}>ACCOUNT CLOUD</Text>
+        <Text style={s.sectionTitle}>{t('settings.cloudAccountTitle') || 'ACCOUNT CLOUD'}</Text>
       </View>
       <View style={{ backgroundColor: '#E3F5EF', borderRadius: 10, padding: 12, marginBottom: 12 }}>
         <Text style={{ fontSize: 13, fontWeight: '900', color: '#1E7F85' }}>{user?.email}</Text>
@@ -1393,24 +1391,24 @@ export default function SettingsPage() {
       <View style={[s.card, { marginTop: 20 }]}>
         <View style={s.sectionHeader}>
           <Ionicons name="download-outline" size={20} color="#1E7F85" />
-          <Text style={s.sectionTitle}>BACKUP DATI</Text>
+          <Text style={s.sectionTitle}>{t('settings.backupTitle') || 'BACKUP DATI'}</Text>
         </View>
         <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12 }}>
-          Esporta un file di backup con tutti i tuoi dati. Puoi inviarlo via WhatsApp, email o salvarlo. Usa "Importa" per ripristinare i dati su un nuovo dispositivo o dopo una reinstallazione.
+          {t('settings.backupDesc') || 'Esporta un file di backup con tutti i tuoi dati.'}
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}
           onPress={handleExportData}
         >
           <Ionicons name="share-outline" size={18} color="#FFF" />
-          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>ESPORTA DATI</Text>
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>{t('settings.exportBtn') || 'ESPORTA DATI'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={{ backgroundColor: '#D4AF37', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           onPress={handleImportData}
         >
           <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
-          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>IMPORTA DATI</Text>
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>{t('settings.importBtn') || 'IMPORTA DATI'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -1439,12 +1437,12 @@ export default function SettingsPage() {
       {/* ─── INFO APP ─── */}
       <View style={{ marginTop: 24, alignItems: 'center', paddingBottom: 8 }}>
         <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A4040', letterSpacing: 2 }}>MarketMate</Text>
-        <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>Versione 3.9</Text>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>{t('settings.version') || 'Versione 3.9'}</Text>
         <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>© 2026 T.V.S di Francesco Cavallaro</Text>
-        <Text style={{ fontSize: 10, color: '#B0B0A0', marginTop: 6 }}>Tutti i diritti riservati</Text>
+        <Text style={{ fontSize: 10, color: '#B0B0A0', marginTop: 6 }}>{t('settings.allRights') || 'Tutti i diritti riservati'}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
           <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
-          <Text style={{ fontSize: 10, fontWeight: '700', color: '#1E7F85' }}>Dati protetti e crittografati sul dispositivo</Text>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#1E7F85' }}>{t('settings.dataProtected') || 'Dati protetti e crittografati sul dispositivo'}</Text>
         </View>
       </View>
 

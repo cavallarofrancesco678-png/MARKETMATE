@@ -205,7 +205,17 @@
     "typeBFull": "TIPO B - ACESSO COMPLETO",
     "enterEmailOrPhone": "Insira email ou telefone",
     "enterPhoneFirst": "Insira primeiro o número de telefone",
-    "type": "TIPO"
+    "type": "TIPO",
+    "cloudAccountTitle": "CONTA CLOUD",
+    "cloudAccountDesc": "Crie uma conta cloud para sincronizar os dados em múltiplos dispositivos e convidar até 2 colaboradores (3 pessoas no total).",
+    "enableCloudBtn": "ATIVAR CONTA CLOUD",
+    "backupTitle": "CÓPIA DE SEGURANÇA",
+    "backupDesc": "Exporte um ficheiro de backup com todos os seus dados. Pode enviá-lo por WhatsApp, email ou guardá-lo. Use \"Importar\" para restaurar os dados.",
+    "exportBtn": "EXPORTAR DADOS",
+    "importBtn": "IMPORTAR DADOS",
+    "version": "Versão 3.9",
+    "allRights": "Todos os direitos reservados",
+    "dataProtected": "Dados protegidos e encriptados no dispositivo"
   },
   "stats": {
     "title": "ESTATÍSTICAS",
