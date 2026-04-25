@@ -826,19 +826,32 @@ export default function HomeScreen() {
   }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
+  // Use a REF to always call the latest handleSalva (avoids stale-closure bug
+  // where autosave would persist using OLD dataCorrente after a day change).
+  const handleSalvaRef = useRef(handleSalva);
+  useEffect(() => { handleSalvaRef.current = handleSalva; }, [handleSalva]);
+
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track the last date we autosaved on, so day-changes don't write empty data
+  // over a previously saved day.
+  const lastAutosaveDateRef = useRef<string | null>(null);
   useEffect(() => {
     // Auto-salva solo se c'è almeno il lordo inserito
     if (lordoNum > 0) {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      const dataKey = dataCorrente.toDateString();
       autoSaveTimerRef.current = setTimeout(() => {
-        handleSalva();
+        // Sanity check: ensure dataCorrente didn't change during the debounce
+        if (dataKey === dataCorrente.toDateString()) {
+          handleSalvaRef.current();
+          lastAutosaveDateRef.current = dataKey;
+        }
       }, 1500); // Salva dopo 1.5 secondi di inattività
     }
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride, speseExtraFornTotale, speseExtraGenTotale]);
+  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride, speseExtraFornTotale, speseExtraGenTotale, dataCorrente]);
 
   const handleSalvaManuale = () => {
     handleSalva();
@@ -917,12 +930,40 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
         <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
-        <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7}>
-          <View style={s.dateRow}>
+        <View style={s.dateRow}>
+          <TouchableOpacity
+            onPress={() => {
+              hapticTap();
+              const d = new Date(dataCorrente);
+              d.setDate(d.getDate() - 1);
+              setDataCorrente(d);
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            testID="day-prev-btn"
+            activeOpacity={0.6}
+          >
+            <Ionicons name="chevron-back" size={22} color="#1E7F85" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 }}>
             <Ionicons name="calendar" size={18} color="#1E7F85" />
             <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              hapticTap();
+              const d = new Date(dataCorrente);
+              d.setDate(d.getDate() + 1);
+              setDataCorrente(d);
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            testID="day-next-btn"
+            activeOpacity={0.6}
+          >
+            <Ionicons name="chevron-forward" size={22} color="#1E7F85" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={{ height: GAP }} />
@@ -1711,6 +1752,7 @@ export default function HomeScreen() {
           nomeTitolare: store.nomeTitolare || 'Titolare',
           meteoOggi: meteo,
           mercatoOggi: mercatoNome,
+          selectedDate: `${dataCorrente.getFullYear()}-${String(dataCorrente.getMonth() + 1).padStart(2, '0')}-${String(dataCorrente.getDate()).padStart(2, '0')}`,
           settimanaPrec: (() => {
             const now = dataCorrente;
             const weekAgo = new Date(now);

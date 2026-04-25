@@ -463,6 +463,7 @@ async def calculate_distance(req: DistanceRequest):
 
 class WeatherRequest(BaseModel):
     citta: str
+    data: Optional[str] = None  # YYYY-MM-DD per previsioni; default = oggi
 
 class WeatherResponse(BaseModel):
     success: bool
@@ -473,56 +474,149 @@ class WeatherResponse(BaseModel):
     vento_kmh: float = 0
     precipitazioni_mm: float = 0
     message: str = ""
+    data: str = ""  # Data effettiva del meteo restituito
 
 @api_router.post("/weather", response_model=WeatherResponse)
 async def get_weather(req: WeatherRequest):
-    """Get current weather for a city using Open-Meteo (free API)."""
+    """Get current or forecast weather for a city using Open-Meteo (free API)."""
     try:
         geo = await geocode_city(req.citta)
         if not geo:
             return WeatherResponse(success=False, message=f"Città non trovata: {req.citta}")
 
+        # Determina se è previsione futura o passato/oggi
+        from datetime import datetime as _dt, timedelta as _td
+        today_d = _dt.now().date()
+        target_d = today_d
+        is_future = False
+        is_past = False
+        if req.data:
+            try:
+                target_d = _dt.strptime(req.data, "%Y-%m-%d").date()
+                delta_days = (target_d - today_d).days
+                if delta_days > 0:
+                    is_future = True
+                elif delta_days < 0:
+                    is_past = True
+            except Exception:
+                target_d = today_d
+
+        # WMO codes mapping (riusato)
+        wmo_codes = {
+            0: "Sereno", 1: "Prevalentemente sereno", 2: "Parzialmente nuvoloso", 3: "Coperto",
+            45: "Nebbia", 48: "Nebbia con brina", 51: "Pioviggine leggera", 53: "Pioviggine",
+            55: "Pioviggine intensa", 61: "Pioggia leggera", 63: "Pioggia moderata", 65: "Pioggia forte",
+            71: "Neve leggera", 73: "Neve moderata", 75: "Neve forte", 77: "Granuli di neve",
+            80: "Rovesci leggeri", 81: "Rovesci moderati", 82: "Rovesci violenti",
+            85: "Rovesci di neve leggeri", 86: "Rovesci di neve forti",
+            95: "Temporale", 96: "Temporale con grandine leggera", 99: "Temporale con grandine forte",
+        }
+
         async with httpx.AsyncClient(timeout=10) as client_http:
-            resp = await client_http.get(
-                "https://api.open-meteo.com/v1/forecast",
-                params={
-                    "latitude": geo["lat"],
-                    "longitude": geo["lon"],
-                    "current": "temperature_2m,wind_speed_10m,precipitation,weather_code",
-                    "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
-                    "timezone": "auto",
-                    "forecast_days": 1,
-                }
-            )
-            if resp.status_code == 200:
+            if is_future:
+                # FORECAST API - up to 16 days ahead
+                days_needed = min(16, max(1, (target_d - today_d).days + 1))
+                resp = await client_http.get(
+                    "https://api.open-meteo.com/v1/forecast",
+                    params={
+                        "latitude": geo["lat"],
+                        "longitude": geo["lon"],
+                        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,weather_code",
+                        "timezone": "auto",
+                        "forecast_days": days_needed,
+                    }
+                )
+                if resp.status_code != 200:
+                    return WeatherResponse(success=False, message="Errore API meteo")
                 data = resp.json()
-                current = data.get("current", {})
                 daily = data.get("daily", {})
-
-                # Map WMO weather codes to descriptions
-                wmo_codes = {
-                    0: "Sereno", 1: "Prevalentemente sereno", 2: "Parzialmente nuvoloso", 3: "Coperto",
-                    45: "Nebbia", 48: "Nebbia con brina", 51: "Pioviggine leggera", 53: "Pioviggine",
-                    55: "Pioviggine intensa", 61: "Pioggia leggera", 63: "Pioggia moderata", 65: "Pioggia forte",
-                    71: "Neve leggera", 73: "Neve moderata", 75: "Neve forte", 77: "Granuli di neve",
-                    80: "Rovesci leggeri", 81: "Rovesci moderati", 82: "Rovesci violenti",
-                    85: "Rovesci di neve leggeri", 86: "Rovesci di neve forti",
-                    95: "Temporale", 96: "Temporale con grandine leggera", 99: "Temporale con grandine forte",
-                }
-                weather_code = current.get("weather_code", 0)
+                dates = daily.get("time", [])
+                target_str = target_d.strftime("%Y-%m-%d")
+                if target_str not in dates:
+                    return WeatherResponse(success=False, message=f"Previsione non disponibile per {target_str}")
+                idx = dates.index(target_str)
+                weather_code = (daily.get("weather_code") or [0])[idx] if idx < len(daily.get("weather_code", [])) else 0
                 descrizione = wmo_codes.get(weather_code, f"Codice meteo {weather_code}")
-
+                tmax = (daily.get("temperature_2m_max") or [0])[idx] if idx < len(daily.get("temperature_2m_max", [])) else 0
+                tmin = (daily.get("temperature_2m_min") or [0])[idx] if idx < len(daily.get("temperature_2m_min", [])) else 0
+                wind = (daily.get("wind_speed_10m_max") or [0])[idx] if idx < len(daily.get("wind_speed_10m_max", [])) else 0
+                prec = (daily.get("precipitation_sum") or [0])[idx] if idx < len(daily.get("precipitation_sum", [])) else 0
+                tavg = round((tmax + tmin) / 2, 1)
                 return WeatherResponse(
                     success=True,
-                    temperatura=current.get("temperature_2m", 0),
-                    temperatura_max=daily.get("temperature_2m_max", [0])[0] if daily.get("temperature_2m_max") else 0,
-                    temperatura_min=daily.get("temperature_2m_min", [0])[0] if daily.get("temperature_2m_min") else 0,
+                    temperatura=tavg,
+                    temperatura_max=tmax,
+                    temperatura_min=tmin,
                     descrizione=descrizione,
-                    vento_kmh=current.get("wind_speed_10m", 0),
-                    precipitazioni_mm=current.get("precipitation", 0),
-                    message=f"{req.citta}: {descrizione}, {current.get('temperature_2m', 0)}°C, Vento {current.get('wind_speed_10m', 0)} km/h"
+                    vento_kmh=wind,
+                    precipitazioni_mm=prec,
+                    data=target_str,
+                    message=f"{req.citta} {target_str}: {descrizione}, max {tmax}°C / min {tmin}°C, vento {wind} km/h"
                 )
-            return WeatherResponse(success=False, message="Errore API meteo")
+            elif is_past:
+                # ARCHIVE API
+                target_str = target_d.strftime("%Y-%m-%d")
+                resp = await client_http.get(
+                    "https://archive-api.open-meteo.com/v1/archive",
+                    params={
+                        "latitude": geo["lat"],
+                        "longitude": geo["lon"],
+                        "start_date": target_str,
+                        "end_date": target_str,
+                        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,weather_code",
+                        "timezone": "auto",
+                    }
+                )
+                if resp.status_code != 200:
+                    return WeatherResponse(success=False, message="Errore API meteo (archivio)")
+                data = resp.json()
+                daily = data.get("daily", {})
+                weather_code = (daily.get("weather_code") or [0])[0] if daily.get("weather_code") else 0
+                descrizione = wmo_codes.get(weather_code, f"Codice meteo {weather_code}")
+                tmax = (daily.get("temperature_2m_max") or [0])[0] if daily.get("temperature_2m_max") else 0
+                tmin = (daily.get("temperature_2m_min") or [0])[0] if daily.get("temperature_2m_min") else 0
+                wind = (daily.get("wind_speed_10m_max") or [0])[0] if daily.get("wind_speed_10m_max") else 0
+                prec = (daily.get("precipitation_sum") or [0])[0] if daily.get("precipitation_sum") else 0
+                tavg = round((tmax + tmin) / 2, 1) if (tmax or tmin) else 0
+                return WeatherResponse(
+                    success=True,
+                    temperatura=tavg, temperatura_max=tmax, temperatura_min=tmin,
+                    descrizione=descrizione, vento_kmh=wind, precipitazioni_mm=prec,
+                    data=target_str,
+                    message=f"{req.citta} {target_str}: {descrizione}, max {tmax}°C / min {tmin}°C"
+                )
+            else:
+                # CURRENT (oggi)
+                resp = await client_http.get(
+                    "https://api.open-meteo.com/v1/forecast",
+                    params={
+                        "latitude": geo["lat"],
+                        "longitude": geo["lon"],
+                        "current": "temperature_2m,wind_speed_10m,precipitation,weather_code",
+                        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
+                        "timezone": "auto",
+                        "forecast_days": 1,
+                    }
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    current = data.get("current", {})
+                    daily = data.get("daily", {})
+                    weather_code = current.get("weather_code", 0)
+                    descrizione = wmo_codes.get(weather_code, f"Codice meteo {weather_code}")
+                    today_str = today_d.strftime("%Y-%m-%d")
+                    return WeatherResponse(
+                        success=True,
+                        temperatura=current.get("temperature_2m", 0),
+                        temperatura_max=daily.get("temperature_2m_max", [0])[0] if daily.get("temperature_2m_max") else 0,
+                        temperatura_min=daily.get("temperature_2m_min", [0])[0] if daily.get("temperature_2m_min") else 0,
+                        descrizione=descrizione,
+                        vento_kmh=current.get("wind_speed_10m", 0),
+                        precipitazioni_mm=current.get("precipitation", 0),
+                        data=today_str,
+                        message=f"{req.citta}: {descrizione}, {current.get('temperature_2m', 0)}°C, Vento {current.get('wind_speed_10m', 0)} km/h"
+                    )
+                return WeatherResponse(success=False, message="Errore API meteo")
     except Exception as e:
         logger.error(f"Weather error: {e}")
         return WeatherResponse(success=False, message=f"Errore meteo: {str(e)}")

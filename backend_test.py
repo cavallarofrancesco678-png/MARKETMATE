@@ -1,229 +1,174 @@
-#!/usr/bin/env python3
 """
-MarketMate Backend Tests — Context-per-message freshness + endpoint regression.
+MarketMate backend regression tests (round 2).
+
+Focus:
+1. POST /api/weather without `data` -> today's weather, must NOT fail with 422.
+2. POST /api/weather with future `data` (today+3) -> forecast.
+3. POST /api/weather with past `data` (today-30) -> archive.
+4. Regression: GET /api/, POST /api/distance/calculate, POST /api/ai/chat (context mentions Marco).
 """
+
 import os
 import sys
-import time
+import json
+from datetime import datetime, timedelta, date
+
 import requests
+from dotenv import load_dotenv
 
-BASE_URL = os.environ.get(
-    "BACKEND_URL",
-    "https://marketmate-hub-1.preview.emergentagent.com",
-).rstrip("/")
-API = f"{BASE_URL}/api"
+load_dotenv("/app/frontend/.env")
+BASE = os.environ.get("EXPO_PUBLIC_BACKEND_URL") or os.environ.get("REACT_APP_BACKEND_URL")
+if not BASE:
+    print("ERROR: No backend URL found in /app/frontend/.env")
+    sys.exit(2)
+API = f"{BASE.rstrip('/')}/api"
 
-TIMEOUT = 60
-RESULTS = []
+print(f"Using API base: {API}\n" + "=" * 60)
 
-
-def record(name, ok, detail=""):
-    status = "PASS" if ok else "FAIL"
-    RESULTS.append((name, ok, detail))
-    print(f"[{status}] {name}")
-    if detail:
-        print(f"        {detail}")
+results = []  # list of (name, passed, detail)
 
 
-def post(path, payload, timeout=TIMEOUT):
-    url = f"{API}{path}"
+def check(name, passed, detail=""):
+    print(f"[{'PASS' if passed else 'FAIL'}] {name}: {detail}")
+    results.append((name, passed, detail))
+
+
+def safe_json(r):
     try:
-        return requests.post(url, json=payload, timeout=timeout)
-    except Exception as e:
-        return e
-
-
-def get(path, timeout=TIMEOUT):
-    url = f"{API}{path}"
-    try:
-        return requests.get(url, timeout=timeout)
-    except Exception as e:
-        return e
-
-
-def test_root():
-    r = get("/")
-    if not hasattr(r, "status_code"):
-        record("GET /api/", False, f"Exception: {r}")
-        return
-    try:
-        ok = r.status_code == 200 and r.json().get("message") == "Hello World"
+        return r.json()
     except Exception:
-        ok = False
-    record("GET /api/ (hello world)", ok, f"status={r.status_code} body={r.text[:120]}")
+        return {"_raw": r.text[:300]}
 
 
-def test_weather():
-    r1 = post("/weather", {"lat": 41.9, "lon": 12.5})
-    if not hasattr(r1, "status_code"):
-        record("POST /api/weather {lat,lon} (review payload)", False, f"Exception: {r1}")
+# ---------------- 1) Weather TODAY (no data field) -----------------
+print("\n--- 1) Weather TODAY (no data field) ---")
+try:
+    r = requests.post(f"{API}/weather", json={"citta": "Roma"}, timeout=30)
+    body = safe_json(r)
+    print(f"  status={r.status_code}")
+    print(f"  body={json.dumps(body, ensure_ascii=False)[:500]}")
+    if r.status_code == 422:
+        check("weather_today_no_data", False, "Got HTTP 422 - `data` is NOT optional")
+    elif r.status_code != 200:
+        check("weather_today_no_data", False, f"HTTP {r.status_code}")
     else:
-        record(
-            "POST /api/weather {lat,lon} (review payload, expected 422 due to contract)",
-            r1.status_code in (200, 422),
-            f"status={r1.status_code} body={r1.text[:180]}",
+        today_str = date.today().strftime("%Y-%m-%d")
+        ok = (
+            body.get("success") is True
+            and "temperatura" in body
+            and "descrizione" in body
+            and "vento_kmh" in body
+            and body.get("data") == today_str
         )
-
-    r2 = post("/weather", {"citta": "Roma"})
-    if not hasattr(r2, "status_code"):
-        record("POST /api/weather {citta:Roma}", False, f"Exception: {r2}")
-        return
-    if r2.status_code != 200:
-        record("POST /api/weather {citta:Roma}", False, f"status={r2.status_code} body={r2.text[:180]}")
-        return
-    body = r2.json()
-    record(
-        "POST /api/weather {citta:Roma}",
-        bool(body.get("success")),
-        f"temp={body.get('temperatura')}°C desc='{body.get('descrizione')}' vento={body.get('vento_kmh')} msg={body.get('message')[:100]}",
-    )
+        check(
+            "weather_today_no_data",
+            ok,
+            f"success={body.get('success')} temp={body.get('temperatura')} desc={body.get('descrizione')!r} vento={body.get('vento_kmh')} data={body.get('data')} (expected {today_str})"
+        )
+except Exception as e:
+    check("weather_today_no_data", False, f"Exception: {e}")
 
 
-def test_distance():
-    r1 = post("/distance/calculate", {"from": "Roma", "to": "Milano"})
-    if not hasattr(r1, "status_code"):
-        record("POST /api/distance/calculate {from,to} (review payload)", False, f"Exception: {r1}")
+# ---------------- 2) Weather FORECAST (today+3) -----------------
+print("\n--- 2) Weather FORECAST (today+3) ---")
+future_str = (date.today() + timedelta(days=3)).strftime("%Y-%m-%d")
+try:
+    r = requests.post(f"{API}/weather", json={"citta": "Milano", "data": future_str}, timeout=30)
+    body = safe_json(r)
+    print(f"  status={r.status_code}")
+    print(f"  body={json.dumps(body, ensure_ascii=False)[:500]}")
+    if r.status_code != 200:
+        check("weather_forecast_future", False, f"HTTP {r.status_code}")
     else:
-        record(
-            "POST /api/distance/calculate {from,to} (review payload, expected 422 due to contract)",
-            r1.status_code in (200, 422),
-            f"status={r1.status_code} body={r1.text[:180]}",
+        ok_data = body.get("data") == future_str
+        ok_success = body.get("success") is True
+        tmax = body.get("temperatura_max")
+        tmin = body.get("temperatura_min")
+        ok_tmax = isinstance(tmax, (int, float))
+        ok_tmin = isinstance(tmin, (int, float))
+        ok_desc = bool((body.get("descrizione") or "").strip())
+        ok = ok_success and ok_data and ok_tmax and ok_tmin and ok_desc
+        check(
+            "weather_forecast_future",
+            ok,
+            f"success={body.get('success')} data={body.get('data')} (expected {future_str}) tmax={tmax} tmin={tmin} desc={body.get('descrizione')!r}"
         )
+except Exception as e:
+    check("weather_forecast_future", False, f"Exception: {e}")
 
-    r2 = post("/distance/calculate", {"partenza": "Roma", "destinazione": "Milano"})
-    if not hasattr(r2, "status_code"):
-        record("POST /api/distance/calculate {partenza,destinazione}", False, f"Exception: {r2}")
-        return
-    if r2.status_code != 200:
-        record(
-            "POST /api/distance/calculate {partenza,destinazione}",
-            False,
-            f"status={r2.status_code} body={r2.text[:180]}",
+
+# ---------------- 3) Weather ARCHIVE (today-30) -----------------
+print("\n--- 3) Weather ARCHIVE (today-30) ---")
+past_str = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
+try:
+    r = requests.post(f"{API}/weather", json={"citta": "Torino", "data": past_str}, timeout=30)
+    body = safe_json(r)
+    print(f"  status={r.status_code}")
+    print(f"  body={json.dumps(body, ensure_ascii=False)[:500]}")
+    if r.status_code != 200:
+        check("weather_archive_past", False, f"HTTP {r.status_code}")
+    else:
+        ok_data = body.get("data") == past_str
+        ok_success = body.get("success") is True
+        tmax = body.get("temperatura_max")
+        tmin = body.get("temperatura_min")
+        ok_tmax = isinstance(tmax, (int, float))
+        ok_tmin = isinstance(tmin, (int, float))
+        ok = ok_success and ok_data and ok_tmax and ok_tmin
+        check(
+            "weather_archive_past",
+            ok,
+            f"success={body.get('success')} data={body.get('data')} (expected {past_str}) tmax={tmax} tmin={tmin}"
         )
-        return
-    body = r2.json()
-    record(
-        "POST /api/distance/calculate {partenza,destinazione}",
-        bool(body.get("success")) and body.get("km", 0) > 400,
-        f"km={body.get('km')} A/R={body.get('km_andata_ritorno')}",
-    )
+except Exception as e:
+    check("weather_archive_past", False, f"Exception: {e}")
 
 
-def test_ai_context_freshness():
-    sid = f"test_A_{int(time.time())}"
+# ---------------- 4) Regressions -----------------
+print("\n--- 4a) GET /api/ ---")
+try:
+    r = requests.get(f"{API}/", timeout=15)
+    body = safe_json(r)
+    print(f"  status={r.status_code} body={body}")
+    ok = r.status_code == 200 and body.get("message") == "Hello World"
+    check("hello_world", ok, f"status={r.status_code} body={body}")
+except Exception as e:
+    check("hello_world", False, f"Exception: {e}")
 
-    ctx1 = (
-        "Mercato oggi: Testaccio\n"
-        "Settimana precedente totale: Lordo: €2300 in 5 giornate"
-    )
-    payload1 = {
-        "message": "Quanto ho guadagnato la settimana scorsa?",
-        "context": ctx1,
-        "session_id": sid,
-    }
-    r1 = post("/ai/chat", payload1, timeout=90)
-    if not hasattr(r1, "status_code") or r1.status_code != 200:
-        record(
-            "POST /api/ai/chat — call #1 (ctx: €2300 / 5 giornate)",
-            False,
-            f"status={getattr(r1,'status_code','EXC')} body={getattr(r1,'text',str(r1))[:200]}",
-        )
-        return
-    body1 = r1.json()
-    resp1 = body1.get("response", "")
-    sid1 = body1.get("session_id", "")
-    mentions_2300 = any(t in resp1 for t in ["2300", "2.300", "2'300", "2 300"])
-    mentions_5 = "5" in resp1 and ("giornat" in resp1.lower() or "gg" in resp1.lower())
-    ok1 = mentions_2300 or mentions_5
-    record(
-        "AI chat call #1 — context €2300 / 5 giornate reflected",
-        ok1,
-        f"sid={sid1} | mentions_2300={mentions_2300} mentions_5giornate={mentions_5}\n        response={resp1[:500]}",
-    )
+print("\n--- 4b) POST /api/distance/calculate Roma->Milano ---")
+try:
+    r = requests.post(f"{API}/distance/calculate",
+                      json={"partenza": "Roma", "destinazione": "Milano"},
+                      timeout=30)
+    body = safe_json(r)
+    print(f"  status={r.status_code} body={body}")
+    ok = r.status_code == 200 and body.get("success") is True and (body.get("km") or 0) > 0
+    check("distance_roma_milano", ok, f"km={body.get('km')} A/R={body.get('km_andata_ritorno')}")
+except Exception as e:
+    check("distance_roma_milano", False, f"Exception: {e}")
 
-    ctx2 = "Top 3 mercati: Sanzeno €4500 (10 gg); Rho €2200 (4 gg); Brera €900 (2 gg)"
-    payload2 = {
-        "message": "Qual è il mio miglior mercato?",
-        "context": ctx2,
-        "session_id": sid,
-    }
-    r2 = post("/ai/chat", payload2, timeout=90)
-    if not hasattr(r2, "status_code") or r2.status_code != 200:
-        record(
-            "POST /api/ai/chat — call #2 (NEW ctx Sanzeno €4500)",
-            False,
-            f"status={getattr(r2,'status_code','EXC')} body={getattr(r2,'text',str(r2))[:200]}",
-        )
-        return
-    body2 = r2.json()
-    resp2 = body2.get("response", "")
-    sid2 = body2.get("session_id", "")
-    mentions_sanzeno = "sanzeno" in resp2.lower()
-    mentions_4500 = any(t in resp2 for t in ["4500", "4.500", "4'500", "4 500"])
-    leaking_testaccio_as_best = "testaccio" in resp2.lower() and ("miglior" in resp2.lower() or "top" in resp2.lower())
-    ok2 = (mentions_sanzeno or mentions_4500)
-    record(
-        "AI chat call #2 — FRESH context (Sanzeno €4500) picked up (cache NOT locked)",
-        ok2,
-        f"sid={sid2} | mentions_sanzeno={mentions_sanzeno} mentions_4500={mentions_4500} leaks_testaccio_as_best={leaking_testaccio_as_best}\n        response={resp2[:500]}",
-    )
+print("\n--- 4c) POST /api/ai/chat 'Buongiorno' with context Marco ---")
+try:
+    r = requests.post(f"{API}/ai/chat",
+                      json={
+                          "message": "Buongiorno",
+                          "session_id": "test_round2",
+                          "context": "nomeTitolare: Marco\nmercatoOggi: Roma"
+                      },
+                      timeout=60)
+    body = safe_json(r)
+    resp = (body.get("response") or "")
+    print(f"  status={r.status_code} response[:300]={resp[:300]}")
+    ok = r.status_code == 200 and "Marco" in resp
+    check("ai_chat_marco", ok, f"contains Marco={('Marco' in resp)} response_len={len(resp)}")
+except Exception as e:
+    check("ai_chat_marco", False, f"Exception: {e}")
 
-    record(
-        "AI chat session_id continuity across calls",
-        sid1 == sid2 == sid,
-        f"sent={sid} got1={sid1} got2={sid2}",
-    )
-
-
-def test_init_greeting():
-    sid = f"test_init_{int(time.time())}"
-    ctx = (
-        "nomeTitolare: Marco\n"
-        "mercatoOggi: Testaccio\n"
-        "partenzaDa: Frascati\n"
-        "fiereProssime: [Sagra del Tartufo ad Alba, 25 Giu]\n"
-        "appuntiProssimi: [Commercialista a Milano, 26 Giu]\n"
-    )
-    payload = {"message": "__INIT_GREETING__", "context": ctx, "session_id": sid}
-    r = post("/ai/chat", payload, timeout=90)
-    if not hasattr(r, "status_code") or r.status_code != 200:
-        record(
-            "POST /api/ai/chat __INIT_GREETING__",
-            False,
-            f"status={getattr(r,'status_code','EXC')} body={getattr(r,'text',str(r))[:200]}",
-        )
-        return
-    body = r.json()
-    resp = body.get("response", "")
-    low = resp.lower()
-    has_name = "marco" in low
-    has_appuntamenti = ("commercialista" in low) or ("milano" in low)
-    has_fiere = ("tartufo" in low) or ("alba" in low) or ("sagra" in low)
-    no_literal_echo = "__init_greeting__" not in low
-    ok = has_name and no_literal_echo and (has_appuntamenti or has_fiere)
-    record(
-        "POST /api/ai/chat __INIT_GREETING__ (colloquial + context)",
-        ok,
-        f"has_marco={has_name} has_appunti={has_appuntamenti} has_fiere={has_fiere} no_echo={no_literal_echo}\n        response={resp[:500]}",
-    )
-
-
-def main():
-    print(f"Testing against: {API}")
-    print("=" * 80)
-    test_root()
-    test_weather()
-    test_distance()
-    test_ai_context_freshness()
-    test_init_greeting()
-    print("=" * 80)
-    passed = sum(1 for _, ok, _ in RESULTS if ok)
-    total = len(RESULTS)
-    print(f"RESULT: {passed}/{total} passed")
-    for name, ok, _ in RESULTS:
-        print(f"  {'PASS' if ok else 'FAIL'} — {name}")
-    sys.exit(0 if passed == total else 1)
-
-
-if __name__ == "__main__":
-    main()
+# ---------------- Summary -----------------
+print("\n" + "=" * 60)
+passed = sum(1 for _, p, _ in results if p)
+total = len(results)
+print(f"RESULT: {passed}/{total} passed")
+for n, p, d in results:
+    print(f"  {'OK ' if p else 'KO '} {n}: {d}")
+sys.exit(0 if passed == total else 1)

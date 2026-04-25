@@ -50,6 +50,8 @@ interface StoreData {
   ordiniProssimi?: { data: string; titolo?: string; note?: string; testo?: string }[];
   pagamentiImminenti?: { fornitore: string; numeroFattura: string; importo: number; scadenza: string; giorniRestanti: number }[];
   noteOggi?: string;
+  // Data selezionata in calendario (YYYY-MM-DD) per meteo predittivo
+  selectedDate?: string;
 }
 
 interface Props {
@@ -86,7 +88,7 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
       }
       const weatherCity = storeData.mercatoOggi || storeData.partenzaDa;
       if (weatherCity) {
-        promises.push(fetchWeather(weatherCity));
+        promises.push(fetchWeather(weatherCity, storeData.selectedDate));
       }
 
       // Mark data as ready when all fetches complete
@@ -95,7 +97,7 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
       // Timeout: if fetches take too long, proceed anyway
       setTimeout(() => setDataReady(true), 5000);
     }
-  }, [visible]);
+  }, [visible, storeData.selectedDate]);
 
   const fetchFuelPrices = async () => {
     try {
@@ -122,16 +124,19 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
     }
   };
 
-  const fetchWeather = async (citta: string) => {
+  const fetchWeather = async (citta: string, dataSel?: string) => {
     try {
+      const body: any = { citta };
+      if (dataSel) body.data = dataSel;
       const res = await fetch(`${API_URL}/api/weather`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ citta }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success) {
-        setWeatherData(`METEO REALE ${citta}: ${data.descrizione}, ${data.temperatura}°C (min ${data.temperatura_min}°C, max ${data.temperatura_max}°C), Vento ${data.vento_kmh} km/h, Precipitazioni ${data.precipitazioni_mm}mm`);
+        const dataLabel = dataSel && data.data ? ` (per ${data.data})` : '';
+        setWeatherData(`METEO REALE ${citta}${dataLabel}: ${data.descrizione}, ${data.temperatura}°C (min ${data.temperatura_min}°C, max ${data.temperatura_max}°C), Vento ${data.vento_kmh} km/h, Precipitazioni ${data.precipitazioni_mm}mm`);
       } else {
         setWeatherData(`Meteo non disponibile per ${citta}`);
       }
