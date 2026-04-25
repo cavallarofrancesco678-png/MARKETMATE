@@ -445,98 +445,98 @@
   "tutorial": {
     "common": {
       "next": "Suivant",
-      "skip": "Passer le tuto",
+      "skip": "Passer le guide",
       "back": "Retour",
       "close": "Fermer",
-      "restart": "Redémarrer le tuto",
+      "restart": "Relancer le guide",
       "progress": "Étape {{current}} sur {{total}}",
       "letsgo": "C'est parti !",
       "finish": "Terminé !",
       "save": "Enregistrer",
-      "restartDesc": "Relancez le guide interactif étape par étape pour revoir toutes les fonctions de l'application.",
-      "openPage": "Open page",
-      "doneNext": "Done, let's go",
-      "skipForNow": "I'll do it later"
+      "restartDesc": "Relance le guide interactif pas à pas pour revoir toutes les fonctions.",
+      "openPage": "Ouvrir la page",
+      "doneNext": "C'est fait, on continue",
+      "skipForNow": "Je le ferai plus tard"
     },
     "steps": {
       "welcome": {
-        "title": "Hi! 👋 I'm your guide",
-        "body": "I'll walk you step by step through MarketMate setup. You can skip anytime (top right) and resume later from Settings."
+        "title": "Salut ! 👋 Je suis ton guide",
+        "body": "Je t'accompagne pas à pas dans la configuration de MarketMate. Tu peux passer quand tu veux (en haut à droite) et reprendre plus tard depuis les Paramètres."
       },
       "logistica": {
-        "title": "Your logistics 🚚",
-        "body": "Where do you start each day and what vehicle do you use? Used to calculate km and fuel cost.",
-        "label1": "Departure city",
-        "ph1": "E.g. Rome",
-        "label2": "Fuel type"
+        "title": "Ta logistique 🚚",
+        "body": "D'où pars-tu chaque jour et quel véhicule utilises-tu ? Cela sert à calculer les km et le coût du carburant.",
+        "label1": "Ville de départ",
+        "ph1": "Ex : Paris",
+        "label2": "Type de carburant"
       },
       "settings_intro": {
-        "title": "Now let's set up the engine ⚙️",
-        "body": "This is the longest part, but you only do it once. I'll guide you through collaborators, markets, suppliers and fixed expenses. After that, just open HOME each day: the app does the rest. Ready? 🚀"
+        "title": "Maintenant, on configure le moteur ⚙️",
+        "body": "C'est la partie la plus longue, mais tu ne la fais qu'une fois. Je t'aide à entrer collaborateurs, marchés, fournisseurs et frais fixes. Ensuite, il suffira d'ouvrir l'ACCUEIL chaque jour : l'app fait le reste. Prêt ? 🚀"
       },
       "collab_setup": {
-        "title": "Collaborators first 👥",
-        "body": "Have helpers? Add their names now (e.g. Sara, Paolo). Wages and other details can be added later, when you have more time."
+        "title": "D'abord les collaborateurs 👥",
+        "body": "Tu as des aides ? Ajoute leurs noms maintenant (ex : Sara, Paolo). Les salaires et autres détails, tu les ajouteras plus tard quand tu auras plus de temps."
       },
       "agenda_setup": {
-        "title": "Now your markets 📅",
-        "body": "For each weekday add the market (name, city, km). The PITCH FEE goes here, inside each market card (daily or annual). You can also do this part later."
+        "title": "Maintenant tes marchés 📅",
+        "body": "Pour chaque jour de la semaine, ajoute le marché (nom, ville, km). Le DROIT DE PLACE va ici, dans la fiche de chaque marché (journalier ou annuel). Tu peux aussi le faire plus tard."
       },
       "fornitori_setup": {
-        "title": "Add suppliers 🚛",
-        "body": "Enter your regular suppliers (e.g. Bread Andrea, Dairy Rossi). Everything saves as you type. If you don't have them handy, add them later."
+        "title": "Ajoute les fournisseurs 🚛",
+        "body": "Entre tes fournisseurs habituels (ex : Boulanger Andrea, Laiterie Rossi). Tout s'enregistre pendant que tu écris. Si tu ne les as pas sous la main, ajoute-les plus tard."
       },
       "spese_fisse_setup": {
-        "title": "Fixed expenses 💸",
-        "body": "Add annual expenses: van insurance, social security, accountant, taxes, etc. The app will spread them across working days automatically. Try adding 1-2 entries."
+        "title": "Les frais fixes 💸",
+        "body": "Ajoute les charges annuelles : assurance camion, sécurité sociale, comptable, taxes, etc. L'app les répartira automatiquement sur les jours travaillés. Essaie d'ajouter 1-2 entrées."
       },
       "home_calendar": {
-        "title": "Welcome to HOME! 🏠",
-        "body": "This is your daily working screen. At the top you see the date: use ◀ ▶ arrows to change day, or tap the date for the full calendar."
+        "title": "Bienvenue à l'ACCUEIL ! 🏠",
+        "body": "C'est ton écran de travail quotidien. En haut tu vois la date : utilise les flèches ◀ ▶ pour changer de jour, ou tape sur la date pour le calendrier complet."
       },
       "home_lordo": {
-        "title": "Today's weather ☀️",
-        "body": "The app preselects the weather based on forecasts. You can always change it manually by tapping the matching icon (sun, cloud, rain...)."
+        "title": "La météo du jour ☀️",
+        "body": "L'app présélectionne la météo selon les prévisions. Tu peux toujours la changer manuellement en touchant l'icône correspondante (soleil, nuage, pluie...)."
       },
       "home_incasso": {
-        "title": "How much did you earn today? 💰",
-        "body": "Enter the GROSS total, then enter ONLY ONE between: CASH amount or CARD amount. The app calculates the rest automatically."
+        "title": "Combien as-tu encaissé aujourd'hui ? 💰",
+        "body": "Entre le BRUT total, puis entre UN SEUL chiffre entre : montant en ESPÈCES ou en CB. L'app calcule le reste automatiquement."
       },
       "spese_extra_voci": {
-        "title": "Today's expenses 🛒",
-        "body": "Tap EXPENSES to add every cost of today: from suppliers (you'll see the names you saved) to any free entry. Examples: coffee €3, breakfast €5, lunch €12, parking €4, tolls €8."
+        "title": "Les dépenses du jour 🛒",
+        "body": "Tape sur DÉPENSES pour ajouter chaque coût d'aujourd'hui : des fournisseurs (tu verras les noms enregistrés) à n'importe quelle entrée libre. Exemples : café 3€, petit-déj 5€, déjeuner 12€, parking 4€, péage 8€."
       },
       "buongiorno": {
-        "title": "The «Good Morning» AI 🤖",
-        "body": "Every morning open Good Morning to get the REAL WEATHER and the GAS STATION with the BEST PRICE along your route. Plus: deadlines, top markets and personalized tips based on YOUR data."
+        "title": "L'IA «Bonjour» 🤖",
+        "body": "Chaque matin, ouvre Bonjour pour recevoir la MÉTÉO RÉELLE et la STATION-SERVICE au MEILLEUR PRIX sur ton trajet. En plus : échéances, top marchés et conseils personnalisés basés sur TES données."
       },
       "home_stats_box": {
-        "title": "Stats panel 📊",
-        "body": "At the bottom of Home you see 4 live numbers: GROSS, NET, PROFIT and COSTS. Tap PROFIT for details: same-market revenue (e.g. every Saturday) over the month, year, and comparison with previous year. A must-have at-a-glance for market vendors."
+        "title": "Tableau statistiques 📊",
+        "body": "En bas de la page d'accueil tu vois un tableau de statistiques : mois, année et année précédente. Ce sont les stats du MÊME marché (exemple : chaque samedi) dans le mois en cours, l'année, et comparées à l'année précédente. Un coup d'œil essentiel pour les commerçants ambulants."
       },
       "home_salva": {
-        "title": "Save the day 💾",
-        "body": "When ready, tap SAVE to archive the day. You'll find it in history, charts and statistics. ✏️ You can always go back with the calendar and edit a saved day's data."
+        "title": "Enregistre la journée 💾",
+        "body": "Quand tu es prêt, appuie sur ENREGISTRER pour archiver la journée. Tu la trouveras dans l'historique, les graphiques et les statistiques. ✏️ Tu peux toujours revenir en arrière avec le calendrier et modifier les données d'un jour déjà enregistré."
       },
       "stats": {
-        "title": "Your statistics 📊",
-        "body": "Here you see gross/net charts, top markets, top suppliers, pie charts and many other insights. Explore: each time filter (month/year/custom) shows different data."
+        "title": "Tes statistiques 📊",
+        "body": "Ici tu vois les graphiques de brut/net, top marchés, top fournisseurs, camemberts de répartition et beaucoup d'autres infos. Explore : chaque filtre temporel (mois/année/personnalisé) montre des données différentes."
       },
       "carburante_setup": {
-        "title": "Fuel consumption ⛽",
-        "body": "Enter NOW a refuel example: liters and euros. The app will use this to automatically calculate how much each market costs based on km driven."
+        "title": "Consommation carburant ⛽",
+        "body": "Entre MAINTENANT un exemple de plein : litres et euros. L'app utilisera cette donnée pour calculer automatiquement le coût de chaque marché en fonction des km parcourus."
       },
       "notes_setup": {
-        "title": "The NOTES page 📝",
-        "body": "Here you write appointments, orders to suppliers, deadlines, ideas. Add NOW an appointment (e.g. 'Accountant Tuesday 10:00'). You'll find it in the Home calendar and in the 🔔 notifications bell."
+        "title": "La page NOTES 📝",
+        "body": "Ici tu écris rendez-vous, commandes aux fournisseurs, échéances, idées. Ajoute MAINTENANT un rendez-vous (ex : 'Comptable mardi 10:00'). Tu le retrouveras dans le calendrier de l'Accueil et dans la 🔔 cloche des notifications."
       },
       "backup_info": {
-        "title": "Data backup 💾",
-        "body": "Important: always export a backup! Go to Settings → DATA BACKUP and tap EXPORT to save a file. Send it via WhatsApp, email or load it later if you change phone."
+        "title": "Sauvegarde des données 💾",
+        "body": "Important : exporte toujours une sauvegarde ! Va dans Paramètres → SAUVEGARDE et appuie sur EXPORTER pour enregistrer un fichier. Envoie-le par WhatsApp, email ou charge-le plus tard si tu changes de téléphone."
       },
       "done": {
-        "title": "🎉 All set!",
-        "body": "You're ready to start! Remember: you can relaunch this guide anytime from Settings → RESTART GUIDE. Good luck!"
+        "title": "🎉 Tout est prêt !",
+        "body": "Tu es prêt à commencer ! Rappel : tu peux relancer ce guide à tout moment depuis Paramètres → Relancer le guide.\n\n💡 Des doutes ? Demande à l'IA « Bonjour » : elle explique les fonctions de l'app, te donne tes données, la météo, la station-service la moins chère et bien plus. Bon travail !"
       }
     }
   },

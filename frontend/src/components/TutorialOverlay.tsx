@@ -121,13 +121,13 @@ export const TutorialOverlay: React.FC = () => {
             <MaterialCommunityIcons name={iconName} size={44} color="#1E7F85" />
           </View>
         )}
-        <View style={isCompact ? { flexDirection: 'row', alignItems: 'flex-start', gap: 10 } : {}}>
-          {isCompact && (
+        <View style={isCompact ? { flexDirection: 'column' } : {}}>
+          {!isCompact && (
             <MaterialCommunityIcons name={iconName} size={28} color="#1E7F85" style={{ marginTop: 2 }} />
           )}
           <View style={{ flex: 1 }}>
-            <Text style={[s.title, isCompact && { fontSize: 18, textAlign: 'left', marginBottom: 6 }]}>{title}</Text>
-            <Text style={[s.body, isCompact && { fontSize: 13.5, textAlign: 'left', lineHeight: 19 }]}>{body}</Text>
+            <Text style={[s.title, isCompact && { fontSize: 19, textAlign: 'left', marginBottom: 8, fontWeight: '900' }]}>{title}</Text>
+            <Text style={[s.body, isCompact && { fontSize: 14.5, textAlign: 'left', lineHeight: 21 }]}>{body}</Text>
           </View>
         </View>
 

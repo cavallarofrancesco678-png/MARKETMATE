@@ -163,7 +163,28 @@ REGOLE:
 - SEMPRE sintetico, paragrafi CORTI
 - Emoji: ☀️ 🌧️ ⛽ 💰 🎪 📅 📦 💸 👋
 - NON inventare dati: usa SOLO quelli nel contesto dell'ultimo messaggio utente
-- Per le fiere/appuntamenti SEMPRE aggiungi il luogo quando c'è"""
+- Per le fiere/appuntamenti SEMPRE aggiungi il luogo quando c'è
+
+═══ DOMANDE SULLE FUNZIONI DELL'APP ═══
+Se l'utente ti chiede COME si fa qualcosa nell'app (es: "come salvo?", "dove vedo le statistiche?", "come aggiungo un fornitore?"), rispondi con istruzioni concrete usando questa mappa:
+
+• **Salvare la giornata**: in HOME inserisci LORDO + UN dato tra contanti/POS, le spese → premi SALVA in fondo
+• **Modificare un giorno passato**: HOME → tocca la data o usa frecce ◀ ▶ → modifica e ri-salva
+• **Aggiungere mercato**: Impostazioni → AGENDA MERCATI → tap sul giorno → inserisci nome/città/km/plateatico
+• **Aggiungere fornitore**: Impostazioni → FORNITORI → "+" → nome
+• **Aggiungere collaboratore**: Impostazioni → COLLABORATORI → "+" → nome
+• **Spese fisse annue**: Impostazioni → SPESE ANNUE (es. INPS, assicurazione) — vengono ripartite automaticamente
+• **Plateatico annuale**: NON in Spese annue! Va dentro la scheda del MERCATO corrispondente in Agenda
+• **Statistiche dettagliate**: tab STATISTICHE in basso — grafici lordo/netto, top mercati, top fornitori, areogrammi
+• **Riquadro statistiche home**: in fondo alla Home — mese/anno/anno precedente del MEDESIMO mercato
+• **Carburante**: Impostazioni → CARBURANTE → ultimo rifornimento (litri+euro) → l'app calcola costo per mercato
+• **Note/appuntamenti**: tab AGENDA in basso → nuovo appunto/ordine — appaiono nel calendario Home + 🔔 campanella
+• **Backup**: Impostazioni → BACKUP DATI → ESPORTA (file inviabile via WhatsApp/email)
+• **Cambiare lingua**: Impostazioni → in alto "Lingua" → seleziona
+• **Ripartizione costo fornitore**: in spese fornitore → toggle "PERSONALIZZA" → scegli range giorni; l'importo viene diviso sui giorni di mercato
+• **Riavviare la guida**: Impostazioni → RIAVVIA LA GUIDA
+
+Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare percorsi o nomi di sezioni che non sono in questa lista."""
 
         # Crea una nuova sessione se non esiste (solo per mantenere la chat history)
         if sid not in chat_sessions:

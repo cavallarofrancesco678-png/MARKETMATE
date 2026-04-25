@@ -514,7 +514,7 @@
       },
       "home_stats_box": {
         "title": "Riquadro statistiche 📊",
-        "body": "In fondo alla Home vedi 4 dati live: LORDO, NETTO, UTILE e COSTI del giorno. Toccando UTILE apri il dettaglio: incasso del MEDESIMO mercato (es. ogni sabato) nel mese, nell'anno, e confronto con l'anno precedente. Un colpo d'occhio fondamentale per chi fa mercati."
+        "body": "In fondo alla Home vedi un riquadro con delle statistiche: mese, anno e anno precedente. Sono le statistiche del MEDESIMO mercato (esempio: ogni sabato) nel mese in corso, nell'anno, e a confronto con l'anno precedente. Un colpo d'occhio fondamentale per chi fa mercati."
       },
       "home_salva": {
         "title": "Salva la giornata 💾",
@@ -538,7 +538,7 @@
       },
       "done": {
         "title": "🎉 Tutto pronto!",
-        "body": "Sei pronto a iniziare! Ricorda: puoi rilanciare questa guida quando vuoi dalle Impostazioni → RIAVVIA LA GUIDA. Buon lavoro!"
+        "body": "Sei pronto a iniziare! Ricorda: puoi rilanciare questa guida quando vuoi dalle Impostazioni → Riavvia la guida.\n\n💡 Hai dubbi? Chiedi pure all'AI «Buongiorno»: ti spiega le funzioni della app, ti dà i tuoi dati, il meteo, il distributore col miglior prezzo e tanto altro. Buon lavoro!"
       }
     }
   },

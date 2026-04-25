@@ -514,7 +514,7 @@
       },
       "home_stats_box": {
         "title": "Stats panel 📊",
-        "body": "At the bottom of Home you see 4 live numbers: GROSS, NET, PROFIT and COSTS. Tap PROFIT for details: same-market revenue (e.g. every Saturday) over the month, year, and comparison with previous year. A must-have at-a-glance for market vendors."
+        "body": "At the bottom of Home you see a stats panel: month, year and previous year. These are the stats of the SAME market (example: every Saturday) in the current month, year, and compared with the previous year. A fundamental at-a-glance for market vendors."
       },
       "home_salva": {
         "title": "Save the day 💾",
@@ -538,7 +538,7 @@
       },
       "done": {
         "title": "🎉 All set!",
-        "body": "You're ready to start! Remember: you can relaunch this guide anytime from Settings → RESTART GUIDE. Good luck!"
+        "body": "You're ready to start! Remember: you can relaunch this guide anytime from Settings → Restart guide.\n\n💡 Got questions? Just ask the «Good Morning» AI: it explains app features, shows your data, weather, the cheapest gas station and much more. Good luck!"
       }
     }
   },
