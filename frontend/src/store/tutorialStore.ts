@@ -6,8 +6,17 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore } from './appStore';
 
-export type TutorialStepType = 'info' | 'input' | 'select' | 'nav';
-export type RouteType = '/home/settings' | '/home';
+export type TutorialStepType = 'info' | 'input' | 'select' | 'multi' | 'nav_action';
+export type RouteType = '/home/settings' | '/home' | '/home/agenda' | '/home/notes' | '/home/stats';
+
+export interface TutorialField {
+  field: string;
+  type: 'text' | 'select';
+  labelKey?: string;
+  placeholderKey?: string;
+  keyboardType?: 'default' | 'decimal-pad' | 'number-pad';
+  options?: { value: string; labelKey?: string; label?: string }[];
+}
 
 export interface TutorialStep {
   id: string;
@@ -18,34 +27,83 @@ export interface TutorialStep {
   route?: RouteType;
   inputKeyboardType?: 'default' | 'decimal-pad' | 'number-pad' | 'email-address';
   options?: { value: string; label: string }[];
+  fields?: TutorialField[];
+  navigateTo?: RouteType;
   // If a step targets 'home' sample data, we store in a local 'tutorialSample' field (not persisted as real data)
   sampleField?: 'lordo' | 'scontrini';
 }
 
+const CARBURANTE_OPTS = [
+  { value: 'benzina', label: 'Benzina' },
+  { value: 'gasolio', label: 'Diesel/Gasolio' },
+  { value: 'gpl', label: 'GPL' },
+  { value: 'metano', label: 'Metano' },
+  { value: 'elettrico', label: 'Elettrico' },
+];
+
 export const TUTORIAL_STEPS: TutorialStep[] = [
+  // 1. Benvenuto
   { id: 'welcome', tKey: 'tutorial.steps.welcome', type: 'info', icon: 'rocket-launch', route: '/home/settings' },
-  { id: 'nomeAttivita', tKey: 'tutorial.steps.nomeAttivita', type: 'input', icon: 'storefront', field: 'nomeAttivita', route: '/home/settings' },
-  { id: 'nomeTitolare', tKey: 'tutorial.steps.nomeTitolare', type: 'input', icon: 'account', field: 'nomeTitolare' as any, route: '/home/settings' },
-  { id: 'partenzaDa', tKey: 'tutorial.steps.partenzaDa', type: 'input', icon: 'map-marker', field: 'partenzaDa', route: '/home/settings' },
-  { id: 'carburante', tKey: 'tutorial.steps.carburante', type: 'select', icon: 'gas-station', field: 'tipoCarburante',
-    options: [
-      { value: 'benzina', label: 'Benzina' },
-      { value: 'gasolio', label: 'Diesel/Gasolio' },
-      { value: 'gpl', label: 'GPL' },
-      { value: 'metano', label: 'Metano' },
-      { value: 'elettrico', label: 'Elettrico' },
-    ], route: '/home/settings' },
-  { id: 'agendaMercati', tKey: 'tutorial.steps.agendaMercati', type: 'info', icon: 'calendar-week', route: '/home/settings' },
-  { id: 'fornitori', tKey: 'tutorial.steps.fornitori', type: 'info', icon: 'truck-delivery', route: '/home/settings' },
-  { id: 'collaboratori', tKey: 'tutorial.steps.collaboratori', type: 'info', icon: 'account-group', route: '/home/settings' },
-  { id: 'goHome', tKey: 'tutorial.steps.goHome', type: 'nav', icon: 'home', route: '/home' },
-  { id: 'home_meteo', tKey: 'tutorial.steps.home_meteo', type: 'info', icon: 'weather-sunny', route: '/home' },
-  { id: 'home_lordo', tKey: 'tutorial.steps.home_lordo', type: 'input', icon: 'cash', sampleField: 'lordo', inputKeyboardType: 'decimal-pad', route: '/home' },
-  { id: 'home_scontrini', tKey: 'tutorial.steps.home_scontrini', type: 'input', icon: 'receipt', sampleField: 'scontrini', inputKeyboardType: 'number-pad', route: '/home' },
-  { id: 'home_spese', tKey: 'tutorial.steps.home_spese', type: 'info', icon: 'currency-eur', route: '/home' },
-  { id: 'home_salva', tKey: 'tutorial.steps.home_salva', type: 'info', icon: 'content-save', route: '/home' },
-  { id: 'stats', tKey: 'tutorial.steps.stats', type: 'info', icon: 'chart-bar', route: '/home' },
+
+  // 2. Identità: nome attività + nome titolare
+  { id: 'identita', tKey: 'tutorial.steps.identita', type: 'multi', icon: 'storefront', route: '/home/settings',
+    fields: [
+      { field: 'nomeAttivita', type: 'text', labelKey: 'tutorial.steps.identita.label1', placeholderKey: 'tutorial.steps.identita.ph1' },
+      { field: 'nomeTitolare', type: 'text', labelKey: 'tutorial.steps.identita.label2', placeholderKey: 'tutorial.steps.identita.ph2' },
+    ],
+  },
+
+  // 3. Logistica: partenza + carburante
+  { id: 'logistica', tKey: 'tutorial.steps.logistica', type: 'multi', icon: 'map-marker-radius', route: '/home/settings',
+    fields: [
+      { field: 'partenzaDa', type: 'text', labelKey: 'tutorial.steps.logistica.label1', placeholderKey: 'tutorial.steps.logistica.ph1' },
+      { field: 'tipoCarburante', type: 'select', labelKey: 'tutorial.steps.logistica.label2', options: CARBURANTE_OPTS },
+    ],
+  },
+
+  // 4. Agenda mercati (apri Agenda dell'app, salva, torna)
+  { id: 'agenda_setup', tKey: 'tutorial.steps.agenda_setup', type: 'nav_action', icon: 'calendar-week', route: '/home/settings', navigateTo: '/home/settings' },
+
+  // 5. Fornitori
+  { id: 'fornitori_setup', tKey: 'tutorial.steps.fornitori_setup', type: 'nav_action', icon: 'truck-delivery', route: '/home/settings', navigateTo: '/home/settings' },
+
+  // 6. Collaboratori (solo nomi)
+  { id: 'collab_setup', tKey: 'tutorial.steps.collab_setup', type: 'nav_action', icon: 'account-group', route: '/home/settings', navigateTo: '/home/settings' },
+
+  // 7. Spese fisse (Settings + plateatici nei mercati + spese annue)
+  { id: 'spese_fisse_setup', tKey: 'tutorial.steps.spese_fisse_setup', type: 'nav_action', icon: 'cash-multiple', route: '/home/settings', navigateTo: '/home/settings' },
+
+  // 8. Calendario Home (frecce + tap data)
+  { id: 'home_calendar', tKey: 'tutorial.steps.home_calendar', type: 'info', icon: 'calendar-arrow-right', route: '/home' },
+
+  // 9. Inserimento Lordo (preselezione meteo)
+  { id: 'home_lordo', tKey: 'tutorial.steps.home_lordo', type: 'info', icon: 'weather-sunny', route: '/home' },
+
+  // 10. Quanto hai incassato? (Lordo + Cash + POS)
+  { id: 'home_incasso', tKey: 'tutorial.steps.home_incasso', type: 'info', icon: 'cash', route: '/home' },
+
+  // 11. Spese Extra (fornitori + voci libere come caffè, pranzo)
+  { id: 'spese_extra_voci', tKey: 'tutorial.steps.spese_extra_voci', type: 'info', icon: 'cart-variant', route: '/home' },
+
+  // 12. Salva la giornata
+  { id: 'home_salva', tKey: 'tutorial.steps.home_salva', type: 'info', icon: 'content-save-check', route: '/home' },
+
+  // 13. Statistiche
+  { id: 'stats', tKey: 'tutorial.steps.stats', type: 'info', icon: 'chart-bar', route: '/home/stats' },
+
+  // 14. Buongiorno AI
   { id: 'buongiorno', tKey: 'tutorial.steps.buongiorno', type: 'info', icon: 'robot-happy', route: '/home' },
+
+  // 15. Carburante (apri pagina, valore consumo, calcolo)
+  { id: 'carburante_setup', tKey: 'tutorial.steps.carburante_setup', type: 'nav_action', icon: 'gas-station', route: '/home', navigateTo: '/home/settings' },
+
+  // 16. Notes (apri Notes, fai un appuntamento o ordine)
+  { id: 'notes_setup', tKey: 'tutorial.steps.notes_setup', type: 'nav_action', icon: 'note-edit', route: '/home/notes', navigateTo: '/home/notes' },
+
+  // 17. Backup
+  { id: 'backup_info', tKey: 'tutorial.steps.backup_info', type: 'info', icon: 'cloud-upload', route: '/home/settings' },
+
+  // 18. Done
   { id: 'done', tKey: 'tutorial.steps.done', type: 'info', icon: 'trophy', route: '/home' },
 ];
 

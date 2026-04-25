@@ -453,81 +453,90 @@
       "letsgo": "Vamos lá!",
       "finish": "Pronto!",
       "save": "Salvar",
-      "restartDesc": "Reinicie o guia interativo passo a passo para rever todas as funções do app."
+      "restartDesc": "Reinicie o guia interativo passo a passo para rever todas as funções do app.",
+      "openPage": "Open page",
+      "doneNext": "Done, let's go",
+      "skipForNow": "I'll do it later"
     },
     "steps": {
       "welcome": {
-        "title": "Olá! 👋 Sou seu guia",
-        "body": "Ajudo você a configurar o MarketMate em 2 minutos. Se faltar algum dado, tudo bem, coloca depois. Quanto mais colocar agora, mais preciso o app! 😊"
+        "title": "Hi! 👋 I'm your guide",
+        "body": "I'll help you set up MarketMate in a few steps. You can skip anytime (top right) and resume later from Settings."
       },
-      "nomeAttivita": {
-        "title": "Nome do seu negócio? 🏪",
-        "body": "Escreva o nome da sua loja ou atividade. Pode mudar depois.",
-        "placeholder": "Ex. Padaria Rossi"
+      "identita": {
+        "title": "Start with yourself 🏪",
+        "body": "Enter your business name and your name. They'll save automatically.",
+        "label1": "Business name",
+        "ph1": "E.g. Marco's Pizzeria",
+        "label2": "Owner name",
+        "ph2": "E.g. Marco Rossi"
       },
-      "nomeTitolare": {
-        "title": "E você, como se chama? 😄",
-        "body": "Seu nome aparecerá no Bom Dia. Use o nome que prefere!",
-        "placeholder": "Ex. Mario"
+      "logistica": {
+        "title": "Your logistics 🚚",
+        "body": "Where do you start each day and what vehicle do you use? Used to calculate km and fuel cost.",
+        "label1": "Departure city",
+        "ph1": "E.g. Rome",
+        "label2": "Fuel type"
       },
-      "partenzaDa": {
-        "title": "De onde você sai de manhã? 🚚",
-        "body": "Para calcular quilômetros e sugerir postos mais baratos no trajeto.",
-        "placeholder": "Ex. Rua Roma 12, Roma"
+      "agenda_setup": {
+        "title": "Your markets 📅",
+        "body": "Open the Agenda and add markets for each day of the week (name, city, km, pitch fee). You can also do this later. Tap \"Open Settings\", AGENDA section."
       },
-      "carburante": {
-        "title": "Qual combustível? ⛽",
-        "body": "Precisamos pra calcular o custo real por km. Toque o certo."
+      "fornitori_setup": {
+        "title": "Your suppliers 🚛",
+        "body": "Add the suppliers you buy from (e.g. Bread Andrea, Dairy Rossi). You can also do this later. Go to Settings, SUPPLIERS section."
       },
-      "agendaMercati": {
-        "title": "Agora os mercados! 📅",
-        "body": "Em Configurações tem a agenda semanal. Pode pular — o app funciona igual."
+      "collab_setup": {
+        "title": "Collaborators 👥",
+        "body": "Have helpers? Just add their names (e.g. Sara, Paolo). You'll add fees and other data later. Open Settings, COLLABORATORS section."
       },
-      "fornitori": {
-        "title": "Seus fornecedores 🚛",
-        "body": "Adicione quem fornece mercadoria. Útil para notas fiscais. (Opcional)"
+      "spese_fisse_setup": {
+        "title": "Fixed expenses 💸",
+        "body": "Pitch fees → enter them in the market card itself (in Agenda). Other annual expenses (van insurance, social security, accountant, etc.) go in Settings → ANNUAL EXPENSES. The app spreads them across working days automatically."
       },
-      "collaboratori": {
-        "title": "Trabalha com alguém? 👥",
-        "body": "Adicione colaboradores com pagamento por hora. O app calcula o custo. (Opcional)"
-      },
-      "goHome": {
-        "title": "Excelente! 🎉",
-        "body": "Agora vamos pra HOME onde você insere dados diários. Vou mostrar!"
-      },
-      "home_meteo": {
-        "title": "Tempo de hoje ☀️",
-        "body": "Toque o ícone do tempo de hoje. O app pré-seleciona pelo clima real."
+      "home_calendar": {
+        "title": "Browse days 📆",
+        "body": "On the Home screen at the top you see the date. Use the ◀ ▶ arrows to move forward/back one day, or tap the date to open the full calendar."
       },
       "home_lordo": {
-        "title": "Quanto você ganhou? 💰",
-        "body": "Tente um valor de exemplo. PRÓXIMO salva na HOME.",
-        "placeholder": "Ex. 250"
+        "title": "Today's weather ☀️",
+        "body": "The app preselects the weather based on real forecasts. You can always change it manually by tapping the matching icon (sun, cloud, rain...)."
       },
-      "home_scontrini": {
-        "title": "Quantos tickets? 🧾",
-        "body": "Número de tickets. O app calcula a média para ver se cresce!",
-        "placeholder": "Ex. 45"
+      "home_incasso": {
+        "title": "How much did you earn today? 💰",
+        "body": "Enter the GROSS total, then split: how much in CASH and how much by CARD. Cash + Card must match Gross."
       },
-      "home_spese": {
-        "title": "GASTOS EXTRA 💸",
-        "body": "Gastos do dia: combustível, estacionamento, refeições... E notas com divisão inteligente!"
+      "spese_extra_voci": {
+        "title": "Today's extra expenses 🛒",
+        "body": "Enter all expenses today: from suppliers (you'll see the names from Settings) to anything else (coffee, lunch, parking, tolls, etc.). For suppliers you can choose cash or invoice, and split the cost over multiple days."
       },
       "home_salva": {
-        "title": "Salvar o dia ✅",
-        "body": "No final, toque SALVAR. O dia vai pra histórico e pras ESTATÍSTICAS."
+        "title": "Save the day 💾",
+        "body": "When ready, tap SAVE to archive the day. You'll find it in history, charts and statistics."
       },
       "stats": {
-        "title": "Suas ESTATÍSTICAS 📊",
-        "body": "Em Estatísticas tem gráficos de ganhos, gastos, fornecedores, melhores mercados!"
+        "title": "Your statistics 📊",
+        "body": "In Statistics you see gross/net charts, top markets, top suppliers, pie charts and many other useful insights."
       },
       "buongiorno": {
-        "title": "BOM DIA AI 🤖",
-        "body": "Toda manhã o AI te dá briefing: clima, compromissos, notas, preços combustível. Pode fazer perguntas!"
+        "title": "The «Good Morning» AI 🤖",
+        "body": "Every morning open Good Morning to get weather, upcoming deadlines, cheapest fuel prices and personalized tips based on YOUR data."
+      },
+      "carburante_setup": {
+        "title": "Fuel consumption ⛽",
+        "body": "In Settings → FUEL you can enter the last refuel (liters & euros). The app will automatically calculate how much each market costs based on km driven."
+      },
+      "notes_setup": {
+        "title": "Your agenda 📝",
+        "body": "In NOTES you can write appointments, orders to suppliers, deadlines, ideas. Everything here will also appear in the Home calendar and notification bell. Try it now!"
+      },
+      "backup_info": {
+        "title": "Data backup 💾",
+        "body": "Always export a backup! Go to Settings → DATA BACKUP and tap EXPORT to save a file. Send it via WhatsApp, email or load it later if you change phone."
       },
       "done": {
-        "title": "Você é um mito! 🏆",
-        "body": "Terminou o tour. Pode reabrir em Configurações. Agora é com você: bom trabalho! 🚀"
+        "title": "🎉 All set!",
+        "body": "You're ready to start! Remember: you can relaunch this guide anytime from Settings → RESTART GUIDE. Good luck!"
       }
     }
   },

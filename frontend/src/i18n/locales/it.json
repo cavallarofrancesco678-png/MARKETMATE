@@ -450,86 +450,95 @@
       "skip": "Salta la guida",
       "back": "Indietro",
       "close": "Chiudi",
-      "restart": "Riavvia la guida",
+      "restart": "Riavvia tutorial",
       "progress": "Passo {{current}} di {{total}}",
       "letsgo": "Iniziamo!",
       "finish": "Finito!",
       "save": "Salva",
-      "restartDesc": "Rilancia la guida interattiva passo-passo per rivedere tutte le funzioni dell'app."
+      "restartDesc": "Rilancia la guida interattiva passo-passo per rivedere tutte le funzioni dell'app.",
+      "openPage": "Apri pagina",
+      "doneNext": "Fatto, vai avanti",
+      "skipForNow": "Lo faccio dopo"
     },
     "steps": {
       "welcome": {
         "title": "Ciao! 👋 Sono la tua guida",
-        "body": "Ti aiuto a configurare MarketMate in 2 minuti. Se non hai un dato non importa, lo aggiungi dopo. Più dati metti ora, più l'app sarà precisa! 😊"
+        "body": "Ti aiuto a configurare MarketMate in pochi passi. Puoi saltare quando vuoi (in alto a destra) e riprendere dopo dalle Impostazioni."
       },
-      "nomeAttivita": {
-        "title": "Come si chiama la tua attività? 🏪",
-        "body": "Scrivi qui sotto il nome del tuo negozio o della tua attività. Puoi sempre cambiarlo dopo.",
-        "placeholder": "Es. Pane Forno Rossi"
+      "identita": {
+        "title": "Inizia da te 🏪",
+        "body": "Inserisci il nome della tua attività e il tuo nome. Si salveranno automaticamente.",
+        "label1": "Nome attività",
+        "ph1": "Es: Pizzeria da Marco",
+        "label2": "Nome titolare",
+        "ph2": "Es: Marco Rossi"
       },
-      "nomeTitolare": {
-        "title": "E tu come ti chiami? 😄",
-        "body": "Il tuo nome apparirà nel saluto di Buongiorno. Mettilo come vuoi essere chiamato!",
-        "placeholder": "Es. Mario"
+      "logistica": {
+        "title": "La tua logistica 🚚",
+        "body": "Da dove parti ogni giorno e che mezzo usi? Servono per calcolare i km e il costo carburante.",
+        "label1": "Città di partenza",
+        "ph1": "Es: Roma",
+        "label2": "Tipo carburante"
       },
-      "partenzaDa": {
-        "title": "Dove parti al mattino? 🚚",
-        "body": "Serve per calcolare i chilometri e suggerirti i distributori più convenienti lungo il tragitto.",
-        "placeholder": "Es. Via Roma 12, Roma"
+      "agenda_setup": {
+        "title": "I tuoi mercati 📅",
+        "body": "Apri l'Agenda e aggiungi i mercati per ogni giorno della settimana (nome, città, km, plateatico). Puoi anche farlo dopo, nessun problema. Tocca «Apri Impostazioni», sezione AGENDA MERCATI."
       },
-      "carburante": {
-        "title": "Che carburante usi? ⛽",
-        "body": "Ci serve per calcolare il costo reale ogni km. Tocca quello giusto."
-      },
-      "agendaMercati": {
-        "title": "Ora mettiamo i mercati! 📅",
-        "body": "In Impostazioni trovi l'agenda settimanale: indica per ogni giorno dove vai. Puoi saltare questo passo e farlo dopo — l'app funziona lo stesso."
-      },
-      "fornitori": {
+      "fornitori_setup": {
         "title": "I tuoi fornitori 🚛",
-        "body": "Aggiungi chi ti fornisce la merce. Ti servirà per tracciare le fatture. (Passo opzionale)"
+        "body": "Aggiungi i fornitori da cui acquisti (es: Andrea Pane, Latteria Rossi). Puoi anche farlo in un secondo momento. Vai in Impostazioni, sezione FORNITORI."
       },
-      "collaboratori": {
-        "title": "Lavori con qualcuno? 👥",
-        "body": "Aggiungi collaboratori con la loro paga oraria. L'app calcola in automatico il costo del lavoro ogni giorno. (Opzionale)"
+      "collab_setup": {
+        "title": "Collaboratori 👥",
+        "body": "Hai aiutanti? Aggiungi solo i loro nomi (es: Sara, Paolo). Compensi e altri dati li metterai dopo. Apri Impostazioni, sezione COLLABORATORI."
       },
-      "goHome": {
-        "title": "Ottimo lavoro! 🎉",
-        "body": "Ora andiamo in HOME dove inserisci i dati di ogni giornata. Ti mostro tutto!"
+      "spese_fisse_setup": {
+        "title": "Spese fisse 💸",
+        "body": "Plateatici → vanno scritti dentro la scheda del mercato di riferimento (in Agenda). Le altre spese annue (assicurazione furgone, INPS, commercialista, ecc.) si aggiungono in Impostazioni, sezione SPESE ANNUE. L'app le ripartirà automaticamente sui giorni di lavoro."
       },
-      "home_meteo": {
-        "title": "Il meteo di oggi ☀️",
-        "body": "Tocca l'icona che rappresenta il meteo oggi. L'app lo preseleziona già in automatico in base al tempo reale."
+      "home_calendar": {
+        "title": "Naviga i giorni 📆",
+        "body": "Nella Home in alto trovi la data. Usa le frecce ◀ ▶ per spostarti di un giorno avanti/indietro, oppure tocca la data per aprire il calendario completo."
       },
       "home_lordo": {
-        "title": "Quanto hai incassato? 💰",
-        "body": "Prova a mettere un numero di esempio qui sotto. Tocca AVANTI per salvarlo in HOME.",
-        "placeholder": "Es. 250"
+        "title": "Meteo del giorno ☀️",
+        "body": "L'app preseleziona il meteo per te in base alle previsioni reali. Se vuoi puoi sempre cambiarlo manualmente toccando l'icona corrispondente (sole, nuvolo, pioggia...)."
       },
-      "home_scontrini": {
-        "title": "Quanti scontrini? 🧾",
-        "body": "Scrivi il numero di scontrini. L'app calcola da sola la media scontrino per capire se stai crescendo!",
-        "placeholder": "Es. 45"
+      "home_incasso": {
+        "title": "Quanto hai incassato oggi? 💰",
+        "body": "Inserisci il LORDO totale, poi la divisione: quanto hai preso in CONTANTI e quanto col POS. La somma di contanti+POS deve corrispondere al lordo."
       },
-      "home_spese": {
-        "title": "SPESE EXTRA 💸",
-        "body": "Qui metti le spese del giorno: carburante, parcheggi, pranzi... E anche le fatture dei fornitori con ripartizione intelligente!"
+      "spese_extra_voci": {
+        "title": "Spese extra del giorno 🛒",
+        "body": "Qui inserisci tutte le spese fatte oggi: dai fornitori (troverai i nomi che hai messo in Impostazioni) a qualsiasi altra voce libera (caffè, colazione, pranzo, parcheggio, autostrada, ecc.). Per i fornitori puoi scegliere se è contanti o fattura, e ripartire la spesa su più giorni."
       },
       "home_salva": {
-        "title": "Salva la giornata ✅",
-        "body": "Quando hai finito, premi SALVA. La giornata va nello storico e puoi vederla nelle STATISTICHE."
+        "title": "Salva la giornata 💾",
+        "body": "Quando sei pronto, premi SALVA per archiviare la giornata. La troverai nello storico, nei grafici e nelle statistiche."
       },
       "stats": {
-        "title": "Le tue STATISTICHE 📊",
-        "body": "Nella sezione Statistiche vedi grafici dei tuoi incassi, delle spese, dei fornitori e dei mercati migliori. Ti permette di capire dove guadagni di più!"
+        "title": "Le tue statistiche 📊",
+        "body": "Nella sezione Statistiche vedi grafici di lordo/netto, top mercati, top fornitori, areogrammi di ripartizione e tante altre informazioni utili."
       },
       "buongiorno": {
-        "title": "BUONGIORNO AI 🤖",
-        "body": "Ogni mattina l'assistente AI ti dà un briefing: meteo, appuntamenti, fatture in scadenza, prezzi carburante. Puoi anche fargli domande!"
+        "title": "L'AI «Buongiorno» 🤖",
+        "body": "Ogni mattina apri Buongiorno per ricevere il meteo, le scadenze imminenti, i prezzi del carburante più convenienti e consigli personalizzati basati sui TUOI dati."
+      },
+      "carburante_setup": {
+        "title": "Consumo carburante ⛽",
+        "body": "In Impostazioni → CARBURANTE puoi inserire l'ultimo rifornimento (litri ed euro). L'app calcolerà automaticamente quanto ti costa ogni mercato in base ai km percorsi."
+      },
+      "notes_setup": {
+        "title": "La tua agenda 📝",
+        "body": "Nella sezione NOTES puoi annotare appuntamenti, ordini ai fornitori, scadenze, idee. Tutto quello che metti qui lo ritroverai nel calendario in Home e nella campanella delle notifiche. Provala adesso!"
+      },
+      "backup_info": {
+        "title": "Backup dati 💾",
+        "body": "Esporta sempre un backup dei tuoi dati! Vai in Impostazioni → BACKUP DATI e premi ESPORTA per salvare un file. Lo potrai inviare via WhatsApp, email o caricarlo dopo se cambi telefono."
       },
       "done": {
-        "title": "Sei un mito! 🏆",
-        "body": "Hai finito la guida. Puoi sempre riaprirla dalle Impostazioni in fondo alla pagina. Ora tocca a te: buon lavoro! 🚀"
+        "title": "🎉 Tutto pronto!",
+        "body": "Sei pronto a iniziare! Ricorda: puoi rilanciare questa guida quando vuoi dalle Impostazioni → RIAVVIA LA GUIDA. Buon lavoro!"
       }
     }
   },

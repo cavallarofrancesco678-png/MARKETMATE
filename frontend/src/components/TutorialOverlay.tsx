@@ -106,7 +106,7 @@ export const TutorialOverlay: React.FC = () => {
               <Text style={s.title}>{title}</Text>
               <Text style={s.body}>{body}</Text>
 
-              {/* Input inline */}
+              {/* Input inline (legacy single-field) */}
               {step.type === 'input' && (
                 <View style={{ marginTop: 14 }}>
                   <TextInput
@@ -122,6 +122,74 @@ export const TutorialOverlay: React.FC = () => {
                   {currentFieldValue.length > 0 && (
                     <Text style={s.savedHint}>✅ {t('tutorial.common.save')} in tempo reale</Text>
                   )}
+                </View>
+              )}
+
+              {/* Multi-field (input + select misti) */}
+              {step.type === 'multi' && step.fields && (
+                <View style={{ marginTop: 14, gap: 12 }}>
+                  {step.fields.map((f, idx) => {
+                    const curVal = String((appStore as any)[f.field] || '');
+                    const onChange = (v: string) => {
+                      if (appStore.setConfig) appStore.setConfig({ [f.field]: v } as any);
+                      else { (useAppStore.setState as any)({ [f.field]: v }); appStore.saveToStorage?.(); }
+                    };
+                    if (f.type === 'text') {
+                      return (
+                        <View key={idx}>
+                          <Text style={s.fieldLabel}>{f.labelKey ? t(f.labelKey) : ''}</Text>
+                          <TextInput
+                            style={s.input}
+                            value={curVal}
+                            onChangeText={onChange}
+                            placeholder={f.placeholderKey ? t(f.placeholderKey) : ''}
+                            placeholderTextColor="#B0B0A0"
+                            keyboardType={f.keyboardType || 'default'}
+                            autoCapitalize="words"
+                            autoFocus={idx === 0}
+                          />
+                          {curVal.length > 0 && <Text style={s.savedHint}>✅ Salvato</Text>}
+                        </View>
+                      );
+                    }
+                    // select
+                    return (
+                      <View key={idx}>
+                        <Text style={s.fieldLabel}>{f.labelKey ? t(f.labelKey) : ''}</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                          {(f.options || []).map((opt) => {
+                            const on = curVal === opt.value;
+                            const lbl = opt.labelKey ? t(opt.labelKey) : (opt.label || opt.value);
+                            return (
+                              <TouchableOpacity
+                                key={opt.value}
+                                style={[s.pillOpt, on && s.pillOptOn]}
+                                onPress={() => onChange(opt.value)}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[s.pillTxt, on && { color: '#FFF' }]}>{lbl}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Nav action: pulsante per aprire una sezione dell'app */}
+              {step.type === 'nav_action' && step.navigateTo && (
+                <View style={{ marginTop: 16, gap: 10 }}>
+                  <TouchableOpacity
+                    style={s.navBtn}
+                    onPress={() => router.push(step.navigateTo as any)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="arrow-right-circle" size={18} color="#FFF" />
+                    <Text style={s.navBtnTxt}>{t('tutorial.common.openPage')}</Text>
+                  </TouchableOpacity>
+                  <Text style={s.skipHint}>{t('tutorial.common.skipForNow')} →</Text>
                 </View>
               )}
 
@@ -183,6 +251,13 @@ const s = StyleSheet.create({
   optBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F5EFDC', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#E0D8C0' },
   optBtnOn: { backgroundColor: '#1E7F85', borderColor: '#1E7F85' },
   optTxt: { fontSize: 14, color: '#5A7575', fontWeight: '700' },
+  fieldLabel: { fontSize: 11, fontWeight: '900', color: '#1A4040', marginBottom: 6, letterSpacing: 0.5 },
+  pillOpt: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: '#F5EFDC', borderWidth: 1.5, borderColor: '#E0D8C0' },
+  pillOptOn: { backgroundColor: '#1E7F85', borderColor: '#1E7F85' },
+  pillTxt: { fontSize: 12, fontWeight: '700', color: '#5A7575' },
+  navBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#D2691E', paddingVertical: 14, borderRadius: 12 },
+  navBtnTxt: { fontSize: 13, fontWeight: '900', color: '#FFF', letterSpacing: 0.5 },
+  skipHint: { fontSize: 11, color: '#7A9090', textAlign: 'center', fontStyle: 'italic' },
   footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F0EBE1', backgroundColor: '#FAFAF5' },
   skipBtn: { paddingVertical: 8, paddingHorizontal: 8 },
   skipTxt: { fontSize: 11, color: '#7A9090', fontWeight: '700', letterSpacing: 0.3 },
