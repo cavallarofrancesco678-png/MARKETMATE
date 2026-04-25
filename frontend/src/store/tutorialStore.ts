@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore } from './appStore';
 
 export type TutorialStepType = 'info' | 'input' | 'select' | 'multi' | 'nav_action';
-export type RouteType = '/home/settings' | '/home' | '/home/agenda' | '/home/notes' | '/home/stats';
+export type RouteType = '/home/settings' | '/home' | '/home/agenda' | '/home/stats' | '/home/gas';
 
 export interface TutorialField {
   field: string;
@@ -35,7 +35,7 @@ export interface TutorialStep {
 
 const CARBURANTE_OPTS = [
   { value: 'benzina', label: 'Benzina' },
-  { value: 'gasolio', label: 'Diesel/Gasolio' },
+  { value: 'gasolio', label: 'Diesel' },
   { value: 'gpl', label: 'GPL' },
   { value: 'metano', label: 'Metano' },
   { value: 'elettrico', label: 'Elettrico' },
@@ -45,15 +45,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   // 1. Benvenuto
   { id: 'welcome', tKey: 'tutorial.steps.welcome', type: 'info', icon: 'rocket-launch', route: '/home/settings' },
 
-  // 2. Identità: nome attività + nome titolare
-  { id: 'identita', tKey: 'tutorial.steps.identita', type: 'multi', icon: 'storefront', route: '/home/settings',
-    fields: [
-      { field: 'nomeAttivita', type: 'text', labelKey: 'tutorial.steps.identita.label1', placeholderKey: 'tutorial.steps.identita.ph1' },
-      { field: 'nomeTitolare', type: 'text', labelKey: 'tutorial.steps.identita.label2', placeholderKey: 'tutorial.steps.identita.ph2' },
-    ],
-  },
-
-  // 3. Logistica: partenza + carburante
+  // 2. Logistica: partenza + carburante
   { id: 'logistica', tKey: 'tutorial.steps.logistica', type: 'multi', icon: 'map-marker-radius', route: '/home/settings',
     fields: [
       { field: 'partenzaDa', type: 'text', labelKey: 'tutorial.steps.logistica.label1', placeholderKey: 'tutorial.steps.logistica.ph1' },
@@ -61,47 +53,50 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     ],
   },
 
-  // 4. Sei in Settings: introduce il "motore" e prosegui
-  { id: 'agenda_setup', tKey: 'tutorial.steps.agenda_setup', type: 'info', icon: 'cog', route: '/home/settings' },
+  // 3. Settings intro: "Adesso configuriamo il motore"
+  { id: 'settings_intro', tKey: 'tutorial.steps.settings_intro', type: 'info', icon: 'cog', route: '/home/settings' },
 
-  // 5. Fornitori (in Settings)
-  { id: 'fornitori_setup', tKey: 'tutorial.steps.fornitori_setup', type: 'info', icon: 'truck-delivery', route: '/home/settings' },
-
-  // 6. Collaboratori (in Settings)
+  // 4. Collaboratori (compact, scroll alla sezione Collaboratori)
   { id: 'collab_setup', tKey: 'tutorial.steps.collab_setup', type: 'info', icon: 'account-group', route: '/home/settings' },
 
-  // 7. Spese fisse (in Settings)
+  // 5. Agenda Mercati (in Settings, scroll a Mercati)
+  { id: 'agenda_setup', tKey: 'tutorial.steps.agenda_setup', type: 'info', icon: 'calendar-week', route: '/home/settings' },
+
+  // 6. Fornitori (in Settings, scroll a Fornitori)
+  { id: 'fornitori_setup', tKey: 'tutorial.steps.fornitori_setup', type: 'info', icon: 'truck-delivery', route: '/home/settings' },
+
+  // 7. Spese fisse (in Settings, scroll a Spese annue)
   { id: 'spese_fisse_setup', tKey: 'tutorial.steps.spese_fisse_setup', type: 'info', icon: 'cash-multiple', route: '/home/settings' },
 
-  // 8. Sei sulla Home!
+  // 8. HOME!
   { id: 'home_calendar', tKey: 'tutorial.steps.home_calendar', type: 'info', icon: 'home', route: '/home' },
 
-  // 9. Meteo del giorno (preselezione)
+  // 9. Meteo del giorno
   { id: 'home_lordo', tKey: 'tutorial.steps.home_lordo', type: 'info', icon: 'weather-sunny', route: '/home' },
 
-  // 10. Quanto hai incassato? (Lordo + UN dato tra Cash o POS)
+  // 10. Quanto hai incassato
   { id: 'home_incasso', tKey: 'tutorial.steps.home_incasso', type: 'info', icon: 'cash', route: '/home' },
 
-  // 11. Spese Extra (fai inserire voci con esempi)
+  // 11. Spese Extra
   { id: 'spese_extra_voci', tKey: 'tutorial.steps.spese_extra_voci', type: 'info', icon: 'cart-variant', route: '/home' },
 
-  // 12. NUOVO: Riquadro statistiche in basso alla home
-  { id: 'home_stats_box', tKey: 'tutorial.steps.home_stats_box', type: 'info', icon: 'view-dashboard', route: '/home' },
-
-  // 13. Salva la giornata (con possibilità di modificare)
-  { id: 'home_salva', tKey: 'tutorial.steps.home_salva', type: 'info', icon: 'content-save-check', route: '/home' },
-
-  // 14. Statistiche
-  { id: 'stats', tKey: 'tutorial.steps.stats', type: 'info', icon: 'chart-bar', route: '/home/stats' },
-
-  // 15. Buongiorno AI (enfasi su meteo e carburante)
+  // 12. AI «Buongiorno»
   { id: 'buongiorno', tKey: 'tutorial.steps.buongiorno', type: 'info', icon: 'robot-happy', route: '/home' },
 
-  // 16. Carburante (apri Settings, inserisci valore)
-  { id: 'carburante_setup', tKey: 'tutorial.steps.carburante_setup', type: 'info', icon: 'gas-station', route: '/home/settings' },
+  // 13. Riquadro statistiche in basso
+  { id: 'home_stats_box', tKey: 'tutorial.steps.home_stats_box', type: 'info', icon: 'view-dashboard', route: '/home' },
 
-  // 17. Notes (apri Notes, fai un appuntamento)
-  { id: 'notes_setup', tKey: 'tutorial.steps.notes_setup', type: 'info', icon: 'note-edit', route: '/home/notes' },
+  // 14. Salva la giornata
+  { id: 'home_salva', tKey: 'tutorial.steps.home_salva', type: 'info', icon: 'content-save-check', route: '/home' },
+
+  // 15. Pagina Statistiche
+  { id: 'stats', tKey: 'tutorial.steps.stats', type: 'info', icon: 'chart-bar', route: '/home/stats' },
+
+  // 16. Carburante (apri pagina gas, inserisci valore)
+  { id: 'carburante_setup', tKey: 'tutorial.steps.carburante_setup', type: 'info', icon: 'gas-station', route: '/home/gas' },
+
+  // 17. Notes (apri agenda, fai un appuntamento)
+  { id: 'notes_setup', tKey: 'tutorial.steps.notes_setup', type: 'info', icon: 'note-edit', route: '/home/agenda' },
 
   // 18. Backup
   { id: 'backup_info', tKey: 'tutorial.steps.backup_info', type: 'info', icon: 'cloud-upload', route: '/home/settings' },

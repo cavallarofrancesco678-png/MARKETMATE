@@ -7,6 +7,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, KeyboardAvo
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/tutorialStore';
 import { useAppStore } from '../store/appStore';
 
@@ -27,6 +28,14 @@ export const TutorialOverlay: React.FC = () => {
       router.push(step.route as any);
     }
   }, [active, stepIndex, step?.route, pathname]);
+
+  // ═══ Feedback aptico leggero ad ogni cambio step (rumore leggero) ═══
+  useEffect(() => {
+    if (!active) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+  }, [stepIndex, active]);
 
   // Leggi il valore corrente dal store per i campi di input
   const currentFieldValue = (() => {
@@ -84,7 +93,7 @@ export const TutorialOverlay: React.FC = () => {
   // deve interagire con la pagina sottostante (Settings, Notes, ecc.) ═══
   // Welcome, multi-input, done restano centrati come modal classico.
   const compactStepIds = new Set([
-    'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
+    'settings_intro', 'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
     'home_calendar', 'home_lordo', 'home_incasso', 'spese_extra_voci',
     'home_stats_box', 'home_salva', 'stats', 'buongiorno',
     'carburante_setup', 'notes_setup', 'backup_info',
@@ -117,8 +126,8 @@ export const TutorialOverlay: React.FC = () => {
             <MaterialCommunityIcons name={iconName} size={28} color="#1E7F85" style={{ marginTop: 2 }} />
           )}
           <View style={{ flex: 1 }}>
-            <Text style={[s.title, isCompact && { fontSize: 16, textAlign: 'left', marginBottom: 4 }]}>{title}</Text>
-            <Text style={[s.body, isCompact && { fontSize: 12, textAlign: 'left', lineHeight: 17 }]}>{body}</Text>
+            <Text style={[s.title, isCompact && { fontSize: 18, textAlign: 'left', marginBottom: 6 }]}>{title}</Text>
+            <Text style={[s.body, isCompact && { fontSize: 13.5, textAlign: 'left', lineHeight: 19 }]}>{body}</Text>
           </View>
         </View>
 
@@ -152,13 +161,13 @@ export const TutorialOverlay: React.FC = () => {
               return (
                 <View key={idx}>
                   <Text style={s.fieldLabel}>{f.labelKey ? t(f.labelKey) : ''}</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'nowrap', gap: 4 }}>
                     {(f.options || []).map((opt) => {
                       const on = curVal === opt.value;
                       const lbl = opt.labelKey ? t(opt.labelKey) : (opt.label || opt.value);
                       return (
-                        <TouchableOpacity key={opt.value} style={[s.pillOpt, on && s.pillOptOn]} onPress={() => onChange(opt.value)} activeOpacity={0.7}>
-                          <Text style={[s.pillTxt, on && { color: '#FFF' }]}>{lbl}</Text>
+                        <TouchableOpacity key={opt.value} style={[s.pillOpt, { flex: 1, paddingHorizontal: 4 }, on && s.pillOptOn]} onPress={() => onChange(opt.value)} activeOpacity={0.7}>
+                          <Text style={[s.pillTxt, { textAlign: 'center', fontSize: 11 }, on && { color: '#FFF' }]} numberOfLines={1}>{lbl}</Text>
                         </TouchableOpacity>
                       );
                     })}
