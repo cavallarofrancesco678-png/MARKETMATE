@@ -52,6 +52,8 @@ interface StoreData {
   noteOggi?: string;
   // Data selezionata in calendario (YYYY-MM-DD) per meteo predittivo
   selectedDate?: string;
+  // Invenduto ultima occorrenza dello stesso mercato/giorno (per warning AI)
+  invendutoMedesimoMercato?: { data: string; giornoSett: string; mercato: string; invenduto: number; giorniFa: number } | null;
 }
 
 interface Props {
@@ -257,6 +259,7 @@ Appuntamenti prossimi (7gg): ${appuntiLst}
 Ordini prossimi (7gg): ${ordiniLst}
 Pagamenti imminenti: ${pagLst}
 ${s.noteOggi ? `\nNota del giorno: ${s.noteOggi}` : ''}
+${s.invendutoMedesimoMercato && s.invendutoMedesimoMercato.invenduto > 0 ? `\n═══ ⚠️ INVENDUTO PRECEDENTE STESSO MERCATO ═══\nLo scorso ${s.invendutoMedesimoMercato.giornoSett} (${s.invendutoMedesimoMercato.giorniFa} giorni fa, mercato ${s.invendutoMedesimoMercato.mercato}) c'erano €${s.invendutoMedesimoMercato.invenduto} di invenduto. AVVISA L'UTENTE con preoccupazione (NON dire "ottimo"!): potrebbe essere merce da scartare. Suggerisci di ridurre quantità e tenerne conto.` : ''}
 ${weatherData ? '\n═══ METEO ═══\n' + weatherData + (isFuture ? `\n(IMPORTANTE: questo è il meteo PREVISTO per ${dateLabel}, NON di oggi. Usalo nel tuo saluto al FUTURO.)` : '') : 'Nessun dato meteo reale'}
 ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
   }, [storeData, fuelData, weatherData]);

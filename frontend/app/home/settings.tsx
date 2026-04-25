@@ -977,7 +977,7 @@ export default function SettingsPage() {
       </View>
 
       {/* ─── SQUADRA COLLABORATORI ─── */}
-      <Text style={s.secTitle}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
+      <Text style={s.secTitle} testID="sett-collab-card">{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
       {store.collaboratori.map((c, i) => {
         const codiceCollab = store.codiciInvito?.find(cod => cod.nome === c.nome);
         return (
@@ -1034,7 +1034,7 @@ export default function SettingsPage() {
       <FiereRicorrentiSection />
 
       {/* ─── AGENDA MERCATI ─── */}
-      <Text style={s.secTitle}>{t('settings.marketsTitle') || 'MERCATI'}</Text>
+      <Text style={s.secTitle} testID="sett-agenda-card">{t('settings.marketsTitle') || 'MERCATI'}</Text>
       {store.agenda.map((m, idx) => {
         const isOpen = expandedDay === idx;
         return (
@@ -1146,7 +1146,7 @@ export default function SettingsPage() {
         );
       })}
 
-      <Text style={s.secTitle}>{t('settings.marketsTitle') || 'MERCATI'}</Text>
+      <Text style={s.secTitle} testID="sett-fornitori-card">{t('settings.suppliersTitle') || t('settings.marketsTitle') || 'FORNITORI'}</Text>
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (

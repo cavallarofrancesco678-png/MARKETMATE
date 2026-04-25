@@ -983,7 +983,7 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
         <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
-        <View style={s.dateRow}>
+        <View style={s.dateRow} testID="home-date-row">
           <TouchableOpacity
             onPress={() => {
               hapticTap();
@@ -1077,7 +1077,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ WEATHER (icone = dimensione tab bar) ═══ */}
-      <View style={[s.section, { height: WEATHER_H, justifyContent: 'center' }]}>
+      <View style={[s.section, { height: WEATHER_H, justifyContent: 'center' }]} testID="home-meteo-row">
         <View style={s.meteoRow}>
           {WEATHER_ICONS.map((w, i) => {
             const sel = meteo === w.code;
@@ -1806,6 +1806,31 @@ export default function HomeScreen() {
           meteoOggi: meteo,
           mercatoOggi: mercatoNome,
           selectedDate: `${dataCorrente.getFullYear()}-${String(dataCorrente.getMonth() + 1).padStart(2, '0')}-${String(dataCorrente.getDate()).padStart(2, '0')}`,
+          // ═══ INVENDUTO ULTIMA OCCORRENZA STESSO MERCATO/GIORNO ═══
+          invendutoMedesimoMercato: (() => {
+            const now = new Date(dataCorrente);
+            const dow = now.getDay();
+            // cerca l'ULTIMA giornata con stesso mercato (o stesso giorno settimana se mercatoNome vuoto)
+            const candidates = (store.storicoGiornate || []).filter((g) => {
+              const d = new Date(g.data);
+              if (d >= now) return false;
+              const sameMkt = mercatoNome && g.mercato === mercatoNome;
+              const sameDow = !mercatoNome && d.getDay() === dow;
+              return sameMkt || sameDow;
+            }).sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+            const ultimo = candidates[0];
+            if (!ultimo) return null;
+            const inv = (ultimo as any).dettaglio_invenduto?.totale || 0;
+            const giorniIt = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+            const dUlt = new Date(ultimo.data);
+            return {
+              data: ultimo.data,
+              giornoSett: giorniIt[dUlt.getDay()],
+              mercato: ultimo.mercato,
+              invenduto: Math.round(inv),
+              giorniFa: Math.round((now.getTime() - dUlt.getTime()) / (1000 * 60 * 60 * 24)),
+            };
+          })(),
           settimanaPrec: (() => {
             const now = dataCorrente;
             const weekAgo = new Date(now);

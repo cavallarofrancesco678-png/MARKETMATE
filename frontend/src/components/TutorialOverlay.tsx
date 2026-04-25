@@ -37,6 +37,45 @@ export const TutorialOverlay: React.FC = () => {
     } catch {}
   }, [stepIndex, active]);
 
+  // ═══ AUTO-SCROLL all'anchor + memo posizione per la freccia ═══
+  // Su web usa document.querySelector + scrollIntoView; su native fallback a posizione fissa.
+  const [anchorRect, setAnchorRect] = useState<{ top: number; bottom: number; height: number } | null>(null);
+  const anchorId = (step as any)?.anchorId as string | undefined;
+  useEffect(() => {
+    if (!active || !anchorId) { setAnchorRect(null); return; }
+    let cancelled = false;
+    const tryFind = (attemptsLeft: number) => {
+      if (cancelled || Platform.OS !== 'web') return;
+      try {
+        const el: any = document.querySelector(`[data-testid="${anchorId}"]`);
+        if (el) {
+          // Smooth scroll per centrare l'anchor
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+          // Misura dopo lo scroll
+          setTimeout(() => {
+            if (cancelled) return;
+            const r = el.getBoundingClientRect();
+            setAnchorRect({ top: r.top, bottom: r.bottom, height: r.height });
+          }, 350);
+          return;
+        }
+      } catch {}
+      if (attemptsLeft > 0) setTimeout(() => tryFind(attemptsLeft - 1), 120);
+    };
+    setAnchorRect(null);
+    tryFind(8); // riprova fino a 8 volte (~1s) attendendo che l'elemento monti dopo il route change
+    return () => { cancelled = true; };
+  }, [active, stepIndex, anchorId]);
+
+  // Determina dove mettere il bubble: SOPRA o SOTTO l'anchor (cerca lo spazio maggiore)
+  const arrowDirection: 'up' | 'down' | null = (() => {
+    if (!anchorRect) return null;
+    const winH = (Platform.OS === 'web' ? (typeof window !== 'undefined' ? window.innerHeight : SCREEN_H) : SCREEN_H);
+    const spaceAbove = anchorRect.top;
+    const spaceBelow = winH - anchorRect.bottom;
+    return spaceBelow >= 240 || spaceBelow >= spaceAbove ? 'up' : 'down';
+  })();
+
   // Leggi il valore corrente dal store per i campi di input
   const currentFieldValue = (() => {
     if (!step) return '';
@@ -203,10 +242,18 @@ export const TutorialOverlay: React.FC = () => {
   // ═══ COMPACT MODE: rendering come bottom-sheet absolute ═══
   // (l'utente può interagire con la pagina dietro al tutorial)
   if (isCompact) {
+    // ═══ BUBBLE STYLE: posiziona sopra o sotto l'anchor con freccia tail ═══
+    const wrapStyle = arrowDirection === 'up'
+      ? { ...s.compactWrap, justifyContent: 'flex-end' as const, paddingBottom: 80 }
+      : arrowDirection === 'down'
+      ? { ...s.compactWrap, justifyContent: 'flex-start' as const, paddingTop: 100 }
+      : s.compactWrap;
     return (
-      <View pointerEvents="box-none" style={s.compactWrap}>
+      <View pointerEvents="box-none" style={wrapStyle}>
         <View pointerEvents="auto" style={s.compactDock}>
+          {arrowDirection === 'down' && <View style={s.tailUp} />}
           {Card}
+          {arrowDirection === 'up' && <View style={s.tailDown} />}
         </View>
       </View>
     );
@@ -231,6 +278,8 @@ const s = StyleSheet.create({
   cardCompact: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, elevation: 12, borderTopWidth: 4, borderTopColor: '#1E7F85' },
   compactWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', padding: 8, paddingBottom: 80 },
   compactDock: { width: '100%' },
+  tailUp: { width: 0, height: 0, alignSelf: 'center', borderLeftWidth: 14, borderRightWidth: 14, borderBottomWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#1E7F85', marginBottom: -1 },
+  tailDown: { width: 0, height: 0, alignSelf: 'center', borderLeftWidth: 14, borderRightWidth: 14, borderTopWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#FFFFFF', marginTop: -1 },
   header: { paddingTop: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F0EBE1', paddingBottom: 10 },
   progressBar: { height: 4, backgroundColor: '#E8E3D5', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#1E7F85' },
