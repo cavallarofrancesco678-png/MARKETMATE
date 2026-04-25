@@ -253,15 +253,20 @@ export const TutorialOverlay: React.FC = () => {
   // ═══ COMPACT MODE ═══
   if (isCompact) {
     // Se abbiamo le coordinate dell'anchor → posizioniamo il fumetto ADIACENTE.
-    // Altrimenti fallback: dock in basso (su mobile native dove non abbiamo
-    // anchor measurement, almeno non copriamo il widget visibile).
+    // Altrimenti fallback: dock in basso.
     const useAdjacent = adjacentTop != null;
     const adjacentStyle = useAdjacent
       ? { position: 'absolute' as const, top: adjacentTop as number, left: 8, right: 8 }
       : { position: 'absolute' as const, bottom: 70, left: 8, right: 8 };
 
+    // ═══ FIX CRITICO WEB: usiamo position:fixed così il fumetto resta
+    // ancorato al viewport e non scorre con la pagina (su web RN→absolute scroll-segue) ═══
+    const wrapStyle: any = Platform.OS === 'web'
+      ? { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }
+      : s.compactWrap;
+
     return (
-      <View pointerEvents="box-none" style={s.compactWrap}>
+      <View pointerEvents="box-none" style={wrapStyle}>
         <View pointerEvents="auto" style={adjacentStyle}>
           {Card}
         </View>

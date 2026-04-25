@@ -958,31 +958,43 @@ export default function HomeScreen() {
         {nomeAttivita ? (
           <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
         ) : null}
-        {/* Power off in alto a sinistra — alzato e con hitSlop ridotto per non collidere con la freccia indietro */}
-        <TouchableOpacity
-          onPress={() => {
-            if (Platform.OS === 'web') {
-              window.close();
-            } else {
-              Alert.alert(
-                t('settings.exitApp') || "ESCI DALL'APP",
-                t('settings.exitAppConfirm') || 'Vuoi chiudere MarketMate?',
-                [
-                  { text: t('common.cancel') || 'Annulla', style: 'cancel' },
-                  { text: t('settings.exitApp') || 'ESCI', onPress: () => BackHandler.exitApp() },
-                ]
-              );
-            }
-          }}
-          activeOpacity={0.7}
-          style={{ position: 'absolute', left: 2, top: -10, zIndex: 10, padding: 2 }}
-          hitSlop={{ top: 4, bottom: 2, left: 4, right: 2 }}
-        >
-          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#B0A898', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="power" size={14} color="#FFF" />
-          </View>
-        </TouchableOpacity>
-        <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
+        {/* Riga: power button (sx) + nome mercato (flex-center) + spacer (dx)
+            Layout flex: il nome mercato prende tutto lo spazio rimanente e viene
+            ellipsizzato correttamente con numberOfLines=1, senza overlap col power. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', minHeight: 28 }}>
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                window.close();
+              } else {
+                Alert.alert(
+                  t('settings.exitApp') || "ESCI DALL'APP",
+                  t('settings.exitAppConfirm') || 'Vuoi chiudere MarketMate?',
+                  [
+                    { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+                    { text: t('settings.exitApp') || 'ESCI', onPress: () => BackHandler.exitApp() },
+                  ]
+                );
+              }
+            }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ width: 32, alignItems: 'flex-start' }}
+          >
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#B0A898', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="power" size={14} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+          <Text
+            style={[s.marketName, { flex: 1, paddingHorizontal: 4 }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {(mercatoNome.toUpperCase() || t('home.noMarketToday'))}
+          </Text>
+          {/* Spacer dx per bilanciare il power, così il testo è ottica-mente centrato */}
+          <View style={{ width: 32 }} />
+        </View>
         <View style={s.dateRow} testID="home-date-row">
           <TouchableOpacity
             onPress={() => {
@@ -2044,8 +2056,6 @@ const s = StyleSheet.create({
     color: '#1A4040',
     letterSpacing: 1.2,
     textAlign: 'center',
-    width: '100%',
-    paddingHorizontal: 44,
   },
   badgeLeft: {
     position: 'absolute',
