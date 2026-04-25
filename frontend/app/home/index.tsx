@@ -553,17 +553,67 @@ export default function HomeScreen() {
 
   /* ── Spese Extra fornitori totale ── */
   const speseExtraFornTotale = useMemo(() => {
+    // Helper locale: conta i giorni lavorativi nel range (replica esatta di handleSalva)
+    const countMkDaysLocal = (modo: 'oggi' | 'custom', fromIso: string, toIso: string): number => {
+      if (modo === 'oggi') return 1;
+      if (!fromIso || !toIso) return 1;
+      const from = new Date(fromIso + 'T12:00:00');
+      const to = new Date(toIso + 'T12:00:00');
+      if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
+      const start = from <= to ? from : to;
+      const end = from <= to ? to : from;
+      let mercatoCount = 0;
+      let totalDays = 0;
+      const cur = new Date(start);
+      while (cur <= end) {
+        const dow = (cur.getDay() + 6) % 7;
+        const g = agenda?.[dow];
+        if (g && (g.lavorativo === true || (g.mercato && String(g.mercato).trim() !== ''))) {
+          mercatoCount++;
+        }
+        totalDays++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return Math.max(1, mercatoCount > 0 ? mercatoCount : totalDays);
+    };
+
+    // Calcola per OGNI fornitore l'importo giornaliero rispettando pagamentoMode + ripartizione
     let tot = 0;
-    Object.entries(speseExtraFornitore).forEach(([key, v]) => {
-      // Ignora SOLO chiavi meta-dati legacy (numeri fattura / label testuali), ma TIENI __libera (importo secondario)
-      if (key.endsWith('__fattn') || key.endsWith('__liberaLabel')) return;
-      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
-      if (v.periodo === 'settimanale') tot += imp / 6;
-      else if (v.periodo === 'mensile') tot += imp / 26;
-      else tot += imp; // giornaliero
+    const fornitoriNomi = new Set<string>();
+    Object.keys(speseExtraFornitore).forEach((k) => {
+      if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+      fornitoriNomi.add(k.replace(/__libera$/, ''));
+    });
+
+    fornitoriNomi.forEach((nomeBase) => {
+      const mode = pagamentoMode[nomeBase] || 'contanti';
+      const fatturaEntry = speseExtraFornitore[nomeBase];
+      const contantiEntry = speseExtraFornitore[`${nomeBase}__libera`];
+      const impFattura = parseFloat((fatturaEntry?.importo || '0').replace(',', '.')) || 0;
+      const impContanti = parseFloat((contantiEntry?.importo || '0').replace(',', '.')) || 0;
+
+      const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
+      const mkDays = countMkDaysLocal(rip.modo, rip.from, rip.to);
+
+      let fatturaQuota = 0;
+      let contantiQuota = 0;
+      if (mode === 'contanti') {
+        contantiQuota = impContanti;
+      } else if (mode === 'fattura') {
+        if (impFattura > 0) fatturaQuota = impFattura / mkDays;
+      } else if (mode === 'misto') {
+        if (impFattura > 0) fatturaQuota = impFattura / mkDays;
+        contantiQuota = impContanti;
+      }
+
+      // Applica periodicità legacy se presente
+      if (fatturaEntry?.periodo === 'settimanale') fatturaQuota = fatturaQuota / 6;
+      else if (fatturaEntry?.periodo === 'mensile') fatturaQuota = fatturaQuota / 26;
+
+      tot += fatturaQuota + contantiQuota;
     });
     return tot;
-  }, [speseExtraFornitore]);
+  }, [speseExtraFornitore, pagamentoMode, ripartizione, agenda]);
 
   /* ── Spese Extra generiche totale ── */
   const speseExtraGenTotale = useMemo(() => {
