@@ -61,49 +61,52 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     ],
   },
 
-  // 4. Agenda mercati (apri Agenda dell'app, salva, torna)
-  { id: 'agenda_setup', tKey: 'tutorial.steps.agenda_setup', type: 'nav_action', icon: 'calendar-week', route: '/home/settings', navigateTo: '/home/settings' },
+  // 4. Sei in Settings: introduce il "motore" e prosegui
+  { id: 'agenda_setup', tKey: 'tutorial.steps.agenda_setup', type: 'info', icon: 'cog', route: '/home/settings' },
 
-  // 5. Fornitori
-  { id: 'fornitori_setup', tKey: 'tutorial.steps.fornitori_setup', type: 'nav_action', icon: 'truck-delivery', route: '/home/settings', navigateTo: '/home/settings' },
+  // 5. Fornitori (in Settings)
+  { id: 'fornitori_setup', tKey: 'tutorial.steps.fornitori_setup', type: 'info', icon: 'truck-delivery', route: '/home/settings' },
 
-  // 6. Collaboratori (solo nomi)
-  { id: 'collab_setup', tKey: 'tutorial.steps.collab_setup', type: 'nav_action', icon: 'account-group', route: '/home/settings', navigateTo: '/home/settings' },
+  // 6. Collaboratori (in Settings)
+  { id: 'collab_setup', tKey: 'tutorial.steps.collab_setup', type: 'info', icon: 'account-group', route: '/home/settings' },
 
-  // 7. Spese fisse (Settings + plateatici nei mercati + spese annue)
-  { id: 'spese_fisse_setup', tKey: 'tutorial.steps.spese_fisse_setup', type: 'nav_action', icon: 'cash-multiple', route: '/home/settings', navigateTo: '/home/settings' },
+  // 7. Spese fisse (in Settings)
+  { id: 'spese_fisse_setup', tKey: 'tutorial.steps.spese_fisse_setup', type: 'info', icon: 'cash-multiple', route: '/home/settings' },
 
-  // 8. Calendario Home (frecce + tap data)
-  { id: 'home_calendar', tKey: 'tutorial.steps.home_calendar', type: 'info', icon: 'calendar-arrow-right', route: '/home' },
+  // 8. Sei sulla Home!
+  { id: 'home_calendar', tKey: 'tutorial.steps.home_calendar', type: 'info', icon: 'home', route: '/home' },
 
-  // 9. Inserimento Lordo (preselezione meteo)
+  // 9. Meteo del giorno (preselezione)
   { id: 'home_lordo', tKey: 'tutorial.steps.home_lordo', type: 'info', icon: 'weather-sunny', route: '/home' },
 
-  // 10. Quanto hai incassato? (Lordo + Cash + POS)
+  // 10. Quanto hai incassato? (Lordo + UN dato tra Cash o POS)
   { id: 'home_incasso', tKey: 'tutorial.steps.home_incasso', type: 'info', icon: 'cash', route: '/home' },
 
-  // 11. Spese Extra (fornitori + voci libere come caffè, pranzo)
+  // 11. Spese Extra (fai inserire voci con esempi)
   { id: 'spese_extra_voci', tKey: 'tutorial.steps.spese_extra_voci', type: 'info', icon: 'cart-variant', route: '/home' },
 
-  // 12. Salva la giornata
+  // 12. NUOVO: Riquadro statistiche in basso alla home
+  { id: 'home_stats_box', tKey: 'tutorial.steps.home_stats_box', type: 'info', icon: 'view-dashboard', route: '/home' },
+
+  // 13. Salva la giornata (con possibilità di modificare)
   { id: 'home_salva', tKey: 'tutorial.steps.home_salva', type: 'info', icon: 'content-save-check', route: '/home' },
 
-  // 13. Statistiche
+  // 14. Statistiche
   { id: 'stats', tKey: 'tutorial.steps.stats', type: 'info', icon: 'chart-bar', route: '/home/stats' },
 
-  // 14. Buongiorno AI
+  // 15. Buongiorno AI (enfasi su meteo e carburante)
   { id: 'buongiorno', tKey: 'tutorial.steps.buongiorno', type: 'info', icon: 'robot-happy', route: '/home' },
 
-  // 15. Carburante (apri pagina, valore consumo, calcolo)
-  { id: 'carburante_setup', tKey: 'tutorial.steps.carburante_setup', type: 'nav_action', icon: 'gas-station', route: '/home', navigateTo: '/home/settings' },
+  // 16. Carburante (apri Settings, inserisci valore)
+  { id: 'carburante_setup', tKey: 'tutorial.steps.carburante_setup', type: 'info', icon: 'gas-station', route: '/home/settings' },
 
-  // 16. Notes (apri Notes, fai un appuntamento o ordine)
-  { id: 'notes_setup', tKey: 'tutorial.steps.notes_setup', type: 'nav_action', icon: 'note-edit', route: '/home/notes', navigateTo: '/home/notes' },
+  // 17. Notes (apri Notes, fai un appuntamento)
+  { id: 'notes_setup', tKey: 'tutorial.steps.notes_setup', type: 'info', icon: 'note-edit', route: '/home/notes' },
 
-  // 17. Backup
+  // 18. Backup
   { id: 'backup_info', tKey: 'tutorial.steps.backup_info', type: 'info', icon: 'cloud-upload', route: '/home/settings' },
 
-  // 18. Done
+  // 19. Done
   { id: 'done', tKey: 'tutorial.steps.done', type: 'info', icon: 'trophy', route: '/home' },
 ];
 

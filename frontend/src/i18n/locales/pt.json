@@ -479,24 +479,24 @@
         "label2": "Fuel type"
       },
       "agenda_setup": {
-        "title": "Your markets 📅",
-        "body": "Open the Agenda and add markets for each day of the week (name, city, km, pitch fee). You can also do this later. Tap \"Open Settings\", AGENDA section."
+        "title": "You're in SETTINGS ⚙️",
+        "body": "This is the engine of the app. From here you configure everything: market schedule, suppliers, collaborators, expenses and fuel. Fill the fields from top to bottom. For each market of the week add name, city, km, pitch fee (daily or annual). You can also do this part later: just tap Next."
       },
       "fornitori_setup": {
-        "title": "Your suppliers 🚛",
-        "body": "Add the suppliers you buy from (e.g. Bread Andrea, Dairy Rossi). You can also do this later. Go to Settings, SUPPLIERS section."
+        "title": "Suppliers (still in Settings)",
+        "body": "Scroll the page and find the SUPPLIERS section. Add your regular suppliers (e.g. Bread Andrea, Dairy Rossi) with their products. Everything saves as you type. You can also do it later."
       },
       "collab_setup": {
-        "title": "Collaborators 👥",
-        "body": "Have helpers? Just add their names (e.g. Sara, Paolo). You'll add fees and other data later. Open Settings, COLLABORATORS section."
+        "title": "Collaborators (still in Settings)",
+        "body": "COLLABORATORS section: add helper names (e.g. Sara, Paolo). Wages and other details can be added later."
       },
       "spese_fisse_setup": {
-        "title": "Fixed expenses 💸",
-        "body": "Pitch fees → enter them in the market card itself (in Agenda). Other annual expenses (van insurance, social security, accountant, etc.) go in Settings → ANNUAL EXPENSES. The app spreads them across working days automatically."
+        "title": "Fixed expenses (still in Settings)",
+        "body": "Scroll to ANNUAL EXPENSES: add van insurance, social security, accountant, etc. ⚠️ NOTE: the PITCH FEE goes inside the matching market card (NOT in Agenda — you're always inside Settings, in each market's panel)."
       },
       "home_calendar": {
-        "title": "Browse days 📆",
-        "body": "On the Home screen at the top you see the date. Use the ◀ ▶ arrows to move forward/back one day, or tap the date to open the full calendar."
+        "title": "You're on HOME! 🏠",
+        "body": "This is your daily working screen. At the top you see the date: use ◀ ▶ arrows to change day, or tap the date for the full calendar."
       },
       "home_lordo": {
         "title": "Today's weather ☀️",
@@ -504,15 +504,15 @@
       },
       "home_incasso": {
         "title": "How much did you earn today? 💰",
-        "body": "Enter the GROSS total, then split: how much in CASH and how much by CARD. Cash + Card must match Gross."
+        "body": "Enter the GROSS total, then enter ONLY ONE between: CASH amount or CARD amount. The app will calculate the rest automatically."
       },
       "spese_extra_voci": {
         "title": "Today's extra expenses 🛒",
-        "body": "Enter all expenses today: from suppliers (you'll see the names from Settings) to anything else (coffee, lunch, parking, tolls, etc.). For suppliers you can choose cash or invoice, and split the cost over multiple days."
+        "body": "Tap EXPENSES to add every cost of today. From suppliers (you'll see the names from Settings) to any free entry. Examples: coffee €3, breakfast €5, lunch €12, parking €4, tolls €8. For suppliers choose cash or invoice, and split the cost over multiple days if you want."
       },
       "home_salva": {
         "title": "Save the day 💾",
-        "body": "When ready, tap SAVE to archive the day. You'll find it in history, charts and statistics."
+        "body": "When ready, tap SAVE to archive the day. You'll find it in history, charts and statistics. ✏️ You can always go back with the calendar and edit a saved day's data."
       },
       "stats": {
         "title": "Your statistics 📊",
@@ -520,15 +520,15 @@
       },
       "buongiorno": {
         "title": "The «Good Morning» AI 🤖",
-        "body": "Every morning open Good Morning to get weather, upcoming deadlines, cheapest fuel prices and personalized tips based on YOUR data."
+        "body": "Every morning open Good Morning to get the REAL WEATHER of the day and the GAS STATION with the BEST PRICE along your route to the market. Plus: upcoming deadlines, top markets and personalized tips based on YOUR data."
       },
       "carburante_setup": {
         "title": "Fuel consumption ⛽",
-        "body": "In Settings → FUEL you can enter the last refuel (liters & euros). The app will automatically calculate how much each market costs based on km driven."
+        "body": "In Settings → FUEL enter NOW an example: last refuel (liters & euros). The app will use this to automatically calculate how much each market costs based on km driven."
       },
       "notes_setup": {
-        "title": "Your agenda 📝",
-        "body": "In NOTES you can write appointments, orders to suppliers, deadlines, ideas. Everything here will also appear in the Home calendar and notification bell. Try it now!"
+        "title": "NOTES section 📝",
+        "body": "Here you write appointments, orders to suppliers, deadlines, ideas. Add NOW an appointment (e.g. \"Accountant Tuesday 10:00\"). You'll find it both in the Home calendar and in the 🔔 notifications bell."
       },
       "backup_info": {
         "title": "Data backup 💾",
@@ -537,6 +537,10 @@
       "done": {
         "title": "🎉 All set!",
         "body": "You're ready to start! Remember: you can relaunch this guide anytime from Settings → RESTART GUIDE. Good luck!"
+      },
+      "home_stats_box": {
+        "title": "Stats box at the bottom 📊",
+        "body": "At the bottom of Home there's a panel with GROSS, NET, PROFIT and COSTS of the day, updated live as you type. It's very important to check each day at a glance. Tap PROFIT to see the breakdown."
       }
     }
   },

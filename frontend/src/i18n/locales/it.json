@@ -481,40 +481,40 @@
         "label2": "Tipo carburante"
       },
       "agenda_setup": {
-        "title": "I tuoi mercati 📅",
-        "body": "Apri l'Agenda e aggiungi i mercati per ogni giorno della settimana (nome, città, km, plateatico). Puoi anche farlo dopo, nessun problema. Tocca «Apri Impostazioni», sezione AGENDA MERCATI."
+        "title": "Sei in IMPOSTAZIONI ⚙️",
+        "body": "Questo è il MOTORE della app. Da qui configuri tutto: agenda mercati, fornitori, collaboratori, spese e carburante. Compila i campi dal primo all'ultimo. Per ogni mercato della settimana inserisci nome, città, km, plateatico (giornaliero o annuo). Se preferisci, fai questa parte dopo: vai pure avanti."
       },
       "fornitori_setup": {
-        "title": "I tuoi fornitori 🚛",
-        "body": "Aggiungi i fornitori da cui acquisti (es: Andrea Pane, Latteria Rossi). Puoi anche farlo in un secondo momento. Vai in Impostazioni, sezione FORNITORI."
+        "title": "Fornitori (sempre in Settings)",
+        "body": "Scorri la pagina e trova la sezione FORNITORI. Aggiungi i fornitori abituali (es: Andrea Pane, Latteria Rossi) con i loro prodotti. Tutto si salva mentre scrivi. Lo puoi fare anche più tardi."
       },
       "collab_setup": {
-        "title": "Collaboratori 👥",
-        "body": "Hai aiutanti? Aggiungi solo i loro nomi (es: Sara, Paolo). Compensi e altri dati li metterai dopo. Apri Impostazioni, sezione COLLABORATORI."
+        "title": "Collaboratori (sempre in Settings)",
+        "body": "Sezione COLLABORATORI: aggiungi i nomi degli aiutanti (es: Sara, Paolo). I compensi e altri dettagli li metti dopo."
       },
       "spese_fisse_setup": {
-        "title": "Spese fisse 💸",
-        "body": "Plateatici → vanno scritti dentro la scheda del mercato di riferimento (in Agenda). Le altre spese annue (assicurazione furgone, INPS, commercialista, ecc.) si aggiungono in Impostazioni, sezione SPESE ANNUE. L'app le ripartirà automaticamente sui giorni di lavoro."
+        "title": "Spese fisse (sempre in Settings)",
+        "body": "Scorri fino a SPESE ANNUE: aggiungi assicurazione furgone, INPS, commercialista, ecc. ⚠️ ATTENZIONE: il PLATEATICO va inserito nel campo del mercato corrispondente (NON in Agenda — sei sempre dentro Settings, scheda di ogni mercato)."
       },
       "home_calendar": {
-        "title": "Naviga i giorni 📆",
-        "body": "Nella Home in alto trovi la data. Usa le frecce ◀ ▶ per spostarti di un giorno avanti/indietro, oppure tocca la data per aprire il calendario completo."
+        "title": "Sei sulla HOME! 🏠",
+        "body": "Questa è la schermata di lavoro quotidiana. In alto trovi la data: usa le frecce ◀ ▶ per cambiare giorno, oppure tocca la data per il calendario completo."
       },
       "home_lordo": {
         "title": "Meteo del giorno ☀️",
-        "body": "L'app preseleziona il meteo per te in base alle previsioni reali. Se vuoi puoi sempre cambiarlo manualmente toccando l'icona corrispondente (sole, nuvolo, pioggia...)."
+        "body": "L'app preseleziona il meteo per te in base alle previsioni reali. Puoi sempre cambiarlo manualmente toccando l'icona corrispondente (sole, nuvolo, pioggia...)."
       },
       "home_incasso": {
         "title": "Quanto hai incassato oggi? 💰",
-        "body": "Inserisci il LORDO totale, poi la divisione: quanto hai preso in CONTANTI e quanto col POS. La somma di contanti+POS deve corrispondere al lordo."
+        "body": "Inserisci il LORDO totale, poi inserisci UN SOLO dato tra: somma in CONTANTI o col POS. Il resto lo calcola automaticamente la app."
       },
       "spese_extra_voci": {
         "title": "Spese extra del giorno 🛒",
-        "body": "Qui inserisci tutte le spese fatte oggi: dai fornitori (troverai i nomi che hai messo in Impostazioni) a qualsiasi altra voce libera (caffè, colazione, pranzo, parcheggio, autostrada, ecc.). Per i fornitori puoi scegliere se è contanti o fattura, e ripartire la spesa su più giorni."
+        "body": "Tocca SPESE per aggiungere ogni spesa di oggi. Dai fornitori (troverai i nomi che hai messo in Impostazioni) a qualsiasi voce libera. Esempi: caffè €3, colazione €5, pranzo €12, parcheggio €4, autostrada €8. Per i fornitori scegli se è contanti o fattura, e ripartisci la spesa su più giorni se vuoi."
       },
       "home_salva": {
         "title": "Salva la giornata 💾",
-        "body": "Quando sei pronto, premi SALVA per archiviare la giornata. La troverai nello storico, nei grafici e nelle statistiche."
+        "body": "Quando sei pronto, premi SALVA per archiviare la giornata. La troverai nello storico, nei grafici e nelle statistiche. ✏️ Puoi sempre tornare indietro col calendario e modificare i dati di un giorno già salvato."
       },
       "stats": {
         "title": "Le tue statistiche 📊",
@@ -522,15 +522,15 @@
       },
       "buongiorno": {
         "title": "L'AI «Buongiorno» 🤖",
-        "body": "Ogni mattina apri Buongiorno per ricevere il meteo, le scadenze imminenti, i prezzi del carburante più convenienti e consigli personalizzati basati sui TUOI dati."
+        "body": "Ogni mattina apri Buongiorno per ricevere il METEO REALE del giorno e il DISTRIBUTORE col MIGLIOR PREZZO sul tuo tragitto verso il mercato. In più: scadenze imminenti, top mercati e consigli personalizzati basati sui TUOI dati."
       },
       "carburante_setup": {
         "title": "Consumo carburante ⛽",
-        "body": "In Impostazioni → CARBURANTE puoi inserire l'ultimo rifornimento (litri ed euro). L'app calcolerà automaticamente quanto ti costa ogni mercato in base ai km percorsi."
+        "body": "In Impostazioni → CARBURANTE inserisci ORA un esempio: ultimo rifornimento (litri ed euro). L'app userà questo dato per calcolare automaticamente quanto ti costa ogni mercato in base ai km percorsi."
       },
       "notes_setup": {
-        "title": "La tua agenda 📝",
-        "body": "Nella sezione NOTES puoi annotare appuntamenti, ordini ai fornitori, scadenze, idee. Tutto quello che metti qui lo ritroverai nel calendario in Home e nella campanella delle notifiche. Provala adesso!"
+        "title": "Sezione NOTES 📝",
+        "body": "Qui annoti appuntamenti, ordini ai fornitori, scadenze, idee. Aggiungi ORA un appuntamento (es: \"Commercialista martedì 10:00\"). Lo ritroverai sia nel calendario in Home, sia nella 🔔 campanella delle notifiche."
       },
       "backup_info": {
         "title": "Backup dati 💾",
@@ -539,6 +539,10 @@
       "done": {
         "title": "🎉 Tutto pronto!",
         "body": "Sei pronto a iniziare! Ricorda: puoi rilanciare questa guida quando vuoi dalle Impostazioni → RIAVVIA LA GUIDA. Buon lavoro!"
+      },
+      "home_stats_box": {
+        "title": "Riquadro statistiche in basso 📊",
+        "body": "In fondo alla Home c'è un riquadro con LORDO, NETTO, UTILE e COSTI del giorno: aggiornato in tempo reale mentre digiti. È molto importante per gli ambulanti per controllare ogni giornata in un colpo d'occhio. Toccando UTILE puoi vedere il dettaglio."
       }
     }
   },

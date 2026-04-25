@@ -80,154 +80,135 @@ export const TutorialOverlay: React.FC = () => {
   const isLast = stepIndex === total - 1;
   const iconName = (step.icon || 'information') as any;
 
+  // ═══ Modalità COMPACT (bottom dock) per gli step in cui l'utente
+  // deve interagire con la pagina sottostante (Settings, Notes, ecc.) ═══
+  // Welcome, multi-input, done restano centrati come modal classico.
+  const compactStepIds = new Set([
+    'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
+    'home_calendar', 'home_lordo', 'home_incasso', 'spese_extra_voci',
+    'home_stats_box', 'home_salva', 'stats', 'buongiorno',
+    'carburante_setup', 'notes_setup', 'backup_info',
+  ]);
+  const isCompact = compactStepIds.has(step.id);
+
+  const Card = (
+    <View style={isCompact ? s.cardCompact : s.card}>
+      {/* Header */}
+      <View style={s.header}>
+        <View style={s.progressBar}>
+          <View style={[s.progressFill, { width: `${((stepIndex + 1) / total) * 100}%` }]} />
+        </View>
+        <View style={s.headerRow}>
+          <Text style={s.progressTxt}>{t('tutorial.common.progress', { current: stepIndex + 1, total })}</Text>
+          <TouchableOpacity onPress={skip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close" size={22} color="#5A7575" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView style={{ maxHeight: SCREEN_H * (isCompact ? 0.32 : 0.55) }} contentContainerStyle={{ padding: isCompact ? 14 : 18 }} keyboardShouldPersistTaps="handled">
+        {!isCompact && (
+          <View style={s.iconWrap}>
+            <MaterialCommunityIcons name={iconName} size={44} color="#1E7F85" />
+          </View>
+        )}
+        <View style={isCompact ? { flexDirection: 'row', alignItems: 'flex-start', gap: 10 } : {}}>
+          {isCompact && (
+            <MaterialCommunityIcons name={iconName} size={28} color="#1E7F85" style={{ marginTop: 2 }} />
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={[s.title, isCompact && { fontSize: 16, textAlign: 'left', marginBottom: 4 }]}>{title}</Text>
+            <Text style={[s.body, isCompact && { fontSize: 12, textAlign: 'left', lineHeight: 17 }]}>{body}</Text>
+          </View>
+        </View>
+
+        {/* Multi-field (input + select misti) */}
+        {step.type === 'multi' && step.fields && (
+          <View style={{ marginTop: 14, gap: 12 }}>
+            {step.fields.map((f, idx) => {
+              const curVal = String((appStore as any)[f.field] || '');
+              const onChange = (v: string) => {
+                if (appStore.setConfig) appStore.setConfig({ [f.field]: v } as any);
+                else { (useAppStore.setState as any)({ [f.field]: v }); appStore.saveToStorage?.(); }
+              };
+              if (f.type === 'text') {
+                return (
+                  <View key={idx}>
+                    <Text style={s.fieldLabel}>{f.labelKey ? t(f.labelKey) : ''}</Text>
+                    <TextInput
+                      style={s.input}
+                      value={curVal}
+                      onChangeText={onChange}
+                      placeholder={f.placeholderKey ? t(f.placeholderKey) : ''}
+                      placeholderTextColor="#B0B0A0"
+                      keyboardType={f.keyboardType || 'default'}
+                      autoCapitalize="words"
+                      autoFocus={idx === 0}
+                    />
+                    {curVal.length > 0 && <Text style={s.savedHint}>✅ Salvato</Text>}
+                  </View>
+                );
+              }
+              return (
+                <View key={idx}>
+                  <Text style={s.fieldLabel}>{f.labelKey ? t(f.labelKey) : ''}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {(f.options || []).map((opt) => {
+                      const on = curVal === opt.value;
+                      const lbl = opt.labelKey ? t(opt.labelKey) : (opt.label || opt.value);
+                      return (
+                        <TouchableOpacity key={opt.value} style={[s.pillOpt, on && s.pillOptOn]} onPress={() => onChange(opt.value)} activeOpacity={0.7}>
+                          <Text style={[s.pillTxt, on && { color: '#FFF' }]}>{lbl}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Footer actions */}
+      <View style={[s.footer, isCompact && { paddingVertical: 8 }]}>
+        <TouchableOpacity onPress={skip} style={s.skipBtn} activeOpacity={0.7}>
+          <Text style={s.skipTxt}>{t('tutorial.common.skip')}</Text>
+        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {!isFirst && (
+            <TouchableOpacity onPress={prevStep} style={s.backBtn} activeOpacity={0.7}>
+              <Ionicons name="chevron-back" size={18} color="#1E7F85" />
+              <Text style={s.backTxt}>{t('tutorial.common.back')}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={nextStep} style={s.nextBtn} activeOpacity={0.7}>
+            <Text style={s.nextTxt}>{isLast ? t('tutorial.common.finish') : t('tutorial.common.next')}</Text>
+            {!isLast && <Ionicons name="chevron-forward" size={18} color="#FFF" />}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  // ═══ COMPACT MODE: rendering come bottom-sheet absolute ═══
+  // (l'utente può interagire con la pagina dietro al tutorial)
+  if (isCompact) {
+    return (
+      <View pointerEvents="box-none" style={s.compactWrap}>
+        <View pointerEvents="auto" style={s.compactDock}>
+          {Card}
+        </View>
+      </View>
+    );
+  }
+
+  // Modal centrato per: welcome, identita, logistica, done
   return (
     <Modal visible={active} transparent animationType="fade" onRequestClose={skip}>
       <View style={s.backdrop}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.kbWrap}>
-          <View style={s.card}>
-            {/* Header */}
-            <View style={s.header}>
-              <View style={s.progressBar}>
-                <View style={[s.progressFill, { width: `${((stepIndex + 1) / total) * 100}%` }]} />
-              </View>
-              <View style={s.headerRow}>
-                <Text style={s.progressTxt}>{t('tutorial.common.progress', { current: stepIndex + 1, total })}</Text>
-                <TouchableOpacity onPress={skip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Ionicons name="close" size={22} color="#5A7575" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <ScrollView style={{ maxHeight: SCREEN_H * 0.55 }} contentContainerStyle={{ padding: 18 }} keyboardShouldPersistTaps="handled">
-              {/* Icon + Title */}
-              <View style={s.iconWrap}>
-                <MaterialCommunityIcons name={iconName} size={44} color="#1E7F85" />
-              </View>
-              <Text style={s.title}>{title}</Text>
-              <Text style={s.body}>{body}</Text>
-
-              {/* Input inline (legacy single-field) */}
-              {step.type === 'input' && (
-                <View style={{ marginTop: 14 }}>
-                  <TextInput
-                    style={s.input}
-                    value={currentFieldValue}
-                    onChangeText={setFieldValue}
-                    placeholder={placeholder}
-                    placeholderTextColor="#B0B0A0"
-                    keyboardType={step.inputKeyboardType || 'default'}
-                    autoCapitalize={step.field === 'nomeAttivita' || step.field === ('nomeTitolare' as any) ? 'words' : 'none'}
-                    autoFocus
-                  />
-                  {currentFieldValue.length > 0 && (
-                    <Text style={s.savedHint}>✅ {t('tutorial.common.save')} in tempo reale</Text>
-                  )}
-                </View>
-              )}
-
-              {/* Multi-field (input + select misti) */}
-              {step.type === 'multi' && step.fields && (
-                <View style={{ marginTop: 14, gap: 12 }}>
-                  {step.fields.map((f, idx) => {
-                    const curVal = String((appStore as any)[f.field] || '');
-                    const onChange = (v: string) => {
-                      if (appStore.setConfig) appStore.setConfig({ [f.field]: v } as any);
-                      else { (useAppStore.setState as any)({ [f.field]: v }); appStore.saveToStorage?.(); }
-                    };
-                    if (f.type === 'text') {
-                      return (
-                        <View key={idx}>
-                          <Text style={s.fieldLabel}>{f.labelKey ? t(f.labelKey) : ''}</Text>
-                          <TextInput
-                            style={s.input}
-                            value={curVal}
-                            onChangeText={onChange}
-                            placeholder={f.placeholderKey ? t(f.placeholderKey) : ''}
-                            placeholderTextColor="#B0B0A0"
-                            keyboardType={f.keyboardType || 'default'}
-                            autoCapitalize="words"
-                            autoFocus={idx === 0}
-                          />
-                          {curVal.length > 0 && <Text style={s.savedHint}>✅ Salvato</Text>}
-                        </View>
-                      );
-                    }
-                    // select
-                    return (
-                      <View key={idx}>
-                        <Text style={s.fieldLabel}>{f.labelKey ? t(f.labelKey) : ''}</Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                          {(f.options || []).map((opt) => {
-                            const on = curVal === opt.value;
-                            const lbl = opt.labelKey ? t(opt.labelKey) : (opt.label || opt.value);
-                            return (
-                              <TouchableOpacity
-                                key={opt.value}
-                                style={[s.pillOpt, on && s.pillOptOn]}
-                                onPress={() => onChange(opt.value)}
-                                activeOpacity={0.7}
-                              >
-                                <Text style={[s.pillTxt, on && { color: '#FFF' }]}>{lbl}</Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Nav action: pulsante per aprire una sezione dell'app */}
-              {step.type === 'nav_action' && step.navigateTo && (
-                <View style={{ marginTop: 16, gap: 10 }}>
-                  <TouchableOpacity
-                    style={s.navBtn}
-                    onPress={() => router.push(step.navigateTo as any)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialCommunityIcons name="arrow-right-circle" size={18} color="#FFF" />
-                    <Text style={s.navBtnTxt}>{t('tutorial.common.openPage')}</Text>
-                  </TouchableOpacity>
-                  <Text style={s.skipHint}>{t('tutorial.common.skipForNow')} →</Text>
-                </View>
-              )}
-
-              {/* Select (es. carburante) */}
-              {step.type === 'select' && step.options && (
-                <View style={{ marginTop: 14, gap: 8 }}>
-                  {step.options.map((opt) => {
-                    const on = selectedSelectValue === opt.value;
-                    return (
-                      <TouchableOpacity key={opt.value} style={[s.optBtn, on && s.optBtnOn]} onPress={() => setSelectValue(opt.value)} activeOpacity={0.7}>
-                        <Text style={[s.optTxt, on && { color: '#FFF' }]}>{opt.label}</Text>
-                        {on && <Ionicons name="checkmark-circle" size={18} color="#FFF" />}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </ScrollView>
-
-            {/* Footer actions */}
-            <View style={s.footer}>
-              <TouchableOpacity onPress={skip} style={s.skipBtn} activeOpacity={0.7}>
-                <Text style={s.skipTxt}>{t('tutorial.common.skip')}</Text>
-              </TouchableOpacity>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {!isFirst && (
-                  <TouchableOpacity onPress={prevStep} style={s.backBtn} activeOpacity={0.7}>
-                    <Ionicons name="chevron-back" size={18} color="#1E7F85" />
-                    <Text style={s.backTxt}>{t('tutorial.common.back')}</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={nextStep} style={s.nextBtn} activeOpacity={0.7}>
-                  <Text style={s.nextTxt}>{isLast ? t('tutorial.common.finish') : t('tutorial.common.next')}</Text>
-                  {!isLast && <Ionicons name="chevron-forward" size={18} color="#FFF" />}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+          {Card}
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -238,6 +219,9 @@ const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(26, 64, 64, 0.55)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   kbWrap: { width: '100%', maxWidth: 420 },
   card: { backgroundColor: '#FFF', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
+  cardCompact: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, elevation: 12, borderTopWidth: 4, borderTopColor: '#1E7F85' },
+  compactWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', padding: 8, paddingBottom: 80 },
+  compactDock: { width: '100%' },
   header: { paddingTop: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F0EBE1', paddingBottom: 10 },
   progressBar: { height: 4, backgroundColor: '#E8E3D5', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#1E7F85' },
