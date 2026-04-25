@@ -526,15 +526,11 @@
       },
       "carburante_setup": {
         "title": "Consumo carburante ⛽",
-        "body": "Inserisci ORA un esempio di rifornimento: litri ed euro. La app userà questo dato per calcolare automaticamente quanto ti costa ogni mercato in base ai km percorsi."
+        "body": "Inserisci ORA un esempio di rifornimento in euro (es: 50€). La app userà questo dato per calcolare automaticamente quanto ti costa ogni mercato in base ai km percorsi."
       },
       "notes_setup": {
         "title": "La pagina NOTES 📝",
         "body": "Qui annoti appuntamenti, ordini ai fornitori, scadenze, idee. Aggiungi ORA un appuntamento (es: 'Commercialista martedì 10:00'). Lo ritroverai sia nel calendario in Home, sia nella 🔔 campanella delle notifiche."
-      },
-      "backup_info": {
-        "title": "Backup dati 💾",
-        "body": "Importante: esporta sempre un backup! Vai in Impostazioni → BACKUP DATI e premi ESPORTA per salvare un file. Lo potrai inviare via WhatsApp, email o caricarlo dopo se cambi telefono."
       },
       "done": {
         "title": "🎉 Tutto pronto!",

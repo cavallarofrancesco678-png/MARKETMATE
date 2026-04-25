@@ -1128,7 +1128,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP * 2 }} />
 
       {/* ═══ ROW 1: LORDO / UTILE (+20% altezza) ═══ */}
-      <View style={[s.gridRow, { gap: GAP }]}>
+      <View style={[s.gridRow, { gap: GAP }]} testID="home-incasso-row">
         <View style={[s.card, { height: lordoRowH }]}>
           <Text style={s.cardBold}>{t('home.gross')}</Text>
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={handleLordo} selectTextOnFocus />
@@ -1156,7 +1156,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ ROW 3: SPESE EXTRA (cliccabile → fornitori) / SPESE FISSE ═══ */}
-      <View style={[s.gridRow, { gap: GAP }]}>
+      <View style={[s.gridRow, { gap: GAP }]} testID="home-spese-row">
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseExtraModal(true)}>
           <Text style={s.cardLbl}>SPESE</Text>
           <Text style={[s.cardVal, { marginLeft: 4 }]}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(0)}</Text>
@@ -1175,7 +1175,7 @@ export default function HomeScreen() {
           <Text style={s.cardLbl}>{perditaLabel}</Text>
           <Text style={s.cardVal}>{invendutoNum > 0 ? `€${invendutoNum}` : '0'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
+        <TouchableOpacity testID="home-buongiorno-btn" style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
           <Ionicons name="globe-outline" size={16} color="#FFF" />
           <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>{t('home.goodMorning').toUpperCase()}</Text>
         </TouchableOpacity>
@@ -1184,7 +1184,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ STORICO MERCATO - Grafico Professionale ═══ */}
-      <View style={[s.section, { height: STORICO_H }]}>
+      <View style={[s.section, { height: STORICO_H }]} testID="home-stats-box">
         <View style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4), flexDirection: 'row', padding: 8 }]}>
           {(() => {
             const gg = store.storicoGiornate || [];
@@ -1474,7 +1474,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ SALVA GIORNATA ═══ */}
-      <TouchableOpacity onPress={handleSalvaManuale} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
+      <TouchableOpacity testID="home-salva-btn" onPress={handleSalvaManuale} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>
@@ -2042,9 +2042,10 @@ const s = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     color: '#1A4040',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     textAlign: 'center',
-    paddingHorizontal: 50,
+    width: '100%',
+    paddingHorizontal: 44,
   },
   badgeLeft: {
     position: 'absolute',

@@ -103,10 +103,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   // 17. Notes (apri agenda, fai un appuntamento)
   { id: 'notes_setup', tKey: 'tutorial.steps.notes_setup', type: 'info', icon: 'note-edit', route: '/home/agenda' },
 
-  // 18. Backup
-  { id: 'backup_info', tKey: 'tutorial.steps.backup_info', type: 'info', icon: 'cloud-upload', route: '/home/settings', anchorId: 'sett-backup-card' },
-
-  // 19. Done
+  // 18. Done
   { id: 'done', tKey: 'tutorial.steps.done', type: 'info', icon: 'trophy', route: '/home' },
 ];
 

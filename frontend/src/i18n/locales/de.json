@@ -524,15 +524,11 @@
       },
       "carburante_setup": {
         "title": "Kraftstoffverbrauch ⛽",
-        "body": "Trage JETZT ein Tankbeispiel ein: Liter und Euro. Die App nutzt diese Daten, um automatisch zu berechnen, wie viel jeder Markt basierend auf gefahrenen km kostet."
+        "body": "Trage JETZT ein Tankbeispiel in Euro ein (z.B. 50€). Die App nutzt diese Daten, um automatisch zu berechnen, wie viel jeder Markt basierend auf gefahrenen km kostet."
       },
       "notes_setup": {
         "title": "Die NOTIZEN-Seite 📝",
         "body": "Hier schreibst du Termine, Lieferantenbestellungen, Fristen, Ideen. Füge JETZT einen Termin hinzu (z.B. 'Steuerberater Dienstag 10:00'). Du findest ihn sowohl im Startseiten-Kalender als auch in der 🔔 Benachrichtigungsglocke."
-      },
-      "backup_info": {
-        "title": "Datensicherung 💾",
-        "body": "Wichtig: Exportiere immer eine Sicherung! Gehe zu Einstellungen → DATENSICHERUNG und tippe EXPORTIEREN, um eine Datei zu speichern. Sende sie per WhatsApp, E-Mail oder lade sie später, wenn du das Telefon wechselst."
       },
       "done": {
         "title": "🎉 Alles bereit!",

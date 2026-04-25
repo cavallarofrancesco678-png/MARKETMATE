@@ -526,15 +526,11 @@
       },
       "carburante_setup": {
         "title": "Fuel consumption ⛽",
-        "body": "Enter NOW a refuel example: liters and euros. The app will use this to automatically calculate how much each market costs based on km driven."
+        "body": "Enter NOW a refuel example in euros (e.g. €50). The app will use this to automatically calculate how much each market costs based on km driven."
       },
       "notes_setup": {
         "title": "The NOTES page 📝",
         "body": "Here you write appointments, orders to suppliers, deadlines, ideas. Add NOW an appointment (e.g. 'Accountant Tuesday 10:00'). You'll find it in the Home calendar and in the 🔔 notifications bell."
-      },
-      "backup_info": {
-        "title": "Data backup 💾",
-        "body": "Important: always export a backup! Go to Settings → DATA BACKUP and tap EXPORT to save a file. Send it via WhatsApp, email or load it later if you change phone."
       },
       "done": {
         "title": "🎉 All set!",

@@ -524,15 +524,11 @@
       },
       "carburante_setup": {
         "title": "Consumo combustible ⛽",
-        "body": "Introduce AHORA un ejemplo de repostaje: litros y euros. La app usará este dato para calcular automáticamente cuánto cuesta cada mercado según los km recorridos."
+        "body": "Introduce AHORA un ejemplo de repostaje en euros (p.ej.: 50€). La app usará este dato para calcular automáticamente cuánto cuesta cada mercado según los km recorridos."
       },
       "notes_setup": {
         "title": "La página NOTAS 📝",
         "body": "Aquí escribes citas, pedidos a proveedores, vencimientos, ideas. Añade AHORA una cita (ej: 'Gestor martes 10:00'). La encontrarás tanto en el calendario de Inicio como en la 🔔 campana de notificaciones."
-      },
-      "backup_info": {
-        "title": "Copia de seguridad 💾",
-        "body": "Importante: ¡exporta siempre una copia! Ve a Ajustes → COPIA DE SEGURIDAD y pulsa EXPORTAR para guardar un archivo. Envíalo por WhatsApp, email o cárgalo después si cambias de móvil."
       },
       "done": {
         "title": "🎉 ¡Todo listo!",

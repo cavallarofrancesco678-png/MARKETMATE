@@ -524,15 +524,11 @@
       },
       "carburante_setup": {
         "title": "Consumo combustível ⛽",
-        "body": "Insere AGORA um exemplo de abastecimento: litros e euros. A app usa este dado para calcular automaticamente quanto custa cada mercado com base nos km percorridos."
+        "body": "Insere AGORA um exemplo de abastecimento em euros (ex: 50€). A app usa este dado para calcular automaticamente quanto custa cada mercado com base nos km percorridos."
       },
       "notes_setup": {
         "title": "A página NOTAS 📝",
         "body": "Aqui escreves compromissos, pedidos a fornecedores, prazos, ideias. Adiciona AGORA um compromisso (ex: 'Contabilista terça 10:00'). Encontra-lo tanto no calendário do Início como na 🔔 campainha das notificações."
-      },
-      "backup_info": {
-        "title": "Cópia de segurança 💾",
-        "body": "Importante: exporta sempre uma cópia! Vai a Definições → CÓPIA DE SEGURANÇA e prime EXPORTAR para guardar um ficheiro. Envia-o por WhatsApp, email ou carrega-o depois se mudares de telemóvel."
       },
       "done": {
         "title": "🎉 Tudo pronto!",

@@ -524,15 +524,11 @@
       },
       "carburante_setup": {
         "title": "Consommation carburant ⛽",
-        "body": "Entre MAINTENANT un exemple de plein : litres et euros. L'app utilisera cette donnée pour calculer automatiquement le coût de chaque marché en fonction des km parcourus."
+        "body": "Entre MAINTENANT un exemple de plein en euros (ex: 50€). L'app utilisera cette donnée pour calculer automatiquement combien chaque marché coûte selon les km parcourus."
       },
       "notes_setup": {
         "title": "La page NOTES 📝",
         "body": "Ici tu écris rendez-vous, commandes aux fournisseurs, échéances, idées. Ajoute MAINTENANT un rendez-vous (ex : 'Comptable mardi 10:00'). Tu le retrouveras dans le calendrier de l'Accueil et dans la 🔔 cloche des notifications."
-      },
-      "backup_info": {
-        "title": "Sauvegarde des données 💾",
-        "body": "Important : exporte toujours une sauvegarde ! Va dans Paramètres → SAUVEGARDE et appuie sur EXPORTER pour enregistrer un fichier. Envoie-le par WhatsApp, email ou charge-le plus tard si tu changes de téléphone."
       },
       "done": {
         "title": "🎉 Tout est prêt !",

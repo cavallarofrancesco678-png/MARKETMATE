@@ -1,10 +1,18 @@
 /**
  * TutorialOverlay — card modale fluttuante che guida l'utente passo-passo.
  * Supporta input inline che scrivono DIRETTAMENTE nello appStore in tempo reale.
+ *
+ * UX Update (giugno 2025):
+ *  - Niente icone dentro la card
+ *  - Niente "tail" / freccia sul fumetto
+ *  - Tipografia più grande, border-radius generoso, ombra morbida
+ *  - In modalità COMPACT il pop-up si posiziona ADIACENTE al widget target
+ *    (sopra o sotto in base alla posizione dell'anchor) usando le coordinate
+ *    misurate via getBoundingClientRect, così non copre MAI l'elemento di riferimento.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +20,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/tutorialStore';
 import { useAppStore } from '../store/appStore';
 
 const { height: SCREEN_H } = Dimensions.get('window');
+const GAP_FROM_ANCHOR = 14; // gap fra widget e fumetto
 
 export const TutorialOverlay: React.FC = () => {
   const { t } = useTranslation();
@@ -29,7 +38,7 @@ export const TutorialOverlay: React.FC = () => {
     }
   }, [active, stepIndex, step?.route, pathname]);
 
-  // ═══ Feedback aptico leggero ad ogni cambio step (rumore leggero) ═══
+  // ═══ Feedback aptico leggero ad ogni cambio step ═══
   useEffect(() => {
     if (!active) return;
     try {
@@ -37,8 +46,7 @@ export const TutorialOverlay: React.FC = () => {
     } catch {}
   }, [stepIndex, active]);
 
-  // ═══ AUTO-SCROLL all'anchor + memo posizione per la freccia ═══
-  // Su web usa document.querySelector + scrollIntoView; su native fallback a posizione fissa.
+  // ═══ AUTO-SCROLL all'anchor + memo posizione per il posizionamento adiacente ═══
   const [anchorRect, setAnchorRect] = useState<{ top: number; bottom: number; height: number } | null>(null);
   const anchorId = (step as any)?.anchorId as string | undefined;
   useEffect(() => {
@@ -49,9 +57,7 @@ export const TutorialOverlay: React.FC = () => {
       try {
         const el: any = document.querySelector(`[data-testid="${anchorId}"]`);
         if (el) {
-          // Smooth scroll per centrare l'anchor
           el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-          // Misura dopo lo scroll
           setTimeout(() => {
             if (cancelled) return;
             const r = el.getBoundingClientRect();
@@ -63,17 +69,37 @@ export const TutorialOverlay: React.FC = () => {
       if (attemptsLeft > 0) setTimeout(() => tryFind(attemptsLeft - 1), 120);
     };
     setAnchorRect(null);
-    tryFind(8); // riprova fino a 8 volte (~1s) attendendo che l'elemento monti dopo il route change
+    tryFind(8);
     return () => { cancelled = true; };
   }, [active, stepIndex, anchorId]);
 
-  // Determina dove mettere il bubble: SE l'anchor è nella metà superiore → bubble in basso;
-  // SE l'anchor è nella metà inferiore → bubble in alto. Questo evita SEMPRE le sovrapposizioni.
-  const dockPosition: 'bottom' | 'top' | null = (() => {
+  // ═══ Misurazione card per evitare uscire fuori schermo ═══
+  const [cardH, setCardH] = useState<number>(220);
+
+  // Determina dove docking-are il bubble:
+  // se l'anchor è nella metà superiore dello schermo → bubble subito SOTTO l'anchor
+  // altrimenti → bubble subito SOPRA l'anchor.
+  const winH = (Platform.OS === 'web' && typeof window !== 'undefined') ? window.innerHeight : SCREEN_H;
+  const dockBelow: boolean | null = (() => {
     if (!anchorRect) return null;
-    const winH = (Platform.OS === 'web' ? (typeof window !== 'undefined' ? window.innerHeight : SCREEN_H) : SCREEN_H);
     const anchorCenter = (anchorRect.top + anchorRect.bottom) / 2;
-    return anchorCenter < winH * 0.5 ? 'bottom' : 'top';
+    return anchorCenter < winH * 0.5;
+  })();
+
+  // Calcolo top assoluto: clamp per non andare fuori schermo
+  const adjacentTop: number | null = (() => {
+    if (!anchorRect || dockBelow == null) return null;
+    if (dockBelow) {
+      // bubble sotto l'anchor → top = anchor.bottom + gap
+      const proposed = anchorRect.bottom + GAP_FROM_ANCHOR;
+      // se il bubble esce dal basso, clamp a 8px dal fondo
+      const maxTop = Math.max(8, winH - cardH - 8);
+      return Math.min(proposed, maxTop);
+    } else {
+      // bubble sopra → top = anchor.top - cardH - gap
+      const proposed = anchorRect.top - cardH - GAP_FROM_ANCHOR;
+      return Math.max(8, proposed);
+    }
   })();
 
   // Leggi il valore corrente dal store per i campi di input
@@ -90,7 +116,6 @@ export const TutorialOverlay: React.FC = () => {
   const setFieldValue = (val: string) => {
     if (!step) return;
     if (step.type === 'input' && step.field) {
-      // Salva LIVE nello appStore tramite setConfig (persiste automaticamente)
       if (appStore.setConfig) {
         appStore.setConfig({ [step.field]: val } as any);
       } else {
@@ -104,21 +129,6 @@ export const TutorialOverlay: React.FC = () => {
     }
   };
 
-  const selectedSelectValue = (() => {
-    if (!step || step.type !== 'select' || !step.field) return '';
-    return String((appStore as any)[step.field] || '');
-  })();
-
-  const setSelectValue = (val: string) => {
-    if (!step || step.type !== 'select' || !step.field) return;
-    if (appStore.setConfig) {
-      appStore.setConfig({ [step.field]: val } as any);
-    } else {
-      (useAppStore.setState as any)({ [step.field]: val });
-      if (appStore.saveToStorage) appStore.saveToStorage();
-    }
-  };
-
   if (!active || !step) return null;
 
   const title = t(`${step.tKey}.title`);
@@ -126,22 +136,26 @@ export const TutorialOverlay: React.FC = () => {
   const placeholder = t(`${step.tKey}.placeholder`, '');
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === total - 1;
-  const iconName = (step.icon || 'information') as any;
 
-  // ═══ Modalità COMPACT (bottom dock) per gli step in cui l'utente
-  // deve interagire con la pagina sottostante (Settings, Notes, ecc.) ═══
+  // ═══ Modalità COMPACT (fumetto adiacente al widget) ═══
   // Welcome, multi-input, done restano centrati come modal classico.
   const compactStepIds = new Set([
     'settings_intro', 'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
     'home_calendar', 'home_lordo', 'home_incasso', 'spese_extra_voci',
     'home_stats_box', 'home_salva', 'stats', 'buongiorno',
-    'carburante_setup', 'notes_setup', 'backup_info',
+    'carburante_setup', 'notes_setup',
   ]);
   const isCompact = compactStepIds.has(step.id);
 
   const Card = (
-    <View style={isCompact ? s.cardCompact : s.card}>
-      {/* Header */}
+    <View
+      style={isCompact ? s.cardCompact : s.card}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h && Math.abs(h - cardH) > 4) setCardH(h);
+      }}
+    >
+      {/* Header (progress + close) */}
       <View style={s.header}>
         <View style={s.progressBar}>
           <View style={[s.progressFill, { width: `${((stepIndex + 1) / total) * 100}%` }]} />
@@ -154,25 +168,17 @@ export const TutorialOverlay: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView style={{ maxHeight: SCREEN_H * (isCompact ? 0.32 : 0.55) }} contentContainerStyle={{ padding: isCompact ? 14 : 18 }} keyboardShouldPersistTaps="handled">
-        {!isCompact && (
-          <View style={s.iconWrap}>
-            <MaterialCommunityIcons name={iconName} size={44} color="#1E7F85" />
-          </View>
-        )}
-        <View style={isCompact ? { flexDirection: 'column' } : {}}>
-          {!isCompact && (
-            <MaterialCommunityIcons name={iconName} size={28} color="#1E7F85" style={{ marginTop: 2 }} />
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={[s.title, isCompact && { fontSize: 19, textAlign: 'left', marginBottom: 8, fontWeight: '900' }]}>{title}</Text>
-            <Text style={[s.body, isCompact && { fontSize: 14.5, textAlign: 'left', lineHeight: 21 }]}>{body}</Text>
-          </View>
-        </View>
+      <ScrollView
+        style={{ maxHeight: SCREEN_H * (isCompact ? 0.40 : 0.55) }}
+        contentContainerStyle={{ padding: isCompact ? 18 : 22 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={[s.title, isCompact && s.titleCompact]}>{title}</Text>
+        <Text style={[s.body, isCompact && s.bodyCompact]}>{body}</Text>
 
         {/* Multi-field (input + select misti) */}
         {step.type === 'multi' && step.fields && (
-          <View style={{ marginTop: 14, gap: 12 }}>
+          <View style={{ marginTop: 16, gap: 12 }}>
             {step.fields.map((f, idx) => {
               const curVal = String((appStore as any)[f.field] || '');
               const onChange = (v: string) => {
@@ -205,7 +211,12 @@ export const TutorialOverlay: React.FC = () => {
                       const on = curVal === opt.value;
                       const lbl = opt.labelKey ? t(opt.labelKey) : (opt.label || opt.value);
                       return (
-                        <TouchableOpacity key={opt.value} style={[s.pillOpt, { flex: 1, paddingHorizontal: 4 }, on && s.pillOptOn]} onPress={() => onChange(opt.value)} activeOpacity={0.7}>
+                        <TouchableOpacity
+                          key={opt.value}
+                          style={[s.pillOpt, { flex: 1, paddingHorizontal: 4 }, on && s.pillOptOn]}
+                          onPress={() => onChange(opt.value)}
+                          activeOpacity={0.7}
+                        >
                           <Text style={[s.pillTxt, { textAlign: 'center', fontSize: 11 }, on && { color: '#FFF' }]} numberOfLines={1}>{lbl}</Text>
                         </TouchableOpacity>
                       );
@@ -219,7 +230,7 @@ export const TutorialOverlay: React.FC = () => {
       </ScrollView>
 
       {/* Footer actions */}
-      <View style={[s.footer, isCompact && { paddingVertical: 8 }]}>
+      <View style={s.footer}>
         <TouchableOpacity onPress={skip} style={s.skipBtn} activeOpacity={0.7}>
           <Text style={s.skipTxt}>{t('tutorial.common.skip')}</Text>
         </TouchableOpacity>
@@ -239,25 +250,26 @@ export const TutorialOverlay: React.FC = () => {
     </View>
   );
 
-  // ═══ COMPACT MODE: rendering come bottom-sheet absolute ═══
-  // (l'utente può interagire con la pagina dietro al tutorial)
+  // ═══ COMPACT MODE ═══
   if (isCompact) {
-    // ═══ STILE FUMETTO: bordi morbidi, niente frecce, posizionato OPPOSTO all'anchor ═══
-    const wrapStyle = dockPosition === 'bottom'
-      ? { ...s.compactWrap, justifyContent: 'flex-end' as const, paddingBottom: 80 }
-      : dockPosition === 'top'
-      ? { ...s.compactWrap, justifyContent: 'flex-start' as const, paddingTop: 50 }
-      : s.compactWrap;
+    // Se abbiamo le coordinate dell'anchor → posizioniamo il fumetto ADIACENTE.
+    // Altrimenti fallback: dock in basso (su mobile native dove non abbiamo
+    // anchor measurement, almeno non copriamo il widget visibile).
+    const useAdjacent = adjacentTop != null;
+    const adjacentStyle = useAdjacent
+      ? { position: 'absolute' as const, top: adjacentTop as number, left: 8, right: 8 }
+      : { position: 'absolute' as const, bottom: 70, left: 8, right: 8 };
+
     return (
-      <View pointerEvents="box-none" style={wrapStyle}>
-        <View pointerEvents="auto" style={s.compactDock}>
+      <View pointerEvents="box-none" style={s.compactWrap}>
+        <View pointerEvents="auto" style={adjacentStyle}>
           {Card}
         </View>
       </View>
     );
   }
 
-  // Modal centrato per: welcome, identita, logistica, done
+  // Modal centrato per: welcome, logistica, done
   return (
     <Modal visible={active} transparent animationType="fade" onRequestClose={skip}>
       <View style={s.backdrop}>
@@ -271,38 +283,59 @@ export const TutorialOverlay: React.FC = () => {
 
 const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(26, 64, 64, 0.55)', justifyContent: 'center', alignItems: 'center', padding: 16 },
-  kbWrap: { width: '100%', maxWidth: 420 },
-  card: { backgroundColor: '#FFF', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
-  cardCompact: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, elevation: 12, borderTopWidth: 4, borderTopColor: '#1E7F85' },
-  compactWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', padding: 8, paddingBottom: 80 },
-  compactDock: { width: '100%' },
-  tailUp: { width: 0, height: 0, alignSelf: 'center', borderLeftWidth: 14, borderRightWidth: 14, borderBottomWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#1E7F85', marginBottom: -1 },
-  tailDown: { width: 0, height: 0, alignSelf: 'center', borderLeftWidth: 14, borderRightWidth: 14, borderTopWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#FFFFFF', marginTop: -1 },
-  header: { paddingTop: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F0EBE1', paddingBottom: 10 },
+  kbWrap: { width: '100%', maxWidth: 460 },
+
+  /* ═══ Card "comic" stile fumetto ═══ */
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 14,
+    borderWidth: 2,
+    borderColor: '#1E7F85',
+  },
+  cardCompact: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.28,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 16,
+    borderWidth: 2,
+    borderColor: '#1E7F85',
+  },
+
+  compactWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+
+  header: { paddingTop: 14, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#F0EBE1', paddingBottom: 10 },
   progressBar: { height: 4, backgroundColor: '#E8E3D5', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#1E7F85' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   progressTxt: { fontSize: 11, color: '#5A7575', fontWeight: '700', letterSpacing: 0.5 },
-  iconWrap: { alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 20, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 10, letterSpacing: 0.3 },
-  body: { fontSize: 14, color: '#5A7575', lineHeight: 20, textAlign: 'center' },
-  input: { backgroundColor: '#F5EFDC', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#1A4040', borderWidth: 2, borderColor: '#1E7F85' },
-  savedHint: { fontSize: 10, color: '#1E7F85', fontWeight: '700', marginTop: 6, textAlign: 'center' },
-  optBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F5EFDC', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#E0D8C0' },
-  optBtnOn: { backgroundColor: '#1E7F85', borderColor: '#1E7F85' },
-  optTxt: { fontSize: 14, color: '#5A7575', fontWeight: '700' },
+
+  title: { fontSize: 22, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 12, letterSpacing: 0.3 },
+  titleCompact: { fontSize: 21, textAlign: 'left', marginBottom: 10, fontWeight: '900', lineHeight: 26 },
+  body: { fontSize: 15, color: '#3A5555', lineHeight: 22, textAlign: 'center' },
+  bodyCompact: { fontSize: 16, textAlign: 'left', lineHeight: 23, color: '#3A5555' },
+
+  input: { backgroundColor: '#F5EFDC', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#1A4040', borderWidth: 2, borderColor: '#1E7F85' },
+  savedHint: { fontSize: 11, color: '#1E7F85', fontWeight: '700', marginTop: 6, textAlign: 'center' },
   fieldLabel: { fontSize: 11, fontWeight: '900', color: '#1A4040', marginBottom: 6, letterSpacing: 0.5 },
   pillOpt: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: '#F5EFDC', borderWidth: 1.5, borderColor: '#E0D8C0' },
   pillOptOn: { backgroundColor: '#1E7F85', borderColor: '#1E7F85' },
   pillTxt: { fontSize: 12, fontWeight: '700', color: '#5A7575' },
-  navBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#D2691E', paddingVertical: 14, borderRadius: 12 },
-  navBtnTxt: { fontSize: 13, fontWeight: '900', color: '#FFF', letterSpacing: 0.5 },
-  skipHint: { fontSize: 11, color: '#7A9090', textAlign: 'center', fontStyle: 'italic' },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F0EBE1', backgroundColor: '#FAFAF5' },
+
+  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F0EBE1', backgroundColor: '#FAFAF5' },
   skipBtn: { paddingVertical: 8, paddingHorizontal: 8 },
   skipTxt: { fontSize: 11, color: '#7A9090', fontWeight: '700', letterSpacing: 0.3 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.5, borderColor: '#1E7F85' },
+  backBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#1E7F85' },
   backTxt: { fontSize: 12, color: '#1E7F85', fontWeight: '900', marginLeft: 2, letterSpacing: 0.5 },
-  nextBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E7F85', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, gap: 4 },
+  nextBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E7F85', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12, gap: 4 },
   nextTxt: { fontSize: 13, color: '#FFF', fontWeight: '900', letterSpacing: 0.5 },
 });

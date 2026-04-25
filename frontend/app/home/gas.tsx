@@ -267,7 +267,7 @@ export default function GasScreen() {
       <Text style={s.pageTitle}>{t('gas.title')}</Text>
 
       {/* ═══ INPUT GRANDE + SALVA ═══ */}
-      <View style={s.inputCard}>
+      <View style={s.inputCard} testID="gas-input-block">
         <TextInput
           style={s.bigInput}
           placeholder="€ 0"

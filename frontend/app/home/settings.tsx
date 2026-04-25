@@ -1243,7 +1243,7 @@ export default function SettingsPage() {
       </TouchableOpacity>
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
-      <View style={s.card}>
+      <View style={s.card} testID="sett-spese-card">
         <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedSpese(!expandedSpese)}>
           <Ionicons name="card" size={20} color="#1E7F85" />
           <Text style={[s.agendaDay, { flex: 1 }]}>{t('settings.fixedExpenses')}</Text>
