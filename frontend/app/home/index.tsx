@@ -958,7 +958,7 @@ export default function HomeScreen() {
         {nomeAttivita ? (
           <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
         ) : null}
-        {/* Power off a sinistra */}
+        {/* Power off in alto a sinistra — alzato e con hitSlop ridotto per non collidere con la freccia indietro */}
         <TouchableOpacity
           onPress={() => {
             if (Platform.OS === 'web') {
@@ -975,11 +975,11 @@ export default function HomeScreen() {
             }
           }}
           activeOpacity={0.7}
-          style={{ position: 'absolute', left: 4, top: 4, zIndex: 10, padding: 4 }}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{ position: 'absolute', left: 2, top: -10, zIndex: 10, padding: 2 }}
+          hitSlop={{ top: 4, bottom: 2, left: 4, right: 2 }}
         >
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#B0A898', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="power" size={16} color="#FFF" />
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#B0A898', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="power" size={14} color="#FFF" />
           </View>
         </TouchableOpacity>
         <Text style={s.marketName} numberOfLines={1}>{mercatoNome.toUpperCase() || t('home.noMarketToday')}</Text>
