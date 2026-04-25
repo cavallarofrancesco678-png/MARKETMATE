@@ -75,7 +75,7 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
   const chartW = screenW - 70;
   const padL = 40;
   const padR = 10;
-  const padT = 28;
+  const padT = 38; // più spazio sopra per i valori delle etichette
   const padB = 25;
   const drawW = chartW - padL - padR;
   const drawH = height - padT - padB;
@@ -147,9 +147,15 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
                   strokeWidth={1.5}
                 />
                 {activeLineIndex !== null && p.v > 0 && (
-                  <SvgText x={p.x} y={p.y - 10} fill={line.color} fontSize={9} fontWeight="900" textAnchor="middle">
-                    €{p.v.toFixed(0)}
-                  </SvgText>
+                  <>
+                    {/* Halo bianco per leggibilità */}
+                    <SvgText x={p.x} y={p.y - 14} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={3} fontSize={11} fontWeight="900" textAnchor="middle">
+                      €{p.v.toFixed(0)}
+                    </SvgText>
+                    <SvgText x={p.x} y={p.y - 14} fill={line.color} fontSize={11} fontWeight="900" textAnchor="middle">
+                      €{p.v.toFixed(0)}
+                    </SvgText>
+                  </>
                 )}
               </React.Fragment>
             ))}

@@ -80,6 +80,10 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   // Fetch fuel prices and weather when modal opens
   useEffect(() => {
     if (visible) {
+      // ═══ RESET sessione e messaggi ad OGNI apertura ═══
+      // Questo forza un nuovo saluto AI con il context più recente (giorno selezionato + meteo aggiornato).
+      sessionId.current = `session_${Date.now()}`;
+      setMessages([]);
       setDataReady(false);
       const promises: Promise<void>[] = [];
 
@@ -147,6 +151,31 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
 
   const contextStr = useMemo(() => {
     const s = storeData;
+    // ═══ DATA DI RIFERIMENTO (selectedDate dal calendario Home) ═══
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const selDate = s.selectedDate || todayIso;
+    const isToday = selDate === todayIso;
+    const isFuture = selDate > todayIso;
+    const isPast = selDate < todayIso;
+    let dateLabel = 'OGGI';
+    let dateNarrative = `OGGI (${selDate})`;
+    try {
+      const d = new Date(selDate + 'T12:00:00');
+      const giorniIt = ['DOMENICA', 'LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO'];
+      const dayName = giorniIt[d.getDay()];
+      const formatted = `${dayName} ${d.getDate()}/${d.getMonth() + 1}`;
+      if (isToday) {
+        dateLabel = 'OGGI';
+        dateNarrative = `OGGI ${formatted}`;
+      } else if (isFuture) {
+        dateLabel = `${dayName} (futuro)`;
+        dateNarrative = `${formatted} — ${selDate} — questo è un giorno FUTURO`;
+      } else {
+        dateLabel = `${dayName} (passato)`;
+        dateNarrative = `${formatted} — ${selDate} — questo è un giorno PASSATO`;
+      }
+    } catch {}
+
     const settPrec = s.settimanaPrec.giorni > 0
       ? `Lordo: €${s.settimanaPrec.lordo}, Netto: €${s.settimanaPrec.netto}, ${s.settimanaPrec.giorni} giorni lavorati`
       : 'Nessun dato';
@@ -192,11 +221,17 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
     const collabLst = (s.collaboratori && s.collaboratori.length > 0) ? s.collaboratori.join(', ') : 'nessuno';
     const fornLst = (s.fornitori && s.fornitori.length > 0) ? s.fornitori.join(', ') : 'nessuno';
 
-    return `Attivita: ${s.nomeAttivita}
+    return `═══ DATA DI RIFERIMENTO ═══
+GIORNO SELEZIONATO DALL'UTENTE: ${dateNarrative}
+${isFuture ? '⚠️ L\'utente sta consultando un giorno FUTURO. RIFORMULA TUTTE le frasi al FUTURO. NON dire "oggi" — usa il nome del giorno (es: "Lunedì pioverà a Roma, attento al mercato!"). Il meteo qui sotto è la PREVISIONE per quel giorno.' : ''}
+${isPast ? '⚠️ L\'utente sta consultando un giorno PASSATO. Rispondi al passato (es: "Lunedì scorso era nuvoloso"). Il meteo qui sotto è il dato di archivio.' : ''}
+
+═══ ATTIVITA ═══
+Attivita: ${s.nomeAttivita}
 Titolare: ${s.nomeTitolare}
-Mercato oggi: ${s.mercatoOggi}
-Meteo oggi: ${s.meteoOggi}
-Km oggi: ${s.kmOggi}
+Mercato del ${dateLabel}: ${s.mercatoOggi}
+Meteo (codice scelto in app): ${s.meteoOggi}
+Km: ${s.kmOggi}
 Partenza da: ${s.partenzaDa || 'Non specificata'}
 Tipo carburante: ${s.tipoCarburante || 'benzina'}
 Costo/km: €${s.costoKm.toFixed(3)}
@@ -222,7 +257,7 @@ Appuntamenti prossimi (7gg): ${appuntiLst}
 Ordini prossimi (7gg): ${ordiniLst}
 Pagamenti imminenti: ${pagLst}
 ${s.noteOggi ? `\nNota del giorno: ${s.noteOggi}` : ''}
-${weatherData ? '\n' + weatherData : 'Nessun dato meteo reale'}
+${weatherData ? '\n═══ METEO ═══\n' + weatherData + (isFuture ? `\n(IMPORTANTE: questo è il meteo PREVISTO per ${dateLabel}, NON di oggi. Usalo nel tuo saluto al FUTURO.)` : '') : 'Nessun dato meteo reale'}
 ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
   }, [storeData, fuelData, weatherData]);
 
