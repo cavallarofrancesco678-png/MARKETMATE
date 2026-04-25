@@ -67,13 +67,13 @@ export const TutorialOverlay: React.FC = () => {
     return () => { cancelled = true; };
   }, [active, stepIndex, anchorId]);
 
-  // Determina dove mettere il bubble: SOPRA o SOTTO l'anchor (cerca lo spazio maggiore)
-  const arrowDirection: 'up' | 'down' | null = (() => {
+  // Determina dove mettere il bubble: SE l'anchor è nella metà superiore → bubble in basso;
+  // SE l'anchor è nella metà inferiore → bubble in alto. Questo evita SEMPRE le sovrapposizioni.
+  const dockPosition: 'bottom' | 'top' | null = (() => {
     if (!anchorRect) return null;
     const winH = (Platform.OS === 'web' ? (typeof window !== 'undefined' ? window.innerHeight : SCREEN_H) : SCREEN_H);
-    const spaceAbove = anchorRect.top;
-    const spaceBelow = winH - anchorRect.bottom;
-    return spaceBelow >= 240 || spaceBelow >= spaceAbove ? 'up' : 'down';
+    const anchorCenter = (anchorRect.top + anchorRect.bottom) / 2;
+    return anchorCenter < winH * 0.5 ? 'bottom' : 'top';
   })();
 
   // Leggi il valore corrente dal store per i campi di input
@@ -242,18 +242,16 @@ export const TutorialOverlay: React.FC = () => {
   // ═══ COMPACT MODE: rendering come bottom-sheet absolute ═══
   // (l'utente può interagire con la pagina dietro al tutorial)
   if (isCompact) {
-    // ═══ BUBBLE STYLE: posiziona sopra o sotto l'anchor con freccia tail ═══
-    const wrapStyle = arrowDirection === 'up'
+    // ═══ STILE FUMETTO: bordi morbidi, niente frecce, posizionato OPPOSTO all'anchor ═══
+    const wrapStyle = dockPosition === 'bottom'
       ? { ...s.compactWrap, justifyContent: 'flex-end' as const, paddingBottom: 80 }
-      : arrowDirection === 'down'
-      ? { ...s.compactWrap, justifyContent: 'flex-start' as const, paddingTop: 100 }
+      : dockPosition === 'top'
+      ? { ...s.compactWrap, justifyContent: 'flex-start' as const, paddingTop: 50 }
       : s.compactWrap;
     return (
       <View pointerEvents="box-none" style={wrapStyle}>
         <View pointerEvents="auto" style={s.compactDock}>
-          {arrowDirection === 'down' && <View style={s.tailUp} />}
           {Card}
-          {arrowDirection === 'up' && <View style={s.tailDown} />}
         </View>
       </View>
     );
