@@ -286,19 +286,51 @@ Se non riesci a leggere nulla, rispondi: {"totale": 0, "num_scontrini": 0, "medi
 # ── Fuel Price Helpers ──
 
 async def geocode_city(city_name: str, country_code: str = "") -> dict:
-    """Geocode a city name to lat/lon using Nominatim (OpenStreetMap)."""
-    async with httpx.AsyncClient(timeout=10) as client_http:
-        params = {"q": city_name, "format": "json", "limit": 1}
-        if country_code:
-            params["countrycodes"] = country_code
-        resp = await client_http.get(
-            "https://nominatim.openstreetmap.org/search",
-            params=params,
-            headers={"User-Agent": "MarketMate/1.0"}
-        )
-        if resp.status_code == 200 and resp.json():
-            data = resp.json()[0]
-            return {"lat": float(data["lat"]), "lon": float(data["lon"]), "country": data.get("display_name", "")}
+    """Geocode a city name to lat/lon.
+    Tries Open-Meteo geocoding (fast, no rate-limit) first; falls back to Nominatim."""
+    # ───── Primary: Open-Meteo geocoding ─────
+    try:
+        async with httpx.AsyncClient(timeout=8) as client_http:
+            params = {"name": city_name, "count": 5, "language": "it"}
+            resp = await client_http.get(
+                "https://geocoding-api.open-meteo.com/v1/search",
+                params=params,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                results = data.get("results") or []
+                if results:
+                    # Se è specificato country_code, filtra per quel paese
+                    if country_code:
+                        filtered = [r for r in results if r.get("country_code", "").lower() == country_code.lower()]
+                        if filtered:
+                            results = filtered
+                    r = results[0]
+                    country_name = r.get("country", "")
+                    return {
+                        "lat": float(r["latitude"]),
+                        "lon": float(r["longitude"]),
+                        "country": country_name,
+                    }
+    except Exception as e:
+        logger.warning(f"Open-Meteo geocode failed for '{city_name}': {e}")
+
+    # ───── Fallback: Nominatim (può essere rate-limited) ─────
+    try:
+        async with httpx.AsyncClient(timeout=10) as client_http:
+            params = {"q": city_name, "format": "json", "limit": 1}
+            if country_code:
+                params["countrycodes"] = country_code
+            resp = await client_http.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
+                headers={"User-Agent": "MarketMate/1.0"}
+            )
+            if resp.status_code == 200 and resp.json():
+                data = resp.json()[0]
+                return {"lat": float(data["lat"]), "lon": float(data["lon"]), "country": data.get("display_name", "")}
+    except Exception as e:
+        logger.warning(f"Nominatim geocode failed for '{city_name}': {e}")
     return {}
 
 def detect_country(display_name: str) -> str:
@@ -463,7 +495,8 @@ async def find_cheapest_fuel(req: FuelRequest):
 
 @api_router.post("/distance/calculate", response_model=DistanceResponse)
 async def calculate_distance(req: DistanceRequest):
-    """Calculate distance between two cities using geocoding + Haversine formula."""
+    """Calculate REAL road distance via OSRM (OpenStreetMap routing).
+    Falls back to haversine × 1.3 if OSRM is unreachable."""
     import math
     try:
         # First geocode departure without country to detect country
@@ -485,17 +518,36 @@ async def calculate_distance(req: DistanceRequest):
         if not dest_geo:
             return DistanceResponse(success=False, message=f"Città non trovata: {req.destinazione}")
 
-        # Haversine formula
-        R = 6371  # Earth radius in km
-        lat1, lon1 = math.radians(dep_geo["lat"]), math.radians(dep_geo["lon"])
-        lat2, lon2 = math.radians(dest_geo["lat"]), math.radians(dest_geo["lon"])
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-        a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-        c = 2 * math.asin(math.sqrt(a))
-        dist = R * c
-        # Multiply by 1.3 to approximate road distance vs straight line
-        road_dist = round(dist * 1.3, 1)
+        # ───── PRIMARY: OSRM real road routing ─────
+        road_dist = None
+        try:
+            osrm_url = (
+                f"https://router.project-osrm.org/route/v1/driving/"
+                f"{dep_geo['lon']},{dep_geo['lat']};{dest_geo['lon']},{dest_geo['lat']}"
+                f"?overview=false"
+            )
+            async with httpx.AsyncClient(timeout=8) as client_http:
+                osrm_resp = await client_http.get(osrm_url)
+                if osrm_resp.status_code == 200:
+                    osrm_data = osrm_resp.json()
+                    if osrm_data.get("code") == "Ok" and osrm_data.get("routes"):
+                        meters = osrm_data["routes"][0]["distance"]
+                        road_dist = round(meters / 1000.0, 1)
+        except Exception as osrm_err:
+            logger.warning(f"OSRM failed, falling back to haversine: {osrm_err}")
+
+        # ───── FALLBACK: Haversine × 1.3 ─────
+        if road_dist is None or road_dist <= 0:
+            R = 6371
+            lat1, lon1 = math.radians(dep_geo["lat"]), math.radians(dep_geo["lon"])
+            lat2, lon2 = math.radians(dest_geo["lat"]), math.radians(dest_geo["lon"])
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+            c = 2 * math.asin(math.sqrt(a))
+            dist = R * c
+            road_dist = round(dist * 1.3, 1)
+
         round_trip = round(road_dist * 2, 1)
 
         return DistanceResponse(success=True, km=road_dist, km_andata_ritorno=round_trip, message=f"{req.partenza} → {req.destinazione}: {road_dist} km ({round_trip} km A/R)")
