@@ -103,8 +103,26 @@ export default function AgendaScreen() {
         }
       });
     }
+    // Aggiungi le fatture (con scadenza) al calendario del mese
+    fattureArchive.forEach((ft) => {
+      // Mostra la fattura sia nel giorno di EMISSIONE che alla SCADENZA
+      const datesToMark: Date[] = [ft.data];
+      if (ft.scadenza) {
+        const sc = new Date(ft.scadenza);
+        if (!isNaN(sc.getTime()) && sc.toDateString() !== ft.data.toDateString()) datesToMark.push(sc);
+      }
+      datesToMark.forEach((dd) => {
+        if (dd.getMonth() === calMonth.getMonth() && dd.getFullYear() === calMonth.getFullYear()) {
+          const day = dd.getDate();
+          if (!map[day]) map[day] = [];
+          if (!map[day].some((x) => x.tipo === 'fattura' && x.testo === ft.testo)) {
+            map[day].push({ testo: ft.testo, tipo: 'fattura' });
+          }
+        }
+      });
+    });
     return map;
-  }, [appuntiAgenda, ordiniAgenda, calMonth, store.fiere]);
+  }, [appuntiAgenda, ordiniAgenda, calMonth, store.fiere, fattureArchive]);
 
   /* ═══ COLORE PER TIPOLOGIA EVENTO ═══ */
   const getTipologiaColor = (tipologia?: string) => {
@@ -210,7 +228,7 @@ export default function AgendaScreen() {
   const fattureArchive = useMemo(() => {
     const today0 = new Date();
     today0.setHours(0, 0, 0, 0);
-    const items: { id: string; data: Date; fornitore: string; numero: string; importo: string; scadenza: string; overdue: boolean; testo: string }[] = [];
+    const items: { id: string; data: Date; fornitore: string; numero: string; importo: string; scadenza: string; overdue: boolean; testo: string; source: 'historic' | 'session' | 'agenda' }[] = [];
     const seen = new Set<string>();
 
     // 1. Fatture archiviate nelle giornate salvate
@@ -235,6 +253,7 @@ export default function AgendaScreen() {
           scadenza: fInfo.scadenza || '',
           overdue: scad ? scad < today0 : false,
           testo: `${forn} • Fatt. ${fInfo.numeroFattura} • €${importoNum.toFixed(0)}`,
+          source: 'historic',
         });
       });
     });
@@ -261,6 +280,7 @@ export default function AgendaScreen() {
           scadenza: fInfo.scadenza || '',
           overdue: scad ? scad < today0 : false,
           testo: `${forn} • Fatt. ${fInfo.numeroFattura} • €${importoNum.toFixed(0)}`,
+          source: 'session',
         });
       });
     }
@@ -292,6 +312,7 @@ export default function AgendaScreen() {
         scadenza: '',
         overdue: dd < today0,
         testo: txt,
+        source: 'agenda',
       });
     });
     return items.sort((a, b) => b.data.getTime() - a.data.getTime());
@@ -724,7 +745,46 @@ export default function AgendaScreen() {
                           </Text>
                         </View>
                         <TouchableOpacity
-                          onPress={() => removeOrdine(ft.data, ft.testo)}
+                          onPress={() => {
+                            const doDelete = () => {
+                              if (ft.source === 'session') {
+                                // Rimuovi la fattura dalla sessione spese in corso
+                                const sess = (store as any).speseExtraSession;
+                                if (sess?.fornInfo) {
+                                  const newFornInfo = { ...(sess.fornInfo as Record<string, any>) };
+                                  delete newFornInfo[ft.fornitore];
+                                  const newSpese = { ...(sess.speseExtraFornitore || {}) };
+                                  delete newSpese[ft.fornitore];
+                                  (store as any).setSpeseExtraSession?.({
+                                    ...sess,
+                                    fornInfo: newFornInfo,
+                                    speseExtraFornitore: newSpese,
+                                  });
+                                }
+                              } else if (ft.source === 'historic') {
+                                // Rimuovi la fattura dalla giornata storica
+                                const dayIso = ft.data.toISOString().slice(0, 10);
+                                const updated = (store.storicoGiornate || []).map((g: any) => {
+                                  const gIso = new Date(g.data).toISOString().slice(0, 10);
+                                  if (gIso !== dayIso) return g;
+                                  const info = { ...(g.fornitoriInfo || {}) };
+                                  delete info[ft.fornitore];
+                                  return { ...g, fornitoriInfo: info };
+                                });
+                                store.setConfig({ storicoGiornate: updated });
+                              } else {
+                                removeOrdine(ft.data, ft.testo);
+                              }
+                            };
+                            if (Platform.OS === 'web') {
+                              if (window.confirm(`Eliminare la fattura ${ft.fornitore}${ft.numero ? ' n. ' + ft.numero : ''}?`)) doDelete();
+                            } else {
+                              Alert.alert('Elimina fattura', `Eliminare ${ft.fornitore}${ft.numero ? ' • Fatt. ' + ft.numero : ''}?`, [
+                                { text: 'Annulla', style: 'cancel' },
+                                { text: 'Elimina', style: 'destructive', onPress: doDelete },
+                              ]);
+                            }
+                          }}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           style={{ padding: 2 }}
                         >

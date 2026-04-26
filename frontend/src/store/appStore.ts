@@ -658,7 +658,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       storicoDiario: [],
       speseExtraTags: [],
       storicoScontrini: [],
-    });
+      // Pulisci anche la sessione spese in corso (fatture orphane, ripartizioni)
+      speseExtraSession: null,
+    } as any);
     storage.removeItem('marketmate_data');
   },
 }));

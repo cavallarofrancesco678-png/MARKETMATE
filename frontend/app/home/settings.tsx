@@ -1346,6 +1346,9 @@ export default function SettingsPage() {
                 storicoDiario: [],
                 storicoScontrini: [],
               });
+              // Pulisci anche la sessione spese in corso (fatture/ripartizioni
+              // residue di sessioni precedenti che potevano restare in memoria)
+              try { (store as any).clearSpeseExtraSession?.(); } catch {}
               if (Platform.OS === 'web') window.alert(t('settings.valuesReset') || 'Valori numerici azzerati');
               else Alert.alert(t('common.done') || 'Fatto', t('settings.valuesReset') || 'Valori numerici azzerati');
             };
