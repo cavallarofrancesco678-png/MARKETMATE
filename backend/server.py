@@ -427,17 +427,17 @@ async def find_cheapest_fuel(req: FuelRequest):
         a = math.sin(dlat/2)**2 + math.cos(math.radians(dep_geo["lat"])) * math.cos(math.radians(dest_geo["lat"])) * math.sin(dlon/2)**2
         route_km = 6371 * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         
-        # For short routes (<20km), use small radius and few points
-        # For longer routes, use more points along the way
+        # Strategia: per rotte brevi un raggio leggermente più ampio compensa
+        # i casi in cui il midpoint cade tra due paesini e nessuna stazione è
+        # esattamente "sul punto". 5 km copre sempre almeno qualche stazione.
         if route_km < 15:
-            # rotte brevi: cerca SOLO al midpoint con raggio piccolo
-            search_radius = 2
+            search_radius = 5
             fractions = [0.5]
         elif route_km < 40:
-            search_radius = 4
+            search_radius = 6
             fractions = [0.25, 0.5, 0.75]
         else:
-            search_radius = 7
+            search_radius = 10
             fractions = [0.15, 0.4, 0.6, 0.85]
         
         search_points = []
@@ -451,10 +451,10 @@ async def find_cheapest_fuel(req: FuelRequest):
 
         all_stations = []
         seen_names = set()
-        # Limite massimo distanza accettata: poco più del raggio di ricerca,
-        # così rifiutiamo stazioni che escono dal tragitto (alcune API ignorano
-        # il parametro `distance` e tornano risultati lontani).
-        max_distance_per_station = search_radius * 1.4 + 2
+        # Filtro: rifiuta stazioni che escono dal raggio di ricerca con margine.
+        # Tipicamente l'API restituisce solo stazioni entro `distance`, ma alcuni
+        # risultati possono leggermente sforare quel limite.
+        max_distance_per_station = search_radius + 1.5
         
         for lat, lon in search_points:
             if country == "IT":

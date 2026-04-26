@@ -22,7 +22,8 @@ import { useTutorialLayoutStore } from '../store/tutorialLayoutStore';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const GAP_FROM_ANCHOR = 14; // gap fra widget e fumetto
-const ANCHOR_TARGET_TOP = 140; // dove vogliamo che l'anchor finisca dopo lo scroll
+const ANCHOR_TARGET_TOP = 320; // scrolla l'anchor sotto la metà alta dello schermo
+                                // per lasciare spazio al pop-up SOPRA
 
 export const TutorialOverlay: React.FC = () => {
   const { t } = useTranslation();
@@ -137,17 +138,17 @@ export const TutorialOverlay: React.FC = () => {
   const [cardH, setCardH] = useState<number>(220);
 
   // Determina dove dockare il bubble:
-  //   regola: PREFERISCI sempre BELOW (sotto l'anchor) — è la modalità più
-  //   leggibile (l'utente legge top-to-bottom) — UNLESS lo spazio sotto è
-  //   insufficiente, allora dock ABOVE.
+  //   regola: PREFERISCI sempre SOPRA l'anchor — così il titolo della sezione
+  //   E i campi di input/elementi sotto restano visibili. Solo se sopra non
+  //   c'è abbastanza spazio (es. anchor nei primi 200px), si dock sotto.
   const winH = (Platform.OS === 'web' && typeof window !== 'undefined') ? window.innerHeight : SCREEN_H;
   const dockBelow: boolean | null = (() => {
     if (!anchorRect) return null;
     const spaceBelow = winH - anchorRect.bottom - 8;
     const spaceAbove = anchorRect.top - 8;
     const needed = cardH + GAP_FROM_ANCHOR;
-    if (spaceBelow >= needed) return true;       // c'è spazio sotto → preferisci sotto
-    if (spaceAbove >= needed) return false;      // sotto non basta ma sopra sì → sopra
+    if (spaceAbove >= needed) return false;     // c'è spazio sopra → preferisci sopra
+    if (spaceBelow >= needed) return true;      // sopra non basta ma sotto sì → sotto
     // Né sopra né sotto basta: scegli quello con più spazio
     return spaceBelow >= spaceAbove;
   })();
