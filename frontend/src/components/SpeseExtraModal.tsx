@@ -625,5 +625,5 @@ const st = StyleSheet.create({
   },
   weeklyLine: { fontSize: 14, color: '#1A4040', lineHeight: 19, fontWeight: '700' },
   weeklyAmt: { fontWeight: '900' },
-  weeklyHint: { fontSize: 12, color: '#5A7575', fontStyle: 'italic', marginTop: 5, fontWeight: '600' },
+  weeklyHint: { fontSize: 14, color: '#5A7575', fontStyle: 'italic', marginTop: 6, fontWeight: '700' },
 });

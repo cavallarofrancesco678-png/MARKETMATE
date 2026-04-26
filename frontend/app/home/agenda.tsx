@@ -219,8 +219,10 @@ export default function AgendaScreen() {
       const dettaglio = g.dettaglio_fornitori || {};
       Object.entries(info).forEach(([forn, fInfo]: [string, any]) => {
         if (!fInfo?.numeroFattura) return;
-        const importoNum = Math.abs(dettaglio[forn] || 0);
-        if (!importoNum) return;
+        // Importo: preferisci la fattura, altrimenti contanti, altrimenti 0
+        const impFatt = Math.abs(dettaglio[forn] || 0);
+        const impCash = Math.abs(dettaglio[`${forn}__libera`] || 0);
+        const importoNum = impFatt > 0 ? impFatt : impCash;
         const dd = new Date(g.data);
         const key = `${dd.toISOString().slice(0,10)}_${forn}_${fInfo.numeroFattura}`;
         if (seen.has(key)) return;
@@ -234,7 +236,7 @@ export default function AgendaScreen() {
           importo: String(importoNum),
           scadenza: fInfo.scadenza || '',
           overdue: scad ? scad < today0 : false,
-          testo: `${forn} • Fatt. ${fInfo.numeroFattura} • €${importoNum.toFixed(0)}`,
+          testo: `${forn} • Fatt. ${fInfo.numeroFattura}${importoNum > 0 ? ` • €${importoNum.toFixed(0)}` : ''}`,
           source: 'historic',
         });
       });
@@ -245,9 +247,10 @@ export default function AgendaScreen() {
     if (session?.fornInfo) {
       Object.entries(session.fornInfo).forEach(([forn, fInfo]: [string, any]) => {
         if (!fInfo?.numeroFattura) return;
-        const sessionEntry = (session.speseExtraFornitore || {})[forn];
-        const importoNum = parseFloat((sessionEntry?.importo || '0').replace(',', '.')) || 0;
-        if (!importoNum) return;
+        const sessionEntries = session.speseExtraFornitore || {};
+        const impFatt = parseFloat((sessionEntries[forn]?.importo || '0').replace(',', '.')) || 0;
+        const impCash = parseFloat((sessionEntries[`${forn}__libera`]?.importo || '0').replace(',', '.')) || 0;
+        const importoNum = impFatt > 0 ? impFatt : impCash;
         const dd = new Date();
         const key = `session_${forn}_${fInfo.numeroFattura}`;
         if (seen.has(key)) return;
@@ -261,7 +264,7 @@ export default function AgendaScreen() {
           importo: String(importoNum),
           scadenza: fInfo.scadenza || '',
           overdue: scad ? scad < today0 : false,
-          testo: `${forn} • Fatt. ${fInfo.numeroFattura} • €${importoNum.toFixed(0)}`,
+          testo: `${forn} • Fatt. ${fInfo.numeroFattura}${importoNum > 0 ? ` • €${importoNum.toFixed(0)}` : ''}`,
           source: 'session',
         });
       });
@@ -685,15 +688,15 @@ export default function AgendaScreen() {
                     const col = getTipologiaColor(f.tipologia);
                     return (
                       <View key={f.id + i} style={s.archiveItem}>
-                        <View style={{ backgroundColor: col, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 }}>
-                          <Text style={{ fontSize: 9, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
+                        <View style={{ backgroundColor: col, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
                             {f.next ? `${f.next.getDate()} ${MESI[f.next.getMonth()].substring(0, 3)}` : (f.ricorrente ? 'RIC.' : '—')}
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={[s.archiveTxt, { color: col, flex: 1 }]}>{f.nome}</Text>
                           {f.luogo ? (
-                            <Text style={{ fontSize: 9, color: '#7A9090', fontWeight: '600' }}>{f.luogo}</Text>
+                            <Text style={{ fontSize: 12, color: '#5A7575', fontWeight: '600' }}>{f.luogo}</Text>
                           ) : null}
                         </View>
                         <TouchableOpacity
@@ -733,8 +736,8 @@ export default function AgendaScreen() {
                     const color = ft.overdue ? '#D46A6A' : '#B08050';
                     return (
                       <View key={ft.id + i} style={s.archiveItem}>
-                        <View style={{ backgroundColor: color, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 }}>
-                          <Text style={{ fontSize: 9, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
+                        <View style={{ backgroundColor: color, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
                             {ft.data.getDate()} {MESI[ft.data.getMonth()].substring(0, 3)}
                           </Text>
                         </View>
@@ -742,7 +745,7 @@ export default function AgendaScreen() {
                           <Text style={[s.archiveTxt, { color: '#1A4040' }]}>
                             {ft.fornitore}{ft.numero ? ` • Fatt. ${ft.numero}` : ''}
                           </Text>
-                          <Text style={{ fontSize: 11, color, fontWeight: '900', marginTop: 1 }}>
+                          <Text style={{ fontSize: 13, color, fontWeight: '900', marginTop: 2 }}>
                             €{parseFloat(ft.importo).toFixed(0)}
                             {ft.scadenza ? ` · scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}` : ''}
                             {ft.overdue ? ' · SCADUTA' : ''}
@@ -1141,81 +1144,82 @@ const s = StyleSheet.create({
     borderTopColor: '#E8E3D5',
   },
   archiveToggleTxt: {
-    fontSize: 9,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#7A9090',
+    color: '#5A7575',
     letterSpacing: 1,
   },
   archiveList: {
     paddingTop: 4,
   },
   archiveEmpty: {
-    fontSize: 11,
-    color: '#B0A898',
+    fontSize: 14,
+    color: '#9A9080',
     textAlign: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
+    fontWeight: '600',
   },
   archiveItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    paddingVertical: 8,
+    gap: 10,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0EBE1',
   },
   archiveTabs: {
     flexDirection: 'row',
     gap: 5,
-    marginTop: 6,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 8,
   },
   archiveTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 5,
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: '#E8E3D5',
     backgroundColor: '#F5F0E6',
   },
   archiveTabTxt: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
     color: '#5A7575',
     letterSpacing: 0.3,
   },
   archiveBadge: {
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   archiveBadgeTxt: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '900',
   },
   archiveDate: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#7A9090',
+    color: '#5A7575',
     backgroundColor: '#F5F0E6',
-    borderRadius: 5,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     overflow: 'hidden',
   },
   archiveTxt: {
-    fontSize: 12.5,
+    fontSize: 14.5,
     color: '#1A4040',
     fontWeight: '700',
     flex: 1,
-    lineHeight: 17,
+    lineHeight: 19,
   },
   // Modal
   modalOverlay: {
