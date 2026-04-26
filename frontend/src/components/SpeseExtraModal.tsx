@@ -320,7 +320,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           })}
                         </View>
 
-                        {/* ═══ CONTANTI: solo importo ═══ */}
+                        {/* ═══ CONTANTI: solo importo + ripartizione opzionale ═══ */}
                         {mode === 'contanti' && (
                           <View style={{ marginTop: 10 }}>
                             <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginBottom: 2 }}>{t('suppliers.cashAmount')}</Text>
@@ -338,6 +338,72 @@ export const SpeseExtraModal: React.FC<Props> = ({
                               />
                               <Text style={st.euro}>{'\u20AC'}</Text>
                             </View>
+
+                            {/* ═══ RIPARTIZIONE COSTO (per contanti) ═══ */}
+                            <Text style={{ fontSize: 10, fontWeight: '900', color: '#E89A4A', marginTop: 10, marginBottom: 4, letterSpacing: 0.8 }}>
+                              {t('suppliers.splitCost')} *
+                            </Text>
+                            <View style={{ flexDirection: 'row', gap: 5 }}>
+                              {([
+                                { key: 'oggi' as const, label: t('suppliers.splitToday') },
+                                { key: 'custom' as const, label: t('suppliers.splitCustom') },
+                              ]).map((opt) => {
+                                const on = rip.modo === opt.key;
+                                return (
+                                  <TouchableOpacity
+                                    key={`cash-${opt.key}`}
+                                    onPress={() => {
+                                      setRip({ ...rip, modo: opt.key });
+                                      if (opt.key === 'custom') {
+                                        setRipartPickerFor(ripartPickerFor === f.nome ? null : f.nome);
+                                      } else {
+                                        setRipartPickerFor(null);
+                                      }
+                                    }}
+                                    activeOpacity={0.7}
+                                    style={{
+                                      flex: 1, paddingVertical: 7, borderRadius: 9,
+                                      backgroundColor: on ? '#E89A4A' : '#F5EFDC',
+                                      borderWidth: 1, borderColor: on ? '#E89A4A' : '#E0D8C0',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text style={{ fontSize: 9, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.5 }}>
+                                      {opt.label}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                            {rip.modo === 'custom' && (
+                              <View style={{ marginTop: 8, backgroundColor: '#FFF1E0', padding: 10, borderRadius: 10 }}>
+                                <Text style={{ fontSize: 10, fontWeight: '900', color: '#E89A4A', marginBottom: 6, letterSpacing: 0.5, textAlign: 'center' }}>
+                                  {rip.from && !rip.to ? '📅 Tocca la data finale del range' : rip.from && rip.to ? `📅 Range: ${rip.from.slice(8, 10)}/${rip.from.slice(5, 7)} → ${rip.to.slice(8, 10)}/${rip.to.slice(5, 7)}` : '📅 Tocca la data iniziale del range'}
+                                </Text>
+                                <MiniMonthCalendar
+                                  selectedDates={[]}
+                                  onToggleDate={() => {}}
+                                  rangeMode
+                                  rangeFrom={rip.from}
+                                  rangeTo={rip.to}
+                                  onRangeChange={(from, to) => setRip({ ...rip, from, to })}
+                                  themeColor="#E89A4A"
+                                />
+                                {rip.from && rip.to && (
+                                  <Text style={{ fontSize: 11, color: '#E89A4A', fontStyle: 'italic', textAlign: 'center', marginTop: 8, fontWeight: '700' }}>
+                                    {countMarketDays('custom', rip.from, rip.to)} {countMarketDays('custom', rip.from, rip.to) === 1 ? t('suppliers.market') : t('suppliers.markets')} in questo range
+                                  </Text>
+                                )}
+                              </View>
+                            )}
+                            {/* Nota ripartizione cash */}
+                            {importoContantiNum > 0 && (
+                              <View style={{ marginTop: 8, backgroundColor: '#FFF1E0', borderRadius: 8, padding: 8, borderLeftWidth: 3, borderLeftColor: '#E89A4A' }}>
+                                <Text style={{ fontSize: 10, color: '#B85F00', lineHeight: 14 }}>
+                                  * Pagato {f.nome} €{importoContantiNum.toFixed(0)} in contanti, ripartito su {mkDays} {mkDays === 1 ? 'mercato' : 'mercati'} = <Text style={{ fontWeight: '900', color: '#E89A4A' }}>€{Math.round(importoContantiNum / mkDays)}</Text>/giorno
+                                </Text>
+                              </View>
+                            )}
                           </View>
                         )}
 

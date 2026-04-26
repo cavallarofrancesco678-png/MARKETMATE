@@ -618,12 +618,14 @@ export default function HomeScreen() {
       let fatturaQuota = 0;
       let contantiQuota = 0;
       if (mode === 'contanti') {
-        contantiQuota = impContanti;
+        // Anche i contanti supportano ripartizione: l'importo originale viene
+        // diviso sui giorni di mercato del range scelto.
+        if (impContanti > 0) contantiQuota = impContanti / mkDays;
       } else if (mode === 'fattura') {
         if (impFattura > 0) fatturaQuota = impFattura / mkDays;
       } else if (mode === 'misto') {
         if (impFattura > 0) fatturaQuota = impFattura / mkDays;
-        contantiQuota = impContanti;
+        if (impContanti > 0) contantiQuota = impContanti / mkDays;
       }
 
       // Applica periodicità legacy se presente
@@ -792,7 +794,10 @@ export default function HomeScreen() {
       const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
 
       if (mode === 'contanti') {
-        contantiQuota = impContanti;
+        // Ripartizione applicata anche ai contanti
+        if (impContanti > 0) {
+          contantiQuota = impContanti / mkDays;
+        }
       } else if (mode === 'fattura') {
         if (impFattura > 0) {
           fatturaQuota = impFattura / mkDays;
@@ -801,7 +806,9 @@ export default function HomeScreen() {
         if (impFattura > 0) {
           fatturaQuota = impFattura / mkDays;
         }
-        contantiQuota = impContanti;
+        if (impContanti > 0) {
+          contantiQuota = impContanti / mkDays;
+        }
       }
 
       // Applica periodicità legacy se presente (giornaliero/settimanale/mensile)
