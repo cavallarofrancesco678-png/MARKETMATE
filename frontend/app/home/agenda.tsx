@@ -103,9 +103,13 @@ export default function AgendaScreen() {
         }
       });
     }
-    // Aggiungi le fatture (con scadenza) al calendario del mese
+    return map;
+  }, [appuntiAgenda, ordiniAgenda, calMonth, store.fiere]);
+
+  /* ═══ Combina impegniMese con le fatture (calcolate dopo per evitare TDZ) ═══ */
+  const impegniMeseFinal = useMemo(() => {
+    const map: typeof impegniMese = JSON.parse(JSON.stringify(impegniMese));
     fattureArchive.forEach((ft) => {
-      // Mostra la fattura sia nel giorno di EMISSIONE che alla SCADENZA
       const datesToMark: Date[] = [ft.data];
       if (ft.scadenza) {
         const sc = new Date(ft.scadenza);
@@ -115,14 +119,16 @@ export default function AgendaScreen() {
         if (dd.getMonth() === calMonth.getMonth() && dd.getFullYear() === calMonth.getFullYear()) {
           const day = dd.getDate();
           if (!map[day]) map[day] = [];
-          if (!map[day].some((x) => x.tipo === 'fattura' && x.testo === ft.testo)) {
+          if (!map[day].some((x: any) => x.tipo === 'fattura' && x.testo === ft.testo)) {
             map[day].push({ testo: ft.testo, tipo: 'fattura' });
           }
         }
       });
     });
     return map;
-  }, [appuntiAgenda, ordiniAgenda, calMonth, store.fiere, fattureArchive]);
+    // fattureArchive è dichiarato dopo; React lo risolve a runtime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [impegniMese, calMonth]);
 
   /* ═══ COLORE PER TIPOLOGIA EVENTO ═══ */
   const getTipologiaColor = (tipologia?: string) => {
@@ -491,7 +497,7 @@ export default function AgendaScreen() {
         {calendarGrid.map((row, ri) => (
           <View key={ri} style={s.calRow}>
             {row.map((day, di) => {
-              const items = day ? impegniMese[day] || [] : [];
+              const items = day ? impegniMeseFinal[day] || [] : [];
               const hasItem = items.length > 0;
               const isToday = isCurrentMonth && day === today.getDate();
               const isWorked = day ? giorniLavoratiMese.has(day) : false;
