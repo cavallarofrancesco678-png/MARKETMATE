@@ -418,6 +418,10 @@ async def find_cheapest_fuel(req: FuelRequest):
 
         all_stations = []
         seen_names = set()
+        # Limite massimo distanza accettata: poco più del raggio di ricerca,
+        # così rifiutiamo stazioni che escono dal tragitto (alcune API ignorano
+        # il parametro `distance` e tornano risultati lontani).
+        max_distance_per_station = search_radius * 1.4 + 2
         
         for lat, lon in search_points:
             if country == "IT":
@@ -431,6 +435,9 @@ async def find_cheapest_fuel(req: FuelRequest):
                     message=f"Prezzi carburante in tempo reale non disponibili per questo paese."
                 )
             for s in stations:
+                # Filtro strict: rifiuta stazioni fuori dal raggio del punto di campionamento
+                if s.distanza_km is not None and s.distanza_km > max_distance_per_station:
+                    continue
                 key = f"{s.nome}_{s.indirizzo}"
                 if key not in seen_names:
                     seen_names.add(key)

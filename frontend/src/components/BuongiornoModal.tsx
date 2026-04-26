@@ -376,17 +376,16 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
     <Modal visible={visible} transparent animationType="slide">
       <KeyboardAvoidingView style={st.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={st.container}>
-          {/* Header */}
+          {/* Header — X di chiusura a destra, titolo al centro */}
           <View style={st.header}>
-            <TouchableOpacity onPress={handleClose} style={st.closeBtn}>
-              <Ionicons name="close" size={20} color="#FFF" />
-              <Text style={st.closeTxt}>{t('modals.close')}</Text>
-            </TouchableOpacity>
+            <View style={{ width: 60 }} />
             <View style={st.headerCenter}>
               <MaterialCommunityIcons name="robot-happy" size={22} color="#D4AF37" />
               <Text style={st.headerTitle}>{t('modals.goodMorningAI')}</Text>
             </View>
-            <View style={{ width: 80 }} />
+            <TouchableOpacity onPress={handleClose} style={st.closeBtnRight} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={26} color="#FFF" />
+            </TouchableOpacity>
           </View>
 
           {/* Tip: più dati = più precisione */}
@@ -484,7 +483,7 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                 {meteoSummary ? (
                   <View style={st.wLine}>
                     <Text style={st.wIcon}>🌤️</Text>
-                    <Text style={st.wTxt} numberOfLines={1}>
+                    <Text style={st.wTxt} numberOfLines={2}>
                       <Text style={st.wLabel}>Meteo: </Text>{meteoSummary}
                     </Text>
                   </View>
@@ -494,7 +493,7 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                 {fuelSummary ? (
                   <View style={st.wLine}>
                     <Text style={st.wIcon}>⛽</Text>
-                    <Text style={st.wTxt} numberOfLines={1}>
+                    <Text style={st.wTxt} numberOfLines={2}>
                       <Text style={st.wLabel}>Miglior rifornim.: </Text>{fuelSummary}
                     </Text>
                   </View>
@@ -587,6 +586,10 @@ const st = StyleSheet.create({
     backgroundColor: '#D46A6A', borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 6,
   },
+  closeBtnRight: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: '#D46A6A', alignItems: 'center', justifyContent: 'center',
+  },
   closeTxt: { color: '#FFF', fontSize: 11, fontWeight: '800' },
 
   tipBar: {
@@ -597,18 +600,19 @@ const st = StyleSheet.create({
   tipText: { fontSize: 11, color: '#7A7050', flex: 1, lineHeight: 15 },
 
   widget: {
-    backgroundColor: '#FFF', borderRadius: 12, marginHorizontal: 16, marginTop: 8,
-    padding: 10, borderLeftWidth: 3, borderLeftColor: '#1E7F85',
+    backgroundColor: '#FFF8E7', borderRadius: 14, marginHorizontal: 12, marginTop: 10,
+    padding: 12, borderWidth: 2, borderColor: '#1E7F85',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
-  widgetHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  widgetTitle: { fontSize: 10, fontWeight: '900', color: '#1A4040', letterSpacing: 1 },
+  widgetHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#E0D8C0' },
+  widgetTitle: { fontSize: 12, fontWeight: '900', color: '#1A4040', letterSpacing: 1.2 },
   widgetSection: { marginTop: 6 },
   widgetSubtitle: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5, marginBottom: 2 },
   widgetLine: { fontSize: 11, color: '#3A5050', lineHeight: 15 },
-  wLine: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3, gap: 6 },
-  wIcon: { fontSize: 13 },
-  wTxt: { flex: 1, fontSize: 11, color: '#1A4040', lineHeight: 15 },
-  wLabel: { fontWeight: '900', color: '#1E7F85', fontSize: 11 },
+  wLine: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 4, gap: 8 },
+  wIcon: { fontSize: 15, lineHeight: 18 },
+  wTxt: { flex: 1, fontSize: 12.5, color: '#1A4040', lineHeight: 17 },
+  wLabel: { fontWeight: '900', color: '#1E7F85', fontSize: 12.5 },
 
   chatArea: { flex: 1, padding: 16 },
 

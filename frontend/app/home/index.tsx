@@ -517,12 +517,19 @@ export default function HomeScreen() {
   // Calcolo costo carburante per km REALISTICO
   const costoCarburanteSpeso = store.storicoCarburante.reduce((s: number, c: any) => s + (c.euro || 0), 0);
   const kmTotPercorsi = store.storicoGiornate.reduce((s: number, g: any) => s + (g.km || 0), 0);
-  // Se ci sono dati reali, usa quelli. Altrimenti media realistica
-  const tipoCarb = store.tipoCarburante || 'benzina';
-  const prezzoLitroMedio = tipoCarb === 'gasolio' ? 1.60 : tipoCarb === 'gpl' ? 0.75 : 1.70;
-  const kmPerLitro = tipoCarb === 'gasolio' ? 18 : tipoCarb === 'gpl' ? 12 : 16;
-  const costoPerKmDefault = prezzoLitroMedio / kmPerLitro; // ~€0.106/km benzina, ~€0.089/km diesel
-  const costoPerKm = kmTotPercorsi > 100 ? costoCarburanteSpeso / kmTotPercorsi : costoPerKmDefault;
+  // Logica utente:
+  //   - Fallback: 0,20 €/km (richiesta esplicita utente, copre carburante + usura tipica)
+  //   - Reale: usa il rapporto storicoCarburante / km percorsi SOLO quando abbiamo
+  //     almeno 30 giorni di dati storici (≈ 1 mese di mercati effettuati).
+  const COSTO_KM_FALLBACK = 0.20;
+  const giorniDatiCarburante = (() => {
+    const dates = (store.storicoCarburante || []).map((c: any) => new Date(c.data).getTime());
+    if (dates.length < 2) return 0;
+    const span = (Math.max(...dates) - Math.min(...dates)) / (1000 * 60 * 60 * 24);
+    return span;
+  })();
+  const datiSufficienti = giorniDatiCarburante >= 30 && kmTotPercorsi > 100 && costoCarburanteSpeso > 0;
+  const costoPerKm = datiSufficienti ? (costoCarburanteSpeso / kmTotPercorsi) : COSTO_KM_FALLBACK;
 
   const speseFisseConCarburante = useMemo(() => {
     const items = [...speseFisseItems];

@@ -149,10 +149,10 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
                 {activeLineIndex !== null && p.v > 0 && (
                   <>
                     {/* Halo bianco per leggibilità */}
-                    <SvgText x={p.x} y={p.y - 14} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={3} fontSize={11} fontWeight="900" textAnchor="middle">
+                    <SvgText x={p.x} y={p.y - 18} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={3.5} fontSize={13} fontWeight="900" textAnchor="middle">
                       €{p.v.toFixed(0)}
                     </SvgText>
-                    <SvgText x={p.x} y={p.y - 14} fill={line.color} fontSize={11} fontWeight="900" textAnchor="middle">
+                    <SvgText x={p.x} y={p.y - 18} fill={line.color} fontSize={13} fontWeight="900" textAnchor="middle">
                       €{p.v.toFixed(0)}
                     </SvgText>
                   </>
@@ -810,12 +810,12 @@ export default function StatsScreen() {
               items.map((it, i) => {
                 const pct = Math.round((it.value / total) * 100);
                 return (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: it.color, marginRight: 6 }} />
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                    <View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: it.color, marginRight: 7 }} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#1A4040', flex: 1 }} numberOfLines={1}>
                       {it.label}
                     </Text>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: it.color }}>
+                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: it.color }}>
                       {'\u20AC'}{it.value.toFixed(0)} ({pct}%)
                     </Text>
                   </View>
@@ -1568,10 +1568,10 @@ const st = StyleSheet.create({
   sectionTotal: { fontSize: 10, fontWeight: '900', color: '#1A3535' },
 
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 7, borderRadius: 8 },
   legendItemActive: { backgroundColor: 'rgba(30,127,133,0.1)', borderWidth: 1, borderColor: 'rgba(30,127,133,0.25)' },
-  legendDot: { width: 9, height: 9, borderRadius: 4.5 },
-  legendText: { fontSize: 9, fontWeight: '700' },
+  legendDot: { width: 11, height: 11, borderRadius: 6 },
+  legendText: { fontSize: 11.5, fontWeight: '800' },
 
   tooltipBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
