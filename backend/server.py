@@ -65,6 +65,8 @@ class FuelStation(BaseModel):
     prezzo: float = 0
     distanza_km: float = 0
     carburante: str = ""
+    lat: Optional[float] = None
+    lon: Optional[float] = None
 
 class FuelRequest(BaseModel):
     partenza: str
@@ -367,7 +369,9 @@ async def search_fuel_italy(lat: float, lon: float, fuel_type: str, distance_km:
                         indirizzo=s.get("indirizzo", s.get("address", "N/A")),
                         prezzo=float(s.get("prezzo", s.get("price", 0))),
                         distanza_km=round(float(s.get("distanza", s.get("distance", 0))), 1),
-                        carburante=fuel
+                        carburante=fuel,
+                        lat=float(s["latitudine"]) if s.get("latitudine") else None,
+                        lon=float(s["longitudine"]) if s.get("longitudine") else None,
                     ))
                 return stations
     except Exception as e:
@@ -482,9 +486,50 @@ async def find_cheapest_fuel(req: FuelRequest):
         all_stations = []
         seen_names = set()
         # Filtro: rifiuta stazioni che escono dal raggio di ricerca con margine.
-        # Tipicamente l'API restituisce solo stazioni entro `distance`, ma alcuni
-        # risultati possono leggermente sforare quel limite.
         max_distance_per_station = search_radius + 1
+        # ═══ FILTRO PERPENDICOLARE alla strada reale ═══
+        # Per ogni stazione calcoliamo la distanza minima (in km) dal segmento
+        # più vicino della polilinea OSRM. Se è > MAX_OFF_ROUTE_KM rifiutiamo:
+        # significa che il distributore è fuori dalla strada di percorrenza.
+        MAX_OFF_ROUTE_KM = 1.5  # tolleranza laterale (svincoli, parallele)
+
+        def _haversine(lat1, lon1, lat2, lon2):
+            R = 6371.0
+            phi1, phi2 = math.radians(lat1), math.radians(lat2)
+            dphi = math.radians(lat2 - lat1)
+            dlam = math.radians(lon2 - lon1)
+            a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+            return 2 * R * math.asin(math.sqrt(a))
+
+        def _point_to_segment_km(p_lat, p_lon, a_lat, a_lon, b_lat, b_lon):
+            """Distanza minima (km) tra il punto P e il segmento A-B (approx flat)."""
+            # Conversione approssimata in km usando latitudine media
+            mid_lat = (a_lat + b_lat) / 2
+            cos_mid = math.cos(math.radians(mid_lat))
+            ax, ay = a_lon * 111.32 * cos_mid, a_lat * 111.32
+            bx, by = b_lon * 111.32 * cos_mid, b_lat * 111.32
+            px, py = p_lon * 111.32 * cos_mid, p_lat * 111.32
+            dx, dy = bx - ax, by - ay
+            seg_len_sq = dx * dx + dy * dy
+            if seg_len_sq <= 1e-9:
+                return _haversine(p_lat, p_lon, a_lat, a_lon)
+            t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / seg_len_sq))
+            cx, cy = ax + t * dx, ay + t * dy
+            return math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
+
+        def _distance_from_route(s_lat, s_lon, polyline):
+            if not polyline or len(polyline) < 2:
+                return 0
+            best = float("inf")
+            for i in range(len(polyline) - 1):
+                a_lat, a_lon = polyline[i]
+                b_lat, b_lon = polyline[i + 1]
+                d = _point_to_segment_km(s_lat, s_lon, a_lat, a_lon, b_lat, b_lon)
+                if d < best:
+                    best = d
+                    if best < 0.05:
+                        break
+            return best
         
         for lat, lon in search_points:
             if country == "IT":
@@ -498,9 +543,15 @@ async def find_cheapest_fuel(req: FuelRequest):
                     message=f"Prezzi carburante in tempo reale non disponibili per questo paese."
                 )
             for s in stations:
-                # Filtro strict: rifiuta stazioni fuori dal raggio del punto di campionamento
+                # Filtro #1: rifiuta stazioni fuori dal raggio del punto di campionamento
                 if s.distanza_km is not None and s.distanza_km > max_distance_per_station:
                     continue
+                # Filtro #2: PERPENDICOLARE alla strada → la stazione deve essere
+                # entro MAX_OFF_ROUTE_KM dalla polilinea reale
+                if s.lat is not None and s.lon is not None and route_coords:
+                    off_route = _distance_from_route(s.lat, s.lon, route_coords)
+                    if off_route > MAX_OFF_ROUTE_KM:
+                        continue
                 key = f"{s.nome}_{s.indirizzo}"
                 if key not in seen_names:
                     seen_names.add(key)
