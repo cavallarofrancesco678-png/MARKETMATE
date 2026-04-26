@@ -19,6 +19,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
+import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
 import { CalendarModal } from '../../src/components/CalendarModal';
 import { FieraModal } from '../../src/components/FieraModal';
@@ -62,6 +63,15 @@ export default function HomeScreen() {
   const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine, addOrdine } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
+
+  // ═══ Tutorial anchor refs (per posizionamento nativo) ═══
+  const anchorDateRow = useTutorialAnchor('home-date-row');
+  const anchorMeteoRow = useTutorialAnchor('home-meteo-row');
+  const anchorIncassoRow = useTutorialAnchor('home-incasso-row');
+  const anchorSpeseRow = useTutorialAnchor('home-spese-row');
+  const anchorBuongiorno = useTutorialAnchor('home-buongiorno-btn');
+  const anchorStatsBox = useTutorialAnchor('home-stats-box');
+  const anchorSalva = useTutorialAnchor('home-salva-btn');
   const dayNames = getDayNames();
   const monthNames = getMonthNames();
   const { height: screenH } = useWindowDimensions();
@@ -1005,7 +1015,7 @@ export default function HomeScreen() {
           {/* Spacer dx per bilanciare il power, così il testo è ottica-mente centrato */}
           <View style={{ width: 32 }} />
         </View>
-        <View style={s.dateRow} testID="home-date-row">
+        <View style={s.dateRow} testID="home-date-row" ref={anchorDateRow}>
           <TouchableOpacity
             onPress={() => {
               hapticTap();
@@ -1099,7 +1109,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ WEATHER (icone = dimensione tab bar) ═══ */}
-      <View style={[s.section, { height: WEATHER_H, justifyContent: 'center' }]} testID="home-meteo-row">
+      <View style={[s.section, { height: WEATHER_H, justifyContent: 'center' }]} testID="home-meteo-row" ref={anchorMeteoRow}>
         <View style={s.meteoRow}>
           {WEATHER_ICONS.map((w, i) => {
             const sel = meteo === w.code;
@@ -1150,7 +1160,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP * 2 }} />
 
       {/* ═══ ROW 1: LORDO / UTILE (+20% altezza) ═══ */}
-      <View style={[s.gridRow, { gap: GAP }]} testID="home-incasso-row">
+      <View style={[s.gridRow, { gap: GAP }]} testID="home-incasso-row" ref={anchorIncassoRow}>
         <View style={[s.card, { height: lordoRowH }]}>
           <Text style={s.cardBold}>{t('home.gross')}</Text>
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={handleLordo} selectTextOnFocus />
@@ -1178,7 +1188,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ ROW 3: SPESE EXTRA (cliccabile → fornitori) / SPESE FISSE ═══ */}
-      <View style={[s.gridRow, { gap: GAP }]} testID="home-spese-row">
+      <View style={[s.gridRow, { gap: GAP }]} testID="home-spese-row" ref={anchorSpeseRow}>
         <TouchableOpacity style={[s.card, { height: normalRowH }]} activeOpacity={0.7} onPress={() => setShowSpeseExtraModal(true)}>
           <Text style={s.cardLbl}>SPESE</Text>
           <Text style={[s.cardVal, { marginLeft: 4 }]}>{'\u20AC'}{(speseExtraFornTotale + speseExtraGenTotale).toFixed(0)}</Text>
@@ -1197,7 +1207,7 @@ export default function HomeScreen() {
           <Text style={s.cardLbl}>{perditaLabel}</Text>
           <Text style={s.cardVal}>{invendutoNum > 0 ? `€${invendutoNum}` : '0'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity testID="home-buongiorno-btn" style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
+        <TouchableOpacity testID="home-buongiorno-btn" ref={anchorBuongiorno as any} style={[s.card, { height: normalRowH, backgroundColor: '#1E7F85' }]} activeOpacity={0.7} onPress={() => setShowBuongiorno(true)}>
           <Ionicons name="globe-outline" size={16} color="#FFF" />
           <Text style={[s.cardBold, { color: '#FFF', fontSize: 12 }]}>{t('home.goodMorning').toUpperCase()}</Text>
         </TouchableOpacity>
@@ -1206,7 +1216,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ STORICO MERCATO - Grafico Professionale ═══ */}
-      <View style={[s.section, { height: STORICO_H }]} testID="home-stats-box">
+      <View style={[s.section, { height: STORICO_H }]} testID="home-stats-box" ref={anchorStatsBox}>
         <View style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4), flexDirection: 'row', padding: 8 }]}>
           {(() => {
             const gg = store.storicoGiornate || [];
@@ -1496,7 +1506,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ SALVA GIORNATA ═══ */}
-      <TouchableOpacity testID="home-salva-btn" onPress={handleSalvaManuale} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
+      <TouchableOpacity testID="home-salva-btn" ref={anchorSalva as any} onPress={handleSalvaManuale} activeOpacity={0.8} style={[s.salva, { height: SALVA_H }]}>
         <Ionicons name="save-outline" size={16} color="#FFF" />
         <Text style={s.salvaTxt}>{t('home.saveDay')}</Text>
       </TouchableOpacity>

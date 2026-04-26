@@ -148,11 +148,11 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
                 />
                 {activeLineIndex !== null && p.v > 0 && (
                   <>
-                    {/* Halo bianco per leggibilità */}
-                    <SvgText x={p.x} y={p.y - 18} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={3.5} fontSize={13} fontWeight="900" textAnchor="middle">
+                    {/* Pillola di sfondo bianca per separare il valore dal puntino */}
+                    <SvgText x={p.x} y={p.y - 22} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={5} fontSize={13} fontWeight="900" textAnchor="middle">
                       €{p.v.toFixed(0)}
                     </SvgText>
-                    <SvgText x={p.x} y={p.y - 18} fill={line.color} fontSize={13} fontWeight="900" textAnchor="middle">
+                    <SvgText x={p.x} y={p.y - 22} fill={line.color} fontSize={13} fontWeight="900" textAnchor="middle">
                       €{p.v.toFixed(0)}
                     </SvgText>
                   </>

@@ -398,14 +398,15 @@ async def find_cheapest_fuel(req: FuelRequest):
         # For short routes (<20km), use small radius and few points
         # For longer routes, use more points along the way
         if route_km < 15:
-            search_radius = 3
-            fractions = [0.2, 0.5, 0.8]
+            # rotte brevi: cerca SOLO al midpoint con raggio piccolo
+            search_radius = 2
+            fractions = [0.5]
         elif route_km < 40:
-            search_radius = 5
-            fractions = [0.15, 0.35, 0.5, 0.65, 0.85]
+            search_radius = 4
+            fractions = [0.25, 0.5, 0.75]
         else:
-            search_radius = 8
-            fractions = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85]
+            search_radius = 7
+            fractions = [0.15, 0.4, 0.6, 0.85]
         
         search_points = []
         for frac in fractions:

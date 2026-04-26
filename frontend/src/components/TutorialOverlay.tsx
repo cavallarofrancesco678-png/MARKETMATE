@@ -18,9 +18,11 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/tutorialStore';
 import { useAppStore } from '../store/appStore';
+import { useTutorialLayoutStore } from '../store/tutorialLayoutStore';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const GAP_FROM_ANCHOR = 14; // gap fra widget e fumetto
+const ANCHOR_TARGET_TOP = 140; // dove vogliamo che l'anchor finisca dopo lo scroll
 
 export const TutorialOverlay: React.FC = () => {
   const { t } = useTranslation();
@@ -47,56 +49,89 @@ export const TutorialOverlay: React.FC = () => {
   }, [stepIndex, active]);
 
   // ═══ AUTO-SCROLL all'anchor + memo posizione per il posizionamento adiacente ═══
+  // Doppia strategia:
+  //   - WEB: usa `document.querySelector` + scrollIntoView + getBoundingClientRect
+  //   - NATIVE (Android/iOS): usa il registry di ref (tutorialLayoutStore),
+  //     `measureInWindow` per le coordinate e l'helper di scroll della pagina.
   const [anchorRect, setAnchorRect] = useState<{ top: number; bottom: number; height: number } | null>(null);
   const anchorId = (step as any)?.anchorId as string | undefined;
+  const anchorRefs = useTutorialLayoutStore((s) => s.anchorRefs);
+  const scrollHelpers = useTutorialLayoutStore((s) => s.scrollHelpers);
+  const currentRoute = (step as any)?.route as string | undefined;
+
   useEffect(() => {
     if (!active || !anchorId) { setAnchorRect(null); return; }
     let cancelled = false;
-    let lastRect: DOMRect | null = null;
-    const measure = () => {
-      if (cancelled || Platform.OS !== 'web') return;
-      try {
-        const el: any = document.querySelector(`[data-testid="${anchorId}"]`);
-        if (!el) return null;
-        const r = el.getBoundingClientRect();
-        return r;
-      } catch { return null; }
-    };
-    // Strategia robusta:
-    //  1. trova anchor (retry fino a 1.2s mentre la pagina monta)
-    //  2. fa scrollIntoView INSTANT (behavior:'auto') — niente attese smooth
-    //  3. misura subito + ri-misura dopo 250ms per stabilità
-    const tryFind = (attemptsLeft: number) => {
-      if (cancelled) return;
-      try {
-        const el: any = document.querySelector(`[data-testid="${anchorId}"]`);
-        if (el) {
-          // Scroll INSTANT: niente attese smooth, misura affidabile
-          el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
-          // Prima misura immediata
-          requestAnimationFrame(() => {
-            if (cancelled) return;
-            const r1 = el.getBoundingClientRect();
-            lastRect = r1;
-            setAnchorRect({ top: r1.top, bottom: r1.bottom, height: r1.height });
-            // Seconda misura dopo 250ms per assestamento (es. transizioni layout)
-            setTimeout(() => {
+
+    if (Platform.OS === 'web') {
+      // ────── WEB ──────
+      const tryFind = (attemptsLeft: number) => {
+        if (cancelled) return;
+        try {
+          const el: any = (typeof document !== 'undefined') && document.querySelector(`[data-testid="${anchorId}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+            requestAnimationFrame(() => {
               if (cancelled) return;
-              const r2 = el.getBoundingClientRect();
-              if (Math.abs((lastRect?.top || 0) - r2.top) > 2) {
+              const r = el.getBoundingClientRect();
+              setAnchorRect({ top: r.top, bottom: r.bottom, height: r.height });
+              setTimeout(() => {
+                if (cancelled) return;
+                const r2 = el.getBoundingClientRect();
                 setAnchorRect({ top: r2.top, bottom: r2.bottom, height: r2.height });
-              }
-            }, 250);
-          });
+              }, 250);
+            });
+            return;
+          }
+        } catch {}
+        if (attemptsLeft > 0) setTimeout(() => tryFind(attemptsLeft - 1), 100);
+      };
+      setAnchorRect(null);
+      tryFind(12);
+    } else {
+      // ────── NATIVE (Android/iOS) ──────
+      const tryFind = async (attemptsLeft: number): Promise<void> => {
+        if (cancelled) return;
+        const refMap = useTutorialLayoutStore.getState().anchorRefs;
+        const ref = refMap[anchorId];
+        const helperMap = useTutorialLayoutStore.getState().scrollHelpers;
+        const helper = currentRoute ? helperMap[currentRoute] : undefined;
+
+        if (ref && ref.current) {
+          // 1. scrolla la ScrollView della pagina così che l'anchor finisca a ANCHOR_TARGET_TOP
+          if (helper) {
+            try { await helper(ref, ANCHOR_TARGET_TOP); } catch {}
+          }
+          // 2. misura la posizione attuale on-screen
+          const node: any = ref.current;
+          if (cancelled) return;
+          if (node.measureInWindow) {
+            node.measureInWindow((_x: number, y: number, _w: number, h: number) => {
+              if (cancelled) return;
+              setAnchorRect({ top: y, bottom: y + h, height: h });
+              // doppio check dopo che l'animazione di scroll si è assestata
+              setTimeout(() => {
+                if (cancelled) return;
+                const node2: any = useTutorialLayoutStore.getState().anchorRefs[anchorId]?.current;
+                node2?.measureInWindow?.((_x2: number, y2: number, _w2: number, h2: number) => {
+                  if (cancelled) return;
+                  setAnchorRect({ top: y2, bottom: y2 + h2, height: h2 });
+                });
+              }, 200);
+            });
+          }
           return;
         }
-      } catch {}
-      if (attemptsLeft > 0) setTimeout(() => tryFind(attemptsLeft - 1), 100);
-    };
-    setAnchorRect(null);
-    tryFind(12); // ~1.2s di retry
+        if (attemptsLeft > 0) {
+          setTimeout(() => tryFind(attemptsLeft - 1), 120);
+        }
+      };
+      setAnchorRect(null);
+      tryFind(15);
+    }
+
     return () => { cancelled = true; };
-  }, [active, stepIndex, anchorId]);
+  }, [active, stepIndex, anchorId, currentRoute, anchorRefs, scrollHelpers]);
 
   // ═══ Misurazione card per evitare uscire fuori schermo ═══
   const [cardH, setCardH] = useState<number>(220);

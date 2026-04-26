@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CalendarModal } from '../../src/components/CalendarModal';
+import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
 
 type Filtro = 'SETT.' | 'MESE' | 'ANNO' | 'PERS.';
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
@@ -28,6 +29,9 @@ export default function GasScreen() {
   const { t } = useTranslation();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+
+  // Tutorial anchor
+  const anchorGasInput = useTutorialAnchor('gas-input-block');
 
   const [filtro, setFiltro] = useState<Filtro>('MESE');
   const [persDateFrom, setPersDateFrom] = useState<Date | null>(null);
@@ -267,7 +271,7 @@ export default function GasScreen() {
       <Text style={s.pageTitle}>{t('gas.title')}</Text>
 
       {/* ═══ INPUT GRANDE + SALVA ═══ */}
-      <View style={s.inputCard} testID="gas-input-block">
+      <View style={s.inputCard} testID="gas-input-block" ref={anchorGasInput}>
         <TextInput
           style={s.bigInput}
           placeholder="€ 0"

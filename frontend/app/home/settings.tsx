@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../../src/store/authStore';
 import { useTutorialStore } from '../../src/store/tutorialStore';
+import { useTutorialAnchor, useTutorialScrollHelper } from '../../src/store/tutorialLayoutStore';
 import { router } from 'expo-router';
 
 // ═══════════════════════════════════════════════════════════════
@@ -317,6 +318,17 @@ export default function SettingsPage() {
   const tutStart = useTutorialStore((s) => s.start);
   const safeInsets = useSafeAreaInsets();
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 30) + 16 : safeInsets.top + 16;
+
+  // ═══ Tutorial: ref di pagina + tracker scroll Y per native ═══
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
+  useTutorialScrollHelper('/home/settings', scrollRef, scrollYRef);
+
+  // Anchor refs registrati nello store
+  const anchorCollab = useTutorialAnchor('sett-collab-card');
+  const anchorAgenda = useTutorialAnchor('sett-agenda-card');
+  const anchorFornitori = useTutorialAnchor('sett-fornitori-card');
+  const anchorSpese = useTutorialAnchor('sett-spese-card');
 
   // OCR state
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -820,7 +832,13 @@ export default function SettingsPage() {
   };
 
   return (
-    <ScrollView style={s.root} contentContainerStyle={[s.content, { paddingTop: topPad }]}>
+    <ScrollView
+      ref={scrollRef}
+      style={s.root}
+      contentContainerStyle={[s.content, { paddingTop: topPad }]}
+      onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+      scrollEventThrottle={16}
+    >
       <Text style={s.title}>{t('settings.title')}</Text>
 
       {/* ─── LINGUA ─── */}
@@ -977,7 +995,7 @@ export default function SettingsPage() {
       </View>
 
       {/* ─── SQUADRA COLLABORATORI ─── */}
-      <Text style={s.secTitle} testID="sett-collab-card">{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
+      <Text style={s.secTitle} testID="sett-collab-card" ref={anchorCollab as any}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
       {store.collaboratori.map((c, i) => {
         const codiceCollab = store.codiciInvito?.find(cod => cod.nome === c.nome);
         return (
@@ -1034,7 +1052,7 @@ export default function SettingsPage() {
       <FiereRicorrentiSection />
 
       {/* ─── AGENDA MERCATI ─── */}
-      <Text style={s.secTitle} testID="sett-agenda-card">{t('settings.marketsTitle') || 'MERCATI'}</Text>
+      <Text style={s.secTitle} testID="sett-agenda-card" ref={anchorAgenda as any}>{t('settings.marketsTitle') || 'MERCATI'}</Text>
       {store.agenda.map((m, idx) => {
         const isOpen = expandedDay === idx;
         return (
@@ -1146,7 +1164,7 @@ export default function SettingsPage() {
         );
       })}
 
-      <Text style={s.secTitle} testID="sett-fornitori-card">{t('settings.suppliersTitle') || t('settings.marketsTitle') || 'FORNITORI'}</Text>
+      <Text style={s.secTitle} testID="sett-fornitori-card" ref={anchorFornitori as any}>{t('settings.suppliersTitle') || t('settings.marketsTitle') || 'FORNITORI'}</Text>
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (
@@ -1243,7 +1261,7 @@ export default function SettingsPage() {
       </TouchableOpacity>
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
-      <View style={s.card} testID="sett-spese-card">
+      <View style={s.card} testID="sett-spese-card" ref={anchorSpese as any}>
         <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedSpese(!expandedSpese)}>
           <Ionicons name="card" size={20} color="#1E7F85" />
           <Text style={[s.agendaDay, { flex: 1 }]}>{t('settings.fixedExpenses')}</Text>
