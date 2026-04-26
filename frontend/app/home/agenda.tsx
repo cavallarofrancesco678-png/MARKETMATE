@@ -561,10 +561,15 @@ export default function AgendaScreen() {
                 {noteArchive.length === 0 ? (
                   <Text style={s.archiveEmpty}>{t('agenda.noNotes') || 'Nessuna nota salvata'}</Text>
                 ) : (
-                  noteArchive.map((n, i) => (
+                  noteArchive.map((n, i) => {
+                    const dayNames = (t('days', { returnObjects: true }) as any) || {};
+                    const dowKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                    const dowKey = dowKeys[n.data.getDay()];
+                    const dayLabel = (dayNames[dowKey] || '').substring(0, 3).toUpperCase() || '';
+                    return (
                     <View key={i} style={s.archiveItem}>
                       <Text style={s.archiveDate}>
-                        {n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
+                        {dayLabel ? `${dayLabel} ` : ''}{n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
                       </Text>
                       <Text style={s.archiveTxt} numberOfLines={2}>{n.testo}</Text>
                       <TouchableOpacity
@@ -580,7 +585,8 @@ export default function AgendaScreen() {
                         <Ionicons name="close-circle" size={18} color="#D46A6A" />
                       </TouchableOpacity>
                     </View>
-                  ))
+                    );
+                  })
                 )}
               </View>
             )}

@@ -10,12 +10,18 @@ import {
   Alert,
   StatusBar,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// ═══ Sessione "Ricordami" — evita di ri-chiedere il PIN ad ogni rientro
+//     dall'app in background. Validità: 8 ore.
+const SESSION_KEY = 'marketmate_session_authed_at';
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 ore
 
 export default function LoginScreen() {
   const [pin, setPin] = useState('');
@@ -30,6 +36,19 @@ export default function LoginScreen() {
   useEffect(() => {
     const init = async () => {
       await loadFromStorage();
+      // Verifica sessione attiva ricordata: se ancora valida, vai diretto in Home
+      try {
+        const ts = await AsyncStorage.getItem(SESSION_KEY);
+        if (ts) {
+          const tsNum = parseInt(ts, 10);
+          if (!isNaN(tsNum) && Date.now() - tsNum < SESSION_TTL_MS) {
+            // Sessione ancora valida → vai in Home senza chiedere PIN
+            setIsLoading(false);
+            router.replace('/home');
+            return;
+          }
+        }
+      } catch {}
       setIsLoading(false);
     };
     init();
@@ -38,6 +57,8 @@ export default function LoginScreen() {
   // Auto-login: se configurato senza PIN → vai alla Home
   useEffect(() => {
     if (!isLoading && isConfigured && !savedPin) {
+      // Salva sessione (utile per coerenza, anche se non c'è PIN)
+      AsyncStorage.setItem(SESSION_KEY, Date.now().toString()).catch(() => {});
       router.replace('/home');
     }
   }, [isLoading, isConfigured, savedPin]);
@@ -64,6 +85,8 @@ export default function LoginScreen() {
     if (savedPin) {
       // Ha PIN → verifica
       if (pin === savedPin) {
+        // Salva sessione valida 8h
+        AsyncStorage.setItem(SESSION_KEY, Date.now().toString()).catch(() => {});
         router.replace('/home');
       } else if (pin.length > 0) {
         setAttempts(prev => prev + 1);
@@ -74,6 +97,7 @@ export default function LoginScreen() {
       }
     } else {
       // Nessun PIN → vai alla Home
+      AsyncStorage.setItem(SESSION_KEY, Date.now().toString()).catch(() => {});
       router.replace('/home');
     }
   };

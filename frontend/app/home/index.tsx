@@ -218,8 +218,11 @@ export default function HomeScreen() {
             const prodotto = fornitori?.flatMap(f => f.prodotti.map(p => ({ f: f.nome, n: p.nome, pr: p.prezzo }))).find(p => p.n === nome && p.f === fornitore);
             if (prodotto) {
               const key = `${fornitore}_${nome}`;
-              const qty = isAlimentare && prodotto.pr > 0 ? (val as number) / prodotto.pr : (val as number);
-              invQty[key] = qty.toString();
+              // FIX precision: arrotonda a 2 decimali per evitare drift float (es 7→7.07)
+              const rawQty = isAlimentare && prodotto.pr > 0 ? (val as number) / prodotto.pr : (val as number);
+              const qty = Math.round(rawQty * 100) / 100;
+              // Mostra come intero se è praticamente intero (tolleranza ±0.02)
+              invQty[key] = (Math.abs(qty - Math.round(qty)) < 0.02 ? Math.round(qty).toString() : qty.toString());
             }
           }
         });
@@ -839,7 +842,7 @@ export default function HomeScreen() {
       const valore = isAlimentare ? qty * prod.prezzo : qty;
       // Etichetta: "Pane - Andrea"
       const label = `${prod.nome} - ${prod.fornitore}`;
-      dettaglioInv[label] = Math.round(valore);
+      dettaglioInv[label] = valore;
     });
 
     salvaGiornata({
@@ -1584,9 +1587,17 @@ export default function HomeScreen() {
       </Modal>
 
       {/* ═══ MODALE INVENDUTO / PERDITA ═══ */}
-      <Modal visible={showInvendutoModal} transparent animationType="fade">
+      <Modal visible={showInvendutoModal} transparent animationType="fade" onRequestClose={() => setShowInvendutoModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
+            {/* X di chiusura in alto a destra */}
+            <TouchableOpacity
+              onPress={() => setShowInvendutoModal(false)}
+              style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, padding: 8 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={26} color="#5A7575" />
+            </TouchableOpacity>
             <Text style={s.modalTitle}>{perditaLabel}</Text>
             <Text style={s.modalSub}>
               {isAlimentare

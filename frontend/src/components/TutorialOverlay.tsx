@@ -52,51 +52,81 @@ export const TutorialOverlay: React.FC = () => {
   useEffect(() => {
     if (!active || !anchorId) { setAnchorRect(null); return; }
     let cancelled = false;
-    const tryFind = (attemptsLeft: number) => {
+    let lastRect: DOMRect | null = null;
+    const measure = () => {
       if (cancelled || Platform.OS !== 'web') return;
       try {
         const el: any = document.querySelector(`[data-testid="${anchorId}"]`);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return r;
+      } catch { return null; }
+    };
+    // Strategia robusta:
+    //  1. trova anchor (retry fino a 1.2s mentre la pagina monta)
+    //  2. fa scrollIntoView INSTANT (behavior:'auto') — niente attese smooth
+    //  3. misura subito + ri-misura dopo 250ms per stabilità
+    const tryFind = (attemptsLeft: number) => {
+      if (cancelled) return;
+      try {
+        const el: any = document.querySelector(`[data-testid="${anchorId}"]`);
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-          setTimeout(() => {
+          // Scroll INSTANT: niente attese smooth, misura affidabile
+          el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+          // Prima misura immediata
+          requestAnimationFrame(() => {
             if (cancelled) return;
-            const r = el.getBoundingClientRect();
-            setAnchorRect({ top: r.top, bottom: r.bottom, height: r.height });
-          }, 350);
+            const r1 = el.getBoundingClientRect();
+            lastRect = r1;
+            setAnchorRect({ top: r1.top, bottom: r1.bottom, height: r1.height });
+            // Seconda misura dopo 250ms per assestamento (es. transizioni layout)
+            setTimeout(() => {
+              if (cancelled) return;
+              const r2 = el.getBoundingClientRect();
+              if (Math.abs((lastRect?.top || 0) - r2.top) > 2) {
+                setAnchorRect({ top: r2.top, bottom: r2.bottom, height: r2.height });
+              }
+            }, 250);
+          });
           return;
         }
       } catch {}
-      if (attemptsLeft > 0) setTimeout(() => tryFind(attemptsLeft - 1), 120);
+      if (attemptsLeft > 0) setTimeout(() => tryFind(attemptsLeft - 1), 100);
     };
     setAnchorRect(null);
-    tryFind(8);
+    tryFind(12); // ~1.2s di retry
     return () => { cancelled = true; };
   }, [active, stepIndex, anchorId]);
 
   // ═══ Misurazione card per evitare uscire fuori schermo ═══
   const [cardH, setCardH] = useState<number>(220);
 
-  // Determina dove docking-are il bubble:
-  // se l'anchor è nella metà superiore dello schermo → bubble subito SOTTO l'anchor
-  // altrimenti → bubble subito SOPRA l'anchor.
+  // Determina dove dockare il bubble:
+  //   regola: PREFERISCI sempre BELOW (sotto l'anchor) — è la modalità più
+  //   leggibile (l'utente legge top-to-bottom) — UNLESS lo spazio sotto è
+  //   insufficiente, allora dock ABOVE.
   const winH = (Platform.OS === 'web' && typeof window !== 'undefined') ? window.innerHeight : SCREEN_H;
   const dockBelow: boolean | null = (() => {
     if (!anchorRect) return null;
-    const anchorCenter = (anchorRect.top + anchorRect.bottom) / 2;
-    return anchorCenter < winH * 0.5;
+    const spaceBelow = winH - anchorRect.bottom - 8;
+    const spaceAbove = anchorRect.top - 8;
+    const needed = cardH + GAP_FROM_ANCHOR;
+    if (spaceBelow >= needed) return true;       // c'è spazio sotto → preferisci sotto
+    if (spaceAbove >= needed) return false;      // sotto non basta ma sopra sì → sopra
+    // Né sopra né sotto basta: scegli quello con più spazio
+    return spaceBelow >= spaceAbove;
   })();
 
-  // Calcolo top assoluto: clamp per non andare fuori schermo
+  // Calcolo top assoluto: sempre ADIACENTE all'anchor
   const adjacentTop: number | null = (() => {
     if (!anchorRect || dockBelow == null) return null;
     if (dockBelow) {
-      // bubble sotto l'anchor → top = anchor.bottom + gap
+      // bubble subito sotto l'anchor
       const proposed = anchorRect.bottom + GAP_FROM_ANCHOR;
-      // se il bubble esce dal basso, clamp a 8px dal fondo
       const maxTop = Math.max(8, winH - cardH - 8);
-      return Math.min(proposed, maxTop);
+      return Math.min(Math.max(8, proposed), maxTop);
     } else {
-      // bubble sopra → top = anchor.top - cardH - gap
+      // bubble subito sopra l'anchor
       const proposed = anchorRect.top - cardH - GAP_FROM_ANCHOR;
       return Math.max(8, proposed);
     }
