@@ -202,41 +202,100 @@ export default function AgendaScreen() {
     return arr.sort((a, b) => (a.next?.getTime() || Infinity) - (b.next?.getTime() || Infinity));
   }, [store.fiere]);
 
-  /* ═══ ARCHIVIO FATTURE (estratte da ordiniAgenda, accetta – / - / • / : come separatori, € opzionale) ═══ */
+  /* ═══ ARCHIVIO FATTURE — letto direttamente dal `storicoGiornate` ═══
+     Per ogni giornata salvata, se un fornitore ha numeroFattura + importo,
+     viene aggiunta una voce all'archivio. Inclusa anche la sessione corrente
+     (fornInfo + speseExtraSession) per mostrare le fatture in corso prima
+     che la giornata venga salvata. */
   const fattureArchive = useMemo(() => {
     const today0 = new Date();
     today0.setHours(0, 0, 0, 0);
-    const items: { id: string; data: Date; fornitore: string; numero: string; importo: string; overdue: boolean; testo: string }[] = [];
-    // Separatore flessibile (em-dash, en-dash, hyphen, bullet, colon, comma con spazi)
+    const items: { id: string; data: Date; fornitore: string; numero: string; importo: string; scadenza: string; overdue: boolean; testo: string }[] = [];
+    const seen = new Set<string>();
+
+    // 1. Fatture archiviate nelle giornate salvate
+    (store.storicoGiornate || []).forEach((g: any) => {
+      const info = g.fornitoriInfo || {};
+      const dettaglio = g.dettaglio_fornitori || {};
+      Object.entries(info).forEach(([forn, fInfo]: [string, any]) => {
+        if (!fInfo?.numeroFattura) return;
+        const importoNum = Math.abs(dettaglio[forn] || 0);
+        if (!importoNum) return;
+        const dd = new Date(g.data);
+        const key = `${dd.toISOString().slice(0,10)}_${forn}_${fInfo.numeroFattura}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const scad = fInfo.scadenza ? new Date(fInfo.scadenza) : null;
+        items.push({
+          id: key,
+          data: dd,
+          fornitore: forn,
+          numero: fInfo.numeroFattura,
+          importo: String(importoNum),
+          scadenza: fInfo.scadenza || '',
+          overdue: scad ? scad < today0 : false,
+          testo: `${forn} • Fatt. ${fInfo.numeroFattura} • €${importoNum.toFixed(0)}`,
+        });
+      });
+    });
+
+    // 2. Fatture in corso (sessione attiva non ancora salvata)
+    const session = (store as any).speseExtraSession;
+    if (session?.fornInfo) {
+      Object.entries(session.fornInfo).forEach(([forn, fInfo]: [string, any]) => {
+        if (!fInfo?.numeroFattura) return;
+        const sessionEntry = (session.speseExtraFornitore || {})[forn];
+        const importoNum = parseFloat((sessionEntry?.importo || '0').replace(',', '.')) || 0;
+        if (!importoNum) return;
+        const dd = new Date();
+        const key = `session_${forn}_${fInfo.numeroFattura}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const scad = fInfo.scadenza ? new Date(fInfo.scadenza) : null;
+        items.push({
+          id: key,
+          data: dd,
+          fornitore: forn,
+          numero: fInfo.numeroFattura,
+          importo: String(importoNum),
+          scadenza: fInfo.scadenza || '',
+          overdue: scad ? scad < today0 : false,
+          testo: `${forn} • Fatt. ${fInfo.numeroFattura} • €${importoNum.toFixed(0)}`,
+        });
+      });
+    }
+
+    // 3. Vecchio formato: fatture estratte da ordiniAgenda con regex
     const SEP = '(?:\\s*[–—\\-•:]\\s*|,\\s*)';
     const reFull = new RegExp('^(.+?)' + SEP + 'Fatt\\.?\\s+([^\\s–—\\-•:]+)' + SEP + '€?\\s*([\\d.,]+)', 'i');
-    const reSimple = new RegExp('^(.+?)' + SEP + '€?\\s*([\\d.,]+)\\s*$');
     (ordiniAgenda || []).forEach((o: any) => {
       const txt = String(o.testo || '').trim();
       if (!txt) return;
       const mFull = txt.match(reFull);
-      const mSimple = !mFull ? txt.match(reSimple) : null;
-      if (!mFull && !mSimple) return;
-      const fornitore = (mFull ? mFull[1] : mSimple![1]).trim();
-      const numero = mFull ? mFull[2] : '';
-      const importoRaw = (mFull ? mFull[3] : mSimple![2]).replace(/\./g, '').replace(',', '.');
-      // Solo se l'importo è un numero valido
+      if (!mFull) return;
+      const fornitore = mFull[1].trim();
+      const numero = mFull[2];
+      const importoRaw = mFull[3].replace(/\./g, '').replace(',', '.');
       const importoNum = parseFloat(importoRaw);
       if (!isFinite(importoNum) || importoNum <= 0) return;
       const dd = new Date(o.data);
       if (isNaN(dd.getTime())) return;
+      const key = `agenda_${dd.toISOString().slice(0,10)}_${fornitore}_${numero}`;
+      if (seen.has(key)) return;
+      seen.add(key);
       items.push({
-        id: `${o.data}_${txt}`,
+        id: key,
         data: dd,
         fornitore,
         numero,
         importo: String(importoNum),
+        scadenza: '',
         overdue: dd < today0,
         testo: txt,
       });
     });
-    return items.sort((a, b) => a.data.getTime() - b.data.getTime());
-  }, [ordiniAgenda]);
+    return items.sort((a, b) => b.data.getTime() - a.data.getTime());
+  }, [store.storicoGiornate, (store as any).speseExtraSession, ordiniAgenda]);
 
   const today = new Date();
   /* ═══ GIORNI LAVORATI NEL MESE (dal storico giornate) ═══ */
@@ -571,7 +630,7 @@ export default function AgendaScreen() {
                       <Text style={s.archiveDate}>
                         {dayLabel ? `${dayLabel} ` : ''}{n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
                       </Text>
-                      <Text style={s.archiveTxt} numberOfLines={2}>{n.testo}</Text>
+                      <Text style={[s.archiveTxt, { flex: 1 }]}>{n.testo}</Text>
                       <TouchableOpacity
                         onPress={() => {
                           removeDiario(n.data);
@@ -607,7 +666,7 @@ export default function AgendaScreen() {
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[s.archiveTxt, { color: col }]} numberOfLines={1}>{f.nome}</Text>
+                          <Text style={[s.archiveTxt, { color: col, flex: 1 }]}>{f.nome}</Text>
                           {f.luogo ? (
                             <Text style={{ fontSize: 9, color: '#7A9090', fontWeight: '600' }}>{f.luogo}</Text>
                           ) : null}
@@ -655,11 +714,13 @@ export default function AgendaScreen() {
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[s.archiveTxt, { color: '#1A4040' }]} numberOfLines={1}>
+                          <Text style={[s.archiveTxt, { color: '#1A4040' }]}>
                             {ft.fornitore}{ft.numero ? ` • Fatt. ${ft.numero}` : ''}
                           </Text>
-                          <Text style={{ fontSize: 10, color, fontWeight: '900' }}>
-                            €{parseFloat(ft.importo).toFixed(0)}{ft.overdue ? ' · SCADUTA' : ''}
+                          <Text style={{ fontSize: 11, color, fontWeight: '900', marginTop: 1 }}>
+                            €{parseFloat(ft.importo).toFixed(0)}
+                            {ft.scadenza ? ` · scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}` : ''}
+                            {ft.overdue ? ' · SCADUTA' : ''}
                           </Text>
                         </View>
                         <TouchableOpacity
@@ -1032,9 +1093,9 @@ const s = StyleSheet.create({
   },
   archiveItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
-    paddingVertical: 5,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F0EBE1',
   },
@@ -1086,10 +1147,11 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   archiveTxt: {
-    fontSize: 11,
+    fontSize: 12.5,
     color: '#1A4040',
-    fontWeight: '600',
+    fontWeight: '700',
     flex: 1,
+    lineHeight: 17,
   },
   // Modal
   modalOverlay: {

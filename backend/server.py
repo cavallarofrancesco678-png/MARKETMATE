@@ -427,24 +427,54 @@ async def find_cheapest_fuel(req: FuelRequest):
         a = math.sin(dlat/2)**2 + math.cos(math.radians(dep_geo["lat"])) * math.cos(math.radians(dest_geo["lat"])) * math.sin(dlon/2)**2
         route_km = 6371 * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         
-        # Strategia: per rotte brevi un raggio leggermente più ampio compensa
-        # i casi in cui il midpoint cade tra due paesini e nessuna stazione è
-        # esattamente "sul punto". 5 km copre sempre almeno qualche stazione.
+        # ═══ OSRM REAL ROUTE GEOMETRY ═══
+        # Otteniamo la sequenza di coordinate REALI lungo la strada percorsa
+        # da `partenza` a `destinazione` e usiamo quei punti come centri di
+        # ricerca → niente più distributori "fuori percorso".
+        route_coords = []
+        try:
+            osrm_url = (
+                f"https://router.project-osrm.org/route/v1/driving/"
+                f"{dep_geo['lon']},{dep_geo['lat']};{dest_geo['lon']},{dest_geo['lat']}"
+                f"?overview=simplified&geometries=geojson"
+            )
+            async with httpx.AsyncClient(timeout=8) as client_http:
+                osrm_resp = await client_http.get(osrm_url)
+                if osrm_resp.status_code == 200:
+                    osrm_data = osrm_resp.json()
+                    if osrm_data.get("code") == "Ok" and osrm_data.get("routes"):
+                        coords = osrm_data["routes"][0].get("geometry", {}).get("coordinates", [])
+                        route_coords = [(c[1], c[0]) for c in coords]  # lon,lat → lat,lon
+        except Exception as osrm_err:
+            logger.warning(f"OSRM route geometry failed: {osrm_err}")
+
+        # Strategia di campionamento adattiva
         if route_km < 15:
-            search_radius = 5
-            fractions = [0.5]
+            search_radius = 4
+            num_samples = 2  # inizio e metà del percorso
         elif route_km < 40:
-            search_radius = 6
-            fractions = [0.25, 0.5, 0.75]
+            search_radius = 5
+            num_samples = 4
         else:
-            search_radius = 10
-            fractions = [0.15, 0.4, 0.6, 0.85]
-        
-        search_points = []
-        for frac in fractions:
-            lat = dep_geo["lat"] + (dest_geo["lat"] - dep_geo["lat"]) * frac
-            lon = dep_geo["lon"] + (dest_geo["lon"] - dep_geo["lon"]) * frac
-            search_points.append((lat, lon))
+            search_radius = 6
+            num_samples = 6
+
+        search_points: list[tuple[float, float]] = []
+        if route_coords and len(route_coords) >= 2:
+            # Campiona N punti UNIFORMEMENTE distribuiti lungo la GEOMETRIA REALE
+            step = max(1, len(route_coords) // num_samples)
+            for i in range(0, len(route_coords), step):
+                search_points.append(route_coords[i])
+            # garantisci sempre il punto finale
+            if route_coords[-1] not in search_points:
+                search_points.append(route_coords[-1])
+        else:
+            # Fallback: linea retta (vecchia logica)
+            fractions = [i / (num_samples - 1) for i in range(num_samples)] if num_samples > 1 else [0.5]
+            for frac in fractions:
+                lat = dep_geo["lat"] + (dest_geo["lat"] - dep_geo["lat"]) * frac
+                lon = dep_geo["lon"] + (dest_geo["lon"] - dep_geo["lon"]) * frac
+                search_points.append((lat, lon))
 
         # Detect country from departure
         country = detect_country(dep_geo.get("country", ""))
@@ -454,7 +484,7 @@ async def find_cheapest_fuel(req: FuelRequest):
         # Filtro: rifiuta stazioni che escono dal raggio di ricerca con margine.
         # Tipicamente l'API restituisce solo stazioni entro `distance`, ma alcuni
         # risultati possono leggermente sforare quel limite.
-        max_distance_per_station = search_radius + 1.5
+        max_distance_per_station = search_radius + 1
         
         for lat, lon in search_points:
             if country == "IT":
@@ -612,6 +642,9 @@ async def get_weather(req: WeatherRequest):
         async with httpx.AsyncClient(timeout=10) as client_http:
             if is_future:
                 # FORECAST API - up to 16 days ahead
+                # Modello ECMWF IFS HRES (uno dei più accurati per l'Europa,
+                # usato anche da 3BMeteo / IlMeteo). Fallback automatico al
+                # best_match se il modello specifico non ha copertura.
                 days_needed = min(16, max(1, (target_d - today_d).days + 1))
                 resp = await client_http.get(
                     "https://api.open-meteo.com/v1/forecast",
@@ -621,6 +654,7 @@ async def get_weather(req: WeatherRequest):
                         "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,weather_code",
                         "timezone": "auto",
                         "forecast_days": days_needed,
+                        "models": "best_match",
                     }
                 )
                 if resp.status_code != 200:
