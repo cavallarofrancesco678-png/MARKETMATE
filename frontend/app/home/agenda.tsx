@@ -106,30 +106,6 @@ export default function AgendaScreen() {
     return map;
   }, [appuntiAgenda, ordiniAgenda, calMonth, store.fiere]);
 
-  /* ═══ Combina impegniMese con le fatture (calcolate dopo per evitare TDZ) ═══ */
-  const impegniMeseFinal = useMemo(() => {
-    const map: typeof impegniMese = JSON.parse(JSON.stringify(impegniMese));
-    fattureArchive.forEach((ft) => {
-      const datesToMark: Date[] = [ft.data];
-      if (ft.scadenza) {
-        const sc = new Date(ft.scadenza);
-        if (!isNaN(sc.getTime()) && sc.toDateString() !== ft.data.toDateString()) datesToMark.push(sc);
-      }
-      datesToMark.forEach((dd) => {
-        if (dd.getMonth() === calMonth.getMonth() && dd.getFullYear() === calMonth.getFullYear()) {
-          const day = dd.getDate();
-          if (!map[day]) map[day] = [];
-          if (!map[day].some((x: any) => x.tipo === 'fattura' && x.testo === ft.testo)) {
-            map[day].push({ testo: ft.testo, tipo: 'fattura' });
-          }
-        }
-      });
-    });
-    return map;
-    // fattureArchive è dichiarato dopo; React lo risolve a runtime
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [impegniMese, calMonth]);
-
   /* ═══ COLORE PER TIPOLOGIA EVENTO ═══ */
   const getTipologiaColor = (tipologia?: string) => {
     switch (tipologia) {
@@ -323,6 +299,28 @@ export default function AgendaScreen() {
     });
     return items.sort((a, b) => b.data.getTime() - a.data.getTime());
   }, [store.storicoGiornate, (store as any).speseExtraSession, ordiniAgenda]);
+
+  /* ═══ Combina impegniMese con le fatture (definito DOPO fattureArchive per evitare TDZ) ═══ */
+  const impegniMeseFinal = useMemo(() => {
+    const map: typeof impegniMese = JSON.parse(JSON.stringify(impegniMese));
+    fattureArchive.forEach((ft) => {
+      const datesToMark: Date[] = [ft.data];
+      if (ft.scadenza) {
+        const sc = new Date(ft.scadenza);
+        if (!isNaN(sc.getTime()) && sc.toDateString() !== ft.data.toDateString()) datesToMark.push(sc);
+      }
+      datesToMark.forEach((dd) => {
+        if (dd.getMonth() === calMonth.getMonth() && dd.getFullYear() === calMonth.getFullYear()) {
+          const day = dd.getDate();
+          if (!map[day]) map[day] = [];
+          if (!map[day].some((x: any) => x.tipo === 'fattura' && x.testo === ft.testo)) {
+            map[day].push({ testo: ft.testo, tipo: 'fattura' });
+          }
+        }
+      });
+    });
+    return map;
+  }, [impegniMese, calMonth, fattureArchive]);
 
   const today = new Date();
   /* ═══ GIORNI LAVORATI NEL MESE (dal storico giornate) ═══ */

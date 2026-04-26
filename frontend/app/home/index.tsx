@@ -586,112 +586,95 @@ export default function HomeScreen() {
     store.setConfig({ speseFisseDisabilitate: newList });
   };
 
-  /* ── Spese Extra fornitori totale ── */
+  /* ── Spese Extra fornitori totale (importo del giorno, NO ripartizione) ── */
   const speseExtraFornTotale = useMemo(() => {
-    // Helper locale: conta i giorni lavorativi nel range (replica esatta di handleSalva)
-    const countMkDaysLocal = (modo: 'oggi' | 'custom', fromIso: string, toIso: string): number => {
-      if (modo === 'oggi') return 1;
-      if (!fromIso || !toIso) return 1;
-      const from = new Date(fromIso + 'T12:00:00');
-      const to = new Date(toIso + 'T12:00:00');
-      if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
-      const start = from <= to ? from : to;
-      const end = from <= to ? to : from;
-      let mercatoCount = 0;
-      let totalDays = 0;
-      const cur = new Date(start);
-      while (cur <= end) {
-        const dow = (cur.getDay() + 6) % 7;
-        const g = agenda?.[dow];
-        if (g && (g.lavorativo === true || (g.mercato && String(g.mercato).trim() !== ''))) {
-          mercatoCount++;
-        }
-        totalDays++;
-        cur.setDate(cur.getDate() + 1);
-      }
-      return Math.max(1, mercatoCount > 0 ? mercatoCount : totalDays);
-    };
-
-    // Calcola per OGNI fornitore l'importo giornaliero rispettando pagamentoMode + ripartizione
     let tot = 0;
     const fornitoriNomi = new Set<string>();
     Object.keys(speseExtraFornitore).forEach((k) => {
       if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
       fornitoriNomi.add(k.replace(/__libera$/, ''));
     });
-
     fornitoriNomi.forEach((nomeBase) => {
       const mode = pagamentoMode[nomeBase] || 'contanti';
       const fatturaEntry = speseExtraFornitore[nomeBase];
       const contantiEntry = speseExtraFornitore[`${nomeBase}__libera`];
       const impFattura = parseFloat((fatturaEntry?.importo || '0').replace(',', '.')) || 0;
       const impContanti = parseFloat((contantiEntry?.importo || '0').replace(',', '.')) || 0;
-
-      const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
-      const mkDays = countMkDaysLocal(rip.modo, rip.from, rip.to);
-
-      let fatturaQuota = 0;
-      let contantiQuota = 0;
-      if (mode === 'contanti') {
-        // Anche i contanti supportano ripartizione: l'importo originale viene
-        // diviso sui giorni di mercato del range scelto.
-        if (impContanti > 0) contantiQuota = impContanti / mkDays;
-      } else if (mode === 'fattura') {
-        if (impFattura > 0) fatturaQuota = impFattura / mkDays;
-      } else if (mode === 'misto') {
-        if (impFattura > 0) fatturaQuota = impFattura / mkDays;
-        if (impContanti > 0) contantiQuota = impContanti / mkDays;
-      }
-
-      // Applica periodicità legacy se presente
-      if (fatturaEntry?.periodo === 'settimanale') fatturaQuota = fatturaQuota / 6;
-      else if (fatturaEntry?.periodo === 'mensile') fatturaQuota = fatturaQuota / 26;
-
-      tot += fatturaQuota + contantiQuota;
+      if (mode === 'contanti') tot += impContanti;
+      else if (mode === 'fattura') tot += impFattura;
+      else if (mode === 'misto') tot += impFattura + impContanti;
     });
     return tot;
-  }, [speseExtraFornitore, pagamentoMode, ripartizione, agenda]);
+  }, [speseExtraFornitore, pagamentoMode]);
 
-  /* ── Spese Extra generiche totale ── */
+  /* ── Spese Extra generiche totale (importo del giorno, NO ripartizione) ── */
   const speseExtraGenTotale = useMemo(() => {
-    // Helper locale: conta i giorni lavorativi in un range
-    const countMkDaysLocal = (fromIso: string, toIso: string): number => {
-      if (!fromIso || !toIso) return 1;
-      const from = new Date(fromIso + 'T12:00:00');
-      const to = new Date(toIso + 'T12:00:00');
-      if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
-      const start = from <= to ? from : to;
-      const end = from <= to ? to : from;
-      let mercatoCount = 0;
-      let totalDays = 0;
-      const cur = new Date(start);
-      while (cur <= end) {
-        const dow = (cur.getDay() + 6) % 7;
-        const g = agenda?.[dow];
-        if (g && (g.lavorativo === true || (g.mercato && String(g.mercato).trim() !== ''))) {
-          mercatoCount++;
-        }
-        totalDays++;
-        cur.setDate(cur.getDate() + 1);
-      }
-      return Math.max(1, mercatoCount > 0 ? mercatoCount : totalDays);
-    };
     let tot = 0;
     vociGeneriche.forEach((v: any) => {
       if (!v.attivo) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
-      if (imp <= 0) return;
-      if (v.ripMode === 'custom' && v.ripFrom && v.ripTo) {
-        const mk = countMkDaysLocal(v.ripFrom, v.ripTo);
-        tot += imp / Math.max(1, mk);
-        return;
-      }
-      if (v.periodo === 'settimanale') tot += imp / 6;
-      else if (v.periodo === 'mensile') tot += imp / 26;
-      else tot += imp;
+      if (imp > 0) tot += imp;
     });
     return tot;
-  }, [vociGeneriche, agenda]);
+  }, [vociGeneriche]);
+
+  /* ── Totali settimanali per fornitore (Lun-Dom contenente dataCorrente) ── */
+  const weeklyTotalsByForn = useMemo(() => {
+    const d = new Date(dataCorrente);
+    d.setHours(0, 0, 0, 0);
+    const dow = (d.getDay() + 6) % 7;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - dow);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const result: Record<string, { contanti: number; fattura: number }> = {};
+
+    // 1. Storico salvato — ESCLUDI il giorno corrente (sarà aggiunto da memoria viva sotto)
+    (store.storicoGiornate || []).forEach((g: any) => {
+      const gd = new Date(g.data);
+      if (gd < monday || gd > sunday) return;
+      if (gd.toDateString() === dataCorrente.toDateString()) return;
+      const dettaglio = g.dettaglio_fornitori || {};
+      Object.entries(dettaglio).forEach(([key, val]: [string, any]) => {
+        const v = parseFloat(String(val)) || 0;
+        if (v <= 0) return;
+        const isLibera = key.endsWith('__libera');
+        const nomeBase = isLibera ? key.slice(0, -'__libera'.length) : key;
+        if (!result[nomeBase]) result[nomeBase] = { contanti: 0, fattura: 0 };
+        if (isLibera) result[nomeBase].contanti += v;
+        else result[nomeBase].fattura += v;
+      });
+    });
+
+    // 2. Giorno corrente — usa lo stato in-memory (importo INTERO, no ripartizione)
+    const currentDay = new Date(dataCorrente);
+    currentDay.setHours(12, 0, 0, 0);
+    if (currentDay >= monday && currentDay <= sunday) {
+      const fornitoriNomi = new Set<string>();
+      Object.keys(speseExtraFornitore).forEach((k) => {
+        if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+        fornitoriNomi.add(k.replace(/__libera$/, ''));
+      });
+      fornitoriNomi.forEach((nomeBase) => {
+        const mode = pagamentoMode[nomeBase] || 'contanti';
+        const impFattura = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
+        const impContanti = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
+        if (!result[nomeBase]) result[nomeBase] = { contanti: 0, fattura: 0 };
+        if (mode === 'contanti') {
+          result[nomeBase].contanti += impContanti;
+        } else if (mode === 'fattura') {
+          result[nomeBase].fattura += impFattura;
+        } else if (mode === 'misto') {
+          result[nomeBase].fattura += impFattura;
+          result[nomeBase].contanti += impContanti;
+        }
+      });
+    }
+    return result;
+  }, [dataCorrente, store.storicoGiornate, speseExtraFornitore, pagamentoMode]);
 
   /* ── Plateatico Fiera → aggiungere a spese fisse ── */
   const fieraPlatNum = parseFloat((fieraPlat || '0').replace(',', '.')) || 0;
@@ -763,31 +746,7 @@ export default function HomeScreen() {
   };
 
   const handleSalva = useCallback(() => {
-    // Helper: conta giorni di mercato effettivi secondo ripartizione
-    const countMarketDays = (modo: 'oggi' | 'custom', fromIso: string, toIso: string): number => {
-      if (modo === 'oggi') return 1;
-      if (!fromIso || !toIso) return 1;
-      const from = new Date(fromIso + 'T12:00:00');
-      const to = new Date(toIso + 'T12:00:00');
-      if (isNaN(from.getTime()) || isNaN(to.getTime())) return 1;
-      const start = from <= to ? from : to;
-      const end = from <= to ? to : from;
-      let mercatoCount = 0;
-      let totalDays = 0;
-      const cur = new Date(start);
-      while (cur <= end) {
-        const dow = (cur.getDay() + 6) % 7;
-        const g = agenda?.[dow];
-        if (g && (g.lavorativo === true || (g.mercato && String(g.mercato).trim() !== ''))) {
-          mercatoCount++;
-        }
-        totalDays++;
-        cur.setDate(cur.getDate() + 1);
-      }
-      return Math.max(1, mercatoCount > 0 ? mercatoCount : totalDays);
-    };
-
-    // Build dettaglio_fornitori con ripartizione costo su giorni mercato
+    // ═══ Salva importi INTEGRI (NO ripartizione) ═══
     const dettaglioForn: Record<string, number> = {};
     const fornitoriNomi = new Set<string>();
     Object.keys(speseExtraFornitore).forEach((k) => {
@@ -802,62 +761,24 @@ export default function HomeScreen() {
       const impFattura = parseFloat((fatturaEntry?.importo || '0').replace(',', '.')) || 0;
       const impContanti = parseFloat((contantiEntry?.importo || '0').replace(',', '.')) || 0;
 
-      // ═══ SPLIT FATTURA + CONTANTI per breakdown corretto in stats ═══
-      let fatturaQuota = 0;  // quota giornaliera fattura ripartita
-      let contantiQuota = 0; // contanti del giorno
-      const rip = ripartizione[nomeBase] || { modo: 'oggi' as const, from: '', to: '' };
-      const mkDays = countMarketDays(rip.modo, rip.from, rip.to);
-
-      if (mode === 'contanti') {
-        // Ripartizione applicata anche ai contanti
-        if (impContanti > 0) {
-          contantiQuota = impContanti / mkDays;
-        }
-      } else if (mode === 'fattura') {
-        if (impFattura > 0) {
-          fatturaQuota = impFattura / mkDays;
-        }
-      } else if (mode === 'misto') {
-        if (impFattura > 0) {
-          fatturaQuota = impFattura / mkDays;
-        }
-        if (impContanti > 0) {
-          contantiQuota = impContanti / mkDays;
-        }
-      }
-
-      // Applica periodicità legacy se presente (giornaliero/settimanale/mensile)
-      if (fatturaEntry?.periodo === 'settimanale') fatturaQuota = fatturaQuota / 6;
-      else if (fatturaEntry?.periodo === 'mensile') fatturaQuota = fatturaQuota / 26;
-
       // Salva chiavi separate: nomeBase (fattura) + nomeBase__libera (contanti)
       // così stats.tsx può distinguere correttamente Fatturata vs Contanti.
-      if (fatturaQuota > 0) {
-        dettaglioForn[nomeBase] = Math.round(fatturaQuota * 100) / 100;
-      }
-      if (contantiQuota > 0) {
-        dettaglioForn[`${nomeBase}__libera`] = Math.round(contantiQuota * 100) / 100;
+      if (mode === 'contanti') {
+        if (impContanti > 0) dettaglioForn[`${nomeBase}__libera`] = Math.round(impContanti * 100) / 100;
+      } else if (mode === 'fattura') {
+        if (impFattura > 0) dettaglioForn[nomeBase] = Math.round(impFattura * 100) / 100;
+      } else if (mode === 'misto') {
+        if (impFattura > 0) dettaglioForn[nomeBase] = Math.round(impFattura * 100) / 100;
+        if (impContanti > 0) dettaglioForn[`${nomeBase}__libera`] = Math.round(impContanti * 100) / 100;
       }
     });
 
-    // Build dettaglio_spese_extra from vociGeneriche (per-item names for stats pie chart)
+    // Build dettaglio_spese_extra from vociGeneriche (importo intero, NO ripartizione)
     const dettaglioExtra: Record<string, number> = {};
     vociGeneriche.forEach((v: any) => {
       if (!v.attivo) return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
-      if (imp > 0) {
-        // Nuovo sistema: ripartizione OGGI / PERSONALIZZA
-        if (v.ripMode === 'custom' && v.ripFrom && v.ripTo) {
-          const mk = countMarketDays('custom', v.ripFrom, v.ripTo);
-          dettaglioExtra[v.nome] = imp / Math.max(1, mk);
-          return;
-        }
-        // Legacy periodicità
-        const per = v.periodo || 'giornaliero';
-        if (per === 'settimanale') dettaglioExtra[v.nome] = imp / 6;
-        else if (per === 'mensile') dettaglioExtra[v.nome] = imp / 26;
-        else dettaglioExtra[v.nome] = imp;
-      }
+      if (imp > 0) dettaglioExtra[v.nome] = imp;
     });
 
     // Build dettaglio_staff as NUMBERS (cost including override) so stats uses the correct amounts
@@ -931,8 +852,17 @@ export default function HomeScreen() {
   // over a previously saved day.
   const lastAutosaveDateRef = useRef<string | null>(null);
   useEffect(() => {
-    // Auto-salva solo se c'è almeno il lordo inserito
-    if (lordoNum > 0) {
+    // Auto-salva se c'è ALMENO una di queste:
+    //  - lordo > 0 (giornata di mercato vera)
+    //  - spese extra > 0 (l'utente sta tracciando solo costi)
+    //  - presenze collaboratori
+    //  - una fattura inserita (numero o scadenza)
+    const hasInvoice = Object.values(fornInfo || {}).some((f: any) =>
+      (f?.numeroFattura || '').trim() !== '' || (f?.scadenza || '').trim() !== ''
+    );
+    const hasPresenze = Object.values(presenze || {}).some(Boolean);
+    const shouldAutosave = lordoNum > 0 || speseExtraTotNum > 0 || hasInvoice || hasPresenze;
+    if (shouldAutosave) {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       const dataKey = dataCorrente.toDateString();
       autoSaveTimerRef.current = setTimeout(() => {
@@ -946,7 +876,7 @@ export default function HomeScreen() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride, speseExtraFornTotale, speseExtraGenTotale, dataCorrente]);
+  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride, speseExtraFornTotale, speseExtraGenTotale, dataCorrente, fornInfo, speseExtraTotNum]);
 
   const handleSalvaManuale = () => {
     handleSalva();
@@ -1854,8 +1784,7 @@ export default function HomeScreen() {
         setFornInfo={setFornInfo}
         pagamentoMode={pagamentoMode}
         setPagamentoMode={setPagamentoMode}
-        ripartizione={ripartizione}
-        setRipartizione={setRipartizione}
+        weeklyTotalsByForn={weeklyTotalsByForn}
       />
 
       {/* Buongiorno AI Modal */}
