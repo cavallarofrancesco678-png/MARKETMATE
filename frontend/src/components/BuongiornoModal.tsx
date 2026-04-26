@@ -402,7 +402,9 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
             const appunti = storeData.appuntiProssimi || [];
             const ordini = storeData.ordiniProssimi || [];
             const pagamenti = storeData.pagamentiImminenti || [];
-            const hasAny = fiere.length > 0 || appunti.length > 0 || ordini.length > 0 || pagamenti.length > 0 || weatherData || fuelData;
+            const noteOggi = (storeData as any).noteOggi as string | undefined;
+            // Mostra SEMPRE il widget se è aperto: meteo, fuel e agenda sono dati core
+            const hasAny = true;
             if (!hasAny) return null;
 
             // Parse meteo in forma compatta
@@ -413,13 +415,24 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
               return weatherData.length > 50 ? weatherData.slice(0, 50) + '…' : weatherData;
             })();
 
-            // Parse rifornimento migliore (prima stazione elencata)
+            // Parse rifornimento migliore (prima stazione "1. NOME - INDIRIZZO - €PREZZO/L")
             const fuelSummary = (() => {
               if (!fuelData) return '';
-              const m = fuelData.match(/([A-Za-zÀ-ÿ\s\.]+) - €?(\d+[\.,]\d+)/);
-              if (m) return `${m[1].trim()} · €${m[2].replace(',', '.')}/L`;
+              // formato: "1. NOME - INDIRIZZO - €PREZZO/L (DISTkm dal tragitto)"
+              const m = fuelData.match(/1\.\s*([^-]+?)\s*-\s*([^-]+?)\s*-\s*€?(\d+[\.,]\d+)\/L\s*\(([\d\.,]+)\s*km/);
+              if (m) {
+                const nome = m[1].trim();
+                const indir = m[2].trim();
+                const prezzo = m[3].replace(',', '.');
+                const dist = m[4].replace(',', '.');
+                return `${nome} (${indir}) · €${prezzo}/L · ${dist}km`;
+              }
+              // formato alternativo (no distance/no /L)
+              const m2 = fuelData.match(/1\.\s*([^-]+?)\s*-\s*([^-]+?)\s*-\s*€?(\d+[\.,]\d+)/);
+              if (m2) return `${m2[1].trim()} (${m2[2].trim()}) · €${m2[3].replace(',', '.')}/L`;
               return '';
             })();
+            const fuelEmpty = !fuelSummary && fuelData && /non disponibili|Impossibile|Nessun/i.test(fuelData);
 
             return (
               <View style={st.widget}>
@@ -428,76 +441,86 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                   <Text style={st.widgetTitle}>RIEPILOGO RAPIDO</Text>
                 </View>
 
-                {/* 1. PAGAMENTI (max 2 righe) */}
-                {pagamenti.length > 0 && (
+                {/* 1. METEO — sempre primo */}
+                <View style={st.wLine}>
+                  <Text style={st.wIcon}>🌤️</Text>
+                  <Text style={st.wTxt} numberOfLines={2}>
+                    <Text style={st.wLabel}>Meteo: </Text>{meteoSummary || 'in caricamento…'}
+                  </Text>
+                </View>
+
+                {/* 2. RIFORNIMENTO MIGLIORE — sempre secondo */}
+                <View style={st.wLine}>
+                  <Text style={st.wIcon}>⛽</Text>
+                  <Text style={st.wTxt} numberOfLines={2}>
+                    <Text style={st.wLabel}>Miglior rifornim.: </Text>
+                    {fuelSummary || (fuelEmpty ? 'non disponibile per questa zona' : 'in caricamento…')}
+                  </Text>
+                </View>
+
+                {/* 3. AGENDA / NOTE — sempre terzo (anche se vuoto) */}
+                {(appunti.length === 0 && ordini.length === 0 && fiere.length === 0 && pagamenti.length === 0 && !noteOggi) ? (
                   <View style={st.wLine}>
-                    <Text style={st.wIcon}>💸</Text>
+                    <Text style={st.wIcon}>📋</Text>
                     <Text style={st.wTxt} numberOfLines={1}>
-                      <Text style={st.wLabel}>Pagam.: </Text>
-                      {pagamenti.slice(0, 2).map((p, i) => {
-                        const quando = p.giorniRestanti === 0 ? 'oggi' : p.giorniRestanti === 1 ? 'domani' : `${p.giorniRestanti}g`;
-                        return `${p.fornitore} (${quando})${i < Math.min(1, pagamenti.length - 1) ? ', ' : ''}`;
-                      }).join('')}
-                      {pagamenti.length > 2 ? ` +${pagamenti.length - 2} (apri)` : ''}
+                      <Text style={st.wLabel}>Agenda: </Text>nessun appuntamento o nota
                     </Text>
                   </View>
+                ) : (
+                  <>
+                    {pagamenti.length > 0 && (
+                      <View style={st.wLine}>
+                        <Text style={st.wIcon}>💸</Text>
+                        <Text style={st.wTxt} numberOfLines={2}>
+                          <Text style={st.wLabel}>Pagam.: </Text>
+                          {pagamenti.slice(0, 2).map((p, i) => {
+                            const quando = p.giorniRestanti === 0 ? 'oggi' : p.giorniRestanti === 1 ? 'domani' : `${p.giorniRestanti}g`;
+                            return `${p.fornitore} (${quando})${i < Math.min(1, pagamenti.length - 1) ? ', ' : ''}`;
+                          }).join('')}
+                          {pagamenti.length > 2 ? ` +${pagamenti.length - 2}` : ''}
+                        </Text>
+                      </View>
+                    )}
+                    {appunti.length > 0 && (
+                      <View style={st.wLine}>
+                        <Text style={st.wIcon}>📅</Text>
+                        <Text style={st.wTxt} numberOfLines={2}>
+                          <Text style={st.wLabel}>Appunt.: </Text>
+                          {appunti.slice(0, 2).map((a: any) => `${a.testo || a.titolo || ''}${a.luogo ? ' @ ' + a.luogo : ''}`).join(', ')}
+                          {appunti.length > 2 ? ` +${appunti.length - 2}` : ''}
+                        </Text>
+                      </View>
+                    )}
+                    {ordini.length > 0 && (
+                      <View style={st.wLine}>
+                        <Text style={st.wIcon}>📦</Text>
+                        <Text style={st.wTxt} numberOfLines={2}>
+                          <Text style={st.wLabel}>Ordini: </Text>
+                          {ordini.slice(0, 2).map((o: any) => `${o.testo || o.titolo || ''}${o.luogo ? ' @ ' + o.luogo : ''}`).join(', ')}
+                          {ordini.length > 2 ? ` +${ordini.length - 2}` : ''}
+                        </Text>
+                      </View>
+                    )}
+                    {fiere.length > 0 && (
+                      <View style={st.wLine}>
+                        <Text style={st.wIcon}>🎪</Text>
+                        <Text style={st.wTxt} numberOfLines={2}>
+                          <Text style={st.wLabel}>Fiere: </Text>
+                          {fiere.slice(0, 2).map((f) => `${f.nome}${f.luogo ? ' @ ' + f.luogo : ''}`).join(', ')}
+                          {fiere.length > 2 ? ` +${fiere.length - 2}` : ''}
+                        </Text>
+                      </View>
+                    )}
+                    {noteOggi ? (
+                      <View style={st.wLine}>
+                        <Text style={st.wIcon}>📝</Text>
+                        <Text style={st.wTxt} numberOfLines={2}>
+                          <Text style={st.wLabel}>Nota: </Text>{noteOggi}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </>
                 )}
-
-                {/* 2. APPUNTAMENTI con luogo */}
-                {appunti.length > 0 && (
-                  <View style={st.wLine}>
-                    <Text style={st.wIcon}>📅</Text>
-                    <Text style={st.wTxt} numberOfLines={1}>
-                      <Text style={st.wLabel}>Appunt.: </Text>
-                      {appunti.slice(0, 2).map((a: any) => `${a.testo || a.titolo || ''}${a.luogo ? ' @ ' + a.luogo : ''}`).join(', ')}
-                      {appunti.length > 2 ? ` +${appunti.length - 2} (apri)` : ''}
-                    </Text>
-                  </View>
-                )}
-
-                {/* 3. ORDINI con luogo */}
-                {ordini.length > 0 && pagamenti.length === 0 && (
-                  <View style={st.wLine}>
-                    <Text style={st.wIcon}>📦</Text>
-                    <Text style={st.wTxt} numberOfLines={1}>
-                      <Text style={st.wLabel}>Ordini: </Text>
-                      {ordini.slice(0, 2).map((o: any) => `${o.testo || o.titolo || ''}${o.luogo ? ' @ ' + o.luogo : ''}`).join(', ')}
-                      {ordini.length > 2 ? ` +${ordini.length - 2} (apri)` : ''}
-                    </Text>
-                  </View>
-                )}
-
-                {/* 4. FIERE con luogo */}
-                {fiere.length > 0 && (
-                  <View style={st.wLine}>
-                    <Text style={st.wIcon}>🎪</Text>
-                    <Text style={st.wTxt} numberOfLines={1}>
-                      <Text style={st.wLabel}>Fiere: </Text>
-                      {fiere.slice(0, 2).map((f) => `${f.nome}${f.luogo ? ' @ ' + f.luogo : ''}`).join(', ')}
-                      {fiere.length > 2 ? ` +${fiere.length - 2}` : ''}
-                    </Text>
-                  </View>
-                )}
-
-                {/* 5. METEO */}
-                {meteoSummary ? (
-                  <View style={st.wLine}>
-                    <Text style={st.wIcon}>🌤️</Text>
-                    <Text style={st.wTxt} numberOfLines={2}>
-                      <Text style={st.wLabel}>Meteo: </Text>{meteoSummary}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {/* 6. RIFORNIMENTO MIGLIORE */}
-                {fuelSummary ? (
-                  <View style={st.wLine}>
-                    <Text style={st.wIcon}>⛽</Text>
-                    <Text style={st.wTxt} numberOfLines={2}>
-                      <Text style={st.wLabel}>Miglior rifornim.: </Text>{fuelSummary}
-                    </Text>
-                  </View>
-                ) : null}
               </View>
             );
           })()}
