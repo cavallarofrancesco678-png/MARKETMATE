@@ -140,11 +140,14 @@ export default function HomeScreen() {
 
   // On mount/hydration: restore session if still valid
   const speseExtraMountedRef = useRef(false);
+  const speseExtraHydrated = useRef(false);
   const speseExtraSessionFromStore = (store as any).speseExtraSession;
   useEffect(() => {
-    if (speseExtraMountedRef.current) return;
-    // Attendi che il store abbia finito di caricare: aspetta almeno che isConfigured o agenda siano popolati
-    // (se speseExtraSession è null ma il render è il primo, potrebbe essere perché lo store non è ancora idratato)
+    if (speseExtraHydrated.current) return;
+    // Aspetta che il store finisca di caricare. Marchiamo "hydrated" se:
+    //   1) abbiamo trovato una sessione valida e l'abbiamo ripristinata, OPPURE
+    //   2) sappiamo che la sessione è null E il caricamento è completo
+    //      (uso `isConfigured` come proxy: se è settato, lo store è caricato).
     const stored = speseExtraSessionFromStore;
     if (stored !== undefined && stored !== null) {
       if (isSpeseSessionValid(stored.createdAt)) {
@@ -154,14 +157,18 @@ export default function HomeScreen() {
         setPagamentoMode(stored.pagamentoMode || {});
         setRipartizione(stored.ripartizione || {});
       } else {
-        // Scaduta — ripulisci
         (store as any).clearSpeseExtraSession?.();
       }
+      speseExtraHydrated.current = true;
+      speseExtraMountedRef.current = true;
+    } else if (store.isConfigured) {
+      // Store caricato ma sessione null → setup vuoto, abilita la persistenza
+      // per i futuri inserimenti.
+      speseExtraHydrated.current = true;
       speseExtraMountedRef.current = true;
     }
-    // Se stored === null/undefined, aspettiamo il prossimo render (il dep cambierà)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speseExtraSessionFromStore]);
+  }, [speseExtraSessionFromStore, store.isConfigured]);
 
   // Persist changes (debounced)
   const speseExtraSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -171,7 +178,15 @@ export default function HomeScreen() {
     speseExtraSaveTimerRef.current = setTimeout(() => {
       const hasSupplierData = Object.values(speseExtraFornitore).some(v => (v?.importo || '').trim() !== '');
       const hasVoci = vociGeneriche.some(v => (v?.importo || '').trim() !== '' || v.attivo);
-      if (!hasSupplierData && !hasVoci) {
+      // Anche le info fattura (numero, scadenza) o i flag di pagamento devono
+      // tener vivi i dati: l'utente potrebbe inserire prima il numero fattura
+      // e poi l'importo, non vogliamo perdere il numero fra i due passaggi.
+      const hasFornInfo = Object.values(fornInfo || {}).some((f: any) =>
+        (f?.numeroFattura || '').trim() !== '' || (f?.scadenza || '').trim() !== ''
+      );
+      const hasRipart = Object.keys(ripartizione || {}).length > 0;
+      const hasMode = Object.keys(pagamentoMode || {}).length > 0;
+      if (!hasSupplierData && !hasVoci && !hasFornInfo && !hasRipart && !hasMode) {
         if ((store as any).speseExtraSession) (store as any).clearSpeseExtraSession?.();
         return;
       }
