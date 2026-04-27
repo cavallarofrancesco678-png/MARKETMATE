@@ -62,6 +62,8 @@ class ReceiptAnalyzeResponse(BaseModel):
 class FuelStation(BaseModel):
     nome: str = ""
     indirizzo: str = ""
+    comune: str = ""
+    brand: str = ""
     prezzo: float = 0
     distanza_km: float = 0
     carburante: str = ""
@@ -136,21 +138,23 @@ Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia
    - Futuro: "Lunedì pioggia a {città}, max 14°/min 6° — porta teli e attenzione!"
    - Passato: "Quel giorno era sereno, 18° a {città}."
 
-3. PAGAMENTI IMMINENTI (se pagamentiImminenti nel contesto, 1-2 righe):
-   "💸 Tra 2 giorni scade la fattura di Andrea Pane (€150). Non scordartene!"
+3. PAGAMENTI IMMINENTI — UNICA fonte di fatture ammessa (se pagamentiImminenti nel contesto, 1-2 righe).
+   ⚠️ MOSTRA SOLO le fatture presenti in pagamentiImminenti. NON inventare. Se l'array è vuoto NON dire nulla sulle fatture.
+   Format: "💸 Tra {giorniRestanti} giorni scade fatt. {numero} {fornitore} (€{importo}). Non scordartene!"
+   Se giorniRestanti=0 → "Oggi scade…", se 1 → "Domani scade…".
 
-4. APPUNTAMENTI (se appuntiProssimi, includi SEMPRE nome + luogo se disponibile):
+4. APPUNTAMENTI (SOLO se appuntiProssimi nel contesto, includi nome + luogo se disponibile):
    "📅 Domani appuntamento con commercialista a Milano"
-   Se non c'è luogo usa solo il nome.
+   Se l'array è vuoto NON menzionare appuntamenti. NON inventare.
 
-5. ORDINI (se ordiniProssimi, includi nome + data): "📦 Giovedì consegna ordine X"
+5. ⚠️ NON mostrare ORDINI, FIERE, NOTE GENERICHE o promemoria di altro tipo. Se non sono nelle 4 categorie sopra (meteo / fuel / pagamenti / appuntamenti) NON parlarne.
 
-6. FIERE (se fiereProssime, SEMPRE nome + luogo): "🎪 Sabato Fiera di San Magno a Roma (Lazio)"
-
-7. MIGLIOR RIFORNIMENTO + ALTERNATIVE (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
-   Dai PREZZI CARBURANTE REALI nel contesto (già filtrati: solo distributori SULLA STRADA Bareggio→destinazione), elenca FINO A 3 stazioni in ordine di prezzo crescente:
-   "⛽ Miglior prezzo sul tragitto: {nome1} – {indirizzo1} (a Xkm) – €Y.YYY/L"
-   "  Alternative: {nome2} – {indirizzo2} (€Z.ZZZ/L) · {nome3} – {indirizzo3} (€W.WWW/L)"
+6. MIGLIOR RIFORNIMENTO + ALTERNATIVE (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
+   Dai PREZZI CARBURANTE REALI nel contesto (già filtrati: solo distributori SULLA STRADA Bareggio→destinazione), elenca FINO A 3 stazioni in ordine di prezzo crescente.
+   FORMATO OBBLIGATORIO (esattamente con questi separatori " | " ammessi anche con virgole):
+     "⛽ Miglior prezzo: {Comune}, {Brand}, Euro {prezzo}, {Via}"
+     "  Alternative: {Comune}, {Brand}, Euro {prezzo}, {Via} · {Comune2}, {Brand2}, Euro {prezzo2}, {Via2}"
+   Esempio: "⛽ Miglior prezzo: Magenta, Q8, Euro 1.750, Via Roma"
    Se mancano dati, scrivi: "⛽ Aggiungi partenza/arrivo in Settings per i prezzi carburante."
 
 ═══ STILE OBBLIGATORIO — REGOLE CRITICHE ═══
@@ -383,9 +387,48 @@ async def search_fuel_italy(lat: float, lon: float, fuel_type: str, distance_km:
                 data = resp.json()
                 stations = []
                 for s in data if isinstance(data, list) else data.get("results", data.get("distributori", [])):
+                    indir_full = s.get("indirizzo", s.get("address", ""))
+                    via_part = indir_full
+                    comune_part = ""
+                    # Caso 1: separatore con virgola "Via Roma 12, 20013 Magenta MI"
+                    if "," in indir_full:
+                        parts = [p.strip() for p in indir_full.split(",")]
+                        via_part = parts[0]
+                        if len(parts) >= 2:
+                            tail = parts[-1].strip()
+                            tokens = tail.split()
+                            tokens = [tk for tk in tokens if not (tk.isdigit() and len(tk) == 5)]
+                            tokens = [tk for tk in tokens if not (len(tk) == 2 and tk.isupper())]
+                            comune_part = " ".join(tokens).strip()
+                    else:
+                        # Caso 2: nessuna virgola — pattern "VIA ROMA 12 20013 MAGENTA MI"
+                        tokens = indir_full.split()
+                        if tokens and len(tokens[-1]) == 2 and tokens[-1].isalpha() and tokens[-1].isupper():
+                            # Ultimo token = sigla provincia. Cerca CAP (5 cifre) per dividere
+                            cap_idx = -1
+                            for i, tk in enumerate(tokens):
+                                if tk.isdigit() and len(tk) == 5:
+                                    cap_idx = i
+                                    break
+                            if cap_idx >= 0 and cap_idx < len(tokens) - 2:
+                                # città = tokens dopo CAP fino a prima della sigla provincia
+                                comune_part = " ".join(tokens[cap_idx+1:-1]).strip()
+                                via_part = " ".join(tokens[:cap_idx]).strip()
+                            else:
+                                # senza CAP: prendi penultimo token come città
+                                if len(tokens) >= 2:
+                                    comune_part = tokens[-2]
+                                    via_part = " ".join(tokens[:-2]).strip()
+                    # Try alternate explicit fields
+                    if not comune_part:
+                        comune_part = s.get("comune", s.get("city", ""))
+                    brand = s.get("bandiera") or s.get("brand") or s.get("gestore", s.get("nome", ""))
+                    nome_op = s.get("gestore", s.get("nome", brand))
                     stations.append(FuelStation(
-                        nome=s.get("gestore", s.get("nome", "N/A")),
-                        indirizzo=s.get("indirizzo", s.get("address", "N/A")),
+                        nome=nome_op,
+                        indirizzo=indir_full or "N/A",
+                        comune=str(comune_part).title() if comune_part else "",
+                        brand=str(brand).strip(),
                         prezzo=float(s.get("prezzo", s.get("price", 0))),
                         distanza_km=round(float(s.get("distanza", s.get("distance", 0))), 1),
                         carburante=fuel,
@@ -418,9 +461,13 @@ async def search_fuel_france(lat: float, lon: float, fuel_type: str) -> list:
                 for record in data.get("results", []):
                     prix = record.get(f"{fuel.lower()}_prix")
                     if prix:
+                        ville = record.get("ville", "")
+                        adresse = record.get("adresse", "N/A")
                         stations.append(FuelStation(
-                            nome=record.get("ville", "N/A"),
-                            indirizzo=record.get("adresse", "N/A"),
+                            nome=ville or "N/A",
+                            indirizzo=adresse,
+                            comune=str(ville).title() if ville else "",
+                            brand="",
                             prezzo=float(prix) / 1000 if float(prix) > 100 else float(prix),
                             distanza_km=0,
                             carburante=fuel

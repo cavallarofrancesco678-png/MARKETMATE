@@ -65,7 +65,7 @@ const isSameYear = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear()
 const arrSum = (arr: number[]) => arr.reduce((s, v) => s + v, 0);
 
 /* ═══ Interactive SVG Line Chart with Data Labels ═══ */
-const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, onPointPress }: {
+const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, onPointPress }: {
   labels: string[];
   lines: { label: string; color: string; data: number[] }[];
   height?: number;
@@ -73,10 +73,10 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
   onPointPress?: (lineIdx: number, pointIdx: number, value: number) => void;
 }) => {
   const chartW = screenW - 70;
-  const padL = 40;
-  const padR = 10;
-  const padT = 38; // più spazio sopra per i valori delle etichette
-  const padB = 25;
+  const padL = 44;
+  const padR = 12;
+  const padT = 44; // più spazio sopra per i valori delle etichette (font ingrandito)
+  const padB = 28;
   const drawW = chartW - padL - padR;
   const drawH = height - padT - padB;
 
@@ -118,7 +118,7 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
         return (
           <React.Fragment key={i}>
             <Line x1={padL} y1={y} x2={chartW - padR} y2={y} stroke="#D5DDD8" strokeWidth={0.5} />
-            <SvgText x={padL - 5} y={y + 3} fill="#7A9090" fontSize={7} textAnchor="end">
+            <SvgText x={padL - 6} y={y + 3} fill="#5A7575" fontSize={9} textAnchor="end" fontWeight="700">
               {'\u20AC'}{val}
             </SvgText>
           </React.Fragment>
@@ -133,6 +133,8 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
           v,
         }));
         const pathD = pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+        // Offset tooltip alternato per linea per evitare sovrapposizioni quando valori sono vicini
+        const yLabelOffset = (li % 2 === 0) ? -26 : 22;
         return (
           <React.Fragment key={li}>
             <Path d={pathD} stroke={line.color} strokeWidth={2.5} fill="none" strokeLinejoin="round" />
@@ -149,10 +151,10 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
                 {activeLineIndex !== null && p.v > 0 && (
                   <>
                     {/* Pillola di sfondo bianca per separare il valore dal puntino */}
-                    <SvgText x={p.x} y={p.y - 22} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={5} fontSize={13} fontWeight="900" textAnchor="middle">
+                    <SvgText x={p.x} y={p.y + yLabelOffset} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={6} fontSize={13} fontWeight="900" textAnchor="middle">
                       €{p.v.toFixed(0)}
                     </SvgText>
-                    <SvgText x={p.x} y={p.y - 22} fill={line.color} fontSize={13} fontWeight="900" textAnchor="middle">
+                    <SvgText x={p.x} y={p.y + yLabelOffset} fill={line.color} fontSize={13} fontWeight="900" textAnchor="middle">
                       €{p.v.toFixed(0)}
                     </SvgText>
                   </>
@@ -163,7 +165,7 @@ const InteractiveLineChart = ({ labels, lines, height = 140, activeLineIndex, on
         );
       })}
       {labels.map((l, i) => (
-        <SvgText key={i} x={padL + i * stepX} y={height - 5} fill="#7A9090" fontSize={7} textAnchor="middle" fontWeight="bold">
+        <SvgText key={i} x={padL + i * stepX} y={height - 4} fill="#5A7575" fontSize={9} textAnchor="middle" fontWeight="bold">
           {l}
         </SvgText>
       ))}

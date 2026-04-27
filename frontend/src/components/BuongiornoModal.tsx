@@ -118,9 +118,15 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
       });
       const data = await res.json();
       if (data.success && data.stations && data.stations.length > 0) {
-        const stationInfo = data.stations.map((s: any, i: number) =>
-          `${i + 1}. ${s.nome} - ${s.indirizzo} - €${s.prezzo}/L (${s.distanza_km}km dal tragitto)`
-        ).join('\n');
+        // Nuovo formato strutturato: "Comune | Brand | Euro Prezzo | Via" — separatore '|'
+        const stationInfo = data.stations.map((s: any, i: number) => {
+          const comune = (s.comune || '').trim() || (s.indirizzo || '').split(',').slice(-1)[0]?.trim() || '—';
+          const brand = (s.brand || s.nome || '—').trim();
+          const prezzo = Number(s.prezzo || 0).toFixed(3);
+          // estrai via dalla stringa indirizzo (parte prima della prima virgola)
+          const via = (s.indirizzo || '').split(',')[0]?.trim() || '—';
+          return `${i + 1}. ${comune} | ${brand} | Euro ${prezzo} | ${via} (${s.distanza_km}km dal tragitto)`;
+        }).join('\n');
         setFuelData(`PREZZI CARBURANTE REALI (${storeData.tipoCarburante || 'benzina'}) nel tragitto ${storeData.partenzaDa} → ${storeData.mercatoOggi}:\n${stationInfo}`);
       } else {
         setFuelData(data.message || 'Prezzi carburante in tempo reale non disponibili per questa zona.');
@@ -253,11 +259,10 @@ Collaboratori: ${collabLst}
 Fornitori: ${fornLst}
 Carburante: ${carb}
 
-═══ NOTIFICHE / PROSSIMI IMPEGNI ═══
-Fiere prossime (7gg): ${fiereLst}
-Appuntamenti prossimi (7gg): ${appuntiLst}
-Ordini prossimi (7gg): ${ordiniLst}
-Pagamenti imminenti: ${pagLst}
+═══ NOTIFICHE / PROSSIMI IMPEGNI (SOLO da Notes) ═══
+Appuntamenti prossimi (7gg, salvati in Notes): ${appuntiLst}
+Pagamenti imminenti (fatture in pagamento entro 7gg, da Notes): ${pagLst}
+⚠️ NON mostrare altre tipologie (fiere/ordini/note generiche). Single Source of Truth = Notes.
 ${s.noteOggi ? `\nNota del giorno: ${s.noteOggi}` : ''}
 ${s.invendutoMedesimoMercato && s.invendutoMedesimoMercato.invenduto > 0 ? `\n═══ ⚠️ INVENDUTO PRECEDENTE STESSO MERCATO ═══\nLo scorso ${s.invendutoMedesimoMercato.giornoSett} (${s.invendutoMedesimoMercato.giorniFa} giorni fa, mercato ${s.invendutoMedesimoMercato.mercato}) c'erano €${s.invendutoMedesimoMercato.invenduto} di invenduto. AVVISA L'UTENTE con preoccupazione (NON dire "ottimo"!): potrebbe essere merce da scartare. Suggerisci di ridurre quantità e tenerne conto.` : ''}
 ${weatherData ? '\n═══ METEO ═══\n' + weatherData + (isFuture ? `\n(IMPORTANTE: questo è il meteo PREVISTO per ${dateLabel}, NON di oggi. Usalo nel tuo saluto al FUTURO.)` : '') : 'Nessun dato meteo reale'}
@@ -415,21 +420,24 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
               return weatherData.length > 50 ? weatherData.slice(0, 50) + '…' : weatherData;
             })();
 
-            // Parse rifornimento migliore (prima stazione "1. NOME - INDIRIZZO - €PREZZO/L")
+            // Parse rifornimento migliore — nuovo formato: "1. Comune | Brand | Euro 1.750 | Via X (Ykm dal tragitto)"
             const fuelSummary = (() => {
               if (!fuelData) return '';
-              // formato: "1. NOME - INDIRIZZO - €PREZZO/L (DISTkm dal tragitto)"
-              const m = fuelData.match(/1\.\s*([^-]+?)\s*-\s*([^-]+?)\s*-\s*€?(\d+[\.,]\d+)\/L\s*\(([\d\.,]+)\s*km/);
+              // formato strutturato attuale
+              const m = fuelData.match(/1\.\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*Euro\s*([\d\.,]+)\s*\|\s*([^(]+?)\s*\(([\d\.,]+)\s*km/i);
               if (m) {
-                const nome = m[1].trim();
-                const indir = m[2].trim();
+                const comune = m[1].trim();
+                const brand = m[2].trim();
                 const prezzo = m[3].replace(',', '.');
-                const dist = m[4].replace(',', '.');
-                return `${nome} (${indir}) · €${prezzo}/L · ${dist}km`;
+                const via = m[4].trim();
+                const dist = m[5].replace(',', '.');
+                return `${comune}, ${brand}, Euro ${prezzo}, ${via} · ${dist}km`;
               }
-              // formato alternativo (no distance/no /L)
-              const m2 = fuelData.match(/1\.\s*([^-]+?)\s*-\s*([^-]+?)\s*-\s*€?(\d+[\.,]\d+)/);
-              if (m2) return `${m2[1].trim()} (${m2[2].trim()}) · €${m2[3].replace(',', '.')}/L`;
+              // fallback: vecchio formato "1. NOME - INDIRIZZO - €PREZZO/L"
+              const m2 = fuelData.match(/1\.\s*([^-]+?)\s*-\s*([^-]+?)\s*-\s*€?(\d+[\.,]\d+)\/L\s*\(([\d\.,]+)\s*km/);
+              if (m2) {
+                return `${m2[1].trim()} (${m2[2].trim()}) · €${m2[3].replace(',', '.')}/L · ${m2[4].replace(',', '.')}km`;
+              }
               return '';
             })();
             const fuelEmpty = !fuelSummary && fuelData && /non disponibili|Impossibile|Nessun/i.test(fuelData);
@@ -458,12 +466,12 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                   </Text>
                 </View>
 
-                {/* 3. AGENDA / NOTE — sempre terzo (anche se vuoto) */}
-                {(appunti.length === 0 && ordini.length === 0 && fiere.length === 0 && pagamenti.length === 0 && !noteOggi) ? (
+                {/* 3. AGENDA / NOTE — solo PAGAMENTI + APPUNTAMENTI (Single Source of Truth = Notes) */}
+                {(appunti.length === 0 && pagamenti.length === 0) ? (
                   <View style={st.wLine}>
                     <Text style={st.wIcon}>📋</Text>
                     <Text style={st.wTxt} numberOfLines={1}>
-                      <Text style={st.wLabel}>Agenda: </Text>nessun appuntamento o nota
+                      <Text style={st.wLabel}>Agenda: </Text>nessun pagamento o appuntamento
                     </Text>
                   </View>
                 ) : (
@@ -491,34 +499,6 @@ ${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
                         </Text>
                       </View>
                     )}
-                    {ordini.length > 0 && (
-                      <View style={st.wLine}>
-                        <Text style={st.wIcon}>📦</Text>
-                        <Text style={st.wTxt} numberOfLines={2}>
-                          <Text style={st.wLabel}>Ordini: </Text>
-                          {ordini.slice(0, 2).map((o: any) => `${o.testo || o.titolo || ''}${o.luogo ? ' @ ' + o.luogo : ''}`).join(', ')}
-                          {ordini.length > 2 ? ` +${ordini.length - 2}` : ''}
-                        </Text>
-                      </View>
-                    )}
-                    {fiere.length > 0 && (
-                      <View style={st.wLine}>
-                        <Text style={st.wIcon}>🎪</Text>
-                        <Text style={st.wTxt} numberOfLines={2}>
-                          <Text style={st.wLabel}>Fiere: </Text>
-                          {fiere.slice(0, 2).map((f) => `${f.nome}${f.luogo ? ' @ ' + f.luogo : ''}`).join(', ')}
-                          {fiere.length > 2 ? ` +${fiere.length - 2}` : ''}
-                        </Text>
-                      </View>
-                    )}
-                    {noteOggi ? (
-                      <View style={st.wLine}>
-                        <Text style={st.wIcon}>📝</Text>
-                        <Text style={st.wTxt} numberOfLines={2}>
-                          <Text style={st.wLabel}>Nota: </Text>{noteOggi}
-                        </Text>
-                      </View>
-                    ) : null}
                   </>
                 )}
               </View>

@@ -380,47 +380,39 @@ export default function HomeScreen() {
     });
   }, [ordiniAgenda, dataCorrente]);
 
-  /* ── Pagamenti fornitori imminenti (entro 7 giorni) per widget Buongiorno ── */
+  /* ── Pagamenti fornitori imminenti (entro 7 giorni) per widget Buongiorno ──
+     ⚠️ Single Source of Truth: SOLO le fatture salvate in storicoGiornate (Notes).
+     Le fatture in corso (fornInfo session) NON vengono mai mostrate qui — devono
+     prima essere salvate per essere considerate "in pagamento". */
   const pagamentiImminenti = useMemo(() => {
     const oggi = new Date(dataCorrente);
     oggi.setHours(0, 0, 0, 0);
     const result: { fornitore: string; numeroFattura: string; importo: number; scadenza: string; giorniRestanti: number }[] = [];
-    // Scansiona lo storico giornate per raccogliere fornitoriInfo
+    // Scansiona lo storico giornate per raccogliere fornitoriInfo (= cosa c'è in Notes)
     (store.storicoGiornate || []).forEach((g: any) => {
       const info = g.fornitoriInfo || {};
       Object.entries(info).forEach(([nome, dati]: [string, any]) => {
-        if (!dati || !dati.scadenza) return;
+        if (!dati || !dati.scadenza || !dati.numeroFattura) return;
         const scadDate = new Date(dati.scadenza + 'T12:00:00');
         if (isNaN(scadDate.getTime())) return;
         scadDate.setHours(0, 0, 0, 0);
         const diff = Math.floor((scadDate.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
         if (diff < 0 || diff > 7) return;
+        // Importo = fattura > 0 OPPURE contanti (fallback)
+        const impFatt = Math.abs(g.dettaglio_fornitori?.[nome] || 0);
+        const impCash = Math.abs(g.dettaglio_fornitori?.[`${nome}__libera`] || 0);
+        const imp = impFatt > 0 ? impFatt : impCash;
+        if (imp <= 0) return; // Fatture senza importo non sono "in pagamento"
         // Evita duplicati: tieni la scadenza più recente per fornitore+fattura
-        const key = `${nome}_${dati.numeroFattura || ''}`;
+        const key = `${nome}_${dati.numeroFattura}`;
         const existing = result.find((r) => `${r.fornitore}_${r.numeroFattura}` === key);
-        const imp = g.dettaglio_fornitori?.[nome] || 0;
         if (!existing) {
-          result.push({ fornitore: nome, numeroFattura: dati.numeroFattura || '', importo: imp, scadenza: dati.scadenza, giorniRestanti: diff });
+          result.push({ fornitore: nome, numeroFattura: dati.numeroFattura, importo: imp, scadenza: dati.scadenza, giorniRestanti: diff });
         }
       });
     });
-    // Aggiungi anche i dati "pending" non ancora salvati (utente sta compilando ma la giornata non è ancora salvata)
-    Object.entries(fornInfo).forEach(([nome, dati]) => {
-      if (!dati || !dati.scadenza) return;
-      const scadDate = new Date(dati.scadenza + 'T12:00:00');
-      if (isNaN(scadDate.getTime())) return;
-      scadDate.setHours(0, 0, 0, 0);
-      const diff = Math.floor((scadDate.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
-      if (diff < 0 || diff > 7) return;
-      const key = `${nome}_${dati.numeroFattura || ''}`;
-      const existing = result.find((r) => `${r.fornitore}_${r.numeroFattura}` === key);
-      if (!existing) {
-        const imp = parseFloat((speseExtraFornitore[nome]?.importo || '0').replace(',', '.')) || 0;
-        result.push({ fornitore: nome, numeroFattura: dati.numeroFattura || '', importo: imp, scadenza: dati.scadenza, giorniRestanti: diff });
-      }
-    });
     return result.sort((a, b) => a.giorniRestanti - b.giorniRestanti);
-  }, [store.storicoGiornate, fornInfo, speseExtraFornitore, dataCorrente]);
+  }, [store.storicoGiornate, dataCorrente]);
 
   /* ── Fiere prossimi 7 giorni per notifiche campanello ── */
   const fiereProssime = useMemo(() => {
