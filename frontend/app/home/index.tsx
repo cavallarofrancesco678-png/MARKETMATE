@@ -2014,12 +2014,14 @@ const s = StyleSheet.create({
 
   /* Header */
   activityNameSmall: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '900',
     color: '#1E7F85',
-    letterSpacing: 2,
+    letterSpacing: 2.5,
     textAlign: 'center',
-    marginBottom: 2,
+    marginBottom: 3,
+    minHeight: 17,
   },
   marketName: {
     fontSize: 18,
