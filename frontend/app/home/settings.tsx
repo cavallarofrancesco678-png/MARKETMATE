@@ -121,7 +121,7 @@ const InputModal = ({
   keyboardTypes?: string[];
   collabName?: string;
   collabCodice?: any;
-  onGenerateCodice?: (tipo: 'A' | 'B', nome: string) => void;
+  onGenerateCodice?: (tipo: 'AMMINISTRATORE' | 'MANAGER' | 'UTENTE', nome: string) => void;
   initialValues?: string[];
 }) => {
   const [values, setValues] = useState<string[]>([]);
@@ -222,12 +222,21 @@ const InputModal = ({
 
               {showInvite && (
                 <View style={ms.inviteSection}>
-                  {collabCodice ? (
+                  {collabCodice ? (() => {
+                    // Mappa colore + label per i 3 ruoli (con backward compat su 'A'/'B')
+                    const t = collabCodice.tipo as any;
+                    let color = '#E8A060';
+                    let label = 'UTENTE';
+                    let descRuolo = 'Accesso Utente';
+                    if (t === 'AMMINISTRATORE' || t === 'B') { color = '#B85450'; label = 'AMMINISTRATORE'; descRuolo = 'Accesso Amministratore'; }
+                    else if (t === 'MANAGER') { color = '#1E7F85'; label = 'MANAGER'; descRuolo = 'Accesso Manager'; }
+                    else if (t === 'UTENTE' || t === 'A') { color = '#E8A060'; label = 'UTENTE'; descRuolo = 'Accesso Utente'; }
+                    return (
                     <View style={ms.existingCode}>
                       <Text style={ms.existingCodeLabel}>{tModal('settings.activeCode') || 'CODICE ATTIVO'}:</Text>
                       <Text style={ms.existingCodeValue}>{collabCodice.codice}</Text>
-                      <View style={[ms.codeBadge, { backgroundColor: collabCodice.tipo === 'A' ? '#E8A060' : '#1E7F85' }]}>
-                        <Text style={ms.codeBadgeTxt}>{collabCodice.tipo === 'A' ? 'OPERATIVO' : 'FULL'}</Text>
+                      <View style={[ms.codeBadge, { backgroundColor: color }]}>
+                        <Text style={ms.codeBadgeTxt}>{label}</Text>
                       </View>
                       <View style={{ width: '100%', marginTop: 12 }}>
                         <TextInput
@@ -246,7 +255,7 @@ const InputModal = ({
                               else Alert.alert('Attenzione', 'Inserisci email o telefono');
                               return;
                             }
-                            const msg = `Ciao! Ecco il tuo codice per MarketMate: ${collabCodice.codice} (${collabCodice.tipo === 'A' ? 'Accesso Operativo' : 'Accesso Completo'})`;
+                            const msg = `Ciao! Ecco il tuo codice per MarketMate: ${collabCodice.codice} (${descRuolo})`;
                             if (Platform.OS !== 'web') {
                               try {
                                 const { Share } = require('react-native');
@@ -261,7 +270,8 @@ const InputModal = ({
                         </TouchableOpacity>
                       </View>
                     </View>
-                  ) : (
+                    );
+                  })() : (
                     <>
                       <Text style={ms.inviteTitle}>GENERA CODICE INVITO</Text>
                       <TextInput
@@ -272,30 +282,46 @@ const InputModal = ({
                         onChangeText={setInviteContact}
                         keyboardType="email-address"
                       />
+                      {/* ═══ AMMINISTRATORE — controllo totale ═══ */}
                       <TouchableOpacity
-                        style={[ms.inviteBtn, { backgroundColor: '#E8A060' }]}
+                        style={[ms.inviteBtn, { backgroundColor: '#B85450' }]}
                         onPress={() => {
                           const nome = values[0] || collabName || 'Collaboratore';
-                          if (onGenerateCodice) onGenerateCodice('A', nome);
+                          if (onGenerateCodice) onGenerateCodice('AMMINISTRATORE', nome);
                         }}
                       >
-                        <Ionicons name="eye-off-outline" size={18} color="#FFF" />
+                        <Ionicons name="shield-checkmark" size={18} color="#FFF" />
                         <View style={{ flex: 1 }}>
-                          <Text style={ms.inviteBtnTxt}>{tModal('settings.typeAOperative') || 'TIPO A - OPERATIVO'}</Text>
-                          <Text style={ms.inviteBtnDesc}>Solo HOME, può inserire dati</Text>
+                          <Text style={ms.inviteBtnTxt}>{tModal('settings.roleAdmin') || 'AMMINISTRATORE'}</Text>
+                          <Text style={ms.inviteBtnDesc}>{tModal('settings.roleAdminDesc') || 'Controllo totale: settings, fatturazione, gestione ruoli'}</Text>
                         </View>
                       </TouchableOpacity>
+                      {/* ═══ MANAGER — operatività quotidiana, NO modifiche ai dati passati ═══ */}
                       <TouchableOpacity
                         style={[ms.inviteBtn, { backgroundColor: '#1E7F85' }]}
                         onPress={() => {
                           const nome = values[0] || collabName || 'Collaboratore';
-                          if (onGenerateCodice) onGenerateCodice('B', nome);
+                          if (onGenerateCodice) onGenerateCodice('MANAGER', nome);
                         }}
                       >
-                        <Ionicons name="eye-outline" size={18} color="#FFF" />
+                        <Ionicons name="briefcase-outline" size={18} color="#FFF" />
                         <View style={{ flex: 1 }}>
-                          <Text style={ms.inviteBtnTxt}>{tModal('settings.typeBFull') || 'TIPO B - FULL ACCESS'}</Text>
-                          <Text style={ms.inviteBtnDesc}>Accesso completo a tutto</Text>
+                          <Text style={ms.inviteBtnTxt}>{tModal('settings.roleManager') || 'MANAGER'}</Text>
+                          <Text style={ms.inviteBtnDesc}>{tModal('settings.roleManagerDesc') || 'Home, note, carburante. Dati passati in sola lettura'}</Text>
+                        </View>
+                      </TouchableOpacity>
+                      {/* ═══ UTENTE — solo input base, niente altro visibile ═══ */}
+                      <TouchableOpacity
+                        style={[ms.inviteBtn, { backgroundColor: '#E8A060' }]}
+                        onPress={() => {
+                          const nome = values[0] || collabName || 'Collaboratore';
+                          if (onGenerateCodice) onGenerateCodice('UTENTE', nome);
+                        }}
+                      >
+                        <Ionicons name="person-outline" size={18} color="#FFF" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={ms.inviteBtnTxt}>{tModal('settings.roleUser') || 'UTENTE'}</Text>
+                          <Text style={ms.inviteBtnDesc}>{tModal('settings.roleUserDesc') || 'Inserisce dati home/fuel/note. Non vede altro'}</Text>
                         </View>
                       </TouchableOpacity>
                     </>
@@ -1005,13 +1031,21 @@ export default function SettingsPage() {
               <View style={[s.itemInfo, { flex: 1 }]}>
                 <Text style={{ fontSize: 16, fontWeight: '800', color: '#1A4040' }}>{c.nome}</Text>
               </View>
-              {codiceCollab ? (
-                <View style={{ backgroundColor: codiceCollab.tipo === 'A' ? '#E8A060' : '#1E7F85', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginRight: 8 }}>
+              {codiceCollab ? (() => {
+                const tt = codiceCollab.tipo as any;
+                const meta = (tt === 'AMMINISTRATORE' || tt === 'B')
+                  ? { c: '#B85450', l: 'AMMIN.' }
+                  : tt === 'MANAGER'
+                    ? { c: '#1E7F85', l: 'MANAGER' }
+                    : { c: '#E8A060', l: 'UTENTE' };
+                return (
+                <View style={{ backgroundColor: meta.c, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginRight: 8 }}>
                   <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 1 }}>
-                    {t('settings.type') || 'TIPO'} {codiceCollab.tipo}
+                    {meta.l}
                   </Text>
                 </View>
-              ) : (
+                );
+              })() : (
                 <View style={{ backgroundColor: '#D0D0D0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginRight: 8 }}>
                   <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>—</Text>
                 </View>

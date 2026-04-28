@@ -153,10 +153,15 @@ export interface ScontrinoRecord {
   mediaScontrino: number;
 }
 
-// Sistema Collaboratori con codici invito
+// Sistema Collaboratori con codici invito (3 ruoli)
+// AMMINISTRATORE = creatore/responsabile legale, controllo totale (gestione abbonamento, creazione/rimozione ruoli, dati finanziari)
+// MANAGER       = operatività quotidiana (home/note/carburante in lettura+scrittura ma SOLO inserimento, NO modifica dati già esistenti)
+// UTENTE        = inserimento base (può inserire dati home/fuel/note, non vede altro)
+export type RuoloUtente = 'AMMINISTRATORE' | 'MANAGER' | 'UTENTE';
+
 export interface CodiceInvito {
   codice: string;
-  tipo: 'A' | 'B'; // A = Operativo (solo HOME), B = Full access
+  tipo: RuoloUtente;
   nome: string;
   attivo: boolean;
   dataCreazione: string;
@@ -182,6 +187,11 @@ interface AppState {
   speseFisseDisabilitate: string[];
   speseAnnueDisabilitate: string[];
   codiciInvito: CodiceInvito[];
+  // Ruolo dell'utente attualmente attivo su questo dispositivo
+  // - AMMINISTRATORE: pieno controllo (default per chi crea l'app)
+  // - MANAGER: home/note/carburante in sola scrittura, NO modifica dati passati
+  // - UTENTE: input base in home/fuel/note, niente altro visibile
+  currentRole: RuoloUtente;
   
   // Data
   collaboratori: Collaboratore[];
@@ -242,7 +252,7 @@ interface AppState {
   addCodiceInvito: (c: CodiceInvito) => void;
   removeCodiceInvito: (codice: string) => void;
   toggleCodiceInvito: (codice: string) => void;
-  generateCodiceInvito: (tipo: 'A' | 'B', nome: string) => string;
+  generateCodiceInvito: (tipo: RuoloUtente, nome: string) => string;
   seedMockData: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
@@ -278,6 +288,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   speseFisseDisabilitate: [],
   speseAnnueDisabilitate: [],
   codiciInvito: [],
+  currentRole: 'AMMINISTRATORE',
   
   collaboratori: [],
   fornitori: [],
@@ -519,11 +530,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Codici invito collaboratori
   generateCodiceInvito: (tipo, nome) => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let codice = tipo === 'A' ? 'OP-' : 'FL-'; // OP = Operativo, FL = Full
+    // Prefisso a 3 lettere per riconoscere il ruolo
+    const prefix = tipo === 'AMMINISTRATORE' ? 'ADM-' : tipo === 'MANAGER' ? 'MGR-' : 'USR-';
+    let codice = prefix;
     for (let i = 0; i < 6; i++) {
       codice += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    
+
     const nuovoCodice: CodiceInvito = {
       codice,
       tipo,
@@ -582,6 +595,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await storage.getItem('marketmate_data');
       if (data) {
         const parsed = JSON.parse(data);
+        // ═══ Migrazione codici invito legacy 'A' / 'B' → nuovi ruoli ═══
+        if (Array.isArray(parsed.codiciInvito)) {
+          parsed.codiciInvito = parsed.codiciInvito.map((c: any) => {
+            if (c.tipo === 'A') return { ...c, tipo: 'UTENTE' };
+            if (c.tipo === 'B') return { ...c, tipo: 'AMMINISTRATORE' };
+            return c;
+          });
+        }
+        if (!parsed.currentRole || (parsed.currentRole !== 'AMMINISTRATORE' && parsed.currentRole !== 'MANAGER' && parsed.currentRole !== 'UTENTE')) {
+          parsed.currentRole = 'AMMINISTRATORE';
+        }
         set(parsed);
       }
     } catch (e) {
@@ -622,6 +646,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         speseExtraTags: state.speseExtraTags,
         storicoScontrini: state.storicoScontrini,
         codiciInvito: state.codiciInvito || [],
+        currentRole: (state as any).currentRole || 'AMMINISTRATORE',
         speseExtraSession: (state as any).speseExtraSession || null,
       };
       await storage.setItem('marketmate_data', JSON.stringify(dataToSave));

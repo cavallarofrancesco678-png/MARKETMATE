@@ -148,17 +148,24 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
                   stroke="#FFF"
                   strokeWidth={1.5}
                 />
-                {activeLineIndex !== null && p.v > 0 && (
-                  <>
-                    {/* Pillola di sfondo bianca per separare il valore dal puntino */}
-                    <SvgText x={p.x} y={p.y + yLabelOffset} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={6} fontSize={13} fontWeight="900" textAnchor="middle">
-                      €{p.v.toFixed(0)}
-                    </SvgText>
-                    <SvgText x={p.x} y={p.y + yLabelOffset} fill={line.color} fontSize={13} fontWeight="900" textAnchor="middle">
-                      €{p.v.toFixed(0)}
-                    </SvgText>
-                  </>
-                )}
+                {activeLineIndex !== null && p.v > 0 && (() => {
+                  // Anchor dinamico per evitare sovrapposizione con asse Y / bordo destro
+                  const isFirst = i === 0;
+                  const isLast = i === pts.length - 1;
+                  const anchor = isFirst ? 'start' : (isLast ? 'end' : 'middle');
+                  // Offset orizzontale extra per spostare il testo lontano dal punto
+                  const xOff = isFirst ? 6 : (isLast ? -6 : 0);
+                  return (
+                    <>
+                      <SvgText x={p.x + xOff} y={p.y + yLabelOffset} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={6} fontSize={13} fontWeight="900" textAnchor={anchor}>
+                        €{p.v.toFixed(0)}
+                      </SvgText>
+                      <SvgText x={p.x + xOff} y={p.y + yLabelOffset} fill={line.color} fontSize={13} fontWeight="900" textAnchor={anchor}>
+                        €{p.v.toFixed(0)}
+                      </SvgText>
+                    </>
+                  );
+                })()}
               </React.Fragment>
             ))}
           </React.Fragment>
