@@ -157,13 +157,16 @@ export default function AgendaScreen() {
     return rows;
   }, [calMonth]);
 
-  /* ═══ ARCHIVIO NOTE ═══ */
+  /* ═══ ARCHIVIO NOTE ═══
+     Single source: unisce appuntiAgenda (note dei giorni) + storicoDiario (diario rapido) */
   const noteArchive = useMemo(() => {
-    return (storicoDiario || [])
-      .map(d => ({ ...d, data: new Date(d.data) }))
+    const fromAppunti = (appuntiAgenda || []).map((a: any) => ({ data: new Date(a.data), testo: a.testo, src: 'appunto' }));
+    const fromDiario = (storicoDiario || []).map((d: any) => ({ data: new Date(d.data), testo: d.testo, src: 'diario' }));
+    return [...fromAppunti, ...fromDiario]
+      .filter((n) => n.testo && n.testo.trim() !== '')
       .sort((a, b) => b.data.getTime() - a.data.getTime())
-      .slice(0, 30);
-  }, [storicoDiario]);
+      .slice(0, 50);
+  }, [storicoDiario, appuntiAgenda]);
 
   /* ═══ ARCHIVIO FIERE (prossime + ricorrenti attive) ═══ */
   const fiereArchive = useMemo(() => {
@@ -661,7 +664,11 @@ export default function AgendaScreen() {
                       <Text style={[s.archiveTxt, { flex: 1 }]}>{n.testo}</Text>
                       <TouchableOpacity
                         onPress={() => {
-                          removeDiario(n.data);
+                          if (n.src === 'appunto') {
+                            removeAppunto(n.data, n.testo);
+                          } else {
+                            removeDiario(n.data);
+                          }
                           // Se era oggi, pulisci il campo note
                           const today = new Date();
                           if (n.data.toDateString() === today.toDateString()) setNoteText('');
@@ -1077,7 +1084,6 @@ const s = StyleSheet.create({
   calWeekRow: {
     flexDirection: 'row',
     marginBottom: 2,
-    paddingHorizontal: 1,
   },
   calWeekTxt: {
     flex: 1,

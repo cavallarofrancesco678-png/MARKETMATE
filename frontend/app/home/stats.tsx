@@ -73,7 +73,7 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
   onPointPress?: (lineIdx: number, pointIdx: number, value: number) => void;
 }) => {
   const chartW = screenW - 70;
-  const padL = 44;
+  const padL = 52;
   const padR = 12;
   const padT = 44; // più spazio sopra per i valori delle etichette (font ingrandito)
   const padB = 28;
@@ -118,8 +118,8 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
         return (
           <React.Fragment key={i}>
             <Line x1={padL} y1={y} x2={chartW - padR} y2={y} stroke="#D5DDD8" strokeWidth={0.5} />
-            <SvgText x={padL - 6} y={y + 3} fill="#5A7575" fontSize={9} textAnchor="end" fontWeight="700">
-              {'\u20AC'}{val}
+            <SvgText x={padL - 8} y={y + 3} fill="#5A7575" fontSize={9} textAnchor="end" fontWeight="700">
+              {'\u20AC '}{val}
             </SvgText>
           </React.Fragment>
         );
@@ -935,6 +935,42 @@ export default function StatsScreen() {
           if (v === 'Pers.') setShowPersCalendar(true);
         }, false, tempoLabel)}
         {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true, tipoLabel)}
+        {/* ═══ BARRA PERIODO FISSA — mostra il range di date attualmente in vista ═══ */}
+        {(() => {
+          const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+          const fmtFull = (d: Date) => `${d.getDate()} ${MESI_IT[d.getMonth()]} ${d.getFullYear()}`;
+          const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
+          const today = new Date();
+          let periodLabel = '';
+          if (filtroTempo === 'Oggi') {
+            periodLabel = fmtFull(today);
+          } else if (filtroTempo === 'Ieri') {
+            const y = new Date(today); y.setDate(y.getDate() - 1);
+            periodLabel = fmtFull(y);
+          } else if (filtroTempo === 'Sett.') {
+            // Lunedì → Domenica
+            const dow = (today.getDay() + 6) % 7;
+            const lun = new Date(today); lun.setDate(today.getDate() - dow);
+            const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+            periodLabel = `${fmtShort(lun)} → ${fmtShort(dom)}`;
+          } else if (filtroTempo === 'Mese') {
+            periodLabel = `${MESI_IT[today.getMonth()].toUpperCase()} ${today.getFullYear()}`;
+          } else if (filtroTempo === 'Anno') {
+            periodLabel = String(today.getFullYear());
+          } else if (filtroTempo === 'Pers.') {
+            if (persDateFrom && persDateTo) {
+              periodLabel = `${fmtShort(persDateFrom)} → ${fmtShort(persDateTo)}`;
+            } else {
+              periodLabel = 'Seleziona un range personalizzato';
+            }
+          }
+          return (
+            <View style={st.periodBar}>
+              <Ionicons name="calendar" size={14} color="#1E7F85" style={{ marginRight: 6 }} />
+              <Text style={st.periodTxt} numberOfLines={1}>{periodLabel}</Text>
+            </View>
+          );
+        })()}
       </View>
 
       {/* ═══ CONTENUTO SCROLLABILE ═══ */}
@@ -1534,6 +1570,20 @@ export default function StatsScreen() {
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F5F0E6' },
   stickyHeader: { paddingHorizontal: 20, paddingTop: 8, backgroundColor: '#F5F0E6', zIndex: 10, gap: 8 },
+  periodBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: '#1E7F85',
+    // @ts-ignore
+    boxShadow: '2px 2px 6px rgba(155,145,125,0.35)',
+  },
+  periodTxt: { fontSize: 13, fontWeight: '900', color: '#1E7F85', letterSpacing: 0.5 },
   scroll: { padding: 20, paddingTop: 10, paddingBottom: 40 },
   pageTitle: { fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', letterSpacing: 1.5 },
 

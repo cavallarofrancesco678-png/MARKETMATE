@@ -696,9 +696,13 @@ export default function HomeScreen() {
     const mNome = mercatoNome.toLowerCase();
     const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome);
 
+    // ═══ MESE: filtra anche per stesso giorno-della-settimana per coerenza con stats ═══
+    const targetDow = now.getDay();
     const meseData = filtered.filter((g) => {
       const d = new Date(g.data);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      return d.getMonth() === now.getMonth()
+          && d.getFullYear() === now.getFullYear()
+          && d.getDay() === targetDow;
     });
     const annoData = filtered.filter((g) => new Date(g.data).getFullYear() === now.getFullYear());
     const annoPrecData = filtered.filter((g) => new Date(g.data).getFullYear() === now.getFullYear() - 1);
@@ -1180,17 +1184,31 @@ export default function HomeScreen() {
             let totaleAnnoPrec = 0;
             
             if (chartMode === 'mese') {
-              chartLabels = ['S1', 'S2', 'S3', 'S4'];
-              chartData = Array(4).fill(0);
-              const meseData = filtered.filter((g) => {
-                const d = new Date(g.data);
-                return d.getMonth() === dataCorrente.getMonth() && d.getFullYear() === currentYear;
+              // ═══ 5 barre per le occorrenze del giorno della settimana corrente nel mese ═══
+              // Filtra anche per stesso DOW così i totali combaciano con la pagina Statistiche
+              const targetDow = dataCorrente.getDay(); // 0=Dom .. 6=Sab (JS native)
+              const monthIdx = dataCorrente.getMonth();
+              const yearIdx = dataCorrente.getFullYear();
+              const daysInMonth = new Date(yearIdx, monthIdx + 1, 0).getDate();
+              const occorrenze: number[] = [];
+              for (let dn = 1; dn <= daysInMonth; dn++) {
+                const dd = new Date(yearIdx, monthIdx, dn);
+                if (dd.getDay() === targetDow) occorrenze.push(dn);
+              }
+              // Pad/limit fino a 5 barre (alcuni mesi hanno 5 occorrenze del DOW)
+              const slots = occorrenze.slice(0, 5);
+              chartLabels = slots.map((d) => String(d));
+              chartData = slots.map((dn) => {
+                const target = new Date(yearIdx, monthIdx, dn);
+                const match = filtered.find((g) => {
+                  const gd = new Date(g.data);
+                  return gd.getFullYear() === target.getFullYear()
+                      && gd.getMonth() === target.getMonth()
+                      && gd.getDate() === target.getDate();
+                });
+                return match?.lordo || 0;
               });
-              meseData.forEach((g) => {
-                const week = Math.min(Math.floor((new Date(g.data).getDate() - 1) / 7), 3);
-                chartData[week] += g.lordo || 0;
-              });
-              giorniCount = meseData.length;
+              giorniCount = chartData.filter((v) => v > 0).length;
               totale = chartData.reduce((s, v) => s + v, 0);
               media = giorniCount > 0 ? totale / giorniCount : 0;
             } else if (chartMode === 'anno') {
@@ -1352,7 +1370,8 @@ export default function HomeScreen() {
                       <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end' }}>
                         {chartData.map((val, i) => {
                           const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
-                          const settLabels = ['Settimana 1', 'Settimana 2', 'Settimana 3', 'Settimana 4'];
+                          // Etichetta tooltip = "Giorno N" (es. "Giorno 17")
+                          const tipoLabel = `Giorno ${chartLabels[i] || (i + 1)}`;
                           const animH = chartAnimRef.interpolate({
                             inputRange: [0, 1],
                             outputRange: [4, Math.max(hPx, 4)],
@@ -1360,18 +1379,19 @@ export default function HomeScreen() {
                           return (
                             <TouchableOpacity 
                               key={i} 
-                              style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end', paddingHorizontal: 4 }}
+                              style={{ flex: 1, alignItems: 'center', height: BAR_AREA_H, justifyContent: 'flex-end', paddingHorizontal: 2 }}
                               activeOpacity={0.7}
                               onPress={() => {
                                 hapticTap();
                                 if (val > 0) {
-                                  setChartTooltip({ visible: true, label: settLabels[i], value: val });
+                                  setChartTooltip({ visible: true, label: tipoLabel, value: val });
                                   setTimeout(() => setChartTooltip(null), 2500);
                                 }
                               }}
                             >
                               <Animated.View style={{
-                                width: 40,
+                                width: '100%',
+                                maxWidth: 36,
                                 height: animH,
                                 minHeight: 4,
                                 backgroundColor: val > 0 ? '#E8A060' : '#D0D0D0',
