@@ -109,6 +109,12 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Pagina collaborators — esiste come route ma NON deve apparire nella tab bar.
+          href:null la nasconde dal navigator pur restando navigabile via push() */}
+      <Tabs.Screen
+        name="collaborators"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

@@ -1169,9 +1169,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#F0EBE1',
+    minHeight: 44,
   },
   archiveTabs: {
     flexDirection: 'row',
@@ -1219,13 +1221,16 @@ const s = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
     overflow: 'hidden',
+    marginTop: 1, // allinea con il primo riga di testo
   },
   archiveTxt: {
     fontSize: 14.5,
     color: '#1A4040',
     fontWeight: '700',
     flex: 1,
-    lineHeight: 19,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+    lineHeight: 20,
   },
   // Modal
   modalOverlay: {

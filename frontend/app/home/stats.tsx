@@ -133,8 +133,6 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
           v,
         }));
         const pathD = pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
-        // Offset tooltip alternato per linea per evitare sovrapposizioni quando valori sono vicini
-        const yLabelOffset = (li % 2 === 0) ? -26 : 22;
         return (
           <React.Fragment key={li}>
             <Path d={pathD} stroke={line.color} strokeWidth={2.5} fill="none" strokeLinejoin="round" />
@@ -149,18 +147,29 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
                   strokeWidth={1.5}
                 />
                 {activeLineIndex !== null && p.v > 0 && (() => {
-                  // Anchor dinamico per evitare sovrapposizione con asse Y / bordo destro
+                  // ═══ POSIZIONAMENTO ETICHETTA INTELLIGENTE ═══
+                  // 1. Anchor X dinamico — primo punto: text a destra; ultimo: a sinistra; medi: centrato
                   const isFirst = i === 0;
                   const isLast = i === pts.length - 1;
-                  const anchor = isFirst ? 'start' : (isLast ? 'end' : 'middle');
-                  // Offset orizzontale extra per spostare il testo lontano dal punto
-                  const xOff = isFirst ? 6 : (isLast ? -6 : 0);
+                  const anchor: 'start' | 'middle' | 'end' = isFirst ? 'start' : (isLast ? 'end' : 'middle');
+                  const xOff = isFirst ? 8 : (isLast ? -8 : 0);
+
+                  // 2. Anchor Y adattivo — se il punto è nella metà superiore, label sotto.
+                  //    Se è nella metà inferiore, label sopra. Garantisce sempre 14dp dal punto.
+                  const drawHeight = drawH;
+                  const distFromTop = p.y - padT;
+                  const labelAbove = distFromTop > drawHeight * 0.35; // soglia 35% dall'alto
+                  // 14dp di margine garantito (collision detection rispetto al punto)
+                  const yOff = labelAbove ? -16 : 22;
+
+                  // 3. Font ridotto a 11 (era 13) per evitare sovrapposizioni con la griglia.
+                  //    Stroke bianco a 5dp = pillola di sfondo che separa il testo dalla linea della griglia.
                   return (
                     <>
-                      <SvgText x={p.x + xOff} y={p.y + yLabelOffset} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={6} fontSize={13} fontWeight="900" textAnchor={anchor}>
+                      <SvgText x={p.x + xOff} y={p.y + yOff} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={5} fontSize={11} fontWeight="900" textAnchor={anchor}>
                         €{p.v.toFixed(0)}
                       </SvgText>
-                      <SvgText x={p.x + xOff} y={p.y + yLabelOffset} fill={line.color} fontSize={13} fontWeight="900" textAnchor={anchor}>
+                      <SvgText x={p.x + xOff} y={p.y + yOff} fill={line.color} fontSize={11} fontWeight="900" textAnchor={anchor}>
                         €{p.v.toFixed(0)}
                       </SvgText>
                     </>
