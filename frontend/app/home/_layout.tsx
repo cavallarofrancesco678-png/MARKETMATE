@@ -101,6 +101,14 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="premi"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="gift" focused={focused} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
