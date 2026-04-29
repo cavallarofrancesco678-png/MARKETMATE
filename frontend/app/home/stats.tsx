@@ -264,6 +264,7 @@ export default function StatsScreen() {
     eventClassifica: true,
     eventGiornate: true,
     eventCalendario: true,
+    vociExtra: false,
   });
   const toggleCollapsed = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
@@ -626,6 +627,53 @@ export default function StatsScreen() {
       })).sort((a, b) => (b.fatturata + b.libera) - (a.fatturata + a.libera)),
     };
   }, [filteredData]);
+
+  /* ═══ VOCI EXTRA PERIODO (fornitori marcati WEEKLY/MONTHLY) ═══
+     Queste voci NON vengono detratte dal netto del giorno; vengono
+     accantonate e mostrate solo nel riepilogo del periodo. */
+  const vociExtraPeriod = useMemo(() => {
+    const items: Array<{ nome: string; importo: number; type: 'WEEKLY' | 'MONTHLY'; data: Date }> = [];
+    let totWeekly = 0;
+    let totMonthly = 0;
+    let totDailyDeducted = 0;
+    filteredData.forEach((g: any) => {
+      const ded = g.dettaglio_fornitori_deduction || {};
+      const det = g.dettaglio_fornitori || {};
+      // Aggrega per nomeBase (somma fattura + contanti per ciascun fornitore)
+      const sumByBase: Record<string, number> = {};
+      Object.entries(det).forEach(([k, v]) => {
+        const val = parseFloat(String(v)) || 0;
+        if (val <= 0) return;
+        const nomeBase = k.endsWith('__libera') ? k.slice(0, -'__libera'.length) : k;
+        if (k.includes('__fattn') || k.includes('__liberaLabel')) return;
+        sumByBase[nomeBase] = (sumByBase[nomeBase] || 0) + val;
+      });
+      Object.entries(sumByBase).forEach(([nomeBase, importo]) => {
+        const dt = ded[nomeBase] || 'DAILY';
+        if (dt === 'DAILY') {
+          totDailyDeducted += importo;
+        } else if (dt === 'WEEKLY') {
+          totWeekly += importo;
+          items.push({ nome: nomeBase, importo, type: 'WEEKLY', data: new Date(g.data) });
+        } else if (dt === 'MONTHLY') {
+          totMonthly += importo;
+          items.push({ nome: nomeBase, importo, type: 'MONTHLY', data: new Date(g.data) });
+        }
+      });
+    });
+    // Quale parte degli "accantoni" è effettivamente da scalare per il periodo selezionato:
+    //  - Sett./Oggi/Ieri: solo WEEKLY (le MONTHLY vengono detratte solo a livello mese)
+    //  - Mese/Anno/Pers.: WEEKLY + MONTHLY
+    const isWeekishView = filtroTempo === 'Sett.' || filtroTempo === 'Oggi' || filtroTempo === 'Ieri';
+    const totExtraInPeriod = isWeekishView ? totWeekly : (totWeekly + totMonthly);
+    return {
+      items: items.sort((a, b) => b.data.getTime() - a.data.getTime()),
+      totWeekly: Math.round(totWeekly),
+      totMonthly: Math.round(totMonthly),
+      totDailyDeducted: Math.round(totDailyDeducted),
+      totExtraInPeriod: Math.round(totExtraInPeriod),
+    };
+  }, [filteredData, filtroTempo]);
 
   const meteoCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -1160,6 +1208,81 @@ export default function StatsScreen() {
 
         {renderChartBox('LORDO / NETTO', economicoLines, 'economico')}
         {renderChartBox('CASH / POS', incassiLines, 'incassi')}
+
+        {/* ─── VOCI EXTRA PERIODO (fornitori marcati Settimanale / Mensile) ─── */}
+        {(vociExtraPeriod.totWeekly > 0 || vociExtraPeriod.totMonthly > 0) && (
+          <View style={[st.card, { marginBottom: GAP }]}>
+            <TouchableOpacity onPress={() => toggleCollapsed('vociExtra')} activeOpacity={0.7}>
+              <View style={st.chartHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="receipt-outline" size={16} color="#8F5AA8" />
+                  <Text style={st.sectionLabel}>VOCI EXTRA PERIODO</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[st.sectionTotal, { color: '#8F5AA8' }]}>€{vociExtraPeriod.totExtraInPeriod.toFixed(0)}</Text>
+                  <Ionicons name={collapsed.vociExtra ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />
+                </View>
+              </View>
+            </TouchableOpacity>
+            {!collapsed.vociExtra && (
+              <View style={{ marginTop: 10 }}>
+                <Text style={{ fontSize: 11, color: '#5A7575', marginBottom: 8, fontStyle: 'italic', fontWeight: '600' }}>
+                  Fatture/spese fornitori NON detratte giornalmente, scalate solo dal periodo selezionato.
+                </Text>
+                {/* SETTIMANALI */}
+                {vociExtraPeriod.totWeekly > 0 && (
+                  <View style={{ marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#5A6FA8', letterSpacing: 0.5 }}>📆 SETTIMANALI</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#5A6FA8' }}>€{vociExtraPeriod.totWeekly.toFixed(0)}</Text>
+                    </View>
+                    {vociExtraPeriod.items.filter(i => i.type === 'WEEKLY').map((it, i) => (
+                      <View key={`w-${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#EEE8DA' }}>
+                        <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '700', width: 56 }}>
+                          {it.data.getDate()}/{(it.data.getMonth() + 1).toString().padStart(2, '0')}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#1A4040', fontWeight: '700', flex: 1 }}>{it.nome}</Text>
+                        <Text style={{ fontSize: 12, color: '#5A6FA8', fontWeight: '900' }}>€{it.importo.toFixed(0)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* MENSILI */}
+                {vociExtraPeriod.totMonthly > 0 && (
+                  <View style={{ marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#8F5AA8', letterSpacing: 0.5 }}>🗓️ MENSILI</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#8F5AA8' }}>€{vociExtraPeriod.totMonthly.toFixed(0)}</Text>
+                    </View>
+                    {vociExtraPeriod.items.filter(i => i.type === 'MONTHLY').map((it, i) => (
+                      <View key={`m-${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#EEE8DA' }}>
+                        <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '700', width: 56 }}>
+                          {it.data.getDate()}/{(it.data.getMonth() + 1).toString().padStart(2, '0')}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#1A4040', fontWeight: '700', flex: 1 }}>{it.nome}</Text>
+                        <Text style={{ fontSize: 12, color: '#8F5AA8', fontWeight: '900' }}>€{it.importo.toFixed(0)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* RIEPILOGO TOTALE FORNITORI */}
+                <View style={{ marginTop: 8, padding: 10, backgroundColor: '#F5EFDC', borderRadius: 10, borderLeftWidth: 4, borderLeftColor: '#1E7F85' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.6, marginBottom: 4 }}>TOTALE FORNITORI PERIODO</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 11, color: '#7A8585', fontWeight: '700' }}>
+                      Giornalieri: <Text style={{ color: '#2A8C5F', fontWeight: '900' }}>€{vociExtraPeriod.totDailyDeducted.toFixed(0)}</Text>
+                      {'  '}+ Settim.: <Text style={{ color: '#5A6FA8', fontWeight: '900' }}>€{vociExtraPeriod.totWeekly.toFixed(0)}</Text>
+                      {'  '}+ Mensili: <Text style={{ color: '#8F5AA8', fontWeight: '900' }}>€{vociExtraPeriod.totMonthly.toFixed(0)}</Text>
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A3535', marginTop: 4 }}>
+                    €{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totWeekly + vociExtraPeriod.totMonthly).toFixed(0)}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* ─── GIORNI LAVORATI VS NON LAVORATI ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>

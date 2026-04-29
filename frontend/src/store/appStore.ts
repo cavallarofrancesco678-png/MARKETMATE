@@ -121,6 +121,10 @@ export interface Giornata {
   dettaglio_staff: Record<string, number>;
   dettaglio_invenduto: Record<string, number>;
   dettaglio_fornitori: Record<string, number>;
+  // Mappa: nomeBase -> 'DAILY' | 'WEEKLY' | 'MONTHLY' (default DAILY se assente)
+  // Determina se la spesa fornitore viene detratta dal netto del giorno (DAILY)
+  // oppure accantonata e mostrata solo nel riepilogo periodico (WEEKLY/MONTHLY).
+  dettaglio_fornitori_deduction?: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>;
   dettaglio_spese_extra?: Record<string, number>;
   fornitoriInfo?: Record<string, { numeroFattura: string; scadenza: string }>;
 }

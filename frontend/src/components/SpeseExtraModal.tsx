@@ -57,6 +57,9 @@ interface Props {
   setFornInfo: (v: Record<string, FornInfoEntry>) => void;
   pagamentoMode: Record<string, 'contanti' | 'fattura' | 'misto'>;
   setPagamentoMode: (v: Record<string, 'contanti' | 'fattura' | 'misto'>) => void;
+  // Frequenza di detrazione per fornitore: DAILY (default) | WEEKLY | MONTHLY
+  fornDeductionType: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>;
+  setFornDeductionType: (v: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>) => void;
   // Totali settimanali per fornitore (Lun-Dom): contanti / fattura
   weeklyTotalsByForn: Record<string, { contanti: number; fattura: number }>;
 }
@@ -70,7 +73,9 @@ const PERIODI_LABELS: Record<string, string> = {
 export const SpeseExtraModal: React.FC<Props> = ({
   visible, onClose, fornitori, speseExtraFornitore, setSpeseExtraFornitore,
   vociGeneriche, setVociGeneriche, fornInfo, setFornInfo,
-  pagamentoMode, setPagamentoMode, weeklyTotalsByForn,
+  pagamentoMode, setPagamentoMode,
+  fornDeductionType, setFornDeductionType,
+  weeklyTotalsByForn,
 }) => {
   const { t } = useTranslation();
   const [nuovaVoce, setNuovaVoce] = useState('');
@@ -275,6 +280,57 @@ export const SpeseExtraModal: React.FC<Props> = ({
                             );
                           })}
                         </View>
+
+                        {/* ═══ 3 PILLOLE FREQUENZA DETRAZIONE: GIORNALIERA | SETTIMANALE | MENSILE ═══ */}
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginTop: 10, marginBottom: 4, letterSpacing: 0.5 }}>
+                          FREQUENZA DI DETRAZIONE
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          {([
+                            { key: 'DAILY', label: 'Giornaliera', icon: '📅', color: '#2A8C5F' },
+                            { key: 'WEEKLY', label: 'Settimanale', icon: '📆', color: '#5A6FA8' },
+                            { key: 'MONTHLY', label: 'Mensile', icon: '🗓️', color: '#8F5AA8' },
+                          ] as const).map((opt) => {
+                            const cur = fornDeductionType[f.nome] || 'DAILY';
+                            const on = cur === opt.key;
+                            return (
+                              <TouchableOpacity
+                                key={opt.key}
+                                onPress={() => setFornDeductionType({ ...fornDeductionType, [f.nome]: opt.key })}
+                                activeOpacity={0.7}
+                                style={{
+                                  flex: 1,
+                                  paddingVertical: 8,
+                                  borderRadius: 999,
+                                  backgroundColor: on ? opt.color : '#F5EFDC',
+                                  borderWidth: 1.5,
+                                  borderColor: on ? opt.color : '#E0D8C0',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexDirection: 'row',
+                                  gap: 4,
+                                }}
+                              >
+                                <Text style={{ fontSize: 12 }}>{opt.icon}</Text>
+                                <Text style={{ fontSize: 10, fontWeight: '900', color: on ? '#FFF' : opt.color, letterSpacing: 0.4 }}>
+                                  {opt.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        {(() => {
+                          const cur = fornDeductionType[f.nome] || 'DAILY';
+                          const hint =
+                            cur === 'DAILY' ? 'Detratta dal netto di OGGI' :
+                            cur === 'WEEKLY' ? 'NON detratta oggi · sottratta dal Totale Settimanale (Statistiche)' :
+                            'NON detratta oggi/settimana · sottratta dal Bilancio Mensile (Statistiche)';
+                          return (
+                            <Text style={{ fontSize: 10, color: '#5A7575', marginTop: 5, fontStyle: 'italic', fontWeight: '600' }}>
+                              {hint}
+                            </Text>
+                          );
+                        })()}
 
                         {/* ═══ CONTANTI: solo importo + totale settimanale ═══ */}
                         {mode === 'contanti' && (

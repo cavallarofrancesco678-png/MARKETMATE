@@ -106,6 +106,8 @@ export default function HomeScreen() {
   const [fornInfo, setFornInfo] = useState<Record<string, { numeroFattura: string; scadenza: string }>>({});
   const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'custom'; from: string; to: string }>>({});
   const [pagamentoMode, setPagamentoMode] = useState<Record<string, 'contanti' | 'fattura' | 'misto'>>({});
+  // Tipo di detrazione per fornitore: DAILY (default) | WEEKLY | MONTHLY
+  const [fornDeductionType, setFornDeductionType] = useState<Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
   
@@ -156,6 +158,7 @@ export default function HomeScreen() {
         setFornInfo(stored.fornInfo || {});
         setPagamentoMode(stored.pagamentoMode || {});
         setRipartizione(stored.ripartizione || {});
+        setFornDeductionType(stored.fornDeductionType || {});
       } else {
         (store as any).clearSpeseExtraSession?.();
       }
@@ -186,7 +189,8 @@ export default function HomeScreen() {
       );
       const hasRipart = Object.keys(ripartizione || {}).length > 0;
       const hasMode = Object.keys(pagamentoMode || {}).length > 0;
-      if (!hasSupplierData && !hasVoci && !hasFornInfo && !hasRipart && !hasMode) {
+      const hasDed = Object.keys(fornDeductionType || {}).length > 0;
+      if (!hasSupplierData && !hasVoci && !hasFornInfo && !hasRipart && !hasMode && !hasDed) {
         if ((store as any).speseExtraSession) (store as any).clearSpeseExtraSession?.();
         return;
       }
@@ -200,12 +204,13 @@ export default function HomeScreen() {
         fornInfo,
         pagamentoMode,
         ripartizione,
+        fornDeductionType,
         createdAt,
       });
     }, 600);
     return () => { if (speseExtraSaveTimerRef.current) clearTimeout(speseExtraSaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speseExtraFornitore, vociGeneriche, fornInfo, pagamentoMode, ripartizione]);
+  }, [speseExtraFornitore, vociGeneriche, fornInfo, pagamentoMode, ripartizione, fornDeductionType]);
 
   /* ── Funzione per caricare i dati salvati di una data ── */
   const loadSavedData = useCallback((targetDate: Date) => {
@@ -284,6 +289,8 @@ export default function HomeScreen() {
       }
       // Carica fornitori info (numero fattura + scadenza)
       setFornInfo((saved as any).fornitoriInfo || {});
+      // Carica deduction type per fornitore (default DAILY se non salvato)
+      setFornDeductionType((saved as any).dettaglio_fornitori_deduction || {});
       // Ripristina le voci generiche (spese extra dettagliate)
       if ((saved as any).dettaglio_spese_extra && Object.keys((saved as any).dettaglio_spese_extra).length > 0) {
         const voci = Object.entries((saved as any).dettaglio_spese_extra).map(([nome, val]) => ({
@@ -307,6 +314,7 @@ export default function HomeScreen() {
       setFornInfo({});
       setRipartizione({});
       setPagamentoMode({});
+      setFornDeductionType({});
       setVociGeneriche([]);
       setCostiOverride({});
       const p: Record<string, boolean> = {};
@@ -587,6 +595,10 @@ export default function HomeScreen() {
       fornitoriNomi.add(k.replace(/__libera$/, ''));
     });
     fornitoriNomi.forEach((nomeBase) => {
+      // Solo i fornitori DAILY (default) vengono detratti dal netto del giorno.
+      // WEEKLY e MONTHLY sono accantonati e mostrati in Statistiche.
+      const dedType = fornDeductionType[nomeBase] || 'DAILY';
+      if (dedType !== 'DAILY') return;
       const mode = pagamentoMode[nomeBase] || 'contanti';
       const fatturaEntry = speseExtraFornitore[nomeBase];
       const contantiEntry = speseExtraFornitore[`${nomeBase}__libera`];
@@ -597,7 +609,7 @@ export default function HomeScreen() {
       else if (mode === 'misto') tot += impFattura + impContanti;
     });
     return tot;
-  }, [speseExtraFornitore, pagamentoMode]);
+  }, [speseExtraFornitore, pagamentoMode, fornDeductionType]);
 
   /* ── Spese Extra generiche totale (importo del giorno, NO ripartizione) ── */
   const speseExtraGenTotale = useMemo(() => {
@@ -744,6 +756,7 @@ export default function HomeScreen() {
   const handleSalva = useCallback(() => {
     // ═══ Salva importi INTEGRI (NO ripartizione) ═══
     const dettaglioForn: Record<string, number> = {};
+    const dettaglioFornDed: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'> = {};
     const fornitoriNomi = new Set<string>();
     Object.keys(speseExtraFornitore).forEach((k) => {
       if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
@@ -756,17 +769,21 @@ export default function HomeScreen() {
       const contantiEntry = speseExtraFornitore[`${nomeBase}__libera`];
       const impFattura = parseFloat((fatturaEntry?.importo || '0').replace(',', '.')) || 0;
       const impContanti = parseFloat((contantiEntry?.importo || '0').replace(',', '.')) || 0;
+      const dedType = fornDeductionType[nomeBase] || 'DAILY';
 
       // Salva chiavi separate: nomeBase (fattura) + nomeBase__libera (contanti)
       // così stats.tsx può distinguere correttamente Fatturata vs Contanti.
+      let hasAmount = false;
       if (mode === 'contanti') {
-        if (impContanti > 0) dettaglioForn[`${nomeBase}__libera`] = Math.round(impContanti * 100) / 100;
+        if (impContanti > 0) { dettaglioForn[`${nomeBase}__libera`] = Math.round(impContanti * 100) / 100; hasAmount = true; }
       } else if (mode === 'fattura') {
-        if (impFattura > 0) dettaglioForn[nomeBase] = Math.round(impFattura * 100) / 100;
+        if (impFattura > 0) { dettaglioForn[nomeBase] = Math.round(impFattura * 100) / 100; hasAmount = true; }
       } else if (mode === 'misto') {
-        if (impFattura > 0) dettaglioForn[nomeBase] = Math.round(impFattura * 100) / 100;
-        if (impContanti > 0) dettaglioForn[`${nomeBase}__libera`] = Math.round(impContanti * 100) / 100;
+        if (impFattura > 0) { dettaglioForn[nomeBase] = Math.round(impFattura * 100) / 100; hasAmount = true; }
+        if (impContanti > 0) { dettaglioForn[`${nomeBase}__libera`] = Math.round(impContanti * 100) / 100; hasAmount = true; }
       }
+      // Salva il deduction type sempre (anche solo se c'è importo o se l'utente ha selezionato)
+      if (hasAmount) dettaglioFornDed[nomeBase] = dedType;
     });
 
     // Build dettaglio_spese_extra from vociGeneriche (importo intero, NO ripartizione)
@@ -810,6 +827,7 @@ export default function HomeScreen() {
       dettaglio_staff: dettaglioStaff,
       dettaglio_invenduto: dettaglioInv,
       dettaglio_fornitori: dettaglioForn,
+      dettaglio_fornitori_deduction: dettaglioFornDed,
       dettaglio_spese_extra: dettaglioExtra,
       fornitoriInfo: fornInfo,
     } as any);
@@ -835,7 +853,7 @@ export default function HomeScreen() {
         addOrdine({ data: scadenzaDate, testo });
       } catch { /* skip */ }
     });
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda]);
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   // Use a REF to always call the latest handleSalva (avoids stale-closure bug
@@ -1796,6 +1814,8 @@ export default function HomeScreen() {
         setFornInfo={setFornInfo}
         pagamentoMode={pagamentoMode}
         setPagamentoMode={setPagamentoMode}
+        fornDeductionType={fornDeductionType}
+        setFornDeductionType={setFornDeductionType}
         weeklyTotalsByForn={weeklyTotalsByForn}
       />
 
