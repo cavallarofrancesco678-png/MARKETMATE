@@ -1227,6 +1227,24 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 1, // allinea con il primo riga di testo
   },
+  archiveDateBox: {
+    backgroundColor: '#F5F0E6',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    minWidth: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  archiveDateTxt: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#5A7575',
+    textAlign: 'center',
+    lineHeight: 14,
+    letterSpacing: 0.3,
+  },
   archiveTxt: {
     fontSize: 14.5,
     color: '#1A4040',
