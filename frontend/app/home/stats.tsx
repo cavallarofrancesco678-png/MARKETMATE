@@ -73,12 +73,22 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
   onPointPress?: (lineIdx: number, pointIdx: number, value: number) => void;
 }) => {
   const chartW = screenW - 70;
-  const padL = 64;
+  const padL = 78;
   const padR = 14;
   const padT = 48;
   const padB = 30;
   const drawW = chartW - padL - padR;
   const drawH = height - padT - padB;
+
+  // Compact number format: 1234 → '1.2k', 12345 → '12k', sub-1000 unchanged
+  const fmtCompact = (n: number): string => {
+    const abs = Math.abs(n);
+    if (abs >= 1000) {
+      const k = n / 1000;
+      return `€${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}k`;
+    }
+    return `€${Math.round(n)}`;
+  };
 
   let maxVal = 1;
   lines.forEach((l) => l.data.forEach((v) => { if (v > maxVal) maxVal = v; }));
@@ -118,8 +128,8 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
         return (
           <React.Fragment key={i}>
             <Line x1={padL} y1={y} x2={chartW - padR} y2={y} stroke="#D5DDD8" strokeWidth={0.5} />
-            <SvgText x={padL - 10} y={y + 4} fill="#3A5050" fontSize={11} textAnchor="end" fontWeight="800">
-              {`€${val}`}
+            <SvgText x={padL - 8} y={y + 5} fill="#1A4040" fontSize={13} textAnchor="end" fontWeight="800">
+              {fmtCompact(val)}
             </SvgText>
           </React.Fragment>
         );
@@ -1187,102 +1197,27 @@ export default function StatsScreen() {
           <View style={st.kpiRow}>
             <View style={st.kpiCard}>
               <Text style={st.kpiLabel}>{t('stats.gross').toUpperCase()}</Text>
-              <Text style={[st.kpiValue, { color: PALETTE[0] }]}>{'\u20AC'}{totLordo.toFixed(0)}</Text>
+              <Text style={[st.kpiValue, { color: '#1A4040', fontSize: 24 }]}>{'\u20AC'}{totLordo.toFixed(0)}</Text>
             </View>
             <TouchableOpacity style={st.kpiCard} onPress={() => setShowNettoModal(true)} activeOpacity={0.7}>
               <Text style={st.kpiLabel}>{t('stats.net').toUpperCase()} ▼</Text>
-              <Text style={[st.kpiValue, { color: totNetto >= 0 ? PALETTE[1] : '#D46A6A' }]}>{'\u20AC'}{totNetto.toFixed(0)}</Text>
+              <Text style={[st.kpiValue, { color: totNetto >= 0 ? '#1A4040' : '#D46A6A', fontSize: 24 }]}>{'\u20AC'}{totNetto.toFixed(0)}</Text>
             </TouchableOpacity>
           </View>
           <View style={st.kpiRow}>
             <View style={st.kpiCard}>
               <Text style={st.kpiLabel}>{t('home.cash')}</Text>
-              <Text style={[st.kpiValue, { color: PALETTE[5] }]}>{'\u20AC'}{totCash.toFixed(0)}</Text>
+              <Text style={[st.kpiValue, { color: '#1A4040', fontSize: 24 }]}>{'\u20AC'}{totCash.toFixed(0)}</Text>
             </View>
             <View style={st.kpiCard}>
               <Text style={st.kpiLabel}>{t('home.pos')}</Text>
-              <Text style={[st.kpiValue, { color: PALETTE[2] }]}>{'\u20AC'}{totPos.toFixed(0)}</Text>
+              <Text style={[st.kpiValue, { color: '#1A4040', fontSize: 24 }]}>{'\u20AC'}{totPos.toFixed(0)}</Text>
             </View>
           </View>
         </View>
 
         {renderChartBox('LORDO / NETTO', economicoLines, 'economico')}
         {renderChartBox('CASH / POS', incassiLines, 'incassi')}
-
-        {/* ─── VOCI EXTRA PERIODO (fornitori marcati Settimanale / Mensile) ─── */}
-        {(vociExtraPeriod.totWeekly > 0 || vociExtraPeriod.totMonthly > 0) && (
-          <View style={[st.card, { marginBottom: GAP }]}>
-            <TouchableOpacity onPress={() => toggleCollapsed('vociExtra')} activeOpacity={0.7}>
-              <View style={st.chartHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="receipt-outline" size={16} color="#8F5AA8" />
-                  <Text style={st.sectionLabel}>VOCI EXTRA PERIODO</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[st.sectionTotal, { color: '#8F5AA8' }]}>€{vociExtraPeriod.totExtraInPeriod.toFixed(0)}</Text>
-                  <Ionicons name={collapsed.vociExtra ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />
-                </View>
-              </View>
-            </TouchableOpacity>
-            {!collapsed.vociExtra && (
-              <View style={{ marginTop: 10 }}>
-                <Text style={{ fontSize: 11, color: '#5A7575', marginBottom: 8, fontStyle: 'italic', fontWeight: '600' }}>
-                  Fatture/spese fornitori NON detratte giornalmente, scalate solo dal periodo selezionato.
-                </Text>
-                {/* SETTIMANALI */}
-                {vociExtraPeriod.totWeekly > 0 && (
-                  <View style={{ marginBottom: 10 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#5A6FA8', letterSpacing: 0.5 }}>📆 SETTIMANALI</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#5A6FA8' }}>€{vociExtraPeriod.totWeekly.toFixed(0)}</Text>
-                    </View>
-                    {vociExtraPeriod.items.filter(i => i.type === 'WEEKLY').map((it, i) => (
-                      <View key={`w-${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#EEE8DA' }}>
-                        <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '700', width: 56 }}>
-                          {it.data.getDate()}/{(it.data.getMonth() + 1).toString().padStart(2, '0')}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: '#1A4040', fontWeight: '700', flex: 1 }}>{it.nome}</Text>
-                        <Text style={{ fontSize: 12, color: '#5A6FA8', fontWeight: '900' }}>€{it.importo.toFixed(0)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                {/* MENSILI */}
-                {vociExtraPeriod.totMonthly > 0 && (
-                  <View style={{ marginBottom: 10 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#8F5AA8', letterSpacing: 0.5 }}>🗓️ MENSILI</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#8F5AA8' }}>€{vociExtraPeriod.totMonthly.toFixed(0)}</Text>
-                    </View>
-                    {vociExtraPeriod.items.filter(i => i.type === 'MONTHLY').map((it, i) => (
-                      <View key={`m-${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#EEE8DA' }}>
-                        <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '700', width: 56 }}>
-                          {it.data.getDate()}/{(it.data.getMonth() + 1).toString().padStart(2, '0')}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: '#1A4040', fontWeight: '700', flex: 1 }}>{it.nome}</Text>
-                        <Text style={{ fontSize: 12, color: '#8F5AA8', fontWeight: '900' }}>€{it.importo.toFixed(0)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                {/* RIEPILOGO TOTALE FORNITORI */}
-                <View style={{ marginTop: 8, padding: 10, backgroundColor: '#F5EFDC', borderRadius: 10, borderLeftWidth: 4, borderLeftColor: '#1E7F85' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.6, marginBottom: 4 }}>TOTALE FORNITORI PERIODO</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 11, color: '#7A8585', fontWeight: '700' }}>
-                      Giornalieri: <Text style={{ color: '#2A8C5F', fontWeight: '900' }}>€{vociExtraPeriod.totDailyDeducted.toFixed(0)}</Text>
-                      {'  '}+ Settim.: <Text style={{ color: '#5A6FA8', fontWeight: '900' }}>€{vociExtraPeriod.totWeekly.toFixed(0)}</Text>
-                      {'  '}+ Mensili: <Text style={{ color: '#8F5AA8', fontWeight: '900' }}>€{vociExtraPeriod.totMonthly.toFixed(0)}</Text>
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A3535', marginTop: 4 }}>
-                    €{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totWeekly + vociExtraPeriod.totMonthly).toFixed(0)}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
 
         {/* ─── GIORNI LAVORATI VS NON LAVORATI ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>
@@ -1339,13 +1274,13 @@ export default function StatsScreen() {
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems, 'fixedExpenses')}
         {renderPieBox(t('stats.extraExpenses'), speseExtraItems, 'extraExpenses')}
 
-        {/* ─── FORNITORI: Fatturata vs Libera (espandibile) ─── */}
+        {/* ─── FORNITORI: card unico con tutti i dati (Fatturata/Contanti, ripartizione, andamento, voci settimanali/mensili) ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>
           <TouchableOpacity onPress={() => setShowFornitori(!showFornitori)} activeOpacity={0.7}>
             <View style={st.chartHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="storefront" size={16} color="#1E7F85" />
-                <Text style={st.sectionLabel}>{(t('stats.suppliers') || 'FORNITORI') + ' 1'}</Text>
+                <Text style={st.sectionLabel}>{t('stats.suppliers') || 'FORNITORI'}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={st.sectionTotal}>TOT: €{fornitoriTotals.totale.toFixed(0)}</Text>
@@ -1355,6 +1290,23 @@ export default function StatsScreen() {
           </TouchableOpacity>
           {showFornitori && (
             <View style={{ marginTop: 12 }}>
+
+              {/* ═══ RIEPILOGO RAPIDO: 3 BADGE GIORN/SETT/MENS ═══ */}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                <View style={{ flex: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#5A7575', letterSpacing: 0.5 }}>GIORNALIERA</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginTop: 2 }}>€{vociExtraPeriod.totDailyDeducted.toFixed(0)}</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#5A7575', letterSpacing: 0.5 }}>SETTIMANALE</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginTop: 2 }}>€{vociExtraPeriod.totWeekly.toFixed(0)}</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#5A7575', letterSpacing: 0.5 }}>MENSILE</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginTop: 2 }}>€{vociExtraPeriod.totMonthly.toFixed(0)}</Text>
+                </View>
+              </View>
+
               {/* PieChart Fatturata vs Libera */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                 <PieChart items={fornitoriTotals.totale > 0 ? [
@@ -1365,16 +1317,16 @@ export default function StatsScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#1E7F85', marginRight: 8 }} />
                     <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>Fatturata</Text>
-                    <Text style={{ marginLeft: 'auto', fontSize: 13, fontWeight: '900', color: '#1E7F85' }}>€{fornitoriTotals.fatturata.toFixed(0)}</Text>
+                    <Text style={{ marginLeft: 'auto', fontSize: 14, fontWeight: '900', color: '#1A4040' }}>€{fornitoriTotals.fatturata.toFixed(0)}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#E8A060', marginRight: 8 }} />
                     <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A4040' }}>Contanti</Text>
-                    <Text style={{ marginLeft: 'auto', fontSize: 13, fontWeight: '900', color: '#E8A060' }}>€{fornitoriTotals.libera.toFixed(0)}</Text>
+                    <Text style={{ marginLeft: 'auto', fontSize: 14, fontWeight: '900', color: '#1A4040' }}>€{fornitoriTotals.libera.toFixed(0)}</Text>
                   </View>
                   {fornitoriTotals.totale > 0 && (
                     <Text style={{ fontSize: 10, color: '#7A9090', fontWeight: '700', marginTop: 4 }}>
-                      Fatturata: {Math.round((fornitoriTotals.fatturata / fornitoriTotals.totale) * 100)}%| Contanti: {Math.round((fornitoriTotals.libera / fornitoriTotals.totale) * 100)}%
+                      Fatturata: {Math.round((fornitoriTotals.fatturata / fornitoriTotals.totale) * 100)}% | Contanti: {Math.round((fornitoriTotals.libera / fornitoriTotals.totale) * 100)}%
                     </Text>
                   )}
                 </View>
@@ -1384,7 +1336,7 @@ export default function StatsScreen() {
               {fornitoriTotals.perFornitore.length > 0 && fornitoriTotals.totale > 0 && (
                 <View style={{ marginBottom: 14, paddingTop: 10, borderTopWidth: 1, borderColor: '#E8EDE8' }}>
                   <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 1, marginBottom: 8 }}>
-                    📊 RIPARTIZIONE PER FORNITORE
+                    RIPARTIZIONE PER FORNITORE
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                     <PieChart
@@ -1402,8 +1354,8 @@ export default function StatsScreen() {
                         return (
                           <View key={f.nome} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: PALETTE[i % PALETTE.length], marginRight: 6 }} />
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }} numberOfLines={1}>{f.nome}</Text>
-                            <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575' }}>{pct}%</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1 }} numberOfLines={1}>{f.nome}</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '900', color: '#1A4040' }}>{pct}%</Text>
                           </View>
                         );
                       })}
@@ -1426,9 +1378,8 @@ export default function StatsScreen() {
                     <TouchableOpacity onPress={() => setExpandedFornitore(isExp ? null : f.nome)} activeOpacity={0.7}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
                         <Ionicons name="cube-outline" size={14} color="#7A9090" />
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1, marginLeft: 6 }}>{f.nome}</Text>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85', marginRight: 8 }}>F: €{f.fatturata.toFixed(0)}</Text>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060', marginRight: 6 }}>C: €{f.libera.toFixed(0)}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#1A4040', flex: 1, marginLeft: 6 }}>{f.nome}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040', marginRight: 10 }}>€{totF.toFixed(0)}</Text>
                         <Ionicons name={isExp ? 'chevron-up' : 'chevron-down'} size={16} color="#5A7575" />
                       </View>
                     </TouchableOpacity>
@@ -1442,15 +1393,15 @@ export default function StatsScreen() {
                           <Text style={{ fontSize: 11, fontWeight: '900', color: '#1A4040', marginBottom: 6 }}>{f.nome}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85', marginRight: 6 }} />
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>Fatturata</Text>
-                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#1E7F85' }}>€{f.fatturata.toFixed(0)} ({Math.round((f.fatturata / totF) * 100)}%)</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1 }}>Fatturata</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>€{f.fatturata.toFixed(0)} ({Math.round((f.fatturata / totF) * 100)}%)</Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060', marginRight: 6 }} />
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#1A4040', flex: 1 }}>Contanti</Text>
-                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#E8A060' }}>€{f.libera.toFixed(0)} ({Math.round((f.libera / totF) * 100)}%)</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1 }}>Contanti</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>€{f.libera.toFixed(0)} ({Math.round((f.libera / totF) * 100)}%)</Text>
                           </View>
-                          <Text style={{ fontSize: 10, color: '#5A7575', fontWeight: '700', marginTop: 4 }}>TOT: €{totF.toFixed(0)}</Text>
+                          <Text style={{ fontSize: 11, color: '#5A7575', fontWeight: '700', marginTop: 4 }}>TOT: €{totF.toFixed(0)}</Text>
                         </View>
                       </View>
                     )}
@@ -1460,11 +1411,90 @@ export default function StatsScreen() {
               {fornitoriTotals.perFornitore.length === 0 && (
                 <Text style={{ fontSize: 11, color: '#7A9090', textAlign: 'center', paddingVertical: 10 }}>Nessun dato fornitori nel periodo</Text>
               )}
+
+              {/* ═══ ANDAMENTO NEL TEMPO (era FORNITORI 2) ═══ */}
+              {fornitoriLines.length > 0 && fornitoriLines.some(l => l.data.some(v => v > 0)) && (
+                <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderColor: '#E8EDE8' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 1, marginBottom: 8 }}>
+                    ANDAMENTO NEL TEMPO
+                  </Text>
+                  <View style={st.legendRow}>
+                    {fornitoriLines.map((l, i) => (
+                      <View key={i} style={st.legendItem}>
+                        <View style={[st.legendDot, { backgroundColor: l.color }]} />
+                        <Text style={[st.legendText, { color: l.color }]}>
+                          {l.label}: €{arrSum(l.data).toFixed(0)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={{ alignItems: 'center', marginTop: 8 }}>
+                    <InteractiveLineChart
+                      labels={chartLabels}
+                      lines={fornitoriLines}
+                      activeLineIndex={null}
+                      onPointPress={() => {}}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* ═══ VOCI SETTIMANALI / MENSILI accantonate ═══ */}
+              {(vociExtraPeriod.totWeekly > 0 || vociExtraPeriod.totMonthly > 0) && (
+                <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderColor: '#E8EDE8' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 1, marginBottom: 4 }}>
+                    VOCI ACCANTONATE
+                  </Text>
+                  <Text style={{ fontSize: 10, color: '#7A9090', fontStyle: 'italic', marginBottom: 8 }}>
+                    Fatture/spese NON detratte giornalmente, scalate solo dal periodo.
+                  </Text>
+                  {vociExtraPeriod.totWeekly > 0 && (
+                    <View style={{ marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '900', color: '#5A7575', letterSpacing: 0.5 }}>SETTIMANALI</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '900', color: '#1A4040' }}>€{vociExtraPeriod.totWeekly.toFixed(0)}</Text>
+                      </View>
+                      {vociExtraPeriod.items.filter(i => i.type === 'WEEKLY').map((it, i) => (
+                        <View key={`w-${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#EEE8DA' }}>
+                          <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '700', width: 56 }}>
+                            {it.data.getDate()}/{(it.data.getMonth() + 1).toString().padStart(2, '0')}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#1A4040', fontWeight: '700', flex: 1 }}>{it.nome}</Text>
+                          <Text style={{ fontSize: 11, color: '#1A4040', fontWeight: '900' }}>€{it.importo.toFixed(0)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {vociExtraPeriod.totMonthly > 0 && (
+                    <View style={{ marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '900', color: '#5A7575', letterSpacing: 0.5 }}>MENSILI</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '900', color: '#1A4040' }}>€{vociExtraPeriod.totMonthly.toFixed(0)}</Text>
+                      </View>
+                      {vociExtraPeriod.items.filter(i => i.type === 'MONTHLY').map((it, i) => (
+                        <View key={`m-${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#EEE8DA' }}>
+                          <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '700', width: 56 }}>
+                            {it.data.getDate()}/{(it.data.getMonth() + 1).toString().padStart(2, '0')}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#1A4040', fontWeight: '700', flex: 1 }}>{it.nome}</Text>
+                          <Text style={{ fontSize: 11, color: '#1A4040', fontWeight: '900' }}>€{it.importo.toFixed(0)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* ═══ TOTALE FINALE ═══ */}
+              <View style={{ marginTop: 12, padding: 12, backgroundColor: '#F5EFDC', borderRadius: 10, borderLeftWidth: 4, borderLeftColor: '#1E7F85' }}>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.6, marginBottom: 4 }}>TOTALE FORNITORI PERIODO</Text>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A3535' }}>
+                  €{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totWeekly + vociExtraPeriod.totMonthly).toFixed(0)}
+                </Text>
+              </View>
             </View>
           )}
         </View>
-
-        {renderChartBox('FORNITORI 2', fornitoriLines, 'fornitori')}
 
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
 

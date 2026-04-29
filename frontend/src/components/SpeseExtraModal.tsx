@@ -250,12 +250,12 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
                     return (
                       <>
-                        {/* ═══ 3 PULSANTI: CONTANTI | FATTURA | MISTO ═══ */}
+                        {/* ═══ 3 PULSANTI: CONTANTI | FATTURA | MISTO (monocolore: verde se attivo) ═══ */}
                         <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
                           {([
-                            { key: 'contanti', label: t('suppliers.cash'), color: '#1E7F85' },
-                            { key: 'fattura', label: t('suppliers.invoice'), color: '#B08050' },
-                            { key: 'misto', label: t('suppliers.mixed'), color: '#7A5E9B' },
+                            { key: 'contanti', label: t('suppliers.cash') },
+                            { key: 'fattura', label: t('suppliers.invoice') },
+                            { key: 'misto', label: t('suppliers.mixed') },
                           ] as const).map((opt) => {
                             const on = mode === opt.key;
                             return (
@@ -267,13 +267,13 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                   flex: 1,
                                   paddingVertical: 9,
                                   borderRadius: 10,
-                                  backgroundColor: on ? opt.color : '#F5EFDC',
+                                  backgroundColor: on ? '#1E7F85' : '#F5EFDC',
                                   borderWidth: 1.5,
-                                  borderColor: on ? opt.color : '#E0D8C0',
+                                  borderColor: on ? '#1E7F85' : '#E0D8C0',
                                   alignItems: 'center',
                                 }}
                               >
-                                <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : opt.color, letterSpacing: 0.8 }}>
+                                <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.8 }}>
                                   {opt.label}
                                 </Text>
                               </TouchableOpacity>
@@ -281,15 +281,15 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           })}
                         </View>
 
-                        {/* ═══ 3 PILLOLE FREQUENZA DETRAZIONE: GIORNALIERA | SETTIMANALE | MENSILE ═══ */}
+                        {/* ═══ 3 PILLOLE FREQUENZA DETRAZIONE: GIORNALIERA | SETTIMANALE | MENSILE (no icons, monocolore) ═══ */}
                         <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginTop: 10, marginBottom: 4, letterSpacing: 0.5 }}>
                           FREQUENZA DI DETRAZIONE
                         </Text>
                         <View style={{ flexDirection: 'row', gap: 6 }}>
                           {([
-                            { key: 'DAILY', label: 'Giornaliera', icon: '📅', color: '#2A8C5F' },
-                            { key: 'WEEKLY', label: 'Settimanale', icon: '📆', color: '#5A6FA8' },
-                            { key: 'MONTHLY', label: 'Mensile', icon: '🗓️', color: '#8F5AA8' },
+                            { key: 'DAILY', label: 'Giornaliera' },
+                            { key: 'WEEKLY', label: 'Settimanale' },
+                            { key: 'MONTHLY', label: 'Mensile' },
                           ] as const).map((opt) => {
                             const cur = fornDeductionType[f.nome] || 'DAILY';
                             const on = cur === opt.key;
@@ -300,19 +300,16 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                 activeOpacity={0.7}
                                 style={{
                                   flex: 1,
-                                  paddingVertical: 8,
+                                  paddingVertical: 9,
                                   borderRadius: 999,
-                                  backgroundColor: on ? opt.color : '#F5EFDC',
+                                  backgroundColor: on ? '#1E7F85' : '#F5EFDC',
                                   borderWidth: 1.5,
-                                  borderColor: on ? opt.color : '#E0D8C0',
+                                  borderColor: on ? '#1E7F85' : '#E0D8C0',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  flexDirection: 'row',
-                                  gap: 4,
                                 }}
                               >
-                                <Text style={{ fontSize: 12 }}>{opt.icon}</Text>
-                                <Text style={{ fontSize: 10, fontWeight: '900', color: on ? '#FFF' : opt.color, letterSpacing: 0.4 }}>
+                                <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
                                   {opt.label}
                                 </Text>
                               </TouchableOpacity>
