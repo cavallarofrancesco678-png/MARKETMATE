@@ -73,10 +73,10 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
   onPointPress?: (lineIdx: number, pointIdx: number, value: number) => void;
 }) => {
   const chartW = screenW - 70;
-  const padL = 52;
-  const padR = 12;
-  const padT = 44; // più spazio sopra per i valori delle etichette (font ingrandito)
-  const padB = 28;
+  const padL = 64;
+  const padR = 14;
+  const padT = 48;
+  const padB = 30;
   const drawW = chartW - padL - padR;
   const drawH = height - padT - padB;
 
@@ -118,8 +118,8 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
         return (
           <React.Fragment key={i}>
             <Line x1={padL} y1={y} x2={chartW - padR} y2={y} stroke="#D5DDD8" strokeWidth={0.5} />
-            <SvgText x={padL - 8} y={y + 3} fill="#5A7575" fontSize={9} textAnchor="end" fontWeight="700">
-              {'\u20AC '}{val}
+            <SvgText x={padL - 10} y={y + 4} fill="#3A5050" fontSize={11} textAnchor="end" fontWeight="800">
+              {`€${val}`}
             </SvgText>
           </React.Fragment>
         );
@@ -166,11 +166,11 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
                   //    Stroke bianco a 5dp = pillola di sfondo che separa il testo dalla linea della griglia.
                   return (
                     <>
-                      <SvgText x={p.x + xOff} y={p.y + yOff} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={5} fontSize={11} fontWeight="900" textAnchor={anchor}>
-                        €{p.v.toFixed(0)}
+                      <SvgText x={p.x + xOff} y={p.y + yOff} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={5} fontSize={12} fontWeight="900" textAnchor={anchor}>
+                        {`€${p.v.toFixed(0)}`}
                       </SvgText>
-                      <SvgText x={p.x + xOff} y={p.y + yOff} fill={line.color} fontSize={11} fontWeight="900" textAnchor={anchor}>
-                        €{p.v.toFixed(0)}
+                      <SvgText x={p.x + xOff} y={p.y + yOff} fill={line.color} fontSize={12} fontWeight="900" textAnchor={anchor}>
+                        {`€${p.v.toFixed(0)}`}
                       </SvgText>
                     </>
                   );
@@ -181,7 +181,7 @@ const InteractiveLineChart = ({ labels, lines, height = 170, activeLineIndex, on
         );
       })}
       {labels.map((l, i) => (
-        <SvgText key={i} x={padL + i * stepX} y={height - 4} fill="#5A7575" fontSize={9} textAnchor="middle" fontWeight="bold">
+        <SvgText key={i} x={padL + i * stepX} y={height - 6} fill="#3A5050" fontSize={10} textAnchor="middle" fontWeight="800">
           {l}
         </SvgText>
       ))}

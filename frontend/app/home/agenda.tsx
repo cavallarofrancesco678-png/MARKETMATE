@@ -658,10 +658,14 @@ export default function AgendaScreen() {
                     const dayLabel = (dayNames[dowKey] || '').substring(0, 3).toUpperCase() || '';
                     return (
                     <View key={i} style={s.archiveItem}>
-                      <Text style={s.archiveDate}>
-                        {dayLabel ? `${dayLabel} ` : ''}{n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
-                      </Text>
-                      <Text style={[s.archiveTxt, { flex: 1 }]}>{n.testo}</Text>
+                      <View style={s.archiveDateBox}>
+                        <Text style={s.archiveDateTxt}>
+                          {dayLabel ? `${dayLabel}\n` : ''}{n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={s.archiveTxt}>{n.testo}</Text>
+                      </View>
                       <TouchableOpacity
                         onPress={() => {
                           if (n.src === 'appunto') {
@@ -674,9 +678,9 @@ export default function AgendaScreen() {
                           if (n.data.toDateString() === today.toDateString()) setNoteText('');
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={{ padding: 2 }}
+                        style={{ padding: 4, marginTop: 2 }}
                       >
-                        <Ionicons name="close-circle" size={18} color="#D46A6A" />
+                        <Ionicons name="close-circle" size={20} color="#D46A6A" />
                       </TouchableOpacity>
                     </View>
                     );
