@@ -1991,6 +1991,119 @@ export default function HomeScreen() {
               return entry?.testo || '';
             } catch { return ''; }
           })(),
+          // ═══ DUMP COMPLETO TUTTI I DATI APP per chat libera AI ═══
+          fullContextDump: (() => {
+            try {
+              const fmtDate = (d: any) => {
+                try { return new Date(d).toISOString().split('T')[0]; } catch { return String(d); }
+              };
+              const lines: string[] = [];
+
+              // STORICO GIORNATE — TUTTE
+              const sg = (store.storicoGiornate || []).slice().sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime());
+              if (sg.length > 0) {
+                lines.push(`STORICO_GIORNATE (${sg.length} giornate, ordinato dal più recente):`);
+                sg.forEach((g: any) => {
+                  const det = g.dettaglio_fornitori || {};
+                  const ded = g.dettaglio_fornitori_deduction || {};
+                  const fornEntries = Object.entries(det).filter(([k, v]: any) => !k.endsWith('__fattn') && !k.endsWith('__liberaLabel') && (typeof v === 'number' ? v > 0 : false));
+                  const fornStr = fornEntries.length > 0
+                    ? fornEntries.map(([k, v]: any) => {
+                        const nomeBase = k.endsWith('__libera') ? k.slice(0, -'__libera'.length) : k;
+                        const tipo = k.endsWith('__libera') ? 'contanti' : 'fattura';
+                        const dt = ded[nomeBase] || 'DAILY';
+                        return `${nomeBase}(${tipo},${dt}):€${v}`;
+                      }).join('; ')
+                    : '-';
+                  const extraStr = g.dettaglio_spese_extra
+                    ? Object.entries(g.dettaglio_spese_extra).filter(([_, v]: any) => v > 0).map(([k, v]: any) => `${k}:€${v}`).join('; ')
+                    : '-';
+                  const inv = g.dettaglio_invenduto?.totale || 0;
+                  lines.push(
+                    `  ${fmtDate(g.data)}|${g.mercato || '-'}|lordo:€${g.lordo || 0}|netto:€${g.netto || 0}|cash:€${g.contanti || 0}|pos:€${g.pos || 0}|fornitori:[${fornStr}]|extra:[${extraStr}]|invenduto:€${inv}`
+                  );
+                });
+              }
+
+              // ORDINI AGENDA — TUTTI
+              const ord = store.ordiniAgenda || [];
+              if (ord.length > 0) {
+                lines.push(`\nORDINI_AGENDA (${ord.length}):`);
+                ord.slice().sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime()).forEach((o: any) => {
+                  lines.push(`  ${fmtDate(o.data)}|${o.fornitore || ''}|${o.testo || o.titolo || ''}${o.luogo ? '|@' + o.luogo : ''}`);
+                });
+              }
+
+              // APPUNTI AGENDA — TUTTI
+              const app = store.appuntiAgenda || [];
+              if (app.length > 0) {
+                lines.push(`\nAPPUNTI_AGENDA (${app.length}):`);
+                app.slice().sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime()).forEach((a: any) => {
+                  lines.push(`  ${fmtDate(a.data)}|${a.testo || a.titolo || ''}${a.luogo ? '|@' + a.luogo : ''}`);
+                });
+              }
+
+              // STORICO DIARIO — TUTTI
+              const dia = store.storicoDiario || [];
+              if (dia.length > 0) {
+                lines.push(`\nSTORICO_DIARIO_NOTE (${dia.length} note):`);
+                dia.slice().sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime()).forEach((d: any) => {
+                  if (d.testo) lines.push(`  ${fmtDate(d.data)}|${d.testo}`);
+                });
+              }
+
+              // SPESE ANNUE
+              const sa = store.speseAnnue || [];
+              if (sa.length > 0) {
+                lines.push(`\nSPESE_ANNUE (fisse):`);
+                sa.forEach((sp: any) => lines.push(`  ${sp.voce}: €${sp.importo}/anno`));
+              }
+
+              // FIERE
+              const fi = store.fiere || [];
+              if (fi.length > 0) {
+                lines.push(`\nFIERE (${fi.length}):`);
+                fi.forEach((f: any) => lines.push(`  ${fmtDate(f.data)}|${f.nome}${f.luogo ? '|@' + f.luogo : ''}${f.fineData ? '|→' + fmtDate(f.fineData) : ''}`));
+              }
+
+              // STORICO CARBURANTE
+              const sc = store.storicoCarburante || [];
+              if (sc.length > 0) {
+                lines.push(`\nSTORICO_CARBURANTE (${sc.length} rifornimenti):`);
+                sc.slice(-30).forEach((c: any) => lines.push(`  ${fmtDate(c.data)}|€${c.euro}|${c.litri || '?'}L${c.km ? '|km:' + c.km : ''}`));
+              }
+
+              // FORNITORI configurati
+              const fr = store.fornitori || [];
+              if (fr.length > 0) {
+                lines.push(`\nFORNITORI_CONFIGURATI (${fr.length}):`);
+                fr.forEach((f: any) => {
+                  const prods = (f.prodotti || []).slice(0, 5).map((p: any) => `${p.nome}€${p.prezzo}`).join(',');
+                  lines.push(`  ${f.nome}${prods ? '|prodotti:' + prods : ''}`);
+                });
+              }
+
+              // COLLABORATORI configurati
+              const cl = store.collaboratori || [];
+              if (cl.length > 0) {
+                lines.push(`\nCOLLABORATORI_CONFIGURATI (${cl.length}):`);
+                cl.forEach((c: any) => lines.push(`  ${c.nome}${c.percentuale ? '|%' + c.percentuale : ''}${c.costoGiornaliero ? '|€' + c.costoGiornaliero + '/gg' : ''}`));
+              }
+
+              // AGENDA SETTIMANALE (mercati per giorno)
+              const ag = store.agenda || [];
+              if (ag.length > 0) {
+                lines.push(`\nAGENDA_SETTIMANALE:`);
+                ag.forEach((a: any) => {
+                  if (a.attivo && a.mercato) lines.push(`  ${a.giorno}|${a.mercato}|km:${a.km || 0}|plateatico:€${a.plateatico || 0}/anno`);
+                });
+              }
+
+              return lines.join('\n');
+            } catch (e) {
+              return '';
+            }
+          })(),
         }}
       />
       {/* ═══ MODALE COSTO COLLABORATORE (long-press) ═══ */}

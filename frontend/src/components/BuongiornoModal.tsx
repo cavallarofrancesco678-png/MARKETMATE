@@ -54,6 +54,10 @@ interface StoreData {
   selectedDate?: string;
   // Invenduto ultima occorrenza dello stesso mercato/giorno (per warning AI)
   invendutoMedesimoMercato?: { data: string; giornoSett: string; mercato: string; invenduto: number; giorniFa: number } | null;
+  // ═══ DUMP COMPLETO DI TUTTI I DATI APP per risposte AI a domande libere ═══
+  // Include: storico_giornate, ordini_agenda, appunti_agenda, storico_diario,
+  // spese_annue, fiere, storico_carburante, fornitori, collaboratori, ecc.
+  fullContextDump?: string;
 }
 
 interface Props {
@@ -261,12 +265,14 @@ Carburante: ${carb}
 
 ═══ NOTIFICHE / PROSSIMI IMPEGNI (SOLO da Notes) ═══
 Appuntamenti prossimi (7gg, salvati in Notes): ${appuntiLst}
+Ordini prossimi da preparare (7gg, salvati in Notes): ${ordiniLst}
 Pagamenti imminenti (fatture in pagamento entro 7gg, da Notes): ${pagLst}
-⚠️ NON mostrare altre tipologie (fiere/ordini/note generiche). Single Source of Truth = Notes.
+⚠️ NON mostrare fiere o note generiche nel saluto iniziale. Single Source of Truth = Notes.
 ${s.noteOggi ? `\nNota del giorno: ${s.noteOggi}` : ''}
 ${s.invendutoMedesimoMercato && s.invendutoMedesimoMercato.invenduto > 0 ? `\n═══ ⚠️ INVENDUTO PRECEDENTE STESSO MERCATO ═══\nLo scorso ${s.invendutoMedesimoMercato.giornoSett} (${s.invendutoMedesimoMercato.giorniFa} giorni fa, mercato ${s.invendutoMedesimoMercato.mercato}) c'erano €${s.invendutoMedesimoMercato.invenduto} di invenduto. AVVISA L'UTENTE con preoccupazione (NON dire "ottimo"!): potrebbe essere merce da scartare. Suggerisci di ridurre quantità e tenerne conto.` : ''}
 ${weatherData ? '\n═══ METEO ═══\n' + weatherData + (isFuture ? `\n(IMPORTANTE: questo è il meteo PREVISTO per ${dateLabel}, NON di oggi. Usalo nel tuo saluto al FUTURO.)` : '') : 'Nessun dato meteo reale'}
-${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}`;
+${fuelData ? '\n' + fuelData : 'Nessun dato prezzi carburante in tempo reale'}
+${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a domande libere su qualsiasi cosa) ═══\n' + storeData.fullContextDump : ''}`;
   }, [storeData, fuelData, weatherData]);
 
   // Auto-send welcome message AFTER fuel+weather data is ready (senza mostrare messaggio utente)
