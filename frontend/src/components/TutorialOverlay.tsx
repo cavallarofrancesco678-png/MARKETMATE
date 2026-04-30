@@ -203,18 +203,28 @@ export const TutorialOverlay: React.FC = () => {
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === total - 1;
 
+  // ═══ Modalità BOTTOM-FIXED (mini bubble in basso) ═══
+  // Per i step di setup dove l'utente deve interagire con liste/righe sotto
+  // il titolo (Mercati, Fornitori, Collaboratori, Spese annue, Carburante,
+  // Notes), la bubble viene fissata in basso allo schermo e NON copre
+  // la sezione. L'utente può segnare/cliccare tutto liberamente.
+  const bottomBubbleStepIds = new Set([
+    'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
+    'carburante_setup', 'notes_setup',
+  ]);
+  const isBottomBubble = bottomBubbleStepIds.has(step.id);
+
   // ═══ Modalità COMPACT (fumetto adiacente al widget) ═══
   // welcome ora è compact (non-blocking) così l'utente può iniziare a scrivere
   // i propri dati nei campi sottostanti già durante il primo step del tutorial.
   // logistica e done restano full-modal perché contengono input multi-field/grafici grandi.
   const compactStepIds = new Set([
     'welcome',
-    'settings_intro', 'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
+    'settings_intro',
     'home_calendar', 'home_lordo', 'home_incasso', 'spese_extra_voci',
     'home_stats_box', 'home_salva', 'stats', 'buongiorno',
-    'carburante_setup', 'notes_setup',
   ]);
-  const isCompact = compactStepIds.has(step.id);
+  const isCompact = compactStepIds.has(step.id) || isBottomBubble;
 
   const Card = (
     <View
@@ -238,8 +248,8 @@ export const TutorialOverlay: React.FC = () => {
       </View>
 
       <ScrollView
-        style={{ maxHeight: SCREEN_H * (isCompact ? 0.40 : 0.55) }}
-        contentContainerStyle={{ padding: isCompact ? 18 : 22 }}
+        style={{ maxHeight: SCREEN_H * (isBottomBubble ? 0.32 : (isCompact ? 0.40 : 0.55)) }}
+        contentContainerStyle={{ padding: isCompact ? (isBottomBubble ? 14 : 18) : 22 }}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[s.title, isCompact && s.titleCompact]}>{title}</Text>
@@ -321,9 +331,11 @@ export const TutorialOverlay: React.FC = () => {
 
   // ═══ COMPACT MODE ═══
   if (isCompact) {
-    // Se abbiamo le coordinate dell'anchor → posizioniamo il fumetto ADIACENTE.
-    // Altrimenti fallback: dock in basso.
-    const useAdjacent = adjacentTop != null;
+    // Per i setup step (Mercati, Fornitori, etc.) la bubble resta SEMPRE
+    // fissata in basso e NON copre la sezione: l'utente può segnare i mercati,
+    // aggiungere fornitori, ecc. mentre legge le istruzioni.
+    // Per gli altri compact step, posizioniamo adiacente al widget.
+    const useAdjacent = !isBottomBubble && adjacentTop != null;
     const adjacentStyle = useAdjacent
       ? { position: 'absolute' as const, top: adjacentTop as number, left: 8, right: 8 }
       : { position: 'absolute' as const, bottom: 70, left: 8, right: 8 };
