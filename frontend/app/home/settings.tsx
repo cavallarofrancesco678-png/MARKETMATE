@@ -1081,11 +1081,30 @@ export default function SettingsPage() {
                   <Ionicons name="create-outline" size={16} color="#7A9090" />
                 </TouchableOpacity>
 
+                {/* COSTO ANNUALE */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() =>
+                    openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
+                      const updated = [...store.collaboratori];
+                      updated[i] = { nome: vals[0], costo: parseFloat(vals[1].replace(',', '.')) || 0, costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0 };
+                      store.setConfig({ collaboratori: updated });
+                    }, ['default', 'numeric', 'numeric'], c.nome, codiceCollab, [c.nome, String(c.costo || ''), String(c.costoAnnuo || '')])
+                  }
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8, borderTopWidth: 1, borderTopColor: '#EDE8D9' }}
+                >
+                  <Ionicons name="calendar-outline" size={16} color="#7A9090" />
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: '#5A7575' }}>Costo annuale</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#1A4040' }}>€{c.costoAnnuo || 0}</Text>
+                  <Ionicons name="create-outline" size={16} color="#7A9090" />
+                </TouchableOpacity>
+
                 {/* SWITCHER RUOLO — 4 chips */}
                 <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.8, marginTop: 10, marginBottom: 6 }}>
                   RUOLO
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                <View style={{ flexDirection: 'row', gap: 4 }}>
                   {([
                     { key: 'AMMINISTRATORE', label: 'AMMIN.' },
                     { key: 'MANAGER', label: 'MANAGER' },
@@ -1098,13 +1117,12 @@ export default function SettingsPage() {
                       <TouchableOpacity
                         key={opt.label}
                         activeOpacity={0.5}
-                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                        hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
                         onPress={() => setRuoloRapido(opt.key as any)}
                         style={{
                           flex: 1,
-                          minWidth: 70,
                           paddingVertical: 9,
-                          paddingHorizontal: 6,
+                          paddingHorizontal: 4,
                           borderRadius: 999,
                           backgroundColor: on ? '#1E7F85' : '#F5EFDC',
                           borderWidth: 1.5,
@@ -1113,7 +1131,11 @@ export default function SettingsPage() {
                           justifyContent: 'center',
                         }}
                       >
-                        <Text style={{ fontSize: 10, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
+                        <Text
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          style={{ fontSize: 9.5, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.2 }}
+                        >
                           {opt.label}
                         </Text>
                       </TouchableOpacity>

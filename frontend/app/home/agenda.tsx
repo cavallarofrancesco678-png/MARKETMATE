@@ -466,12 +466,18 @@ export default function AgendaScreen() {
   };
 
   /* ═══ SALVA NOTA ═══ */
+  const [noteSavedFlash, setNoteSavedFlash] = useState(false);
   const handleSaveNote = () => {
-    if (noteText.trim()) {
-      addDiario({ data: new Date(), testo: noteText.trim() });
-      if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Nota salvata!');
-      else playSuccess(); // Conferma sonora, nessun popup
-    }
+    const txt = noteText.trim();
+    if (!txt) return;
+    addDiario({ data: new Date(), testo: txt });
+    setNoteText(''); // clear input dopo save (così l'utente vede che il salvataggio è avvenuto)
+    setNoteSavedFlash(true);
+    setTimeout(() => setNoteSavedFlash(false), 1800);
+    // Apri archivio così l'utente vede subito la nota appena salvata
+    setShowArchive(true);
+    if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Nota salvata!');
+    else playSuccess();
   };
 
   return (
@@ -593,9 +599,9 @@ export default function AgendaScreen() {
           <Ionicons name="document-text" size={15} color="#E8A060" />
           <Text style={[s.cardHeaderTxt, { color: '#E8A060' }]}>NOTE DEL GIORNO</Text>
           <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={handleSaveNote} style={s.noteSaveBtn}>
-            <Ionicons name="save" size={14} color="#FFF" />
-            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>SALVA</Text>
+          <TouchableOpacity onPress={handleSaveNote} style={[s.noteSaveBtn, noteSavedFlash && { backgroundColor: '#2A8C5F' }]}>
+            <Ionicons name={noteSavedFlash ? 'checkmark' : 'save'} size={14} color="#FFF" />
+            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>{noteSavedFlash ? 'SALVATA' : 'SALVA'}</Text>
           </TouchableOpacity>
         </View>
         <TextInput
@@ -704,7 +710,7 @@ export default function AgendaScreen() {
                             {f.next ? `${f.next.getDate()} ${MESI[f.next.getMonth()].substring(0, 3)}` : (f.ricorrente ? 'RIC.' : '—')}
                           </Text>
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={[s.archiveTxt, { color: col, flex: 1 }]}>{f.nome}</Text>
                           {f.luogo ? (
                             <Text style={{ fontSize: 12, color: '#5A7575', fontWeight: '600' }}>{f.luogo}</Text>
@@ -747,20 +753,30 @@ export default function AgendaScreen() {
                     const color = ft.overdue ? '#D46A6A' : '#B08050';
                     return (
                       <View key={ft.id + i} style={s.archiveItem}>
-                        <View style={{ backgroundColor: color, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                        <View style={{ backgroundColor: color, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, minWidth: 50, alignItems: 'center' }}>
                           <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
                             {ft.data.getDate()} {MESI[ft.data.getMonth()].substring(0, 3)}
                           </Text>
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[s.archiveTxt, { color: '#1A4040' }]}>
-                            {ft.fornitore}{ft.numero ? ` • Fatt. ${ft.numero}` : ''}
-                          </Text>
-                          <Text style={{ fontSize: 13, color, fontWeight: '900', marginTop: 2 }}>
-                            €{parseFloat(ft.importo).toFixed(0)}
-                            {ft.scadenza ? ` · scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}` : ''}
-                            {ft.overdue ? ' · SCADUTA' : ''}
-                          </Text>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          {/* Riga 1: FORNITORE in evidenza + IMPORTO a destra */}
+                          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                            <Text style={[s.archiveTxt, { color: '#1A4040', flex: 1 }]} numberOfLines={2}>
+                              {ft.fornitore}
+                            </Text>
+                            <Text style={{ fontSize: 15, color, fontWeight: '900' }}>
+                              €{parseFloat(ft.importo).toFixed(0)}
+                            </Text>
+                          </View>
+                          {/* Riga 2: numero fattura + scadenza */}
+                          {(ft.numero || ft.scadenza || ft.overdue) && (
+                            <Text style={{ fontSize: 11, color: '#7A8585', fontWeight: '700', marginTop: 3 }}>
+                              {ft.numero ? `Fatt. ${ft.numero}` : ''}
+                              {ft.numero && ft.scadenza ? ' · ' : ''}
+                              {ft.scadenza ? `scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}` : ''}
+                              {ft.overdue ? <Text style={{ color: '#D46A6A', fontWeight: '900' }}> · SCADUTA</Text> : null}
+                            </Text>
+                          )}
                         </View>
                         <TouchableOpacity
                           onPress={() => {

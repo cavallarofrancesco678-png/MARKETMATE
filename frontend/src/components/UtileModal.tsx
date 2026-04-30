@@ -111,7 +111,7 @@ export const UtileModal: React.FC<Props> = ({
       onToggle: toggleExcludeCollaboratori,
     },
     {
-      label: 'FORNITORI (giornalieri)',
+      label: 'FORNITORI',
       icon: 'storefront-outline',
       iconColor: '#7A5E9B',
       value: fornitoriDaily,

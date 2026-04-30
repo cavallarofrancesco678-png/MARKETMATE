@@ -1700,7 +1700,7 @@ export default function StatsScreen() {
                 <View style={[st.checkbox, excludeFornitori && st.checkboxChecked]}>
                   {excludeFornitori && <Ionicons name="checkmark" size={14} color="#FFF" />}
                 </View>
-                <Text style={st.checkboxLabel}>Fornitori ({vociExtraPeriod.totExtraInPeriod > 0 ? 'periodo' : 'giornaliera'})</Text>
+                <Text style={st.checkboxLabel}>Fornitori</Text>
                 <Text style={st.checkboxValue}>€{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totExtraInPeriod).toFixed(0)}</Text>
               </TouchableOpacity>
               
