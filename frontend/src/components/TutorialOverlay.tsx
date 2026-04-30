@@ -204,8 +204,11 @@ export const TutorialOverlay: React.FC = () => {
   const isLast = stepIndex === total - 1;
 
   // ═══ Modalità COMPACT (fumetto adiacente al widget) ═══
-  // Welcome, multi-input, done restano centrati come modal classico.
+  // welcome ora è compact (non-blocking) così l'utente può iniziare a scrivere
+  // i propri dati nei campi sottostanti già durante il primo step del tutorial.
+  // logistica e done restano full-modal perché contengono input multi-field/grafici grandi.
   const compactStepIds = new Set([
+    'welcome',
     'settings_intro', 'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
     'home_calendar', 'home_lordo', 'home_incasso', 'spese_extra_voci',
     'home_stats_box', 'home_salva', 'stats', 'buongiorno',

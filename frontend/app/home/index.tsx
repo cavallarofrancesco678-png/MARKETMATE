@@ -131,14 +131,16 @@ export default function HomeScreen() {
     setPresenze(p);
   }, [collaboratori]);
 
-  /* ═══ PERSISTENZA SPESE EXTRA (fino a 23:59 del giorno successivo alla creazione) ═══ */
+  /* ═══ PERSISTENZA SPESE EXTRA (entro lo stesso giorno solare di creazione) ═══
+     La sessione dura SOLO fino alle 23:59 del giorno in cui è stata creata.
+     Questo evita che spese di "ieri" appaiano nella HOME di "oggi" senza che
+     l'utente le abbia inserite oggi (bug #5 segnalato). */
   const isSpeseSessionValid = (createdAt: string): boolean => {
     const created = new Date(createdAt);
     if (isNaN(created.getTime())) return false;
-    const endOfNextDay = new Date(created);
-    endOfNextDay.setDate(endOfNextDay.getDate() + 1);
-    endOfNextDay.setHours(23, 59, 59, 999);
-    return new Date() <= endOfNextDay;
+    const endOfDay = new Date(created);
+    endOfDay.setHours(23, 59, 59, 999);
+    return new Date() <= endOfDay;
   };
 
   // On mount/hydration: restore session if still valid
@@ -1359,6 +1361,15 @@ export default function HomeScreen() {
                       
                       {/* Barre ANIMATE - TOUCHABLE */}
                       <View style={{ height: BAR_AREA_H, flexDirection: 'row', alignItems: 'flex-end' }}>
+                        {/* Stato VUOTO: messaggio CTA quando non ci sono ancora dati */}
+                        {totale === 0 && giorniCount === 0 && (
+                          <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+                            <Ionicons name="bar-chart-outline" size={20} color="#A8B5B5" />
+                            <Text style={{ fontSize: 10, color: '#7A9090', fontWeight: '700', marginTop: 4, textAlign: 'center', paddingHorizontal: 8 }}>
+                              Salva la prima giornata{'\n'}per vedere le statistiche
+                            </Text>
+                          </View>
+                        )}
                         {chartData.map((val, i) => {
                           const hPx = maxVal > 0 ? (val / maxVal) * BAR_AREA_H : 0;
                           const meseNomi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
