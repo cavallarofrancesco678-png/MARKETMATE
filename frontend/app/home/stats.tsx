@@ -332,11 +332,8 @@ export default function StatsScreen() {
     return key;
   };
 
-  useEffect(() => {
-    if (storicoGiornate.length === 0) {
-      seedMockData();
-    }
-  }, []);
+  // ═══ NON inietta dati di mock automaticamente. Lo storico è vuoto al primo
+  //     avvio e si popola solo quando l'utente salva le proprie giornate. ═══
 
   const now = new Date();
 
