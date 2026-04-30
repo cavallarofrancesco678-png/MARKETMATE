@@ -294,6 +294,7 @@ export default function StatsScreen() {
   const [excludeSpeseFisse, setExcludeSpeseFisse] = useState(false);
   const [excludeCollaboratori, setExcludeCollaboratori] = useState(false);
   const [excludeSpeseExtra, setExcludeSpeseExtra] = useState(false);
+  const [excludeFornitori, setExcludeFornitori] = useState(false);
   const [excludeInvenduto, setExcludeInvenduto] = useState(false);
   const [excludeCarburante, setExcludeCarburante] = useState(false);
 
@@ -1689,6 +1690,18 @@ export default function StatsScreen() {
                 </View>
                 <Text style={st.checkboxLabel}>Spese Straordinarie</Text>
                 <Text style={st.checkboxValue}>€{arrSum(filteredData.map(g => g.spese_extra || 0))}</Text>
+              </TouchableOpacity>
+
+              {/* FORNITORI (solo DAILY — WEEKLY/MONTHLY già sommati nel periodo) */}
+              <TouchableOpacity
+                style={st.checkboxRow}
+                onPress={() => setExcludeFornitori(!excludeFornitori)}
+              >
+                <View style={[st.checkbox, excludeFornitori && st.checkboxChecked]}>
+                  {excludeFornitori && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                </View>
+                <Text style={st.checkboxLabel}>Fornitori ({vociExtraPeriod.totExtraInPeriod > 0 ? 'periodo' : 'giornaliera'})</Text>
+                <Text style={st.checkboxValue}>€{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totExtraInPeriod).toFixed(0)}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 

@@ -99,6 +99,7 @@ export default function HomeScreen() {
   const [showUtileModal, setShowUtileModal] = useState(false);
   const [showSpeseExtraModal, setShowSpeseExtraModal] = useState(false);
   const [excludeSpeseExtra, setExcludeSpeseExtra] = useState(false);
+  const [excludeFornitori, setExcludeFornitori] = useState(false);
   const [excludeInvenduto, setExcludeInvenduto] = useState(false);
   const [excludeSpeseFisse, setExcludeSpeseFisse] = useState(false);
   const [excludeCollaboratori, setExcludeCollaboratori] = useState(false);
@@ -611,6 +612,45 @@ export default function HomeScreen() {
     return tot;
   }, [speseExtraFornitore, pagamentoMode, fornDeductionType]);
 
+  /* ── Fornitori del GIORNO accantonati: WEEKLY e MONTHLY separati (per hint UtileModal + AI) ── */
+  const speseExtraFornWeekly = useMemo(() => {
+    let tot = 0;
+    const nomi = new Set<string>();
+    Object.keys(speseExtraFornitore).forEach((k) => {
+      if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+      nomi.add(k.replace(/__libera$/, ''));
+    });
+    nomi.forEach((nomeBase) => {
+      if ((fornDeductionType[nomeBase] || 'DAILY') !== 'WEEKLY') return;
+      const mode = pagamentoMode[nomeBase] || 'contanti';
+      const impF = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
+      const impC = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
+      if (mode === 'contanti') tot += impC;
+      else if (mode === 'fattura') tot += impF;
+      else tot += impF + impC;
+    });
+    return tot;
+  }, [speseExtraFornitore, pagamentoMode, fornDeductionType]);
+
+  const speseExtraFornMonthly = useMemo(() => {
+    let tot = 0;
+    const nomi = new Set<string>();
+    Object.keys(speseExtraFornitore).forEach((k) => {
+      if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+      nomi.add(k.replace(/__libera$/, ''));
+    });
+    nomi.forEach((nomeBase) => {
+      if ((fornDeductionType[nomeBase] || 'DAILY') !== 'MONTHLY') return;
+      const mode = pagamentoMode[nomeBase] || 'contanti';
+      const impF = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
+      const impC = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
+      if (mode === 'contanti') tot += impC;
+      else if (mode === 'fattura') tot += impF;
+      else tot += impF + impC;
+    });
+    return tot;
+  }, [speseExtraFornitore, pagamentoMode, fornDeductionType]);
+
   /* ── Spese Extra generiche totale (importo del giorno, NO ripartizione) ── */
   const speseExtraGenTotale = useMemo(() => {
     let tot = 0;
@@ -684,7 +724,9 @@ export default function HomeScreen() {
   const fieraPlatNum = parseFloat((fieraPlat || '0').replace(',', '.')) || 0;
 
   const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
-  const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraFornTotale + speseExtraGenTotale;
+  // speseExtraTotNum = SOLO spese extra generiche (le fornitori DAILY sono separate e flaggabili)
+  const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraGenTotale;
+  const fornitoriDailyNum = excludeFornitori ? 0 : speseExtraFornTotale;
   const invendutoNum = excludeInvenduto ? 0 : (parseFloat(invenduto.replace(',', '.')) || 0);
 
   // Costo collaboratori attivi (presenti oggi) con override giornaliero
@@ -699,6 +741,7 @@ export default function HomeScreen() {
   const utile = lordoNum
     - (excludeSpeseFisse ? 0 : speseFisseTotali)
     - (excludeSpeseExtra ? 0 : speseExtraTotNum)
+    - (excludeFornitori ? 0 : speseExtraFornTotale)
     - (excludeInvenduto ? 0 : invendutoNum)
     - (excludeCollaboratori ? 0 : costoCollabAttivi);
   /* ── Storico mercato dati reali ── */
@@ -1791,9 +1834,14 @@ export default function HomeScreen() {
         collabCosto={costoCollabAttivi}
         excludeCollaboratori={excludeCollaboratori}
         toggleExcludeCollaboratori={() => setExcludeCollaboratori(!excludeCollaboratori)}
-        speseExtra={speseExtraFornTotale + speseExtraGenTotale}
+        speseExtra={speseExtraGenTotale}
         excludeSpeseExtra={excludeSpeseExtra}
         toggleExcludeSpeseExtra={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
+        fornitoriDaily={speseExtraFornTotale}
+        excludeFornitori={excludeFornitori}
+        toggleExcludeFornitori={() => setExcludeFornitori(!excludeFornitori)}
+        fornitoriWeekly={speseExtraFornWeekly}
+        fornitoriMonthly={speseExtraFornMonthly}
         invenduto={parseFloat(invenduto.replace(',', '.')) || 0}
         excludeInvenduto={excludeInvenduto}
         toggleExcludeInvenduto={() => setExcludeInvenduto(!excludeInvenduto)}

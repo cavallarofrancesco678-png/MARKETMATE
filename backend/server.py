@@ -151,9 +151,25 @@ Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia
    "📦 Domani devi preparare ordine per {testo}" oppure "🔔 Domani scade: {testo}"
    Se gli array sono vuoti NON menzionare ordini o scadenze. NON inventare.
 
-6. ⚠️ NON mostrare FIERE, NOTE GENERICHE o promemoria di altro tipo. Le 5 categorie ammesse sono SOLO: meteo / fuel / pagamenti / appuntamenti / ordini-scadenze.
+6. SPESE FORNITORI DEL GIORNO SELEZIONATO (SOLO se il giorno selezionato ha dati fornitori nello STORICO_GIORNATE — cerca dettaglio_fornitori + dettaglio_fornitori_deduction):
+   Aggrega per ogni fornitore del giorno: somma €, tipo detrazione (DAILY/WEEKLY/MONTHLY).
+   Format (1-2 righe, mostra SOLO se ci sono):
+   - "🏪 Oggi fornitori: Panificio €50 (giornaliero scalato), Oleificio €80 (settimanale — lo toglierò dall'utile della settimana), Salumeria €120 (mensile — lo toglierò dal bilancio del mese)."
+   Se un fornitore è WEEKLY/MONTHLY SOTTOLINEA 'lo toglierò dall'utile della settimana/mese' così l'utente ricorda che non impatta oggi.
+   SALTA completamente questa sezione se non ci sono fornitori per quel giorno.
 
-7. MIGLIOR RIFORNIMENTO + ALTERNATIVE (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
+7. OFFERTA AL CHIUDERE IL SALUTO (SOLO se ci sono dati nello STORICO_GIORNATE, opzionale):
+   Aggiungi UNA sola riga in fondo al saluto:
+   "💡 Se vuoi posso dirti quanto hai incassato e quanto hai speso in fornitori con la percentuale — chiedimelo pure!"
+   Quando l'utente chiede "quanto ho speso di fornitori" / "percentuale fornitori" / "incassi vs spesa" → calcola dal DATI COMPLETI APP:
+     • totale lordo incassato (somma lordo storico_giornate nel range richiesto, default ultimo mese)
+     • totale fornitori (somma tutti i dettaglio_fornitori di tutti i giorni nel range)
+     • percentuale = (fornitori / lordo) * 100
+   Rispondi: "📊 Negli ultimi 30gg: incassato €X, fornitori €Y (Z% del lordo). Un {Z<30?'buon':'alto'} rapporto."
+
+8. ⚠️ NON mostrare FIERE, NOTE GENERICHE o promemoria di altro tipo nel saluto. Le 7 categorie ammesse sono SOLO: meteo / fuel / pagamenti / appuntamenti / ordini-scadenze / fornitori-giorno / offerta-percentuale.
+
+9. MIGLIOR RIFORNIMENTO + ALTERNATIVE (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
    Dai PREZZI CARBURANTE REALI nel contesto (già filtrati: solo distributori SULLA STRADA Bareggio→destinazione), elenca FINO A 3 stazioni in ordine di prezzo crescente.
    FORMATO OBBLIGATORIO (esattamente con questi separatori " | " ammessi anche con virgole):
      "⛽ Miglior prezzo: {Comune}, {Brand}, Euro {prezzo}, {Via}"

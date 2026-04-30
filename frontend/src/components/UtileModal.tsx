@@ -23,6 +23,13 @@ interface Props {
   speseExtra: number;
   excludeSpeseExtra: boolean;
   toggleExcludeSpeseExtra: () => void;
+  // Fornitori (SOLO DAILY) — riga separata flaggabile. WEEKLY/MONTHLY non compaiono qui.
+  fornitoriDaily: number;
+  excludeFornitori: boolean;
+  toggleExcludeFornitori: () => void;
+  // Info extra per hint (totali WEEKLY/MONTHLY accantonati)
+  fornitoriWeekly?: number;
+  fornitoriMonthly?: number;
   invenduto: number;
   excludeInvenduto: boolean;
   toggleExcludeInvenduto: () => void;
@@ -37,9 +44,10 @@ interface CategoryRowProps {
   value: number;
   excluded: boolean;
   onToggle: () => void;
+  hint?: string;
 }
 
-const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value, excluded, onToggle }) => (
+const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value, excluded, onToggle, hint }) => (
   <View style={st.row}>
     <View style={st.rowIcon}>
       <Ionicons name={icon as any} size={20} color={excluded ? '#B0B0A0' : iconColor} />
@@ -49,6 +57,9 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value
       <Text style={[st.rowVal, excluded && st.rowDisabled]}>
         {excluded ? 'Escluso dal calcolo' : `€${value.toFixed(0)}`}
       </Text>
+      {hint ? (
+        <Text style={{ fontSize: 10, color: '#8A9595', fontStyle: 'italic', marginTop: 2 }}>{hint}</Text>
+      ) : null}
     </View>
     <View style={st.rowRight}>
       <Text style={[st.rowAmount, { color: excluded ? '#B0B0A0' : '#D46A6A' }]}>
@@ -68,6 +79,8 @@ export const UtileModal: React.FC<Props> = ({
   visible, onClose, speseFisse, excludeSpeseFisse, toggleExcludeSpeseFisse,
   collabCosto, excludeCollaboratori, toggleExcludeCollaboratori,
   speseExtra, excludeSpeseExtra, toggleExcludeSpeseExtra,
+  fornitoriDaily, excludeFornitori, toggleExcludeFornitori,
+  fornitoriWeekly = 0, fornitoriMonthly = 0,
   invenduto, excludeInvenduto, toggleExcludeInvenduto,
   utile, lordo,
 }) => {
@@ -77,6 +90,7 @@ export const UtileModal: React.FC<Props> = ({
     (excludeSpeseFisse ? 0 : speseFisse) +
     (excludeCollaboratori ? 0 : collabCosto) +
     (excludeSpeseExtra ? 0 : speseExtra) +
+    (excludeFornitori ? 0 : fornitoriDaily) +
     (excludeInvenduto ? 0 : invenduto);
 
   const categories = [
@@ -95,6 +109,17 @@ export const UtileModal: React.FC<Props> = ({
       value: collabCosto,
       excluded: excludeCollaboratori,
       onToggle: toggleExcludeCollaboratori,
+    },
+    {
+      label: 'FORNITORI (giornalieri)',
+      icon: 'storefront-outline',
+      iconColor: '#7A5E9B',
+      value: fornitoriDaily,
+      excluded: excludeFornitori,
+      onToggle: toggleExcludeFornitori,
+      hint: (fornitoriWeekly + fornitoriMonthly) > 0
+        ? `+ €${fornitoriWeekly} settim. + €${fornitoriMonthly} mens. scalati in Statistiche`
+        : undefined,
     },
     {
       label: 'SPESE EXTRA',
@@ -152,7 +177,7 @@ export const UtileModal: React.FC<Props> = ({
               Attiva/disattiva intere categorie dal calcolo dell'utile
             </Text>
 
-            {categories.map((cat) => (
+            {categories.map((cat: any) => (
               <CategoryRow
                 key={cat.label}
                 label={cat.label}
@@ -161,6 +186,7 @@ export const UtileModal: React.FC<Props> = ({
                 value={cat.value}
                 excluded={cat.excluded}
                 onToggle={cat.onToggle}
+                hint={cat.hint}
               />
             ))}
 
