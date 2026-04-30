@@ -1227,7 +1227,7 @@ export default function HomeScreen() {
       <View style={{ height: GAP }} />
 
       {/* ═══ STORICO MERCATO - Grafico Professionale ═══ */}
-      <View style={[s.section, { height: STORICO_H }]} testID="home-stats-box" ref={anchorStatsBox}>
+      <View style={[s.section, { flex: 1, minHeight: STORICO_H }]} testID="home-stats-box" ref={anchorStatsBox}>
         <View style={[s.storico, { flex: 1, marginBottom: Math.round(GAP * 0.4), flexDirection: 'row', padding: 8 }]}>
           {(() => {
             const gg = store.storicoGiornate || [];

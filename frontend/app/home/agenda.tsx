@@ -465,19 +465,33 @@ export default function AgendaScreen() {
     setShowDayModal(false);
   };
 
-  /* ═══ SALVA NOTA ═══ */
+  /* ═══ SALVA / MODIFICA NOTA ═══ */
   const [noteSavedFlash, setNoteSavedFlash] = useState(false);
+  // Se editingNote è settato, il bottone diventa "MODIFICA" e sostituisce la vecchia nota
+  const [editingNote, setEditingNote] = useState<{ data: string; testo: string } | null>(null);
   const handleSaveNote = () => {
     const txt = noteText.trim();
     if (!txt) return;
-    addDiario({ data: new Date(), testo: txt });
-    setNoteText(''); // clear input dopo save (così l'utente vede che il salvataggio è avvenuto)
+    if (editingNote) {
+      // Rimpiazza la vecchia (rimuovi vecchia + aggiungi nuova con la stessa data)
+      removeDiario(editingNote.data);
+      addDiario({ data: new Date(editingNote.data), testo: txt });
+      setEditingNote(null);
+    } else {
+      addDiario({ data: new Date(), testo: txt });
+    }
+    setNoteText('');
     setNoteSavedFlash(true);
     setTimeout(() => setNoteSavedFlash(false), 1800);
-    // Apri archivio così l'utente vede subito la nota appena salvata
     setShowArchive(true);
     if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Nota salvata!');
     else playSuccess();
+  };
+  const startEditNote = (data: string, testo: string) => {
+    setEditingNote({ data, testo });
+    setNoteText(testo);
+    // Scroll al textarea (web only)
+    if (Platform.OS === 'web') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -599,10 +613,19 @@ export default function AgendaScreen() {
           <Ionicons name="document-text" size={15} color="#E8A060" />
           <Text style={[s.cardHeaderTxt, { color: '#E8A060' }]}>NOTE DEL GIORNO</Text>
           <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={handleSaveNote} style={[s.noteSaveBtn, noteSavedFlash && { backgroundColor: '#2A8C5F' }]}>
-            <Ionicons name={noteSavedFlash ? 'checkmark' : 'save'} size={14} color="#FFF" />
-            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>{noteSavedFlash ? 'SALVATA' : 'SALVA'}</Text>
+          <TouchableOpacity onPress={handleSaveNote} style={[s.noteSaveBtn, noteSavedFlash && { backgroundColor: '#2A8C5F' }, editingNote && { backgroundColor: '#E8A060' }]}>
+            <Ionicons name={noteSavedFlash ? 'checkmark' : (editingNote ? 'create' : 'save')} size={14} color="#FFF" />
+            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>{noteSavedFlash ? 'SALVATA' : (editingNote ? 'MODIFICA' : 'SALVA')}</Text>
           </TouchableOpacity>
+          {editingNote && (
+            <TouchableOpacity
+              onPress={() => { setEditingNote(null); setNoteText(''); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginLeft: 6, padding: 6 }}
+            >
+              <Ionicons name="close-circle" size={20} color="#7A9090" />
+            </TouchableOpacity>
+          )}
         </View>
         <TextInput
           style={s.noteInput}
@@ -669,9 +692,23 @@ export default function AgendaScreen() {
                           {dayLabel ? `${dayLabel}\n` : ''}{n.data.getDate()} {MESI[n.data.getMonth()].substring(0, 3)}
                         </Text>
                       </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
+                      {/* TAP per editare la nota */}
+                      <TouchableOpacity
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 6, bottom: 6 }}
+                        onPress={() => {
+                          if (n.src === 'appunto') return; // gli appunti calendario hanno editing diverso
+                          startEditNote(n.data.toISOString(), n.testo);
+                        }}
+                        style={{ flex: 1, minWidth: 0 }}
+                      >
                         <Text style={s.archiveTxt}>{n.testo}</Text>
-                      </View>
+                        {n.src !== 'appunto' && (
+                          <Text style={{ fontSize: 9, color: '#7A9090', fontStyle: 'italic', marginTop: 2 }}>
+                            tocca per modificare
+                          </Text>
+                        )}
+                      </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => {
                           if (n.src === 'appunto') {
