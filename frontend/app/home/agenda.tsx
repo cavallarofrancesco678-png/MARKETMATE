@@ -748,9 +748,9 @@ export default function AgendaScreen() {
                           </Text>
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={[s.archiveTxt, { color: col, flex: 1 }]}>{f.nome}</Text>
+                          <Text style={[s.archiveTxt, { color: col }]} numberOfLines={2}>{f.nome}</Text>
                           {f.luogo ? (
-                            <Text style={{ fontSize: 12, color: '#5A7575', fontWeight: '600' }}>{f.luogo}</Text>
+                            <Text style={{ fontSize: 12, color: '#5A7575', fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{f.luogo}</Text>
                           ) : null}
                         </View>
                         <TouchableOpacity
