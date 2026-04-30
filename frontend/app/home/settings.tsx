@@ -384,6 +384,7 @@ export default function SettingsPage() {
 
   // Expanded state for agenda days
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
+  const [expandedCollab, setExpandedCollab] = useState<number | null>(null);
   // ALL market names stored LOCALLY to prevent any store-related re-render issues
   const [localNames, setLocalNames] = useState<string[]>(() => 
     store.agenda.map(m => m.mercato || '')
@@ -1024,55 +1025,47 @@ export default function SettingsPage() {
       <Text style={s.secTitle} testID="sett-collab-card" ref={anchorCollab as any}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
       {store.collaboratori.map((c, i) => {
         const codiceCollab = store.codiciInvito?.find(cod => cod.nome === c.nome);
+        const isOpen = expandedCollab === i;
+        const tt = codiceCollab?.tipo as any;
+        const meta = codiceCollab
+          ? (tt === 'AMMINISTRATORE' || tt === 'B')
+            ? { c: '#B85450', l: 'AMMIN.' }
+            : tt === 'MANAGER'
+              ? { c: '#1E7F85', l: 'MANAGER' }
+              : { c: '#E8A060', l: 'UTENTE' }
+          : { c: '#D0D0D0', l: '—' };
+
+        // Switcher ruolo inline: cambia ruolo con 1 tap (rimuove vecchio + crea nuovo)
+        const setRuoloRapido = (nuovo: 'AMMINISTRATORE' | 'MANAGER' | 'UTENTE' | null) => {
+          if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
+          if (nuovo) store.generateCodiceInvito(nuovo as any, c.nome);
+        };
+
         return (
           <View key={i} style={s.card}>
-            <View style={s.itemRow}>
-              <Ionicons name="person-circle" size={28} color="#1E7F85" />
-              <View style={[s.itemInfo, { flex: 1 }]}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#1A4040' }}>{c.nome}</Text>
+            {/* ═══ HEADER ESPANDIBILE — stesso pattern di Mercati ═══ */}
+            <TouchableOpacity
+              style={s.agendaHeader}
+              activeOpacity={0.6}
+              onPress={() => setExpandedCollab(isOpen ? null : i)}
+            >
+              <Ionicons name="person-circle" size={26} color="#1E7F85" />
+              <Text style={[s.agendaMarket, { marginLeft: 8 }]} numberOfLines={1}>{c.nome}</Text>
+              <View style={{ backgroundColor: meta.c, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginRight: 10 }}>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#FFF', letterSpacing: 0.8 }}>{meta.l}</Text>
               </View>
-              {codiceCollab ? (() => {
-                const tt = codiceCollab.tipo as any;
-                const meta = (tt === 'AMMINISTRATORE' || tt === 'B')
-                  ? { c: '#B85450', l: 'AMMIN.' }
-                  : tt === 'MANAGER'
-                    ? { c: '#1E7F85', l: 'MANAGER' }
-                    : { c: '#E8A060', l: 'UTENTE' };
-                return (
-                  // ═══ BADGE RUOLO + X per reset immediato ═══
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
-                    <View style={{ backgroundColor: meta.c, paddingHorizontal: 10, paddingVertical: 4, borderTopLeftRadius: 8, borderBottomLeftRadius: 8 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 1 }}>
-                        {meta.l}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      activeOpacity={0.5}
-                      hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-                      onPress={() => {
-                        Alert.alert(
-                          t('settings.removeRole') || 'Rimuovi ruolo',
-                          `${t('settings.removeRoleConfirm') || 'Vuoi rimuovere il ruolo da'} ${c.nome}?`,
-                          [
-                            { text: t('common.cancel') || 'Annulla', style: 'cancel' },
-                            {
-                              text: t('common.remove') || 'Rimuovi',
-                              style: 'destructive',
-                              onPress: () => store.removeCodiceInvito(codiceCollab.codice),
-                            },
-                          ]
-                        );
-                      }}
-                      style={{ backgroundColor: meta.c, paddingHorizontal: 6, paddingVertical: 4, borderTopRightRadius: 8, borderBottomRightRadius: 8, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.35)' }}
-                    >
-                      <Ionicons name="close" size={14} color="#FFF" />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })() : (
+              <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
+            </TouchableOpacity>
+
+            {/* ═══ BODY — switcher ruolo + costo + codice + elimina ═══ */}
+            {isOpen && (
+              <View style={s.agendaBody}>
+                <View style={s.divider} />
+
+                {/* COSTO GIORNALIERO */}
                 <TouchableOpacity
-                  activeOpacity={0.6}
-                  hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   onPress={() =>
                     openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
                       const updated = [...store.collaboratori];
@@ -1080,37 +1073,102 @@ export default function SettingsPage() {
                       store.setConfig({ collaboratori: updated });
                     }, ['default', 'numeric', 'numeric'], c.nome, codiceCollab, [c.nome, String(c.costo || ''), String(c.costoAnnuo || '')])
                   }
-                  style={{ backgroundColor: '#D0D0D0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, marginRight: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 }}
                 >
-                  <Ionicons name="add" size={12} color="#FFF" />
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFF', letterSpacing: 0.5 }}>RUOLO</Text>
+                  <Ionicons name="cash-outline" size={16} color="#7A9090" />
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: '#5A7575' }}>Costo giornaliero</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#1A4040' }}>€{c.costo || 0}</Text>
+                  <Ionicons name="create-outline" size={16} color="#7A9090" />
                 </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                activeOpacity={0.5}
-                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                onPress={() =>
-                  openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
-                    const updated = [...store.collaboratori];
-                    updated[i] = { nome: vals[0], costo: parseFloat(vals[1].replace(',', '.')) || 0, costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0 };
-                    store.setConfig({ collaboratori: updated });
-                  }, ['default', 'numeric', 'numeric'], c.nome, codiceCollab, [c.nome, String(c.costo || ''), String(c.costoAnnuo || '')])
-                }
-              >
-                <Ionicons name="create-outline" size={18} color="#7A9090" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.5}
-                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                onPress={() => {
-                  if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
-                  store.removeCollaboratore(c.nome);
-                }}
-                style={{ marginLeft: 8 }}
-              >
-                <Ionicons name="trash-outline" size={18} color="#D46A6A" />
-              </TouchableOpacity>
-            </View>
+
+                {/* SWITCHER RUOLO — 4 chips */}
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.8, marginTop: 10, marginBottom: 6 }}>
+                  RUOLO
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                  {([
+                    { key: 'AMMINISTRATORE', label: 'AMMIN.' },
+                    { key: 'MANAGER', label: 'MANAGER' },
+                    { key: 'UTENTE', label: 'UTENTE' },
+                    { key: null, label: 'NESSUNO' },
+                  ] as const).map((opt) => {
+                    const cur = codiceCollab?.tipo === 'B' ? 'AMMINISTRATORE' : codiceCollab?.tipo;
+                    const on = opt.key === null ? !codiceCollab : cur === opt.key;
+                    return (
+                      <TouchableOpacity
+                        key={opt.label}
+                        activeOpacity={0.5}
+                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                        onPress={() => setRuoloRapido(opt.key as any)}
+                        style={{
+                          flex: 1,
+                          minWidth: 70,
+                          paddingVertical: 9,
+                          paddingHorizontal: 6,
+                          borderRadius: 999,
+                          backgroundColor: on ? '#1E7F85' : '#F5EFDC',
+                          borderWidth: 1.5,
+                          borderColor: on ? '#1E7F85' : '#E0D8C0',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* CODICE INVITO (se presente) */}
+                {codiceCollab && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: '#F4FAF7', borderRadius: 8 }}>
+                    <Ionicons name="key-outline" size={14} color="#1E7F85" />
+                    <Text style={{ flex: 1, marginLeft: 6, fontSize: 12, fontWeight: '800', color: '#1A4040', letterSpacing: 0.5 }}>{codiceCollab.codice}</Text>
+                    <TouchableOpacity
+                      activeOpacity={0.6}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={async () => {
+                        try {
+                          await RNShare.share({ message: `Ciao! Ecco il tuo codice per MarketMate: ${codiceCollab.codice}` });
+                        } catch {}
+                      }}
+                    >
+                      <Ionicons name="share-outline" size={18} color="#1E7F85" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* ELIMINA COLLABORATORE */}
+                <TouchableOpacity
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => {
+                    Alert.alert(
+                      'Elimina collaboratore',
+                      `Vuoi eliminare ${c.nome}?`,
+                      [
+                        { text: 'Annulla', style: 'cancel' },
+                        {
+                          text: 'Elimina',
+                          style: 'destructive',
+                          onPress: () => {
+                            if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
+                            store.removeCollaboratore(c.nome);
+                            setExpandedCollab(null);
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: '#FCE8E8', borderWidth: 1, borderColor: '#F2C0C0' }}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#D46A6A" />
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#D46A6A', letterSpacing: 0.5 }}>ELIMINA</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         );
       })}
