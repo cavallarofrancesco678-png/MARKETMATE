@@ -19,6 +19,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
+import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
 import { CalendarModal } from '../../src/components/CalendarModal';
@@ -130,6 +131,28 @@ export default function HomeScreen() {
     collaboratori.forEach((c) => { p[c.nome] = false; });
     setPresenze(p);
   }, [collaboratori]);
+
+  /* ═══ AUTO-START TUTORIAL AL PRIMO INGRESSO IN HOME ═══
+     Il tutorial NON deve apparire durante il setup iniziale (welcome / settings).
+     Parte automaticamente SOLO quando l'utente entra per la prima volta in
+     /home dopo aver completato il wizard di configurazione.
+     Una volta completato o saltato, `tutHasCompleted` diventa true e non
+     ripartirà più al rientro in Home. */
+  const tutActive = useTutorialStore((s) => s.active);
+  const tutHasCompleted = useTutorialStore((s) => s.hasCompletedOnce);
+  const tutIsHydrated = useTutorialStore((s) => s.isHydrated);
+  const tutStart = useTutorialStore((s) => s.start);
+  const tutAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!tutIsHydrated) return;
+    if (tutAutoStartedRef.current) return;
+    if (tutHasCompleted) return;
+    if (tutActive) { tutAutoStartedRef.current = true; return; }
+    if (!store.isConfigured) return; // aspetta che l'utente abbia finito il setup
+    tutAutoStartedRef.current = true;
+    const t = setTimeout(() => { tutStart(); }, 700);
+    return () => clearTimeout(t);
+  }, [tutIsHydrated, tutHasCompleted, tutActive, store.isConfigured, tutStart]);
 
   /* ═══ PERSISTENZA SPESE EXTRA (entro lo stesso giorno solare di creazione) ═══
      La sessione dura SOLO fino alle 23:59 del giorno in cui è stata creata.

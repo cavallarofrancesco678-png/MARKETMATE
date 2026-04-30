@@ -197,6 +197,11 @@ export const TutorialOverlay: React.FC = () => {
 
   if (!active || !step) return null;
 
+  // ═══ SAFETY GUARD: non renderizzare mai il tutorial durante
+  // la schermata di Login (`/`) o il wizard Welcome (`/welcome`).
+  // L'utente deve poter completare il setup iniziale senza pop-up. ═══
+  if (pathname === '/' || pathname === '/welcome' || pathname?.startsWith('/auth')) return null;
+
   const title = t(`${step.tKey}.title`);
   const body = t(`${step.tKey}.body`);
   const placeholder = t(`${step.tKey}.placeholder`, '');

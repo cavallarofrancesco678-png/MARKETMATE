@@ -9,9 +9,7 @@ import '../src/i18n';
 import { useAppStore } from '../src/store/appStore';
 import { useAuthStore } from '../src/store/authStore';
 import { useTutorialStore } from '../src/store/tutorialStore';
-import { TutorialOverlay } from '../src/components/TutorialOverlay';
-
-SplashScreen.preventAutoHideAsync();
+import { TutorialOverlay } from '../src/components/TutorialOverlay';SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -24,9 +22,6 @@ export default function RootLayout() {
   const authHydrated = useAuthStore((s) => s.isHydrated);
   const tutHydrate = useTutorialStore((s) => s.hydrate);
   const tutHydrated = useTutorialStore((s) => s.isHydrated);
-  const tutHasCompleted = useTutorialStore((s) => s.hasCompletedOnce);
-  const tutStart = useTutorialStore((s) => s.start);
-  const isConfigured = useAppStore((s) => s.isConfigured);
 
   const onLayoutReady = useCallback(async () => {
     if (fontsLoaded && storageHydrated && authHydrated && tutHydrated) {
@@ -45,14 +40,10 @@ export default function RootLayout() {
     return () => { cancelled = true; };
   }, [loadFromStorage, authHydrate, tutHydrate]);
 
-  // ═══ AUTO-START tutorial per nuovi utenti ═══
-  useEffect(() => {
-    if (storageHydrated && tutHydrated && !tutHasCompleted && !isConfigured) {
-      // Piccolo delay per far montare il resto dell'app
-      const t = setTimeout(() => tutStart(), 900);
-      return () => clearTimeout(t);
-    }
-  }, [storageHydrated, tutHydrated, tutHasCompleted, isConfigured, tutStart]);
+  // ═══ NOTA: l'auto-start del tutorial è stato spostato in /home/index.tsx
+  // Così i pop-up NON appaiono durante la schermata Welcome / Setup iniziale
+  // (l'utente può inserire tutti i dati senza interferenze).
+  // Il tutorial parte automaticamente SOLO al primo ingresso in Home. ═══
 
   useEffect(() => { onLayoutReady(); }, [onLayoutReady]);
 
