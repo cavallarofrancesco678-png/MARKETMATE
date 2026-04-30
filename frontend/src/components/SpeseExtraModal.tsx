@@ -193,9 +193,40 @@ export const SpeseExtraModal: React.FC<Props> = ({
           <View style={st.handle} />
           <View style={st.headerRow}>
             <Text style={st.title}>SPESE EXTRA</Text>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close-circle" size={28} color="#5A7575" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {/* ═══ Azzera rapido — utile per eliminare valori fantasma da vecchie versioni ═══ */}
+              <TouchableOpacity
+                activeOpacity={0.6}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => {
+                  Alert.alert(
+                    'Azzera spese di oggi',
+                    'Vuoi cancellare TUTTE le voci spese e fornitori di oggi? L\'operazione è immediata.',
+                    [
+                      { text: 'Annulla', style: 'cancel' },
+                      {
+                        text: 'Azzera',
+                        style: 'destructive',
+                        onPress: () => {
+                          setSpeseExtraFornitore({});
+                          setVociGeneriche([]);
+                          setLocalImporti({});
+                          setPagamentoMode({});
+                          setFornDeductionType({});
+                        },
+                      },
+                    ]
+                  );
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FCE8E8', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 4 }}
+              >
+                <Ionicons name="refresh" size={14} color="#B85450" />
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#B85450', letterSpacing: 0.5 }}>AZZERA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={28} color="#5A7575" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={st.totalRow}>
