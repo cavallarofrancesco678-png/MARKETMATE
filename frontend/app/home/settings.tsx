@@ -1039,18 +1039,56 @@ export default function SettingsPage() {
                     ? { c: '#1E7F85', l: 'MANAGER' }
                     : { c: '#E8A060', l: 'UTENTE' };
                 return (
-                <View style={{ backgroundColor: meta.c, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginRight: 8 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 1 }}>
-                    {meta.l}
-                  </Text>
-                </View>
+                  // ═══ BADGE RUOLO + X per reset immediato ═══
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                    <View style={{ backgroundColor: meta.c, paddingHorizontal: 10, paddingVertical: 4, borderTopLeftRadius: 8, borderBottomLeftRadius: 8 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 1 }}>
+                        {meta.l}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.5}
+                      hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                      onPress={() => {
+                        Alert.alert(
+                          t('settings.removeRole') || 'Rimuovi ruolo',
+                          `${t('settings.removeRoleConfirm') || 'Vuoi rimuovere il ruolo da'} ${c.nome}?`,
+                          [
+                            { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+                            {
+                              text: t('common.remove') || 'Rimuovi',
+                              style: 'destructive',
+                              onPress: () => store.removeCodiceInvito(codiceCollab.codice),
+                            },
+                          ]
+                        );
+                      }}
+                      style={{ backgroundColor: meta.c, paddingHorizontal: 6, paddingVertical: 4, borderTopRightRadius: 8, borderBottomRightRadius: 8, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.35)' }}
+                    >
+                      <Ionicons name="close" size={14} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
                 );
               })() : (
-                <View style={{ backgroundColor: '#D0D0D0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginRight: 8 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#FFF' }}>—</Text>
-                </View>
+                <TouchableOpacity
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                  onPress={() =>
+                    openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
+                      const updated = [...store.collaboratori];
+                      updated[i] = { nome: vals[0], costo: parseFloat(vals[1].replace(',', '.')) || 0, costoAnnuo: parseFloat(vals[2].replace(',', '.')) || 0 };
+                      store.setConfig({ collaboratori: updated });
+                    }, ['default', 'numeric', 'numeric'], c.nome, codiceCollab, [c.nome, String(c.costo || ''), String(c.costoAnnuo || '')])
+                  }
+                  style={{ backgroundColor: '#D0D0D0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, marginRight: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                >
+                  <Ionicons name="add" size={12} color="#FFF" />
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFF', letterSpacing: 0.5 }}>RUOLO</Text>
+                </TouchableOpacity>
               )}
               <TouchableOpacity
+                activeOpacity={0.5}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                 onPress={() =>
                   openModal(t('settings.collaborators'), [t('settings.name'), `${t('settings.dailyCost')} €`, `${t('common.annual')} €`], (vals) => {
                     const updated = [...store.collaboratori];
@@ -1061,10 +1099,15 @@ export default function SettingsPage() {
               >
                 <Ionicons name="create-outline" size={18} color="#7A9090" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => {
-                if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
-                store.removeCollaboratore(c.nome);
-              }} style={{ marginLeft: 8 }}>
+              <TouchableOpacity
+                activeOpacity={0.5}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                onPress={() => {
+                  if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
+                  store.removeCollaboratore(c.nome);
+                }}
+                style={{ marginLeft: 8 }}
+              >
                 <Ionicons name="trash-outline" size={18} color="#D46A6A" />
               </TouchableOpacity>
             </View>
@@ -1091,7 +1134,7 @@ export default function SettingsPage() {
         const isOpen = expandedDay === idx;
         return (
           <View key={idx} style={s.card}>
-            <TouchableOpacity style={s.agendaHeader} onPress={() => handleExpandDay(idx)}>
+            <TouchableOpacity style={s.agendaHeader} activeOpacity={0.6} onPress={() => handleExpandDay(idx)}>
               <Text style={s.agendaDay}>{t(`days.${['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][idx]}`).toUpperCase()}</Text>
               <Text style={s.agendaMarket} numberOfLines={2}>{m.mercato || '---'}</Text>
               <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
@@ -1203,7 +1246,7 @@ export default function SettingsPage() {
         const isOpen = expandedForn === fi;
         return (
           <View key={fi} style={s.card}>
-            <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedForn(isOpen ? null : fi)}>
+            <TouchableOpacity style={s.agendaHeader} activeOpacity={0.6} onPress={() => setExpandedForn(isOpen ? null : fi)}>
               <Ionicons name="cube-outline" size={20} color="#1E7F85" />
               <Text style={[s.agendaDay, { flex: 1 }]}>{f.nome}</Text>
               {/* Modifica nome fornitore */}
@@ -1296,7 +1339,7 @@ export default function SettingsPage() {
 
       {/* ─── SPESE ANNUALI (collapsible) ─── */}
       <View style={s.card} testID="sett-spese-card" ref={anchorSpese as any}>
-        <TouchableOpacity style={s.agendaHeader} onPress={() => setExpandedSpese(!expandedSpese)}>
+        <TouchableOpacity style={s.agendaHeader} activeOpacity={0.6} onPress={() => setExpandedSpese(!expandedSpese)}>
           <Ionicons name="card" size={20} color="#1E7F85" />
           <Text style={[s.agendaDay, { flex: 1 }]}>{t('settings.fixedExpenses')}</Text>
           <Text style={[s.itemLabel, { color: '#D46A6A', fontWeight: '800' }]}>€{totaleSpeseAnnue}</Text>
