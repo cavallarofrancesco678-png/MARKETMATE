@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { generateAllMockData } from '../utils/mockData';
+// NOTA: mockData generation è stata rimossa intenzionalmente.
+// Ogni nuovo utente che scarica l'app DEVE partire da uno stato completamente
+// pulito, senza alcun dato preinstallato (vendite, KM, fornitori, ecc.).
 
 // Storage wrapper che funziona sia su web che su native
 const storage = {
@@ -579,9 +581,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   seedMockData: () => {
-    const mock = generateAllMockData();
-    set((state) => ({ ...state, ...mock }));
-    get().saveToStorage();
+    // ═══ DISABILITATO INTENZIONALMENTE ═══
+    // Nessun dato di esempio viene MAI iniettato.
+    // Ogni nuovo utente parte da uno stato completamente pulito.
+    if (typeof console !== 'undefined') {
+      console.warn('[appStore] seedMockData() is disabled — no demo data will be loaded.');
+    }
   },
 
   setSpeseExtraSession: (session) => {

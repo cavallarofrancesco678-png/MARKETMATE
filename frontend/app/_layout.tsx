@@ -1,5 +1,7 @@
 import React, { useEffect, useCallback, useState, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -14,6 +16,45 @@ import { useAppLockStore } from '../src/store/appLockStore';
 import { TutorialOverlay } from '../src/components/TutorialOverlay';
 
 SplashScreen.preventAutoHideAsync();
+
+// ═══ FRESH-INSTALL WIPE ═══
+// Al PRIMISSIMO avvio dell'app su un nuovo dispositivo (o dopo reinstall),
+// pulisce TUTTO lo storage prima di idratare gli store. Garantisce che chi
+// scarica per la prima volta NON trovi mai dati residui di test/sviluppo
+// o dati di altri utenti su web. Una volta eseguito, il flag persiste e
+// lo wipe non viene più ripetuto.
+const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v1';
+// Chiavi note di SecureStore da pulire al primo avvio
+const SECURE_KEYS_TO_WIPE = ['marketmate_pin_v1'];
+
+async function freshInstallWipe() {
+  try {
+    const flag = await AsyncStorage.getItem(FIRST_BOOT_FLAG);
+    if (flag === '1') return; // già fatto in passato
+
+    // Pulizia AsyncStorage / localStorage (web)
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      if (keys && keys.length) await AsyncStorage.multiRemove(keys);
+    } catch {}
+    if (Platform.OS === 'web') {
+      try { if (typeof window !== 'undefined') window.localStorage.clear(); } catch {}
+      try { if (typeof window !== 'undefined') window.sessionStorage.clear(); } catch {}
+    }
+
+    // Pulizia SecureStore (iOS Keychain / Android Keystore)
+    if (Platform.OS !== 'web') {
+      for (const k of SECURE_KEYS_TO_WIPE) {
+        try { await SecureStore.deleteItemAsync(k); } catch {}
+      }
+    }
+
+    // Marca il primo boot come completato
+    await AsyncStorage.setItem(FIRST_BOOT_FLAG, '1');
+  } catch (e) {
+    console.warn('[freshInstallWipe] failed', e);
+  }
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -38,6 +79,9 @@ export default function RootLayout() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // ═══ 1) Wipe completo SOLO al primissimo avvio (idempotente) ═══
+      try { await freshInstallWipe(); } catch (e) { console.warn('freshInstallWipe failed', e); }
+      // ═══ 2) Hydrate normale degli store ═══
       try { await loadFromStorage(); } catch (e) { console.warn('loadFromStorage failed', e); }
       try { await authHydrate(); } catch (e) { console.warn('auth hydrate failed', e); }
       try { await tutHydrate(); } catch (e) { console.warn('tut hydrate failed', e); }
