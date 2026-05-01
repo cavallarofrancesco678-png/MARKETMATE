@@ -14,17 +14,19 @@ import { useAuthStore } from '../src/store/authStore';
 import { useTutorialStore } from '../src/store/tutorialStore';
 import { useAppLockStore } from '../src/store/appLockStore';
 import { TutorialOverlay } from '../src/components/TutorialOverlay';
+import { DEMO_DATA, DEMO_PIN } from '../src/utils/demoSeed';
 
 SplashScreen.preventAutoHideAsync();
 
-// ═══ FRESH-INSTALL WIPE ═══
+// ═══ FRESH-INSTALL WIPE + DEMO SEED ═══
 // Al PRIMISSIMO avvio dell'app su un nuovo dispositivo (o dopo reinstall),
-// pulisce TUTTO lo storage prima di idratare gli store. Garantisce che chi
-// scarica per la prima volta NON trovi mai dati residui di test/sviluppo
-// o dati di altri utenti su web. Una volta eseguito, il flag persiste e
-// lo wipe non viene più ripetuto.
-const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v1';
-// Chiavi note di SecureStore da pulire al primo avvio
+// pulisce TUTTO lo storage e poi popola con i dati demo "Il Panivendolo"
+// di Francesco Cavallaro. Una volta eseguito, il flag persiste e
+// lo wipe/seed non viene più ripetuto.
+//
+// ⚠️ DEMO SEED TEMPORANEO: questo blocco verrà rimosso quando l'utente lo
+//    chiederà. Vedi /app/frontend/src/utils/demoSeed.ts per i dati.
+const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v2_demo';
 const SECURE_KEYS_TO_WIPE = ['marketmate_pin_v1'];
 
 async function freshInstallWipe() {
@@ -48,6 +50,18 @@ async function freshInstallWipe() {
         try { await SecureStore.deleteItemAsync(k); } catch {}
       }
     }
+
+    // ═══ DEMO SEED: pre-popola lo storage con "Il Panivendolo" ═══
+    try {
+      await AsyncStorage.setItem('marketmate_data', JSON.stringify(DEMO_DATA));
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('marketmate_pin_v1', DEMO_PIN);
+        }
+      } else {
+        await SecureStore.setItemAsync('marketmate_pin_v1', DEMO_PIN);
+      }
+    } catch (e) { console.warn('[demoSeed] failed', e); }
 
     // Marca il primo boot come completato
     await AsyncStorage.setItem(FIRST_BOOT_FLAG, '1');
@@ -96,21 +110,37 @@ export default function RootLayout() {
   // se era sbloccata, forziamo redirect a `/` (login) per richiedere il PIN.
   // La navigazione interna tra pagine NON triggera questo: solo il passaggio
   // dell'app in background lo fa.
+  //
+  // IMPORTANTE:
+  //  • Su WEB il re-lock è DISATTIVATO: nel browser "andare in background"
+  //    significa cambiare tab / minimizzare la finestra, quindi chiedere il PIN
+  //    ogni volta sarebbe scomodo. Su web il PIN è richiesto solo al cold start.
+  //  • Su mobile nativo è attivo MA con un grace period di 60 secondi:
+  //    se l'utente rientra entro questo tempo (es. risposta a notifica rapida)
+  //    non viene richiesto il PIN.
   const prevAppState = useRef<AppStateStatus>(AppState.currentState);
+  const lastBackgroundAt = useRef<number>(0);
+  const GRACE_MS = 60_000; // 60 secondi
 
   useEffect(() => {
+    if (Platform.OS === 'web') return; // disattivato su web
     const handler = (next: AppStateStatus) => {
       const prev = prevAppState.current;
-      // active → background/inactive → blocca
+      // active → background/inactive → memorizza timestamp
       if (prev === 'active' && (next === 'background' || next === 'inactive')) {
-        lockApp();
+        lastBackgroundAt.current = Date.now();
       }
-      // background/inactive → active → se configurato con PIN, manda al login
+      // background/inactive → active
       if ((prev === 'background' || prev === 'inactive') && next === 'active') {
-        const { isLocked, hasPin } = useAppLockStore.getState();
-        const { isConfigured } = useAppStore.getState();
-        if (isLocked && hasPin && isConfigured) {
-          try { router.replace('/'); } catch {}
+        const elapsed = Date.now() - lastBackgroundAt.current;
+        if (elapsed > GRACE_MS) {
+          // Oltre il grace period: re-lock e redirect al login
+          lockApp();
+          const { hasPin } = useAppLockStore.getState();
+          const { isConfigured } = useAppStore.getState();
+          if (hasPin && isConfigured) {
+            try { router.replace('/'); } catch {}
+          }
         }
       }
       prevAppState.current = next;

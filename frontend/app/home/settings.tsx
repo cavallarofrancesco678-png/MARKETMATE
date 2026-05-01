@@ -643,7 +643,11 @@ export default function SettingsPage() {
       };
 
       const json = JSON.stringify(exportData, null, 2);
-      const fileName = `MarketMate_${new Date().toISOString().split('T')[0]}.json`;
+      const ownerTag = (state as any).nomeTitolare
+        ? `-${String((state as any).nomeTitolare).trim().replace(/[^\w]+/g, '')}`
+        : '';
+      const dateStr = new Date().toISOString().split('T')[0];
+      const fileName = `MarketMate-Backup${ownerTag}-${dateStr}.json`;
       const sizeKB = Math.round(json.length / 1024);
 
       if (Platform.OS === 'web') {
@@ -1571,22 +1575,22 @@ export default function SettingsPage() {
           <Ionicons name="download-outline" size={20} color="#1E7F85" />
           <Text style={s.sectionTitle}>{t('settings.backupTitle') || 'BACKUP DATI'}</Text>
         </View>
-        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12 }}>
-          {t('settings.backupDesc') || 'Esporta un file di backup con tutti i tuoi dati.'}
+        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12, lineHeight: 16 }}>
+          {t('settings.backupDesc') || 'Salva tutti i tuoi dati in un file. Puoi conservarlo sul telefono (Drive, WhatsApp, Email) e ripristinarlo quando vuoi: basta toccare IMPORTA e scegliere il file, senza copia-incolla.'}
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: '#1E7F85', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}
           onPress={handleExportData}
         >
-          <Ionicons name="share-outline" size={18} color="#FFF" />
-          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>{t('settings.exportBtn') || 'ESPORTA DATI'}</Text>
+          <Ionicons name="save-outline" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>{t('settings.exportBtn') || '💾 SALVA BACKUP'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={{ backgroundColor: '#D4AF37', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           onPress={handleImportData}
         >
-          <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
-          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>{t('settings.importBtn') || 'IMPORTA DATI'}</Text>
+          <Ionicons name="folder-open-outline" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>{t('settings.importBtn') || '📂 APRI BACKUP'}</Text>
         </TouchableOpacity>
       </View>
 
