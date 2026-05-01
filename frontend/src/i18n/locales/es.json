@@ -39,7 +39,9 @@
     "securityLine3": "Tu privacidad está totalmente garantizada.",
     "dataProtected": "Datos protegidos y encriptados",
     "welcomeBack": "Bienvenido de nuevo",
-    "enterPin6": "Introduce tu PIN de 6 cifras"
+    "enterPin6": "Introduce tu PIN de 6 cifras",
+    "goodMorning": "BUENOS DÍAS",
+    "configureApp": "CONFIGURAR LA APP"
   },
   "tabs": {
     "home": "INICIO",
@@ -277,7 +279,10 @@
     "dailyDetail": "Detalle Diario",
     "generatedOn": "Generado el",
     "shareReport": "Compartir Informe",
-    "cash": "Efectivo"
+    "cash": "Efectivo",
+    "monthlyReport": "REPORTE MENSUAL",
+    "pickMonthYear": "Selecciona mes y año",
+    "generatePdf": "GENERAR PDF"
   },
   "gas": {
     "title": "COMBUSTIBLE",

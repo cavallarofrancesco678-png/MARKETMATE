@@ -39,7 +39,9 @@
     "securityLine3": "Your privacy is fully guaranteed.",
     "dataProtected": "Data protected and encrypted",
     "welcomeBack": "Welcome back",
-    "enterPin6": "Enter your 6-digit PIN"
+    "enterPin6": "Enter your 6-digit PIN",
+    "goodMorning": "GOOD MORNING",
+    "configureApp": "SET UP THE APP"
   },
   "tabs": {
     "home": "HOME",
@@ -285,7 +287,10 @@
     "dailyDetail": "Daily Detail",
     "generatedOn": "Generated on",
     "shareReport": "Share Report",
-    "cash": "Cash"
+    "cash": "Cash",
+    "monthlyReport": "MONTHLY REPORT",
+    "pickMonthYear": "Pick month and year",
+    "generatePdf": "GENERATE PDF"
   },
   "gas": {
     "title": "FUEL",

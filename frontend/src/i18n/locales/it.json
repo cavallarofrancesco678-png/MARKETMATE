@@ -39,7 +39,9 @@
     "securityLine1": "I tuoi dati restano SOLO sul tuo dispositivo.",
     "securityLine2": "Nessun server esterno può accedervi, mai.",
     "securityLine3": "La tua privacy è totalmente garantita.",
-    "dataProtected": "Dati protetti e crittografati"
+    "dataProtected": "Dati protetti e crittografati",
+    "goodMorning": "BUONGIORNO",
+    "configureApp": "CONFIGURA LA APP"
   },
   "tabs": {
     "home": "HOME",
@@ -285,7 +287,10 @@
     "dailyDetail": "Dettaglio Giornaliero",
     "generatedOn": "Generato il",
     "shareReport": "Condividi Report",
-    "cash": "Contanti"
+    "cash": "Contanti",
+    "monthlyReport": "REPORT MENSILE",
+    "pickMonthYear": "Seleziona mese e anno",
+    "generatePdf": "GENERA PDF"
   },
   "gas": {
     "title": "CARBURANTE",

@@ -39,7 +39,9 @@
     "securityLine3": "Votre vie privée est totalement garantie.",
     "dataProtected": "Données protégées et cryptées",
     "welcomeBack": "Bon retour",
-    "enterPin6": "Saisis ton PIN à 6 chiffres"
+    "enterPin6": "Saisis ton PIN à 6 chiffres",
+    "goodMorning": "BONJOUR",
+    "configureApp": "CONFIGURER L'APP"
   },
   "tabs": {
     "home": "ACCUEIL",
@@ -277,7 +279,10 @@
     "dailyDetail": "Détail Journalier",
     "generatedOn": "Généré le",
     "shareReport": "Partager Rapport",
-    "cash": "Espèces"
+    "cash": "Espèces",
+    "monthlyReport": "RAPPORT MENSUEL",
+    "pickMonthYear": "Sélectionne mois et année",
+    "generatePdf": "GÉNÉRER PDF"
   },
   "gas": {
     "title": "CARBURANT",

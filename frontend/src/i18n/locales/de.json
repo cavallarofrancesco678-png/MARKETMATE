@@ -39,7 +39,9 @@
     "securityLine3": "Ihre Privatsphäre ist vollständig garantiert.",
     "dataProtected": "Geschützte und verschlüsselte Daten",
     "welcomeBack": "Willkommen zurück",
-    "enterPin6": "Gib deine 6-stellige PIN ein"
+    "enterPin6": "Gib deine 6-stellige PIN ein",
+    "goodMorning": "GUTEN MORGEN",
+    "configureApp": "APP EINRICHTEN"
   },
   "tabs": {
     "home": "START",
@@ -277,7 +279,10 @@
     "dailyDetail": "Tagesdetail",
     "generatedOn": "Erstellt am",
     "shareReport": "Bericht teilen",
-    "cash": "Bargeld"
+    "cash": "Bargeld",
+    "monthlyReport": "MONATSBERICHT",
+    "pickMonthYear": "Monat und Jahr wählen",
+    "generatePdf": "PDF ERSTELLEN"
   },
   "gas": {
     "title": "KRAFTSTOFF",

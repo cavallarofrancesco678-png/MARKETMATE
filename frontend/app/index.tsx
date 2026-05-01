@@ -133,30 +133,40 @@ export default function LoginScreen() {
     return (
       <View style={s.root}>
         <StatusBar barStyle="dark-content" backgroundColor="#F5F0E6" />
-        <View style={[s.content, { paddingTop: Math.max(insets.top + 20, 60) }]}>
-          <View style={s.logoWrap}>
+        <View style={[s.content, { paddingTop: Math.max(insets.top + 24, 64) }]}>
+          {/* Spazio flessibile in alto per centrare verticalmente */}
+          <View style={{ flex: 0.5 }} />
+
+          <View style={s.logoWrapBig}>
             <Image
               source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
-              style={s.logo}
+              style={s.logoBig}
               contentFit="contain"
             />
           </View>
-          <Text style={s.welcomeTitle}>{t('login.welcome')}</Text>
+
+          <Text style={s.welcomeTitle}>{t('login.goodMorning') || 'BUONGIORNO'}</Text>
           <Text style={s.welcomeSub}>{t('login.manageMarket')}</Text>
 
-          <View style={{ flex: 1 }} />
+          {/* Spazio flessibile per centrare */}
+          <View style={{ flex: 0.6 }} />
 
           <TouchableOpacity
             testID="accedi-btn"
-            style={s.configBigBtn}
+            style={s.configCenterBtn}
             onPress={handleConfigure}
             activeOpacity={0.85}
           >
             <Ionicons name="rocket" size={18} color="#FFF" />
-            <Text style={s.configBigTxt}>{t('login.firstTime')}</Text>
+            <Text style={s.configCenterTxt} numberOfLines={1} adjustsFontSizeToFit>
+              {t('login.configureApp') || 'CONFIGURA LA APP'}
+            </Text>
           </TouchableOpacity>
 
-          <View style={[s.footer, { paddingBottom: Math.max(insets.bottom + 10, 30) }]}>
+          {/* Spazio verso il footer */}
+          <View style={{ flex: 1 }} />
+
+          <View style={[s.footer, { paddingBottom: Math.max(insets.bottom + 14, 24) }]}>
             <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
             <Text style={s.footerTxt}>{t('login.dataProtected')}</Text>
           </View>
@@ -262,7 +272,9 @@ const s = StyleSheet.create({
   loadingTxt: { fontSize: 14, fontWeight: '700', color: '#1A4040' },
 
   logoWrap: { marginBottom: 10 },
+  logoWrapBig: { marginBottom: 18, alignItems: 'center' },
   logo: { width: 240, height: 240, borderRadius: 20 },
+  logoBig: { width: 320, height: 320, borderRadius: 24 },
   logoSmall: { width: 110, height: 110 },
 
   welcomeTitle: { fontSize: 28, fontWeight: '900', color: '#1A4040', letterSpacing: 3, marginTop: 10, marginBottom: 4 },
@@ -300,6 +312,31 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   configBigTxt: { color: '#FFF', fontWeight: '900', fontSize: 14, letterSpacing: 1.5 },
+
+  configCenterBtn: {
+    alignSelf: 'center',
+    minWidth: 260,
+    paddingHorizontal: 26,
+    paddingVertical: 17,
+    backgroundColor: '#1E7F85',
+    borderRadius: 30,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Ombra morbida
+    shadowColor: '#1E7F85',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  configCenterTxt: {
+    color: '#FFF',
+    fontWeight: '900',
+    fontSize: 13,
+    letterSpacing: 1.2,
+  },
 
   configLinkBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4,

@@ -286,6 +286,7 @@ export default function StatsScreen() {
   const [showPersDayCal, setShowPersDayCal] = useState(false); // calendario vero e proprio
   const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
   const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
+  const [showPdfPicker, setShowPdfPicker] = useState(false);
 
   const [activeChartLine, setActiveChartLine] = useState<Record<string, number | null>>({});
   const [tooltipInfo, setTooltipInfo] = useState<{ chartKey: string; lineIdx: number; pointIdx: number; value: number } | null>(null);
@@ -1555,7 +1556,12 @@ export default function StatsScreen() {
 
         <TouchableOpacity
           style={{ marginBottom: GAP }}
-          onPress={generatePDF}
+          onPress={() => {
+            // Apre il picker del mese per il Report Mensile PDF
+            setPdfMonth(new Date().getMonth());
+            setPdfYear(new Date().getFullYear());
+            setShowPdfPicker(true);
+          }}
           activeOpacity={0.8}
         >
           <LinearGradient
@@ -1565,7 +1571,7 @@ export default function StatsScreen() {
             style={st.pdfBtn}
           >
             <Ionicons name="document-text" size={18} color="#FFF" />
-            <Text style={st.pdfBtnTxt}>{t('stats.pdfReport')}</Text>
+            <Text style={st.pdfBtnTxt}>{t('stats.monthlyReport') || 'REPORT MENSILE'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -1577,6 +1583,87 @@ export default function StatsScreen() {
         onClose={() => setShowMeteo(false)}
         giornate={storicoGiornate}
       />
+
+      {/* ═══ PICKER MESE per REPORT PDF ═══ */}
+      <Modal visible={showPdfPicker} transparent animationType="fade" onRequestClose={() => setShowPdfPicker(false)}>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' }}
+          activeOpacity={1}
+          onPress={() => setShowPdfPicker(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#F5F0E6', borderRadius: 22, padding: 22, width: '88%', maxWidth: 380 }}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 4, letterSpacing: 1 }}>
+              {t('stats.monthlyReport') || 'REPORT MENSILE'}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#7A9090', textAlign: 'center', marginBottom: 16 }}>
+              {t('stats.pickMonthYear') || 'Seleziona mese e anno'}
+            </Text>
+
+            {/* Selettore Anno */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 18, marginBottom: 14 }}>
+              <TouchableOpacity onPress={() => setPdfYear((y) => y - 1)} style={{ padding: 10, backgroundColor: '#FFF', borderRadius: 14, width: 44, alignItems: 'center' }}>
+                <Ionicons name="chevron-back" size={22} color="#1E7F85" />
+              </TouchableOpacity>
+              <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A4040', minWidth: 80, textAlign: 'center' }}>{pdfYear}</Text>
+              <TouchableOpacity onPress={() => setPdfYear((y) => y + 1)} style={{ padding: 10, backgroundColor: '#FFF', borderRadius: 14, width: 44, alignItems: 'center' }}>
+                <Ionicons name="chevron-forward" size={22} color="#1E7F85" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Griglia Mesi 3x4 */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 18 }}>
+              {getMonthNames().map((name, idx) => {
+                const active = idx === pdfMonth;
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => setPdfMonth(idx)}
+                    activeOpacity={0.7}
+                    style={{
+                      width: '30%',
+                      paddingVertical: 12,
+                      backgroundColor: active ? '#1E7F85' : '#FFF',
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 12, fontWeight: '900',
+                      color: active ? '#FFF' : '#1A4040',
+                      letterSpacing: 0.6,
+                    }}>{name.substring(0, 3).toUpperCase()}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Azioni */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => setShowPdfPicker(false)}
+                style={{ flex: 1, paddingVertical: 14, backgroundColor: '#E8E8E0', borderRadius: 14, alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#7A9090', letterSpacing: 1 }}>
+                  {t('common.cancel') || 'ANNULLA'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  setShowPdfPicker(false);
+                  await new Promise((r) => setTimeout(r, 300));
+                  generatePDF();
+                }}
+                style={{ flex: 1.4, paddingVertical: 14, backgroundColor: '#1E7F85', borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+              >
+                <Ionicons name="document-text" size={16} color="#FFF" />
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#FFF', letterSpacing: 1 }}>
+                  {t('stats.generatePdf') || 'GENERA PDF'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ═══ CALENDARIO PERSONALIZZATO ═══ */}
       <Modal visible={showPersCalendar} transparent animationType="fade" onRequestClose={() => setShowPersCalendar(false)}>

@@ -213,9 +213,15 @@ export const TutorialOverlay: React.FC = () => {
   // il titolo (Mercati, Fornitori, Collaboratori, Spese annue, Carburante,
   // Notes), la bubble viene fissata in basso allo schermo e NON copre
   // la sezione. L'utente può segnare/cliccare tutto liberamente.
+  //
+  // Inoltre, per gli step di TOUR della Home (home_calendar, home_lordo,
+  // home_incasso, spese_extra_voci) la bubble resta FISSA IN BASSO per
+  // non coprire meteo/contanti/POS/incasso nelle fasce superiori/centrali.
   const bottomBubbleStepIds = new Set([
     'agenda_setup', 'fornitori_setup', 'collab_setup', 'spese_fisse_setup',
     'carburante_setup', 'notes_setup',
+    // Tour Home: tutti fissati in basso per non coprire gli elementi superiori
+    'home_calendar', 'home_lordo', 'home_incasso', 'spese_extra_voci',
   ]);
   const isBottomBubble = bottomBubbleStepIds.has(step.id);
 

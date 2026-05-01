@@ -27,6 +27,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../src/store/appStore';
 import { useAppLockStore } from '../src/store/appLockStore';
 import { NeuBox } from '../src/components/NeuBox';
@@ -97,6 +98,7 @@ export default function WelcomeScreen() {
   const setStorePin = useAppLockStore((st) => st.setPin);
   const unlockLock = useAppLockStore((st) => st.unlock);
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const pickLang = (label: string) => {
     setLangSelected(label);
@@ -178,7 +180,7 @@ export default function WelcomeScreen() {
   const NavBar = () => {
     const hideNext = page === 0 || page === 1 || page === TOTAL_PAGES - 1; // questi step hanno CTA dedicato
     return (
-      <View style={s.nav}>
+      <View style={[s.nav, { paddingBottom: Math.max(insets.bottom + 20, 32) }]}>
         {page > 0 ? (
           <TouchableOpacity style={s.navBtn} onPress={goBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Ionicons name="arrow-back" size={26} color={Colors.marrone} />
