@@ -37,7 +37,9 @@
     "securityLine1": "Tus datos permanecen SOLO en tu dispositivo.",
     "securityLine2": "Ningún servidor externo puede acceder, nunca.",
     "securityLine3": "Tu privacidad está totalmente garantizada.",
-    "dataProtected": "Datos protegidos y encriptados"
+    "dataProtected": "Datos protegidos y encriptados",
+    "welcomeBack": "Bienvenido de nuevo",
+    "enterPin6": "Introduce tu PIN de 6 cifras"
   },
   "tabs": {
     "home": "INICIO",
@@ -96,17 +98,28 @@
   },
   "welcome": {
     "identity": "IDENTIDAD",
-    "businessNamePlaceholder": "Nombre del negocio",
+    "businessNamePlaceholder": "Nombre de la actividad",
     "ownerNamePlaceholder": "Nombre del titular",
-    "security": "SEGURIDAD",
-    "createPin": "Crear PIN del titular",
-    "recoveryEmail": "Email de recuperación",
+    "security": "CREA TU PIN",
+    "createPin": "Crea un PIN de 6 cifras",
+    "recoveryEmail": "Email de recuperación (opcional)",
     "completed": "COMPLETADO",
-    "configSaved": "Configuración guardada con éxito",
+    "configSaved": "Configuración guardada correctamente",
     "enterApp": "ENTRAR EN LA APP",
     "sector": "SECTOR",
-    "alimentare": "ALIMENTARIO",
-    "nonAlimentare": "NO ALIMENTARIO"
+    "alimentare": "ALIMENTACIÓN",
+    "nonAlimentare": "NO ALIMENTACIÓN",
+    "chooseLanguage": "ELIGE TU IDIOMA",
+    "chooseLanguageHint": "Selecciona un idioma para continuar",
+    "start": "EMPEZAR",
+    "valueTitle": "TU NEGOCIO EN EL BOLSILLO",
+    "valueBody": "MarketMate te ayuda a gestionar ingresos, proveedores, ferias y estadísticas de tu mercado — todo en una pantalla, sin conexión, sin complicaciones.",
+    "securityTitle": "SEGURIDAD Y PRIVACIDAD",
+    "securityBody": "Tus datos permanecen SOLO en tu dispositivo, protegidos por un PIN de 6 cifras cifrado en el Keychain/Keystore del sistema. Ningún servidor externo puede acceder.",
+    "securityCta": "ENTENDIDO, CONTINUAR",
+    "confirmPin": "Confirma el PIN",
+    "pinMismatch": "Los PINs no coinciden",
+    "pinTooShort": "El PIN debe tener 6 cifras"
   },
   "settings": {
     "title": "AJUSTES",

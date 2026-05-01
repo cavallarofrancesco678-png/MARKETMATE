@@ -37,7 +37,9 @@
     "securityLine1": "Os seus dados ficam APENAS no seu dispositivo.",
     "securityLine2": "Nenhum servidor externo pode aceder, nunca.",
     "securityLine3": "A sua privacidade é totalmente garantida.",
-    "dataProtected": "Dados protegidos e encriptados"
+    "dataProtected": "Dados protegidos e encriptados",
+    "welcomeBack": "Bem-vindo de volta",
+    "enterPin6": "Introduz o teu PIN de 6 dígitos"
   },
   "tabs": {
     "home": "INÍCIO",
@@ -96,17 +98,28 @@
   },
   "welcome": {
     "identity": "IDENTIDADE",
-    "businessNamePlaceholder": "Nome do negócio",
+    "businessNamePlaceholder": "Nome da atividade",
     "ownerNamePlaceholder": "Nome do titular",
-    "security": "SEGURANÇA",
-    "createPin": "Criar PIN do titular",
-    "recoveryEmail": "Email de recuperação",
-    "completed": "CONCLUÍDO",
+    "security": "CRIA O TEU PIN",
+    "createPin": "Cria um PIN de 6 dígitos",
+    "recoveryEmail": "Email de recuperação (opcional)",
+    "completed": "COMPLETADO",
     "configSaved": "Configuração guardada com sucesso",
     "enterApp": "ENTRAR NA APP",
     "sector": "SETOR",
     "alimentare": "ALIMENTAR",
-    "nonAlimentare": "NÃO ALIMENTAR"
+    "nonAlimentare": "NÃO ALIMENTAR",
+    "chooseLanguage": "ESCOLHE A TUA LÍNGUA",
+    "chooseLanguageHint": "Seleciona um idioma para continuar",
+    "start": "COMEÇAR",
+    "valueTitle": "O TEU NEGÓCIO NO BOLSO",
+    "valueBody": "MarketMate ajuda-te a gerir receitas, fornecedores, feiras e estatísticas do teu mercado — tudo num só ecrã, offline, sem complicações.",
+    "securityTitle": "SEGURANÇA E PRIVACIDADE",
+    "securityBody": "Os teus dados ficam APENAS no teu dispositivo, protegidos por um PIN de 6 dígitos cifrado no Keychain/Keystore do sistema. Nenhum servidor externo pode aceder.",
+    "securityCta": "ENTENDI, CONTINUAR",
+    "confirmPin": "Confirma o PIN",
+    "pinMismatch": "Os PINs não coincidem",
+    "pinTooShort": "O PIN deve ter 6 dígitos"
   },
   "settings": {
     "title": "DEFINIÇÕES",

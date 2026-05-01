@@ -37,7 +37,9 @@
     "securityLine1": "Ihre Daten bleiben NUR auf Ihrem Gerät.",
     "securityLine2": "Kein externer Server kann darauf zugreifen.",
     "securityLine3": "Ihre Privatsphäre ist vollständig garantiert.",
-    "dataProtected": "Geschützte und verschlüsselte Daten"
+    "dataProtected": "Geschützte und verschlüsselte Daten",
+    "welcomeBack": "Willkommen zurück",
+    "enterPin6": "Gib deine 6-stellige PIN ein"
   },
   "tabs": {
     "home": "START",
@@ -96,17 +98,28 @@
   },
   "welcome": {
     "identity": "IDENTITÄT",
-    "businessNamePlaceholder": "Geschäftsname",
-    "ownerNamePlaceholder": "Name des Inhabers",
-    "security": "SICHERHEIT",
-    "createPin": "Inhaber-PIN erstellen",
-    "recoveryEmail": "Wiederherstellungs-E-Mail",
-    "completed": "ABGESCHLOSSEN",
+    "businessNamePlaceholder": "Firmenname",
+    "ownerNamePlaceholder": "Inhabername",
+    "security": "ERSTELLE DEINE PIN",
+    "createPin": "6-stellige PIN erstellen",
+    "recoveryEmail": "Wiederherstellungs-E-Mail (optional)",
+    "completed": "FERTIG",
     "configSaved": "Konfiguration erfolgreich gespeichert",
-    "enterApp": "APP STARTEN",
+    "enterApp": "APP BETRETEN",
     "sector": "BRANCHE",
     "alimentare": "LEBENSMITTEL",
-    "nonAlimentare": "NICHT-LEBENSMITTEL"
+    "nonAlimentare": "NICHT-LEBENSMITTEL",
+    "chooseLanguage": "SPRACHE WÄHLEN",
+    "chooseLanguageHint": "Wähle eine Sprache, um fortzufahren",
+    "start": "LOS GEHT’S",
+    "valueTitle": "DEIN BUSINESS IN DER TASCHE",
+    "valueBody": "MarketMate hilft dir, Einnahmen, Lieferanten, Messen und Statistiken deines Marktes zu verwalten — alles in einer App, offline, ohne Aufwand.",
+    "securityTitle": "SICHERHEIT & PRIVATSPHÄRE",
+    "securityBody": "Deine Daten bleiben NUR auf deinem Gerät, geschützt durch eine verschlüsselte 6-stellige PIN im System-Keychain/Keystore. Kein externer Server kann darauf zugreifen.",
+    "securityCta": "VERSTANDEN, WEITER",
+    "confirmPin": "PIN bestätigen",
+    "pinMismatch": "PINs stimmen nicht überein",
+    "pinTooShort": "PIN muss 6-stellig sein"
   },
   "settings": {
     "title": "EINSTELLUNGEN",

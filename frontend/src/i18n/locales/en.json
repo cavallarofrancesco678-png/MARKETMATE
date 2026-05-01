@@ -37,7 +37,9 @@
     "securityLine1": "Your data stays ONLY on your device.",
     "securityLine2": "No external server can ever access it.",
     "securityLine3": "Your privacy is fully guaranteed.",
-    "dataProtected": "Data protected and encrypted"
+    "dataProtected": "Data protected and encrypted",
+    "welcomeBack": "Welcome back",
+    "enterPin6": "Enter your 6-digit PIN"
   },
   "tabs": {
     "home": "HOME",
@@ -98,15 +100,26 @@
     "identity": "IDENTITY",
     "businessNamePlaceholder": "Business Name",
     "ownerNamePlaceholder": "Owner Name",
-    "security": "SECURITY",
-    "createPin": "Create Owner PIN",
-    "recoveryEmail": "Recovery Email",
+    "security": "CREATE YOUR PIN",
+    "createPin": "Create a 6-digit PIN",
+    "recoveryEmail": "Recovery Email (optional)",
     "completed": "COMPLETED",
     "configSaved": "Configuration saved successfully",
     "enterApp": "ENTER THE APP",
     "sector": "SECTOR",
     "alimentare": "FOOD",
-    "nonAlimentare": "NON-FOOD"
+    "nonAlimentare": "NON-FOOD",
+    "chooseLanguage": "CHOOSE YOUR LANGUAGE",
+    "chooseLanguageHint": "Select a language to continue",
+    "start": "START",
+    "valueTitle": "YOUR BUSINESS IN YOUR POCKET",
+    "valueBody": "MarketMate helps you manage earnings, suppliers, fairs and stats of your market — all in one screen, offline, no fuss.",
+    "securityTitle": "SECURITY & PRIVACY",
+    "securityBody": "Your data stays ONLY on your device, protected by an encrypted 6-digit PIN stored in the system Keychain/Keystore. No external server can access it.",
+    "securityCta": "GOT IT, CONTINUE",
+    "confirmPin": "Confirm PIN",
+    "pinMismatch": "PINs don't match",
+    "pinTooShort": "PIN must be 6 digits"
   },
   "settings": {
     "title": "SETTINGS",

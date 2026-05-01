@@ -1,4 +1,18 @@
-import React, { useState, useCallback } from 'react';
+/**
+ * Welcome Wizard — Onboarding MarketMate (protocollo "Fast-Enrollment")
+ *
+ * Flusso a 6 passi (senza OTP, senza email bloccante):
+ *  0. Lingua   → scelta obbligatoria (bandiere circolari)
+ *  1. Valore   → spiegazione + blocco sicurezza
+ *  2. Settore  → ALIMENTARE / NON ALIMENTARE
+ *  3. Identità → nome attività + nome titolare
+ *  4. PIN      → 6 cifre + conferma (salvato in SecureStore)
+ *  5. Done     → "ENTRA NELL'APP"
+ *
+ * Il PIN è memorizzato via expo-secure-store (Keychain iOS / Keystore Android),
+ * equivalente a flutter_secure_storage.
+ */
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +22,13 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
+import { useAppLockStore } from '../src/store/appLockStore';
 import { NeuBox } from '../src/components/NeuBox';
 import { Colors } from '../src/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,31 +37,33 @@ import { changeLanguage, LANGUAGES } from '../src/i18n';
 
 const TOTAL_PAGES = 6;
 
-// ★ Extracted OUTSIDE component to avoid re-creation on every render
-interface WelcomeInputProps {
+// ═══ Input shared (extracted to avoid remount on each keystroke) ═══
+interface WInputProps {
   label: string;
   icon: string;
   value: string;
-  onChangeText: (text: string) => void;
+  onChangeText: (t: string) => void;
   secure?: boolean;
   numeric?: boolean;
-  keyType?: any;
+  maxLength?: number;
+  autoFocus?: boolean;
 }
-const WelcomeInputField = React.memo(function WelcomeInputField(props: WelcomeInputProps) {
-  const { label, icon, value, onChangeText, secure, numeric, keyType } = props;
+const WInput = React.memo(function WInput(p: WInputProps) {
   return (
     <NeuBox pressed borderRadius={50} padding={0}>
-      <View style={styles.inputRow}>
-        <Ionicons name={icon as any} size={24} color={Colors.primary} />
+      <View style={s.inputRow}>
+        <Ionicons name={p.icon as any} size={22} color={Colors.primary} />
         <TextInput
-          style={styles.input}
-          placeholder={label}
+          style={s.input}
+          placeholder={p.label}
           placeholderTextColor={`${Colors.marrone}50`}
-          value={value}
-          onChangeText={onChangeText}
-          secureTextEntry={secure}
-          keyboardType={keyType || (numeric ? 'number-pad' : 'default')}
-          autoCapitalize="words"
+          value={p.value}
+          onChangeText={p.onChangeText}
+          secureTextEntry={p.secure}
+          keyboardType={p.numeric ? 'number-pad' : 'default'}
+          maxLength={p.maxLength}
+          autoCapitalize={p.numeric ? 'none' : 'words'}
+          autoFocus={p.autoFocus}
           returnKeyType="done"
         />
       </View>
@@ -53,612 +71,379 @@ const WelcomeInputField = React.memo(function WelcomeInputField(props: WelcomeIn
   );
 });
 
-interface WelcomeOptionProps {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}
-const WelcomeOptionButton = React.memo(function WelcomeOptionButton(props: WelcomeOptionProps) {
-  const { label, selected, onPress } = props;
-  return (
-    <TouchableOpacity onPress={onPress} style={styles.optionWrapper}>
-      <NeuBox pressed={selected} padding={20} borderRadius={24}>
-        <Text style={[styles.optionText, selected && { color: Colors.primary }]}>
-          {label}
-        </Text>
-      </NeuBox>
-    </TouchableOpacity>
-  );
-});
+const LINGUA_MAP: Record<string, string> = {};
+LANGUAGES.forEach((l) => { LINGUA_MAP[l.label] = l.code; });
 
 export default function WelcomeScreen() {
-  const [currentPage, setCurrentPage] = useState(0);
-  
-  // Step 0: OTP
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [otpInput, setOtpInput] = useState('');
-  const [otpVerified, setOtpVerified] = useState(false);
+  const [page, setPage] = useState(0);
 
-  // Step 1: Language
-  const [lingua, setLingua] = useState('Italiano');
-  // Step 2: Sector
+  // Step 0: Lingua (obbligatoria)
+  const [langSelected, setLangSelected] = useState<string | null>(null);
+
+  // Step 2: Settore
   const [isAlimentare, setIsAlimentare] = useState(true);
-  // Step 3: Identity
+
+  // Step 3: Identità
   const [nomeAttivita, setNomeAttivita] = useState('');
   const [nomeTitolare, setNomeTitolare] = useState('');
-  // Step 4: Security
+
+  // Step 4: PIN
   const [pin, setPin] = useState('');
+  const [pinConfirm, setPinConfirm] = useState('');
   const [emailRecupero, setEmailRecupero] = useState('');
-  
+  const [pinError, setPinError] = useState('');
+
   const { setConfig } = useAppStore();
+  const setStorePin = useAppLockStore((st) => st.setPin);
+  const unlockLock = useAppLockStore((st) => st.unlock);
   const { t } = useTranslation();
 
-  const LINGUA_MAP: Record<string, string> = {
-    'Italiano': 'it', 'English': 'en', 'Français': 'fr',
-    'Deutsch': 'de', 'Español': 'es', 'Português': 'pt',
-  };
-
-  const handleLinguaChange = (l: string) => {
-    setLingua(l);
-    const code = LINGUA_MAP[l] || 'it';
+  const pickLang = (label: string) => {
+    setLangSelected(label);
+    const code = LINGUA_MAP[label] || 'it';
     changeLanguage(code);
   };
 
-  const handleSendOtp = () => {
-    if (!phoneNumber || phoneNumber.length < 6) {
-      const msg = 'Inserisci un numero di telefono valido';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Errore', msg);
-      return;
-    }
-    // Auto-verify: skip OTP input entirely on mobile to avoid crashes
-    setOtpVerified(true);
-    setCurrentPage(1);
+  const showErr = (msg: string) => {
+    if (Platform.OS === 'web') window.alert(msg);
+    else Alert.alert(t('common.error') || 'Errore', msg);
   };
 
-  const handleVerifyOtp = () => {
-    setOtpVerified(true);
-    setCurrentPage(1);
-  };
-
-  const handleFinish = () => {
-    if (!pin || pin.length < 4) {
-      if (Platform.OS === 'web') window.alert('Inserisci un PIN di almeno 4 cifre');
-      else Alert.alert('PIN Obbligatorio', 'Inserisci un PIN di almeno 4 cifre');
-      setCurrentPage(4);
-      return;
-    }
-    if (!nomeAttivita.trim()) {
-      if (Platform.OS === 'web') window.alert('Inserisci il nome dell\'attività');
-      else Alert.alert('Dati Mancanti', 'Inserisci il nome dell\'attività');
-      setCurrentPage(3);
-      return;
-    }
-    setConfig({
-      isConfigured: true,
-      lingua,
-      isAlimentare,
-      nomeAttivita: nomeAttivita || 'MarketMate',
-      nomeTitolare: nomeTitolare || 'Titolare',
-      pin,
-      emailRecupero,
-      phoneNumber,
-      otpEnabled: otpVerified,
-    });
-    router.replace('/home');
-  };
-
-  const canGoNext = () => {
-    if (currentPage === 0) return otpVerified;
-    if (currentPage === 3) return nomeAttivita.trim().length > 0;
-    if (currentPage === 4) return pin.length >= 4;
+  const canGoNext = (): boolean => {
+    if (page === 0) return !!langSelected;
+    if (page === 3) return nomeAttivita.trim().length > 0;
+    if (page === 4) return pin.length === 6 && pinConfirm === pin;
     return true;
   };
 
-  const handleNext = () => {
+  const goNext = () => {
     if (!canGoNext()) return;
-    if (currentPage < TOTAL_PAGES - 1) setCurrentPage(currentPage + 1);
+    if (page < TOTAL_PAGES - 1) setPage(page + 1);
   };
 
-  const renderIndicator = () => (
-    <View style={styles.indicatorContainer}>
+  const goBack = () => { if (page > 0) setPage(page - 1); };
+
+  const handleFinish = async () => {
+    // Validazione finale PIN
+    if (pin.length !== 6) {
+      setPinError(t('welcome.pinTooShort'));
+      setPage(4);
+      return;
+    }
+    if (pin !== pinConfirm) {
+      setPinError(t('welcome.pinMismatch'));
+      setPage(4);
+      return;
+    }
+    if (!nomeAttivita.trim()) {
+      showErr(t('welcome.businessNamePlaceholder'));
+      setPage(3);
+      return;
+    }
+
+    // Salva PIN in SecureStore (Keychain/Keystore)
+    try { await setStorePin(pin); } catch {}
+
+    // Persisti configurazione
+    setConfig({
+      isConfigured: true,
+      lingua: langSelected || 'Italiano',
+      isAlimentare,
+      nomeAttivita: nomeAttivita.trim() || 'MarketMate',
+      nomeTitolare: nomeTitolare.trim() || 'Titolare',
+      pin, // mantenuto anche in appStore per backward-compat
+      emailRecupero: emailRecupero.trim(),
+      phoneNumber: '',
+      otpEnabled: false,
+    });
+
+    // Attendi che la persistenza sia effettivamente scritta su disco.
+    try { await useAppStore.getState().saveToStorage(); } catch {}
+
+    // L'utente ha appena creato il PIN → ingresso sbloccato diretto in home
+    unlockLock();
+    router.replace('/home');
+  };
+
+  // ═══ Indicator dots ═══
+  const Indicator = () => (
+    <View style={s.indicatorRow}>
       {Array.from({ length: TOTAL_PAGES }).map((_, i) => (
-        <View
-          key={i}
-          style={[
-            styles.indicator,
-            currentPage === i && styles.indicatorActive,
-            i === 0 && otpVerified && currentPage !== 0 && { backgroundColor: Colors.verde },
-          ]}
-        />
+        <View key={i} style={[s.dot, page === i && s.dotActive, i < page && s.dotDone]} />
       ))}
     </View>
   );
 
-  const renderNavigation = () => (
-    <View style={styles.navigation}>
-      {currentPage > 0 ? (
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => setCurrentPage(currentPage - 1)}
-        >
-          <Ionicons name="arrow-back" size={28} color={Colors.marrone} />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.navButton} />
-      )}
-      
-      {currentPage > 0 && currentPage < TOTAL_PAGES - 1 ? (
-        <TouchableOpacity
-          testID="onboard-forward-btn"
-          style={styles.navButton}
-          onPress={handleNext}
-        >
-          <Ionicons name="arrow-forward" size={32} color={Colors.primary} />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.navButton} />
-      )}
-    </View>
-  );
-
-  const renderContent = () => {
-    switch (currentPage) {
-      // Step 0: PHONE + OTP (primo step assoluto)
-      case 0:
-        return (
-          <View style={styles.pageContent}>
-            <View style={styles.otpIconCircle}>
-              <Ionicons name="shield-checkmark" size={48} color="#1E7F85" />
-            </View>
-            <Text style={styles.stepTitle}>VERIFICA TELEFONO</Text>
-            <Text style={styles.otpSubtitle}>
-              Per la sicurezza del tuo account, verifica il tuo numero di telefono
-            </Text>
-
-            {!otpSent ? (
-              <View style={styles.inputsContainer}>
-                <WelcomeInputField
-                  label="Numero di telefono (opzionale)"
-                  icon="call-outline"
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  keyType="phone-pad"
-                />
-                <View style={styles.spacer} />
-                <TouchableOpacity
-                  style={styles.otpButton}
-                  onPress={handleSendOtp}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="send" size={18} color="#FFF" />
-                  <Text style={styles.otpButtonText}>INVIA CODICE OTP</Text>
-                </TouchableOpacity>
-                <View style={{ height: 16 }} />
-                <TouchableOpacity
-                  style={styles.skipButton}
-                  onPress={() => { setOtpVerified(true); setCurrentPage(1); }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.skipButtonText}>SALTA VERIFICA</Text>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.grey} />
-                </TouchableOpacity>
-              </View>
-            ) : !otpVerified ? (
-              <View style={styles.inputsContainer}>
-                <View style={styles.otpSentBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="#1D8348" />
-                  <Text style={styles.otpSentText}>
-                    OTP inviato a {phoneNumber}
-                  </Text>
-                </View>
-                <View style={styles.spacer} />
-                <WelcomeInputField
-                  label="Inserisci codice a 6 cifre"
-                  icon="key-outline"
-                  value={otpInput}
-                  onChangeText={setOtpInput}
-                  numeric
-                />
-                <View style={styles.spacer} />
-                <TouchableOpacity
-                  style={styles.otpButton}
-                  onPress={handleVerifyOtp}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="shield-checkmark" size={18} color="#FFF" />
-                  <Text style={styles.otpButtonText}>VERIFICA OTP</Text>
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 }}>
-                  <TouchableOpacity onPress={() => { setOtpSent(false); setOtpInput(''); }}>
-                    <Text style={styles.otpResend}>Rinvia codice</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setOtpVerified(true); setCurrentPage(1); }}>
-                    <Text style={[styles.otpResend, { color: Colors.grey }]}>Salta →</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.inputsContainer}>
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-done-circle" size={40} color="#1D8348" />
-                  <Text style={styles.verifiedText}>Numero verificato!</Text>
-                  <Text style={styles.verifiedPhone}>{phoneNumber}</Text>
-                </View>
-                <View style={styles.spacer} />
-                <TouchableOpacity
-                  style={[styles.otpButton, { backgroundColor: Colors.verde }]}
-                  onPress={() => setCurrentPage(1)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.otpButtonText}>CONTINUA</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        );
-
-      // Step 1: Language
-      case 1:
-        return (
-          <View style={styles.pageContent}>
-            <Image
-              source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
-              style={styles.welcomeLogo}
-              contentFit="contain"
-            />
-            <Text style={styles.stepTitle}>{t('settings.language').toUpperCase()}</Text>
-            <View style={styles.optionsGrid}>
-              {LANGUAGES.map((l) => (
-                <WelcomeOptionButton
-                  key={l.label}
-                  label={l.label}
-                  selected={lingua === l.label}
-                  onPress={() => handleLinguaChange(l.label)}
-                />
-              ))}
-            </View>
-          </View>
-        );
-      
-      // Step 2: Sector
-      case 2:
-        return (
-          <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>{t('welcome.sector')}</Text>
-            <View style={styles.sectorButtons}>
-              <TouchableOpacity onPress={() => setIsAlimentare(true)} style={styles.fullWidth}>
-                <NeuBox pressed={isAlimentare} padding={20} borderRadius={24}>
-                  <Text style={[styles.optionText, isAlimentare && { color: Colors.primary }]}>
-                    {t('welcome.alimentare')}
-                  </Text>
-                </NeuBox>
-              </TouchableOpacity>
-              <View style={styles.spacer} />
-              <TouchableOpacity onPress={() => setIsAlimentare(false)} style={styles.fullWidth}>
-                <NeuBox pressed={!isAlimentare} padding={20} borderRadius={24}>
-                  <Text style={[styles.optionText, !isAlimentare && { color: Colors.primary }]}>
-                    {t('welcome.nonAlimentare')}
-                  </Text>
-                </NeuBox>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-      
-      // Step 3: Identity
-      case 3:
-        return (
-          <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>{t('welcome.identity')}</Text>
-            <View style={styles.inputsContainer}>
-              <WelcomeInputField
-                label={t('welcome.businessNamePlaceholder')}
-                icon="storefront-outline"
-                value={nomeAttivita}
-                onChangeText={setNomeAttivita}
-              />
-              <View style={styles.spacer} />
-              <WelcomeInputField
-                label={t('welcome.ownerNamePlaceholder')}
-                icon="person-outline"
-                value={nomeTitolare}
-                onChangeText={setNomeTitolare}
-              />
-            </View>
-          </View>
-        );
-      
-      // Step 4: Security PIN + Email
-      case 4:
-        return (
-          <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>{t('welcome.security')}</Text>
-            <View style={styles.inputsContainer}>
-              <WelcomeInputField
-                label={t('welcome.createPin')}
-                icon="lock-closed-outline"
-                value={pin}
-                onChangeText={setPin}
-                secure
-                numeric
-              />
-              <View style={styles.spacer} />
-              <WelcomeInputField
-                label={t('welcome.recoveryEmail')}
-                icon="mail-outline"
-                value={emailRecupero}
-                onChangeText={setEmailRecupero}
-              />
-            </View>
-          </View>
-        );
-      
-      // Step 5: Complete
-      case 5:
-        return (
-          <View style={styles.pageContent}>
-            <Text style={styles.stepTitle}>{t('welcome.completed')}</Text>
-            <Text style={styles.completeSubtitle}>
-              {t('welcome.configSaved')}
-            </Text>
-            
-            <NeuBox
-              style={styles.checkCircle}
-              borderRadius={100}
-              padding={40}
-            >
-              <Ionicons name="checkmark-done" size={80} color={Colors.verde} />
-            </NeuBox>
-            
-            <TouchableOpacity
-              style={styles.enterButton}
-              onPress={handleFinish}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.enterButtonText}>{t('welcome.enterApp')}</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      
-      default:
-        return null;
-    }
+  // ═══ Navigation bar ═══
+  const NavBar = () => {
+    const hideNext = page === 0 || page === 1 || page === TOTAL_PAGES - 1; // questi step hanno CTA dedicato
+    return (
+      <View style={s.nav}>
+        {page > 0 ? (
+          <TouchableOpacity style={s.navBtn} onPress={goBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Ionicons name="arrow-back" size={26} color={Colors.marrone} />
+          </TouchableOpacity>
+        ) : <View style={s.navBtn} />}
+        {!hideNext && canGoNext() ? (
+          <TouchableOpacity testID="onboard-forward-btn" style={s.navBtn} onPress={goNext} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Ionicons name="arrow-forward" size={30} color={Colors.primary} />
+          </TouchableOpacity>
+        ) : <View style={s.navBtn} />}
+      </View>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        {renderIndicator()}
-        
-        <View style={styles.contentWrapper}>
-          {renderContent()}
-        </View>
-        
-        {renderNavigation()}
+    <SafeAreaView style={s.root}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <Indicator />
+
+        <ScrollView
+          contentContainerStyle={s.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ══════ STEP 0: LINGUA ══════ */}
+          {page === 0 && (
+            <View style={s.stepWrap}>
+              <Image
+                source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
+                style={s.logoSm}
+                contentFit="contain"
+              />
+              <Text style={s.stepTitle}>{t('welcome.chooseLanguage')}</Text>
+              <Text style={s.stepHint}>{t('welcome.chooseLanguageHint')}</Text>
+
+              <View style={s.flagsGrid}>
+                {LANGUAGES.map((l) => {
+                  const active = langSelected === l.label;
+                  return (
+                    <TouchableOpacity
+                      key={l.label}
+                      onPress={() => pickLang(l.label)}
+                      activeOpacity={0.75}
+                      style={[s.flagCircle, active && s.flagCircleActive]}
+                    >
+                      <Text style={s.flagEmoji}>{l.flag}</Text>
+                      <Text style={[s.flagLabel, active && { color: Colors.primary, fontWeight: '900' }]}>
+                        {l.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity
+                style={[s.ctaBtn, !langSelected && s.ctaBtnDisabled]}
+                onPress={goNext}
+                disabled={!langSelected}
+                activeOpacity={0.85}
+              >
+                <Text style={s.ctaBtnTxt}>{t('welcome.start')}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ══════ STEP 1: VALORE + SICUREZZA ══════ */}
+          {page === 1 && (
+            <View style={s.stepWrap}>
+              <View style={s.heroIcon}>
+                <Ionicons name="rocket" size={42} color={Colors.primary} />
+              </View>
+              <Text style={s.stepTitle}>{t('welcome.valueTitle')}</Text>
+              <Text style={s.bodyTxt}>{t('welcome.valueBody')}</Text>
+
+              <View style={s.securityCard}>
+                <View style={s.securityHead}>
+                  <Ionicons name="shield-checkmark" size={28} color={Colors.verde} />
+                  <Text style={s.securityTitle}>{t('welcome.securityTitle')}</Text>
+                </View>
+                <Text style={s.securityBody}>{t('welcome.securityBody')}</Text>
+              </View>
+
+              <TouchableOpacity style={s.ctaBtn} onPress={goNext} activeOpacity={0.85}>
+                <Text style={s.ctaBtnTxt}>{t('welcome.securityCta')}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ══════ STEP 2: SETTORE ══════ */}
+          {page === 2 && (
+            <View style={s.stepWrap}>
+              <Text style={s.stepTitle}>{t('welcome.sector')}</Text>
+              <View style={{ width: '100%', marginTop: 12 }}>
+                <TouchableOpacity onPress={() => setIsAlimentare(true)} style={{ width: '100%' }}>
+                  <NeuBox pressed={isAlimentare} padding={22} borderRadius={24}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <Ionicons name="fast-food" size={22} color={isAlimentare ? Colors.primary : Colors.marrone} />
+                      <Text style={[s.optionTxt, isAlimentare && { color: Colors.primary }]}>{t('welcome.alimentare')}</Text>
+                    </View>
+                  </NeuBox>
+                </TouchableOpacity>
+                <View style={{ height: 16 }} />
+                <TouchableOpacity onPress={() => setIsAlimentare(false)} style={{ width: '100%' }}>
+                  <NeuBox pressed={!isAlimentare} padding={22} borderRadius={24}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <Ionicons name="shirt" size={22} color={!isAlimentare ? Colors.primary : Colors.marrone} />
+                      <Text style={[s.optionTxt, !isAlimentare && { color: Colors.primary }]}>{t('welcome.nonAlimentare')}</Text>
+                    </View>
+                  </NeuBox>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ══════ STEP 3: IDENTITÀ ══════ */}
+          {page === 3 && (
+            <View style={s.stepWrap}>
+              <Text style={s.stepTitle}>{t('welcome.identity')}</Text>
+              <View style={{ width: '100%' }}>
+                <WInput
+                  label={t('welcome.businessNamePlaceholder')}
+                  icon="storefront-outline"
+                  value={nomeAttivita}
+                  onChangeText={setNomeAttivita}
+                  autoFocus
+                />
+                <View style={{ height: 18 }} />
+                <WInput
+                  label={t('welcome.ownerNamePlaceholder')}
+                  icon="person-outline"
+                  value={nomeTitolare}
+                  onChangeText={setNomeTitolare}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ══════ STEP 4: PIN 6 CIFRE ══════ */}
+          {page === 4 && (
+            <View style={s.stepWrap}>
+              <View style={s.heroIcon}>
+                <Ionicons name="lock-closed" size={36} color={Colors.primary} />
+              </View>
+              <Text style={s.stepTitle}>{t('welcome.security')}</Text>
+              <Text style={s.bodyTxt}>{t('welcome.createPin')}</Text>
+
+              <View style={{ width: '100%', marginTop: 20 }}>
+                <WInput
+                  label={t('welcome.createPin')}
+                  icon="keypad-outline"
+                  value={pin}
+                  onChangeText={(v) => { setPin(v.replace(/\D/g, '').slice(0, 6)); setPinError(''); }}
+                  secure
+                  numeric
+                  maxLength={6}
+                  autoFocus
+                />
+                <View style={{ height: 16 }} />
+                <WInput
+                  label={t('welcome.confirmPin')}
+                  icon="keypad"
+                  value={pinConfirm}
+                  onChangeText={(v) => { setPinConfirm(v.replace(/\D/g, '').slice(0, 6)); setPinError(''); }}
+                  secure
+                  numeric
+                  maxLength={6}
+                />
+                {pinError ? <Text style={s.errTxt}>{pinError}</Text> : null}
+                <View style={{ height: 22 }} />
+                <WInput
+                  label={t('welcome.recoveryEmail')}
+                  icon="mail-outline"
+                  value={emailRecupero}
+                  onChangeText={setEmailRecupero}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ══════ STEP 5: COMPLETATO ══════ */}
+          {page === 5 && (
+            <View style={s.stepWrap}>
+              <NeuBox borderRadius={100} padding={36} style={{ marginBottom: 30 }}>
+                <Ionicons name="checkmark-done" size={80} color={Colors.verde} />
+              </NeuBox>
+              <Text style={s.stepTitle}>{t('welcome.completed')}</Text>
+              <Text style={s.bodyTxt}>{t('welcome.configSaved')}</Text>
+
+              <TouchableOpacity style={s.finishBtn} onPress={handleFinish} activeOpacity={0.85}>
+                <Text style={s.finishBtnTxt}>{t('welcome.enterApp')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+
+        <NavBar />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bgWelcome,
-  },
-  flex: {
-    flex: 1,
-  },
-  contentWrapper: {
-    flex: 1,
-  },
-  indicatorContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: 25,
-  },
-  indicator: {
-    width: 10,
-    height: 8,
-    borderRadius: 10,
-    backgroundColor: Colors.shadowDark,
-    marginHorizontal: 5,
-  },
-  indicatorActive: {
-    width: 35,
-    backgroundColor: Colors.primary,
-  },
-  pageContent: {
-    flex: 1,
-    paddingHorizontal: 30,
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: Colors.marrone,
-    letterSpacing: 2,
-    marginBottom: 30,
-  },
-  welcomeLogo: {
-    width: 280,
-    height: 280,
-    marginBottom: 10,
-  },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 15,
-  },
-  optionWrapper: {
-    width: 140,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  optionText: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: Colors.marrone,
-    textAlign: 'center',
-  },
-  sectorButtons: {
-    width: '100%',
-  },
-  spacer: {
-    height: 30,
-  },
-  inputsContainer: {
-    width: '100%',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 5,
-    gap: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.marrone,
-    paddingVertical: 15,
-  },
-  completeSubtitle: {
-    fontSize: 14,
-    color: Colors.grey,
-    textAlign: 'center',
-    marginBottom: 50,
-  },
-  checkCircle: {
-    marginBottom: 50,
-  },
-  enterButton: {
-    width: '100%',
-    backgroundColor: Colors.verde,
-    paddingVertical: 20,
-    borderRadius: 20,
-  },
-  enterButtonText: {
-    color: Colors.white,
-    fontWeight: '900',
-    fontSize: 18,
-    letterSpacing: 1.5,
-    textAlign: 'center',
-  },
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingBottom: 15,
-  },
-  navButton: {
-    padding: 20,
-    width: 70,
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.bgWelcome },
+  indicatorRow: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 22, gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.shadowDark },
+  dotActive: { width: 30, backgroundColor: Colors.primary },
+  dotDone: { backgroundColor: Colors.verde },
+
+  scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 20 },
+  stepWrap: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 8 },
+
+  logoSm: { width: 160, height: 160, marginBottom: 4 },
+  heroIcon: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: 'rgba(30,127,133,0.1)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: 'rgba(30,127,133,0.2)', marginBottom: 18,
   },
 
-  // OTP Styles
-  otpIconCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(30,127,133,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(30,127,133,0.2)',
+  stepTitle: { fontSize: 22, fontWeight: '900', color: Colors.marrone, letterSpacing: 1.5, marginBottom: 10, textAlign: 'center' },
+  stepHint: { fontSize: 13, color: Colors.grey, textAlign: 'center', marginBottom: 24 },
+  bodyTxt: { fontSize: 14, color: Colors.grey, textAlign: 'center', lineHeight: 22, marginBottom: 18, paddingHorizontal: 6 },
+
+  flagsGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center',
+    gap: 16, marginBottom: 26, width: '100%',
   },
-  otpSubtitle: {
-    fontSize: 13,
-    color: Colors.grey,
-    textAlign: 'center',
-    marginBottom: 30,
-    lineHeight: 20,
-    paddingHorizontal: 10,
+  flagCircle: {
+    width: 92, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 6,
+    borderRadius: 20, backgroundColor: '#FFF',
+    borderWidth: 2, borderColor: 'transparent',
   },
-  otpButton: {
-    backgroundColor: '#1E7F85',
-    paddingVertical: 16,
-    borderRadius: 30,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+  flagCircleActive: { borderColor: Colors.primary, backgroundColor: 'rgba(30,127,133,0.08)' },
+  flagEmoji: { fontSize: 38, marginBottom: 4 },
+  flagLabel: { fontSize: 12, fontWeight: '700', color: Colors.marrone },
+
+  securityCard: {
+    width: '100%', backgroundColor: '#FFF', borderRadius: 20, padding: 18, marginBottom: 22,
+    borderLeftWidth: 4, borderLeftColor: Colors.verde,
   },
-  otpButtonText: {
-    color: '#FFF',
-    fontWeight: '900',
-    fontSize: 14,
-    letterSpacing: 1.5,
+  securityHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  securityTitle: { fontSize: 14, fontWeight: '900', color: Colors.verde, letterSpacing: 1 },
+  securityBody: { fontSize: 13, color: Colors.grey, lineHeight: 20 },
+
+  ctaBtn: {
+    width: '100%', backgroundColor: Colors.primary, paddingVertical: 16,
+    borderRadius: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
+    marginTop: 10,
   },
-  otpSentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(29,131,72,0.1)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(29,131,72,0.2)',
+  ctaBtnDisabled: { opacity: 0.5 },
+  ctaBtnTxt: { color: '#FFF', fontWeight: '900', fontSize: 14, letterSpacing: 1.5 },
+
+  optionTxt: { fontSize: 15, fontWeight: '900', color: Colors.marrone, textAlign: 'center' },
+
+  inputRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 6, gap: 10 },
+  input: { flex: 1, fontSize: 16, fontWeight: '700', color: Colors.marrone, paddingVertical: 14 },
+  errTxt: { color: '#D46A6A', fontSize: 12, fontWeight: '700', marginTop: 8, textAlign: 'center' },
+
+  finishBtn: {
+    width: '100%', backgroundColor: Colors.verde, paddingVertical: 20, borderRadius: 20, marginTop: 10,
   },
-  otpSentText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1D8348',
-  },
-  otpResend: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E7F85',
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-  },
-  verifiedBadge: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    gap: 8,
-  },
-  verifiedText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#1D8348',
-  },
-  verifiedPhone: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.grey,
-  },
-  skipButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: Colors.lightGrey || '#D0D0C8',
-    backgroundColor: 'transparent',
-  },
-  skipButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.grey,
-    letterSpacing: 1,
-  },
+  finishBtnTxt: { color: '#FFF', fontWeight: '900', fontSize: 17, letterSpacing: 1.2, textAlign: 'center' },
+
+  nav: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 14 },
+  navBtn: { padding: 18, width: 68 },
 });
