@@ -14,19 +14,20 @@ import { useAuthStore } from '../src/store/authStore';
 import { useTutorialStore } from '../src/store/tutorialStore';
 import { useAppLockStore } from '../src/store/appLockStore';
 import { TutorialOverlay } from '../src/components/TutorialOverlay';
-import { DEMO_DATA, DEMO_PIN } from '../src/utils/demoSeed';
 
 SplashScreen.preventAutoHideAsync();
 
-// ═══ FRESH-INSTALL WIPE + DEMO SEED ═══
+// ═══ FRESH-INSTALL WIPE ═══
 // Al PRIMISSIMO avvio dell'app su un nuovo dispositivo (o dopo reinstall),
-// pulisce TUTTO lo storage e poi popola con i dati demo "Il Panivendolo"
-// di Francesco Cavallaro. Una volta eseguito, il flag persiste e
-// lo wipe/seed non viene più ripetuto.
+// pulisce TUTTO lo storage prima di idratare gli store. Garantisce che chi
+// scarica per la prima volta NON trovi mai dati residui di test/sviluppo
+// o dati di altri utenti su web. Una volta eseguito, il flag persiste e
+// lo wipe non viene più ripetuto.
 //
-// ⚠️ DEMO SEED TEMPORANEO: questo blocco verrà rimosso quando l'utente lo
-//    chiederà. Vedi /app/frontend/src/utils/demoSeed.ts per i dati.
-const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v2_demo';
+// Il flag è stato bumped a _v3_clean così TUTTI gli utenti che avevano la
+// versione con i dati demo "Il Panivendolo" vedranno il wipe al prossimo
+// avvio e partiranno da uno stato pulito.
+const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v3_clean';
 const SECURE_KEYS_TO_WIPE = ['marketmate_pin_v1'];
 
 async function freshInstallWipe() {
@@ -50,18 +51,6 @@ async function freshInstallWipe() {
         try { await SecureStore.deleteItemAsync(k); } catch {}
       }
     }
-
-    // ═══ DEMO SEED: pre-popola lo storage con "Il Panivendolo" ═══
-    try {
-      await AsyncStorage.setItem('marketmate_data', JSON.stringify(DEMO_DATA));
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem('marketmate_pin_v1', DEMO_PIN);
-        }
-      } else {
-        await SecureStore.setItemAsync('marketmate_pin_v1', DEMO_PIN);
-      }
-    } catch (e) { console.warn('[demoSeed] failed', e); }
 
     // Marca il primo boot come completato
     await AsyncStorage.setItem(FIRST_BOOT_FLAG, '1');
