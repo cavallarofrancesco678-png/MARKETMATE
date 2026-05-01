@@ -24,10 +24,16 @@ SplashScreen.preventAutoHideAsync();
 // o dati di altri utenti su web. Una volta eseguito, il flag persiste e
 // lo wipe non viene più ripetuto.
 //
-// Il flag è stato bumped a _v3_clean così TUTTI gli utenti che avevano la
-// versione con i dati demo "Il Panivendolo" vedranno il wipe al prossimo
-// avvio e partiranno da uno stato pulito.
-const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v3_clean';
+// IMPORTANTE: il flag è stato bumped a _v4_clean per FORZARE il wipe a
+// TUTTI gli utenti che hanno ancora dati residui di test (incluso lo
+// sviluppatore stesso). Al prossimo avvio l'app sarà completamente vuota.
+const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v4_clean';
+// Flag vecchi noti — vengono rimossi nel wipe per evitare ambiguità
+const OLD_FIRST_BOOT_FLAGS = [
+  'marketmate_first_boot_done_v1',
+  'marketmate_first_boot_done_v2_demo',
+  'marketmate_first_boot_done_v3_clean',
+];
 const SECURE_KEYS_TO_WIPE = ['marketmate_pin_v1'];
 
 async function freshInstallWipe() {
@@ -35,7 +41,7 @@ async function freshInstallWipe() {
     const flag = await AsyncStorage.getItem(FIRST_BOOT_FLAG);
     if (flag === '1') return; // già fatto in passato
 
-    // Pulizia AsyncStorage / localStorage (web)
+    // Pulizia AsyncStorage / localStorage (web) — TUTTE le chiavi
     try {
       const keys = await AsyncStorage.getAllKeys();
       if (keys && keys.length) await AsyncStorage.multiRemove(keys);
@@ -43,6 +49,11 @@ async function freshInstallWipe() {
     if (Platform.OS === 'web') {
       try { if (typeof window !== 'undefined') window.localStorage.clear(); } catch {}
       try { if (typeof window !== 'undefined') window.sessionStorage.clear(); } catch {}
+    }
+
+    // Pulizia esplicita di chiavi note (sicurezza extra)
+    for (const k of OLD_FIRST_BOOT_FLAGS) {
+      try { await AsyncStorage.removeItem(k); } catch {}
     }
 
     // Pulizia SecureStore (iOS Keychain / Android Keystore)
