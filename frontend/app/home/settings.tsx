@@ -648,11 +648,14 @@ function SettingsPageInner() {
         ? `-${String((state as any).nomeTitolare).trim().replace(/[^\w]+/g, '')}`
         : '';
       const dateStr = new Date().toISOString().split('T')[0];
-      const fileName = `MarketMate-Backup${ownerTag}-${dateStr}.json`;
+      // ⬇️ ESTENSIONE .txt + mimeType text/plain → WhatsApp/Drive/Email accettano il file
+      // come ALLEGATO senza tentare di interpretarlo come messaggio. Il contenuto
+      // è comunque JSON valido, quindi handleImportData può leggerlo regolarmente.
+      const fileName = `MarketMate-Backup${ownerTag}-${dateStr}.txt`;
       const sizeKB = Math.round(json.length / 1024);
 
       if (Platform.OS === 'web') {
-        const blob = new Blob([json], { type: 'application/json' });
+        const blob = new Blob([json], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -662,72 +665,63 @@ function SettingsPageInner() {
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         playSuccess();
-        // Conferma all'utente
         window.alert(`Esportazione completata!\nFile: ${fileName} (${sizeKB} KB)\nScaricato automaticamente dal browser.`);
         return;
       }
 
-      // Mobile (iOS/Android): strategia a 3 livelli
-      // 1. Salva file in documentDirectory
-      // 2. Usa expo-sharing se disponibile (miglior UX)
-      // 3. Fallback: React Native Share con il JSON inline
-      let fileWritten = false;
-      let filePath = '';
+      // ═══ MOBILE (iOS/Android) ═══
+      // 1. Scrivo il file in cacheDirectory (più affidabile per la condivisione su Android)
+      // 2. Uso ESCLUSIVAMENTE expo-sharing.shareAsync con mimeType text/plain
+      //    → WhatsApp lo riceve come ALLEGATO (non come testo da copiare)
+      // 3. NESSUN fallback con RNShare(message): quello convertiva il JSON in
+      //    messaggio di testo costringendo l'utente al copia-incolla.
+      const dirPath = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+      if (!dirPath) {
+        Alert.alert('Errore Export', 'Spazio file non disponibile sul dispositivo.');
+        return;
+      }
+      const filePath = `${dirPath}${fileName}`;
       try {
-        const dirPath = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-        if (dirPath) {
-          filePath = `${dirPath}${fileName}`;
-          await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
-          const info = await FileSystem.getInfoAsync(filePath);
-          fileWritten = !!info.exists;
-        }
-      } catch (writeErr) {
+        await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
+      } catch (writeErr: any) {
         console.warn('FileSystem write failed:', writeErr);
+        Alert.alert('Errore Export', `Impossibile salvare il file (${writeErr?.message || 'errore disco'}). Spazio libero?`);
+        return;
       }
 
-      // Prova expo-sharing (condivide il file)
-      let sharingOk = false;
-      if (fileWritten) {
-        try {
-          const canShare = await Sharing.isAvailableAsync();
-          if (canShare) {
-            await Sharing.shareAsync(filePath, {
-              mimeType: 'application/json',
-              dialogTitle: `Esporta dati MarketMate (${sizeKB} KB)`,
-              UTI: 'public.json',
-            });
-            sharingOk = true;
-            playSuccess();
-          }
-        } catch (shareErr) {
-          console.warn('Sharing failed:', shareErr);
-        }
+      // Verifica che il file esista realmente
+      let fileExists = false;
+      try {
+        const info = await FileSystem.getInfoAsync(filePath);
+        fileExists = !!info.exists;
+      } catch {}
+      if (!fileExists) {
+        Alert.alert('Errore Export', `File non creato. Riprova.`);
+        return;
       }
 
-      // Fallback: usa React Native Share (condivide il testo JSON)
-      if (!sharingOk) {
-        try {
-          const result = await RNShare.share({
-            message: json,
-            title: fileName,
-          }, {
-            dialogTitle: `Esporta dati MarketMate (${sizeKB} KB)`,
-          });
-          if (result.action !== RNShare.dismissedAction) {
-            playSuccess();
-            sharingOk = true;
-          }
-        } catch (rnShareErr) {
-          console.warn('RNShare failed:', rnShareErr);
-        }
-      }
-
-      if (!sharingOk) {
+      // Condivisione tramite expo-sharing (l'unico metodo che condivide il file vero)
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
         Alert.alert(
-          fileWritten ? 'File salvato' : 'Export',
-          fileWritten
-            ? `File creato:\n${fileName}\n(${sizeKB} KB)\n\nPercorso:\n${filePath}\n\nLa condivisione è stata annullata o non è disponibile.`
-            : `Impossibile salvare il file. Dimensione dati: ${sizeKB} KB. Riprova o controlla lo spazio disponibile.`,
+          'Backup salvato',
+          `Il file è stato salvato sul telefono ma la condivisione non è disponibile.\n\nFile: ${fileName}\n(${sizeKB} KB)\n\nPercorso: ${filePath}`,
+        );
+        return;
+      }
+
+      try {
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'text/plain',
+          dialogTitle: `Backup MarketMate (${sizeKB} KB)`,
+          UTI: 'public.plain-text',
+        });
+        playSuccess();
+      } catch (shareErr: any) {
+        console.warn('Sharing failed:', shareErr);
+        Alert.alert(
+          'Condivisione annullata',
+          `Il backup è stato salvato come ${fileName} (${sizeKB} KB) ma la condivisione è stata annullata. Puoi ritentare premendo di nuovo SALVA BACKUP.`,
         );
       }
     } catch (err: any) {
@@ -759,10 +753,10 @@ function SettingsPageInner() {
       let jsonText = '';
 
       if (Platform.OS === 'web') {
-        // Web: usa input file HTML
+        // Web: usa input file HTML — accetta sia .txt che .json
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.json,application/json';
+        input.accept = '.json,.txt,application/json,text/plain,text/*';
         const fileData = await new Promise<string | null>((resolve) => {
           input.onchange = (e: any) => {
             const file = e.target.files?.[0];
@@ -777,14 +771,29 @@ function SettingsPageInner() {
         if (!fileData) return;
         jsonText = fileData;
       } else {
-        // Mobile: usa DocumentPicker
+        // Mobile: usa DocumentPicker SENZA filtro restrittivo.
+        // type:'*/*' accetta qualunque file (txt, json, ecc.) — fondamentale
+        // perché alcuni file system / WhatsApp / Drive rinominano i file
+        // o usano content URI senza estensione visibile.
         const result = await DocumentPicker.getDocumentAsync({
-          type: 'application/json',
+          type: '*/*',
           copyToCacheDirectory: true,
         });
         if (result.canceled || !result.assets || result.assets.length === 0) return;
         const uri = result.assets[0].uri;
-        jsonText = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 });
+        try {
+          jsonText = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 });
+        } catch (readErr: any) {
+          Alert.alert('Errore lettura file', `Impossibile leggere il file: ${readErr?.message || 'errore sconosciuto'}.`);
+          return;
+        }
+      }
+
+      // Pulizia preventiva: trim e rimuovi BOM (se presente)
+      jsonText = jsonText.replace(/^\uFEFF/, '').trim();
+      if (!jsonText) {
+        Alert.alert('Errore Import', 'Il file selezionato è vuoto.');
+        return;
       }
 
       const data = JSON.parse(jsonText);
@@ -825,7 +834,7 @@ function SettingsPageInner() {
         `Dati importati correttamente!\n\nMercati: ${(data.agenda || []).length}\nFornitori: ${(data.fornitori || []).length}\nGiornate storico: ${(data.storicoGiornate || []).length}\nFiere: ${(data.fiere || []).length}`,
       );
     } catch (err: any) {
-      Alert.alert('Errore Import', `${err?.message || 'File non valido'}. Usa un file .json esportato da MarketMate.`);
+      Alert.alert('Errore Import', `${err?.message || 'File non valido'}.\n\nAssicurati di aver selezionato un file di backup di MarketMate (file .txt o .json esportato dall'app).`);
     }
   };
 
