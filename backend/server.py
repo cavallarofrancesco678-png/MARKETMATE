@@ -965,15 +965,17 @@ h1 { font-size: 24px; margin: 0 0 8px; color: #1A3A3A; }
 p { font-size: 14px; line-height: 1.5; color: #5A6A6A; margin: 8px 0 18px; }
 ul { text-align: left; font-size: 13px; color: #5A6A6A; line-height: 1.6; padding-left: 20px; }
 .btn {
-  display: block; width: 100%; padding: 18px 24px; margin-top: 22px;
+  display: block; width: 100%; padding: 18px 24px; margin-top: 14px;
   background: #1E7F85; color: #fff; border: 0; border-radius: 14px;
-  font-size: 17px; font-weight: 800; letter-spacing: 0.6px; text-decoration: none;
+  font-size: 16px; font-weight: 800; letter-spacing: 0.4px; text-decoration: none;
   cursor: pointer; box-shadow: 0 4px 12px rgba(30,127,133,0.3);
 }
+.btn.alt { background: #D4AF37; box-shadow: 0 4px 12px rgba(212,175,55,0.3); }
 .btn:active { transform: scale(0.98); }
 .note { font-size: 11px; color: #8A9090; margin-top: 16px; }
 .success { color: #1E7F85; font-weight: 700; margin-top: 14px; display: none; }
 .logo { font-size: 28px; margin-bottom: 6px; }
+.divider { font-size: 11px; color: #B0B0A0; margin: 14px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
 </style>
 </head>
 <body>
@@ -988,20 +990,21 @@ ul { text-align: left; font-size: 13px; color: #5A6A6A; line-height: 1.6; paddin
     <li>5 rifornimenti carburante</li>
     <li>Tutte le impostazioni</li>
   </ul>
-  <button class="btn" id="dl">⬇️ SCARICA FILE BACKUP</button>
+  <button class="btn" id="dl-json">⬇️ SCARICA BACKUP (.json)</button>
+  <div class="divider">ALTERNATIVA</div>
+  <button class="btn alt" id="dl-txt">⬇️ Scarica come .txt</button>
   <div class="success" id="ok">✅ File scaricato! Aprilo in MarketMate → Impostazioni → APRI BACKUP</div>
-  <p class="note">Il file si chiama <code>MarketMate-Backup-Francesco.txt</code></p>
+  <p class="note">Prova prima il <strong>.json</strong>. Se l'app dice "impossibile da leggere", ritorna qui e prova il <strong>.txt</strong>.</p>
 </div>
 <script>
-const FILE_NAME = 'MarketMate-Backup-Francesco.txt';
 const FILE_CONTENT = __CONTENT__;
-document.getElementById('dl').addEventListener('click', function() {
+function downloadAs(name, mime) {
   try {
-    const blob = new Blob([FILE_CONTENT], { type: 'application/octet-stream' });
+    const blob = new Blob([FILE_CONTENT], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = FILE_NAME;
+    a.download = name;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1010,6 +1013,12 @@ document.getElementById('dl').addEventListener('click', function() {
   } catch (e) {
     alert('Errore: ' + e.message);
   }
+}
+document.getElementById('dl-json').addEventListener('click', function() {
+  downloadAs('MarketMate-Backup-Francesco.json', 'application/json');
+});
+document.getElementById('dl-txt').addEventListener('click', function() {
+  downloadAs('MarketMate-Backup-Francesco.txt', 'text/plain');
 });
 </script>
 </body>
