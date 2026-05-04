@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.marketmate.app",
+      "bundleIdentifier": "it.tvscavallaro.marketmate",
       "infoPlist": {
         "NSCameraUsageDescription": "Scatta foto della chiusura fiscale per calcolare la media scontrino",
         "NSPhotoLibraryUsageDescription": "Seleziona foto della chiusura fiscale dalla galleria"
@@ -22,7 +22,7 @@
         "backgroundColor": "#F0F4F8"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.marketmate.app",
+      "package": "it.tvscavallaro.marketmate",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE"
