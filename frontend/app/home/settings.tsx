@@ -512,7 +512,7 @@ function SettingsPageInner() {
         // Read file as base64 if not provided directly
         try {
           const fileData = await FileSystem.readAsStringAsync(asset.uri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64' as any,
           });
           base64Data = fileData;
         } catch {
@@ -682,7 +682,7 @@ function SettingsPageInner() {
       }
       const filePath = `${dirPath}${fileName}`;
       try {
-        await FileSystem.writeAsStringAsync(filePath, json, { encoding: FileSystem.EncodingType.UTF8 });
+        await FileSystem.writeAsStringAsync(filePath, json, { encoding: 'utf8' as any });
       } catch (writeErr: any) {
         console.warn('FileSystem write failed:', writeErr);
         Alert.alert('Errore Export', `Impossibile salvare il file (${writeErr?.message || 'errore disco'}). Spazio libero?`);
@@ -782,7 +782,7 @@ function SettingsPageInner() {
         if (result.canceled || !result.assets || result.assets.length === 0) return;
         const uri = result.assets[0].uri;
         try {
-          jsonText = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 });
+          jsonText = await FileSystem.readAsStringAsync(uri, { encoding: 'utf8' as any });
         } catch (readErr: any) {
           Alert.alert('Errore lettura file', `Impossibile leggere il file: ${readErr?.message || 'errore sconosciuto'}.`);
           return;
