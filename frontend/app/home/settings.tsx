@@ -1147,22 +1147,91 @@ export default function SettingsPage() {
                   })}
                 </View>
 
-                {/* CODICE INVITO (se presente) */}
+                {/* ═══ CODICE INVITO + BOTTONE INVIA ═══ */}
                 {codiceCollab && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: '#F4FAF7', borderRadius: 8 }}>
-                    <Ionicons name="key-outline" size={14} color="#1E7F85" />
-                    <Text style={{ flex: 1, marginLeft: 6, fontSize: 12, fontWeight: '800', color: '#1A4040', letterSpacing: 0.5 }}>{codiceCollab.codice}</Text>
+                  <View style={{ marginTop: 12 }}>
+                    {/* Riquadro codice */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#F4FAF7', borderRadius: 10, borderWidth: 1, borderColor: '#D6E8E2' }}>
+                      <Ionicons name="key" size={16} color="#1E7F85" />
+                      <Text style={{ flex: 1, marginLeft: 8, fontSize: 14, fontWeight: '900', color: '#1A4040', letterSpacing: 1.2 }} numberOfLines={1}>
+                        {codiceCollab.codice}
+                      </Text>
+                      <TouchableOpacity
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={async () => {
+                          try {
+                            if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard) {
+                              await (navigator as any).clipboard.writeText(codiceCollab.codice);
+                              try { (window as any).alert?.('Codice copiato!'); } catch {}
+                            } else {
+                              // Native: usa Share come fallback (apre il menu condivisione)
+                              await RNShare.share({ message: codiceCollab.codice });
+                            }
+                          } catch {}
+                        }}
+                        style={{ padding: 4 }}
+                      >
+                        <Ionicons name="copy-outline" size={18} color="#1E7F85" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* BOTTONE INVIA CODICE — apre il selettore di app (WhatsApp / SMS / Email / Telegram) */}
                     <TouchableOpacity
-                      activeOpacity={0.6}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.85}
                       onPress={async () => {
+                        const ruoloLabel = (codiceCollab.tipo === 'AMMINISTRATORE') ? 'Amministratore'
+                          : (codiceCollab.tipo === 'MANAGER') ? 'Manager' : 'Utente';
+                        const titolare = (store as any).nomeTitolare || 'Il titolare';
+                        const azienda = (store as any).nomeAttivita || 'MarketMate';
+                        const messaggio =
+                          `Ciao ${c.nome}! 👋\n\n` +
+                          `${titolare} di "${azienda}" ti ha invitato a collaborare su MarketMate come ${ruoloLabel}.\n\n` +
+                          `🔑 Codice invito: ${codiceCollab.codice}\n\n` +
+                          `Per attivare il tuo ruolo:\n` +
+                          `1. Scarica MarketMate\n` +
+                          `2. Apri l'app e tocca "Ho un codice invito"\n` +
+                          `3. Inserisci il codice qui sopra`;
                         try {
-                          await RNShare.share({ message: `Ciao! Ecco il tuo codice per MarketMate: ${codiceCollab.codice}` });
-                        } catch {}
+                          await RNShare.share({
+                            message: messaggio,
+                            title: `Codice MarketMate per ${c.nome}`,
+                          });
+                        } catch (e) {
+                          // Fallback web: copia il messaggio negli appunti via API browser
+                          try {
+                            if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard) {
+                              await (navigator as any).clipboard.writeText(messaggio);
+                              try { (window as any).alert?.('Messaggio copiato! Incollalo su WhatsApp.'); } catch {}
+                            }
+                          } catch {}
+                        }
+                      }}
+                      style={{
+                        marginTop: 10,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        paddingVertical: 13,
+                        backgroundColor: '#1E7F85',
+                        borderRadius: 12,
+                        shadowColor: '#1E7F85',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 8,
+                        elevation: 4,
                       }}
                     >
-                      <Ionicons name="share-outline" size={18} color="#1E7F85" />
+                      <Ionicons name="paper-plane" size={16} color="#FFF" />
+                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>
+                        INVIA CODICE A {c.nome.trim().toUpperCase()}
+                      </Text>
                     </TouchableOpacity>
+
+                    <Text style={{ marginTop: 6, fontSize: 10, color: '#7A9090', textAlign: 'center', fontStyle: 'italic' }}>
+                      Si apre WhatsApp / SMS / Email per inviare il codice
+                    </Text>
                   </View>
                 )}
 
