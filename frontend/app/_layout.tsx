@@ -1,7 +1,5 @@
 import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -17,58 +15,16 @@ import { TutorialOverlay } from '../src/components/TutorialOverlay';
 
 SplashScreen.preventAutoHideAsync();
 
-// ═══ FRESH-INSTALL WIPE ═══
-// Al PRIMISSIMO avvio dell'app su un nuovo dispositivo (o dopo reinstall),
-// pulisce TUTTO lo storage prima di idratare gli store. Garantisce che chi
-// scarica per la prima volta NON trovi mai dati residui di test/sviluppo
-// o dati di altri utenti su web. Una volta eseguito, il flag persiste e
-// lo wipe non viene più ripetuto.
+// ═══ NESSUN WIPE FORZATO ═══
+// Android isola automaticamente lo storage di ogni nuova installazione, quindi
+// chi scarica l'APK per la PRIMA VOLTA su un dispositivo trova l'app vuota
+// senza bisogno di alcun reset esplicito.
+// Chi AGGIORNA l'app da una versione precedente mantiene tutti i suoi dati
+// (storico giornate, fornitori, fiere, configurazione, PIN, ecc.).
 //
-// IMPORTANTE: il flag è stato bumped a _v4_clean per FORZARE il wipe a
-// TUTTI gli utenti che hanno ancora dati residui di test (incluso lo
-// sviluppatore stesso). Al prossimo avvio l'app sarà completamente vuota.
-const FIRST_BOOT_FLAG = 'marketmate_first_boot_done_v4_clean';
-// Flag vecchi noti — vengono rimossi nel wipe per evitare ambiguità
-const OLD_FIRST_BOOT_FLAGS = [
-  'marketmate_first_boot_done_v1',
-  'marketmate_first_boot_done_v2_demo',
-  'marketmate_first_boot_done_v3_clean',
-];
-const SECURE_KEYS_TO_WIPE = ['marketmate_pin_v1'];
-
-async function freshInstallWipe() {
-  try {
-    const flag = await AsyncStorage.getItem(FIRST_BOOT_FLAG);
-    if (flag === '1') return; // già fatto in passato
-
-    // Pulizia AsyncStorage / localStorage (web) — TUTTE le chiavi
-    try {
-      const keys = await AsyncStorage.getAllKeys();
-      if (keys && keys.length) await AsyncStorage.multiRemove(keys);
-    } catch {}
-    if (Platform.OS === 'web') {
-      try { if (typeof window !== 'undefined') window.localStorage.clear(); } catch {}
-      try { if (typeof window !== 'undefined') window.sessionStorage.clear(); } catch {}
-    }
-
-    // Pulizia esplicita di chiavi note (sicurezza extra)
-    for (const k of OLD_FIRST_BOOT_FLAGS) {
-      try { await AsyncStorage.removeItem(k); } catch {}
-    }
-
-    // Pulizia SecureStore (iOS Keychain / Android Keystore)
-    if (Platform.OS !== 'web') {
-      for (const k of SECURE_KEYS_TO_WIPE) {
-        try { await SecureStore.deleteItemAsync(k); } catch {}
-      }
-    }
-
-    // Marca il primo boot come completato
-    await AsyncStorage.setItem(FIRST_BOOT_FLAG, '1');
-  } catch (e) {
-    console.warn('[freshInstallWipe] failed', e);
-  }
-}
+// In passato qui c'era una funzione freshInstallWipe() che azzerava lo storage
+// al primo avvio basandosi su un flag versione: è stata RIMOSSA perché causava
+// la perdita di dati agli utenti che aggiornavano l'app.
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -93,9 +49,8 @@ export default function RootLayout() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // ═══ 1) Wipe completo SOLO al primissimo avvio (idempotente) ═══
-      try { await freshInstallWipe(); } catch (e) { console.warn('freshInstallWipe failed', e); }
-      // ═══ 2) Hydrate normale degli store ═══
+      // Hydrate normale degli store. Su nuova installazione i campi sono vuoti;
+      // su aggiornamento mantengono i valori dell'utente.
       try { await loadFromStorage(); } catch (e) { console.warn('loadFromStorage failed', e); }
       try { await authHydrate(); } catch (e) { console.warn('auth hydrate failed', e); }
       try { await tutHydrate(); } catch (e) { console.warn('tut hydrate failed', e); }
