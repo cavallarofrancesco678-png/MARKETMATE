@@ -12,7 +12,6 @@ import { useAuthStore } from '../src/store/authStore';
 import { useTutorialStore } from '../src/store/tutorialStore';
 import { useAppLockStore } from '../src/store/appLockStore';
 import { TutorialOverlay } from '../src/components/TutorialOverlay';
-import { DEMO_DATA, DEMO_PIN } from '../src/utils/demoSeed';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -56,28 +55,6 @@ export default function RootLayout() {
       try { await authHydrate(); } catch (e) { console.warn('auth hydrate failed', e); }
       try { await tutHydrate(); } catch (e) { console.warn('tut hydrate failed', e); }
       try { await hydrateLock(); } catch (e) { console.warn('lock hydrate failed', e); }
-
-      // ═══ SEED RECUPERO DATI PERSONALI ═══
-      // Caricato UNA SOLA VOLTA su installazione completamente pulita.
-      // Se lo store è già configurato (utente ha i propri dati) → skip.
-      // Se il PIN è già salvato in SecureStore → skip (utente esistente).
-      try {
-        const appState = useAppStore.getState();
-        const lockState = useAppLockStore.getState();
-        if (!appState.isConfigured && !lockState.hasPin) {
-          // Inietta i dati demo nello store Zustand
-          useAppStore.setState(DEMO_DATA as any);
-          // Salva immediatamente su AsyncStorage
-          await useAppStore.getState().saveToStorage();
-          // Imposta il PIN nel SecureStore
-          await useAppLockStore.getState().setPin(DEMO_PIN);
-          // Marca il tutorial come già completato (evita la guida a 18 passi)
-          try { await useTutorialStore.getState().complete(); } catch {}
-          console.log('[SEED] Dati personali iniettati. PIN impostato.');
-        }
-      } catch (e) {
-        console.warn('[SEED] Iniezione fallita:', e);
-      }
 
       if (!cancelled) setStorageHydrated(true);
     })();
