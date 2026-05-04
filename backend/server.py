@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -902,6 +903,25 @@ async def get_weather(req: WeatherRequest):
 
 # Include the router in the main app
 app.include_router(api_router)
+
+# ═══ ENDPOINT BACKUP PERSONALE FRANCESCO ═══
+# File pre-confezionato con i dati di "Il Panivendolo" da scaricare e
+# importare nell'app pulita tramite "APRI BACKUP" → seleziona il file.
+# Endpoint pubblico (senza auth) perché il file è già nel repo controllato.
+@app.get("/api/backup/francesco")
+async def download_francesco_backup():
+    file_path = ROOT_DIR / "static" / "MarketMate-Backup-Francesco.txt"
+    if not file_path.exists():
+        return {"error": "File non trovato"}
+    return FileResponse(
+        path=str(file_path),
+        media_type="text/plain",
+        filename="MarketMate-Backup-Francesco.txt",
+        headers={
+            "Content-Disposition": 'attachment; filename="MarketMate-Backup-Francesco.txt"',
+            "Cache-Control": "no-cache",
+        },
+    )
 
 # ═══ AUTH & MULTI-USER + SYNC ═══
 from auth_module import auth_router, sync_router, init_auth_db
