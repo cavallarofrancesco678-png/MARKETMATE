@@ -913,15 +913,110 @@ async def download_francesco_backup():
     file_path = ROOT_DIR / "static" / "MarketMate-Backup-Francesco.txt"
     if not file_path.exists():
         return {"error": "File non trovato"}
+    # application/octet-stream → FORZA il download su qualunque browser
+    # (Chrome mobile, Samsung Internet, Firefox mobile, Safari iOS).
     return FileResponse(
         path=str(file_path),
-        media_type="text/plain",
+        media_type="application/octet-stream",
         filename="MarketMate-Backup-Francesco.txt",
         headers={
             "Content-Disposition": 'attachment; filename="MarketMate-Backup-Francesco.txt"',
             "Cache-Control": "no-cache",
+            "X-Content-Type-Options": "nosniff",
         },
     )
+
+# Pagina HTML con bottone download evidente — soluzione universale per i telefoni
+# che aprono direttamente il text/plain invece di scaricarlo.
+from fastapi.responses import HTMLResponse
+@app.get("/api/backup/francesco/page", response_class=HTMLResponse)
+async def francesco_backup_page():
+    file_path = ROOT_DIR / "static" / "MarketMate-Backup-Francesco.txt"
+    if not file_path.exists():
+        return HTMLResponse("<h1>File non trovato</h1>", status_code=404)
+    # Leggo il contenuto e lo incorporo come Blob nel Javascript della pagina:
+    # in questo modo il pulsante crea il file lato browser e lo "scarica" senza
+    # alcuna richiesta di rete aggiuntiva. Funziona ovunque.
+    import json as _json
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    safe = _json.dumps(content)  # JSON-encoded string per JS
+    html = """<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Backup MarketMate · Francesco</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px;
+  font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;
+  background: #F5F0E6; color: #1A3A3A;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 100vh;
+}
+.card {
+  background: #fff; border-radius: 20px; padding: 32px 24px; max-width: 420px; width: 100%;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  text-align: center;
+}
+h1 { font-size: 24px; margin: 0 0 8px; color: #1A3A3A; }
+p { font-size: 14px; line-height: 1.5; color: #5A6A6A; margin: 8px 0 18px; }
+ul { text-align: left; font-size: 13px; color: #5A6A6A; line-height: 1.6; padding-left: 20px; }
+.btn {
+  display: block; width: 100%; padding: 18px 24px; margin-top: 22px;
+  background: #1E7F85; color: #fff; border: 0; border-radius: 14px;
+  font-size: 17px; font-weight: 800; letter-spacing: 0.6px; text-decoration: none;
+  cursor: pointer; box-shadow: 0 4px 12px rgba(30,127,133,0.3);
+}
+.btn:active { transform: scale(0.98); }
+.note { font-size: 11px; color: #8A9090; margin-top: 16px; }
+.success { color: #1E7F85; font-weight: 700; margin-top: 14px; display: none; }
+.logo { font-size: 28px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">📦</div>
+  <h1>Backup di Francesco</h1>
+  <p><strong>Il Panivendolo</strong> — pronto da reimportare</p>
+  <ul>
+    <li>15 giornate dello storico</li>
+    <li>3 collaboratori, 3 fornitori</li>
+    <li>Agenda settimanale completa</li>
+    <li>5 rifornimenti carburante</li>
+    <li>Tutte le impostazioni</li>
+  </ul>
+  <button class="btn" id="dl">⬇️ SCARICA FILE BACKUP</button>
+  <div class="success" id="ok">✅ File scaricato! Aprilo in MarketMate → Impostazioni → APRI BACKUP</div>
+  <p class="note">Il file si chiama <code>MarketMate-Backup-Francesco.txt</code></p>
+</div>
+<script>
+const FILE_NAME = 'MarketMate-Backup-Francesco.txt';
+const FILE_CONTENT = __CONTENT__;
+document.getElementById('dl').addEventListener('click', function() {
+  try {
+    const blob = new Blob([FILE_CONTENT], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = FILE_NAME;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    document.getElementById('ok').style.display = 'block';
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+});
+</script>
+</body>
+</html>
+"""
+    html = html.replace("__CONTENT__", safe)
+    return HTMLResponse(content=html)
 
 # ═══ AUTH & MULTI-USER + SYNC ═══
 from auth_module import auth_router, sync_router, init_auth_db
