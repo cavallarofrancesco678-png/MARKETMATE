@@ -1372,6 +1372,27 @@ export default function StatsScreen() {
               {fornitoriTotals.perFornitore.map((f, i) => {
                 const isExp = expandedFornitore === f.nome;
                 const totF = f.fatturata + f.libera;
+
+                // ═══ CALCOLO SETTIMANALE: divide il mese in 4 settimane (1-7, 8-14, 15-21, 22-fine)
+                // Per ogni settimana somma Fatturata + Libera di questo fornitore.
+                const weeklyData = (() => {
+                  const w = [0, 0, 0, 0];
+                  filteredData.forEach((g: any) => {
+                    const d = new Date(g.data);
+                    const day = d.getDate();
+                    let idx = 0;
+                    if (day >= 1 && day <= 7) idx = 0;
+                    else if (day >= 8 && day <= 14) idx = 1;
+                    else if (day >= 15 && day <= 21) idx = 2;
+                    else idx = 3;
+                    const fatt = g.dettaglio_fornitori?.[f.nome] || 0;
+                    const libera = g.dettaglio_fornitori?.[`${f.nome}__libera`] || 0;
+                    w[idx] += fatt + libera;
+                  });
+                  return w;
+                })();
+                const weeklyMax = Math.max(...weeklyData, 1);
+
                 return (
                   <View key={i} style={{ borderTopWidth: 1, borderColor: '#E8EDE8' }}>
                     <TouchableOpacity onPress={() => setExpandedFornitore(isExp ? null : f.nome)} activeOpacity={0.7}>
@@ -1383,24 +1404,96 @@ export default function StatsScreen() {
                       </View>
                     </TouchableOpacity>
                     {isExp && totF > 0 && (
-                      <View style={{ backgroundColor: '#F4FAF7', borderRadius: 10, padding: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <PieChart items={[
-                          { label: 'Fatturata', value: f.fatturata, color: '#1E7F85' },
-                          { label: 'Contanti', value: f.libera, color: '#E8A060' },
-                        ]} size={100} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 11, fontWeight: '900', color: '#1A4040', marginBottom: 6 }}>{f.nome}</Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85', marginRight: 6 }} />
-                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1 }}>Fatturata</Text>
-                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>€{f.fatturata.toFixed(0)} ({Math.round((f.fatturata / totF) * 100)}%)</Text>
+                      <View style={{ marginBottom: 10 }}>
+                        {/* Riga Pie Fatturata/Contanti + leggenda */}
+                        <View style={{ backgroundColor: '#F4FAF7', borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <PieChart items={[
+                            { label: 'Fatturata', value: f.fatturata, color: '#1E7F85' },
+                            { label: 'Contanti', value: f.libera, color: '#E8A060' },
+                          ]} size={100} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '900', color: '#1A4040', marginBottom: 6 }}>{f.nome}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#1E7F85', marginRight: 6 }} />
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1 }}>Fatturata</Text>
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>€{f.fatturata.toFixed(0)} ({Math.round((f.fatturata / totF) * 100)}%)</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060', marginRight: 6 }} />
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1 }}>Contanti</Text>
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>€{f.libera.toFixed(0)} ({Math.round((f.libera / totF) * 100)}%)</Text>
+                            </View>
+                            <Text style={{ fontSize: 11, color: '#5A7575', fontWeight: '700', marginTop: 4 }}>TOT: €{totF.toFixed(0)}</Text>
                           </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8A060', marginRight: 6 }} />
-                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040', flex: 1 }}>Contanti</Text>
-                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>€{f.libera.toFixed(0)} ({Math.round((f.libera / totF) * 100)}%)</Text>
+                        </View>
+
+                        {/* ═══ GRAFICO SETTIMANALE — stile Home (neomorfico) ═══ */}
+                        <View style={{
+                          backgroundColor: '#F5EFDC',
+                          borderRadius: 16,
+                          padding: 14,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 2, height: 2 },
+                          shadowOpacity: 0.08,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '900', color: '#5A7575', letterSpacing: 1.2 }}>
+                              ANDAMENTO SETTIMANALE
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>
+                              €{totF.toFixed(0)}
+                            </Text>
                           </View>
-                          <Text style={{ fontSize: 11, color: '#5A7575', fontWeight: '700', marginTop: 4 }}>TOT: €{totF.toFixed(0)}</Text>
+
+                          {/* 4 barre settimanali */}
+                          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', height: 120, paddingHorizontal: 4 }}>
+                            {weeklyData.map((val, idx) => {
+                              const h = val > 0 ? Math.max(6, (val / weeklyMax) * 100) : 4;
+                              const color = val > 0 ? '#1E7F85' : '#D8E4E0';
+                              return (
+                                <View key={idx} style={{ flex: 1, alignItems: 'center', paddingHorizontal: 3 }}>
+                                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#1A4040', marginBottom: 4 }}>
+                                    €{val.toFixed(0)}
+                                  </Text>
+                                  <View
+                                    style={{
+                                      width: '100%',
+                                      height: h,
+                                      backgroundColor: color,
+                                      borderTopLeftRadius: 6,
+                                      borderTopRightRadius: 6,
+                                      // ombreggiatura neomorfica
+                                      shadowColor: '#000',
+                                      shadowOffset: { width: 1, height: 2 },
+                                      shadowOpacity: 0.15,
+                                      shadowRadius: 3,
+                                      elevation: 2,
+                                    }}
+                                  />
+                                </View>
+                              );
+                            })}
+                          </View>
+
+                          {/* Label giorni settimana */}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 6, paddingHorizontal: 4 }}>
+                            {['S1', 'S2', 'S3', 'S4'].map((lab) => (
+                              <View key={lab} style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: '#5A7575', letterSpacing: 0.5 }}>{lab}</Text>
+                              </View>
+                            ))}
+                          </View>
+
+                          {/* Dettaglio giorni periodo (solo se filtroTempo === 'mese') */}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 2, paddingHorizontal: 4 }}>
+                            {['1-7', '8-14', '15-21', '22+'].map((lab) => (
+                              <View key={lab} style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 8.5, color: '#8A9595', fontStyle: 'italic' }}>{lab}</Text>
+                              </View>
+                            ))}
+                          </View>
                         </View>
                       </View>
                     )}
