@@ -114,7 +114,7 @@ export default function HomeScreen() {
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
   
   // Tooltip elegante per il grafico
-  const [chartTooltip, setChartTooltip] = useState<{visible: boolean; label: string; value: number} | null>(null);
+  const [chartTooltip, setChartTooltip] = useState<{visible: boolean; label: string; value: number; giorni?: number} | null>(null);
 
   const [lordo, setLordo] = useState('');
   const [contanti, setContanti] = useState('');
@@ -1261,6 +1261,7 @@ export default function HomeScreen() {
             
             let chartData: number[] = [];
             let chartLabels: string[] = [];
+            let chartGiorniPerMese: number[] = []; // n. giorni con lordo>0 per ciascun mese (modalità ANNO)
             let media = 0;
             let totale = 0;
             let giorniCount = 0;
@@ -1376,6 +1377,9 @@ export default function HomeScreen() {
                           <View style={{ backgroundColor: '#1A4040', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
                             <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF' }}>
                               {chartTooltip.label}: €{Math.round(chartTooltip.value)}
+                              {typeof chartTooltip.giorni === 'number' && chartTooltip.giorni > 0
+                                ? ` · ${chartTooltip.giorni} ${chartTooltip.giorni === 1 ? 'giorno' : 'giorni'}`
+                                : ''}
                             </Text>
                           </View>
                         </View>
@@ -1408,7 +1412,12 @@ export default function HomeScreen() {
                               onPress={() => {
                                 hapticTap();
                                 if (val > 0) {
-                                  setChartTooltip({ visible: true, label: meseNomi[i], value: val });
+                                  setChartTooltip({
+                                    visible: true,
+                                    label: meseNomi[i],
+                                    value: val,
+                                    giorni: chartGiorniPerMese[i] || 0,
+                                  });
                                   setTimeout(() => setChartTooltip(null), 2500);
                                 }
                               }}
