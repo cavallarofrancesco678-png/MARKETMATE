@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
+import { usePermissions } from '../../src/utils/permissions';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
 
@@ -64,6 +65,7 @@ export default function HomeScreen() {
   const { nomeAttivita, agenda, collaboratori, speseAnnue, salvaGiornata, speseFisseDisabilitate, fornitori, appuntiAgenda, removeAppunto, ordiniAgenda, removeOrdine, addOrdine } = useAppStore();
   const store = useAppStore();
   const { t } = useTranslation();
+  const perms = usePermissions();
 
   // ═══ Tutorial anchor refs (per posizionamento nativo) ═══
   const anchorDateRow = useTutorialAnchor('home-date-row');
@@ -822,6 +824,33 @@ export default function HomeScreen() {
   };
 
   const handleSalva = useCallback(() => {
+    // ═══ PERMISSION GATING: MANAGER/UTENTE non possono modificare lo storico ═══
+    // Solo l'AMMINISTRATORE può sovrascrivere giornate già esistenti.
+    // Per gli altri ruoli: blocco se la data corrente NON è oggi.
+    if (!perms.canEditHistory) {
+      const today = new Date();
+      const isToday = dataCorrente.toDateString() === today.toDateString();
+      if (!isToday) {
+        Alert.alert(
+          'Operazione non consentita',
+          'Solo l\u2019amministratore può modificare le giornate già passate. Puoi inserire dati solo per la giornata di oggi.'
+        );
+        return;
+      }
+      // Anche se è oggi: blocca la sovrascrittura se esiste già una giornata salvata
+      const giaSalvata = (store.storicoGiornate || []).some((g: any) => {
+        try { return new Date(g.data).toDateString() === today.toDateString(); }
+        catch { return false; }
+      });
+      if (giaSalvata) {
+        Alert.alert(
+          'Giornata già registrata',
+          'La giornata di oggi è già stata salvata. Solo l\u2019amministratore può modificarla.'
+        );
+        return;
+      }
+    }
+
     // ═══ Salva importi INTEGRI (NO ripartizione) ═══
     const dettaglioForn: Record<string, number> = {};
     const dettaglioFornDed: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'> = {};
@@ -921,7 +950,7 @@ export default function HomeScreen() {
         addOrdine({ data: scadenzaDate, testo });
       } catch { /* skip */ }
     });
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType]);
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType, perms.canEditHistory, store.storicoGiornate]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   // Use a REF to always call the latest handleSalva (avoids stale-closure bug
@@ -1011,6 +1040,27 @@ export default function HomeScreen() {
         {/* Nome attività piccolo sopra il mercato */}
         {nomeAttivita ? (
           <Text style={s.activityNameSmall} numberOfLines={1}>{nomeAttivita.toUpperCase()}</Text>
+        ) : null}
+        {/* Badge ruolo (visibile SOLO per MANAGER e UTENTE — l'AMMINISTRATORE no) */}
+        {!perms.isAmm ? (
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', gap: 4,
+            backgroundColor: perms.isManager ? '#E8E0F2' : '#FFE5C9',
+            paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
+            marginTop: 2, marginBottom: 2,
+          }}>
+            <Ionicons
+              name={perms.isManager ? 'briefcase' : 'person'}
+              size={11}
+              color={perms.isManager ? '#5D3A8A' : '#A0541E'}
+            />
+            <Text style={{
+              fontSize: 10, fontWeight: '800', letterSpacing: 0.6,
+              color: perms.isManager ? '#5D3A8A' : '#A0541E',
+            }}>
+              {perms.isManager ? 'MANAGER · INSERIMENTO ONLY' : 'UTENTE · BASE'}
+            </Text>
+          </View>
         ) : null}
         {/* Riga: power button (sx) + nome mercato (flex-center) + spacer (dx)
             Layout flex: il nome mercato prende tutto lo spazio rimanente e viene

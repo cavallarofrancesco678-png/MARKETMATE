@@ -27,6 +27,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
+import { RoleGuard } from '../../src/components/RoleGuard';
 
 const { width: screenW } = Dimensions.get('window');
 
@@ -245,6 +246,17 @@ const PieChart = ({ items, size = 120 }: { items: { label: string; value: number
 /*  MAIN STATS SCREEN                                     */
 /* ══════════════════════════════════════════════════════ */
 export default function StatsScreen() {
+  return (
+    <RoleGuard
+      allow={(p) => p.canSeeStats}
+      message={'Le statistiche sono accessibili solo all\u2019amministratore e al manager.'}
+    >
+      <StatsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function StatsScreenInner() {
   const store = useAppStore();
   const { storicoGiornate, storicoCarburante, speseAnnue, collaboratori, fornitori, agenda, seedMockData } = store;
   const { height: screenH } = useWindowDimensions();

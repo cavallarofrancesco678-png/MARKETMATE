@@ -6,6 +6,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import '../../src/i18n';
+import { usePermissions } from '../../src/utils/permissions';
 
 // Custom Fuel Pump SVG
 const FuelPumpIcon = ({ color, size }: { color: string; size: number }) => (
@@ -21,6 +22,7 @@ const FuelPumpIcon = ({ color, size }: { color: string; size: number }) => (
 export default function TabLayout() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const perms = usePermissions();
 
   const TabIcon = ({
     name,
@@ -72,6 +74,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
+          // Solo AMMINISTRATORE vede l'icona Impostazioni
+          href: perms.canSeeSettings ? undefined : null,
           tabBarIcon: ({ focused }) => (
             <TabIcon name="settings" focused={focused} />
           ),
@@ -80,6 +84,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stats"
         options={{
+          // AMMINISTRATORE + MANAGER vedono Statistiche; UTENTE no
+          href: perms.canSeeStats ? undefined : null,
           tabBarIcon: ({ focused }) => (
             <TabIcon name="bar-chart" focused={focused} />
           ),
@@ -104,6 +110,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="premi"
         options={{
+          // Solo AMMINISTRATORE vede Premi/Abbonamenti
+          href: perms.canSeePremi ? undefined : null,
           tabBarIcon: ({ focused }) => (
             <TabIcon name="gift" focused={focused} />
           ),

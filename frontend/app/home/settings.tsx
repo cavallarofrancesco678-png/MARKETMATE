@@ -27,6 +27,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTutorialAnchor, useTutorialScrollHelper } from '../../src/store/tutorialLayoutStore';
 import { router } from 'expo-router';
+import { RoleGuard } from '../../src/components/RoleGuard';
 
 // ═══════════════════════════════════════════════════════════════
 // AccountSection — Login/Register/Multi-user entrypoint
@@ -338,7 +339,7 @@ const InputModal = ({
 };
 
 /* ─── SETTINGS PAGE ─── */
-export default function SettingsPage() {
+function SettingsPageInner() {
   const store = useAppStore();
   const { t, i18n } = useTranslation();
   const tutStart = useTutorialStore((s) => s.start);
@@ -2303,3 +2304,18 @@ const ms = StyleSheet.create({
     color: '#FFF',
   },
 });
+
+// ═══ Wrapper con permission gating ═══
+// Solo gli AMMINISTRATORI vedono Impostazioni: MANAGER e UTENTE incappano nel
+// placeholder lock screen (con bottone "Torna alla Home").
+export default function SettingsPage() {
+  return (
+    <RoleGuard
+      allow={(p) => p.canSeeSettings}
+      message={'Le impostazioni dell\u2019app sono riservate all\u2019amministratore. Se ti serve accedere chiedi al titolare.'}
+    >
+      <SettingsPageInner />
+    </RoleGuard>
+  );
+}
+

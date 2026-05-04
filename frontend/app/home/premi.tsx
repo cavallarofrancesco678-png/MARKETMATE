@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { RoleGuard } from '../../src/components/RoleGuard';
 
 /**
  * 🎁 PREMI E INVITI — Pagina Placeholder
@@ -25,6 +26,17 @@ import { Ionicons } from '@expo/vector-icons';
  * Specifica completa salvata in /app/memory/SPEC_PREMI_INVITI.md
  */
 export default function PremiPage() {
+  return (
+    <RoleGuard
+      allow={(p) => p.canSeePremi}
+      message={'Premi e Inviti sono gestiti dall\u2019amministratore dell\u2019app.'}
+    >
+      <PremiPageInner />
+    </RoleGuard>
+  );
+}
+
+function PremiPageInner() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : insets.top;
 
