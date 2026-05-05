@@ -54,8 +54,7 @@
       ],
       "expo-secure-store",
       "expo-web-browser",
-      "./plugins/with-adi-registration",
-      "./plugins/with-forced-package-name"
+      "./plugins/with-adi-registration"
     ],
     "experiments": {
       "typedRoutes": true
