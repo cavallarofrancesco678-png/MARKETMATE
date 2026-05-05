@@ -20,7 +20,11 @@ import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage, getDayNames } from '../../src/i18n';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+// IMPORT DA /legacy: la nuova API di expo-file-system >=19 ha deprecato
+// readAsStringAsync/writeAsStringAsync (throw error). L'API legacy le mantiene
+// identiche e funzionanti. Documentazione:
+// https://docs.expo.dev/versions/latest/sdk/filesystem/#legacy-api
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../../src/store/authStore';
