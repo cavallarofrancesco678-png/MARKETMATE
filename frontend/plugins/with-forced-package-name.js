@@ -81,7 +81,39 @@ module.exports = function withForcedPackageName(config) {
             console.log(`[forced-package] scrubbed residue package in ${path.basename(fp)}`);
           }
         }
+
+        // ═══ SANITY CHECK FINALE (blindatura) ═══
+        // Se anche dopo tutti i patch il package non corrisponde, FALLISCE il build.
+        // Così non ci ritroveremo mai AAB con il package sbagliato senza saperlo.
+        const manifestPath = path.join(platformRoot, 'app', 'src', 'main', 'AndroidManifest.xml');
+        const gradlePath = path.join(platformRoot, 'app', 'build.gradle');
+        if (fs.existsSync(manifestPath)) {
+          const m = fs.readFileSync(manifestPath, 'utf8');
+          if (!m.includes(`package="${TARGET_PACKAGE}"`) && !m.includes(`package='${TARGET_PACKAGE}'`)) {
+            // NB: in AGP 7+ l'attributo package può essere assente dal manifest
+            // (è nel namespace di build.gradle). Va bene.
+            console.log('[forced-package] Note: manifest non contiene attributo package (OK per AGP7+)');
+          }
+        }
+        if (fs.existsSync(gradlePath)) {
+          const g = fs.readFileSync(gradlePath, 'utf8');
+          const hasApp = g.includes(`applicationId '${TARGET_PACKAGE}'`) || g.includes(`applicationId "${TARGET_PACKAGE}"`);
+          const hasNs = g.includes(`namespace '${TARGET_PACKAGE}'`) || g.includes(`namespace "${TARGET_PACKAGE}"`);
+          if (!hasApp) {
+            throw new Error(
+              `[forced-package] BLOCCO BUILD: applicationId in build.gradle NON è '${TARGET_PACKAGE}'. ` +
+              `Questo significa che il package è stato sovrascritto da altro plugin/prebuild. ` +
+              `Il plugin with-forced-package-name deve essere l'ULTIMO in app.json plugins[].`
+            );
+          }
+          if (!hasNs) {
+            console.warn('[forced-package] Warning: namespace non trovato in build.gradle (forse AGP < 7)');
+          }
+          console.log(`[forced-package] ✅ SANITY CHECK PASSATO: package = ${TARGET_PACKAGE}`);
+        }
       } catch (e) {
+        // Se è un errore lanciato da noi, propagalo (blocca build)
+        if (e instanceof Error && e.message.includes('BLOCCO BUILD')) throw e;
         console.warn('[forced-package] safety scrub failed:', e);
       }
       return cfg;
