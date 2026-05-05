@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -926,9 +926,111 @@ async def download_francesco_backup():
         },
     )
 
+# ═══ PRIVACY POLICY PAGE ═══
+# URL pubblico da inserire nel Google Play Store quando richiede la privacy policy
+# per le app che dichiarano permessi sensibili (CAMERA).
+@app.get("/api/privacy-policy", response_class=HTMLResponse)
+async def privacy_policy():
+    html = """<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Privacy Policy · MarketMate</title>
+<style>
+body { font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; margin: 0; padding: 0; background: #F5F0E6; color: #1A3A3A; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 32px; margin: 0 0 8px; color: #1E7F85; }
+h2 { font-size: 20px; margin: 32px 0 8px; color: #1A3A3A; border-bottom: 2px solid #D8EDE5; padding-bottom: 6px; }
+h3 { font-size: 16px; margin: 18px 0 6px; color: #2C5A5C; }
+p, li { font-size: 15px; line-height: 1.6; color: #3F5E5C; }
+ul { padding-left: 22px; }
+.meta { color: #8A9090; font-size: 13px; margin: 4px 0 28px; }
+.highlight { background: #FFF; border-left: 4px solid #1E7F85; padding: 14px 18px; border-radius: 6px; margin: 14px 0; }
+.contact { background: #FFF; padding: 20px; border-radius: 10px; margin-top: 30px; }
+a { color: #1E7F85; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Privacy Policy</h1>
+  <p class="meta">MarketMate · Ultimo aggiornamento: maggio 2026 · Versione 1.0</p>
+
+  <div class="highlight">
+    <strong>In sintesi:</strong> MarketMate è un'applicazione <strong>offline-first</strong>. Tutti i tuoi dati contabili (giornate, fornitori, carburante, note) sono salvati <strong>solo sul tuo dispositivo</strong>. Non raccogliamo né trasmettiamo i tuoi dati personali ai nostri server senza il tuo consenso esplicito.
+  </div>
+
+  <h2>1. Titolare del trattamento</h2>
+  <p>Il titolare del trattamento dei dati è <strong>T.V.S di Cavallaro Francesco</strong>, sviluppatore dell'app MarketMate disponibile sul Google Play Store con package <code>it.tvscavallaro.marketmate</code>.</p>
+
+  <h2>2. Dati raccolti e scopo</h2>
+  <h3>2.1 Dati salvati localmente sul dispositivo</h3>
+  <p>I seguenti dati vengono conservati <strong>esclusivamente nella memoria del tuo telefono</strong> (AsyncStorage / SecureStore) e non vengono trasmessi all'esterno:</p>
+  <ul>
+    <li>Nome attività e nome titolare (se inseriti)</li>
+    <li>Agenda settimanale dei mercati, fornitori, collaboratori</li>
+    <li>Storico giornate di vendita, rifornimenti carburante, scontrini</li>
+    <li>Note, appunti e ordini dell'agenda</li>
+    <li>PIN di sblocco dell'app (archiviato cifrato tramite Android Keystore)</li>
+  </ul>
+
+  <h3>2.2 Dati trasmessi a server remoti</h3>
+  <p>Alcune funzionalità richiedono il collegamento a servizi esterni, attivate solo su tua richiesta:</p>
+  <ul>
+    <li><strong>Previsioni meteo:</strong> invio di latitudine e longitudine del mercato alla API open-meteo.com (gratuita, non richiede account).</li>
+    <li><strong>Assistente AI "Buongiorno":</strong> invio di un riassunto anonimo dei tuoi dati (importi, giornate) al servizio OpenAI GPT-4 solo quando premi il tasto Buongiorno. Nessun dato personale identificativo viene trasmesso.</li>
+    <li><strong>Backup cloud opzionale:</strong> se usi l'account registrato, i tuoi dati possono essere sincronizzati con il nostro server per facilitare il recupero. Questa funzione è <strong>opzionale</strong> e richiede registrazione esplicita.</li>
+  </ul>
+
+  <h2>3. Autorizzazioni richieste</h2>
+  <ul>
+    <li><strong>Fotocamera (<code>android.permission.CAMERA</code>)</strong>: usata esclusivamente per scattare foto della chiusura fiscale del giorno e calcolare la media scontrino. Le foto restano sul tuo dispositivo, non vengono caricate.</li>
+    <li><strong>Lettura archivio (<code>READ_EXTERNAL_STORAGE</code>)</strong>: usata per selezionare file di backup o foto dalla galleria. Nessun file viene trasmesso a server esterni.</li>
+    <li><strong>Internet</strong>: utilizzata per meteo, assistente AI e backup cloud opzionale.</li>
+  </ul>
+
+  <h2>4. Condivisione dei dati</h2>
+  <p>MarketMate <strong>non vende, non affitta e non condivide</strong> i tuoi dati personali con terze parti per scopi pubblicitari o di profilazione. Non usiamo SDK di tracking, analytics comportamentali o pubblicità targettizzata.</p>
+
+  <h2>5. Conservazione e cancellazione</h2>
+  <p>I dati restano sul tuo dispositivo finché non disinstalli l'app o usi la funzione "Reset App" dalle impostazioni. Se hai attivato il backup cloud, puoi richiedere la cancellazione scrivendo all'indirizzo email in fondo a questa pagina: elimineremo il tuo account entro 7 giorni.</p>
+
+  <h2>6. Sicurezza</h2>
+  <ul>
+    <li>Il PIN di accesso è salvato cifrato tramite Android Keystore (mai in chiaro).</li>
+    <li>Se usi l'account cloud, la connessione è protetta da HTTPS/TLS.</li>
+    <li>Le password degli account sono memorizzate nel server tramite hash bcrypt (non reversibili).</li>
+  </ul>
+
+  <h2>7. Diritti dell'utente (GDPR)</h2>
+  <p>In conformità al Regolamento UE 2016/679 (GDPR), hai diritto di:</p>
+  <ul>
+    <li>Accedere ai tuoi dati (tutti consultabili nell'app)</li>
+    <li>Richiedere la rettifica o la cancellazione</li>
+    <li>Esportare i tuoi dati in formato JSON/TXT tramite la funzione "Esporta" dell'app</li>
+    <li>Opporti al trattamento disattivando le funzioni opzionali (meteo, AI, cloud)</li>
+  </ul>
+
+  <h2>8. Minori</h2>
+  <p>MarketMate è un'app per uso professionale destinata a commercianti e operatori di mercato. Non è progettata per bambini sotto i 13 anni e non raccoglie consapevolmente dati di minori.</p>
+
+  <h2>9. Modifiche alla privacy policy</h2>
+  <p>Eventuali aggiornamenti saranno pubblicati su questa stessa pagina con l'indicazione della data di revisione in alto.</p>
+
+  <div class="contact">
+    <h2 style="margin-top:0;border:0;">Contatti</h2>
+    <p><strong>T.V.S di Cavallaro Francesco</strong><br/>
+    Email: <a href="mailto:tvscavallaro@gmail.com">tvscavallaro@gmail.com</a><br/>
+    App: MarketMate (<code>it.tvscavallaro.marketmate</code>)</p>
+  </div>
+</div>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html)
+
 # Pagina HTML con bottone download evidente — soluzione universale per i telefoni
 # che aprono direttamente il text/plain invece di scaricarlo.
-from fastapi.responses import HTMLResponse
 @app.get("/api/backup/francesco/page", response_class=HTMLResponse)
 async def francesco_backup_page():
     file_path = ROOT_DIR / "static" / "MarketMate-Backup-Francesco.txt"
