@@ -504,30 +504,58 @@ function StatsScreenInner() {
   }, [filteredData]);
 
   const collabLines = useMemo(() => {
-    // Use only collaborator names from Settings
-    return collaboratori.map((c, i) => ({
-      label: c.nome,
-      color: PALETTE[(i + 3) % PALETTE.length],
-      data: groupData(filteredData, (g) => {
-        const val = g.dettaglio_staff?.[c.nome];
-        if (typeof val === 'number') return val;
-        if (typeof val === 'boolean') return val ? (c.costo || 0) : 0;
-        return 0;
-      }),
-    }));
+    // FIX: come per fornitoriLines, i nomi nei dettaglio_staff possono avere
+    // spazi/case differenti rispetto a c.nome (es. "Antonella " vs "Antonella").
+    // Confrontiamo dopo trim() + lowercase.
+    const norm = (s: string) => (s || '').trim().toLowerCase();
+    return collaboratori.map((c, i) => {
+      const target = norm(c.nome);
+      return {
+        label: c.nome,
+        color: PALETTE[(i + 3) % PALETTE.length],
+        data: groupData(filteredData, (g) => {
+          if (!g.dettaglio_staff) return 0;
+          let total = 0;
+          Object.entries(g.dettaglio_staff).forEach(([k, v]) => {
+            if (norm(k) !== target) return;
+            if (typeof v === 'number') total += v;
+            else if (typeof v === 'boolean') total += v ? (c.costo || 0) : 0;
+          });
+          return total;
+        }),
+      };
+    });
   }, [filteredData, filtroTempo, collaboratori]);
 
   const fornitoriLines = useMemo(() => {
-    // Per ogni fornitore, somma Fatturata + Libera da ogni giornata
-    return fornitori.map((f, i) => ({
-      label: f.nome,
-      color: PALETTE[(i + 1) % PALETTE.length],
-      data: groupData(filteredData, (g) => {
-        const fatt = g.dettaglio_fornitori?.[f.nome] || 0;
-        const libera = g.dettaglio_fornitori?.[`${f.nome}__libera`] || 0;
-        return fatt + libera;
-      }),
-    }));
+    // Per ogni fornitore della rubrica, somma Fatturata + Libera da ogni giornata.
+    // FIX: I nomi dentro `dettaglio_fornitori` POSSONO avere spazi extra rispetto
+    // a `f.nome` (es. "Andrea Pane " vs "Andrea Pane"). Confrontiamo dopo trim()
+    // e in modo case-insensitive così come fa la logica di fornitoriTotals.
+    const norm = (s: string) => (s || '').trim().toLowerCase();
+    return fornitori.map((f, i) => {
+      const targetNome = norm(f.nome);
+      return {
+        label: f.nome,
+        color: PALETTE[(i + 1) % PALETTE.length],
+        data: groupData(filteredData, (g) => {
+          if (!g.dettaglio_fornitori) return 0;
+          let total = 0;
+          Object.entries(g.dettaglio_fornitori).forEach(([k, v]) => {
+            // Estrai il nome base togliendo "__libera" / "__liberaLabel" / "__fattn..."
+            // così facciamo match anche con varianti di chiavi salvate dall'app.
+            const isLibera = k.includes('__libera') && !k.includes('__liberaLabel');
+            const isFatturata = !k.includes('__');
+            if (!isLibera && !isFatturata) return;
+            const baseName = k.replace(/__libera$/, '').replace(/__liberaLabel$/, '');
+            if (norm(baseName) === targetNome) {
+              total += (v as number) || 0;
+            }
+          });
+          return total;
+        }),
+      };
+    });
   }, [filteredData, filtroTempo, fornitori]);
 
   const speseFisseItems = useMemo(() => {
