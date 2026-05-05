@@ -271,6 +271,9 @@ function StatsScreenInner() {
   const [showFiere, setShowFiere] = useState(false);
   const [showFornitori, setShowFornitori] = useState(false);
   const [expandedFornitore, setExpandedFornitore] = useState<string | null>(null);
+  // Filtro click-to-isolate per il grafico ANDAMENTO NEL TEMPO dei fornitori
+  // null = tutti visibili, numero = solo quel fornitore (gli altri spariscono)
+  const [activeFornIdx, setActiveFornIdx] = useState<number | null>(null);
   // Collapse state per ogni sezione (default: tutte chiuse "a pacchetto")
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     economico: true,
@@ -393,7 +396,8 @@ function StatsScreenInner() {
 
   const chartLabels = useMemo(() => {
     const monthNames = getMonthNames();
-    const shortMonths = monthNames.map(m => m.substring(0, 3).toUpperCase());
+    // Solo INIZIALE per il filtro Anno (G,F,M,A,...) → mesi non si sovrappongono nel grafico
+    const shortMonths = monthNames.map(m => m.substring(0, 1).toUpperCase());
     const shortDays = getShortDayNames();
     if (filtroTempo === 'Anno') return shortMonths;
     if (filtroTempo === 'Mese') {
@@ -1519,24 +1523,51 @@ function StatsScreenInner() {
               {/* ═══ ANDAMENTO NEL TEMPO (era FORNITORI 2) ═══ */}
               {fornitoriLines.length > 0 && fornitoriLines.some(l => l.data.some(v => v > 0)) && (
                 <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderColor: '#E8EDE8' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 1, marginBottom: 8 }}>
-                    ANDAMENTO NEL TEMPO
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 1 }}>
+                      ANDAMENTO NEL TEMPO
+                    </Text>
+                    {activeFornIdx !== null && (
+                      <TouchableOpacity onPress={() => setActiveFornIdx(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={{ fontSize: 10, color: '#1E7F85', fontWeight: '800' }}>MOSTRA TUTTI</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {/* Legenda CLICCABILE: tap su un fornitore → isola la sua linea, gli altri spariscono.
+                      Nuovo tap su stesso fornitore o su "MOSTRA TUTTI" → torna a vista completa. */}
                   <View style={st.legendRow}>
-                    {fornitoriLines.map((l, i) => (
-                      <View key={i} style={st.legendItem}>
-                        <View style={[st.legendDot, { backgroundColor: l.color }]} />
-                        <Text style={[st.legendText, { color: l.color }]}>
-                          {l.label}: €{arrSum(l.data).toFixed(0)}
-                        </Text>
-                      </View>
-                    ))}
+                    {fornitoriLines.map((l, i) => {
+                      const isActive = activeFornIdx === i;
+                      const isDimmed = activeFornIdx !== null && activeFornIdx !== i;
+                      return (
+                        <TouchableOpacity
+                          key={i}
+                          activeOpacity={0.7}
+                          onPress={() => setActiveFornIdx(isActive ? null : i)}
+                          style={[
+                            st.legendItem,
+                            {
+                              backgroundColor: isActive ? l.color + '20' : 'transparent',
+                              borderRadius: 8,
+                              paddingHorizontal: 6,
+                              paddingVertical: 4,
+                              opacity: isDimmed ? 0.35 : 1,
+                            },
+                          ]}
+                        >
+                          <View style={[st.legendDot, { backgroundColor: l.color }]} />
+                          <Text style={[st.legendText, { color: l.color, fontWeight: isActive ? '900' : '700' }]}>
+                            {l.label}: €{arrSum(l.data).toFixed(0)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                   <View style={{ alignItems: 'center', marginTop: 8 }}>
                     <InteractiveLineChart
                       labels={chartLabels}
                       lines={fornitoriLines}
-                      activeLineIndex={null}
+                      activeLineIndex={activeFornIdx}
                       onPointPress={() => {}}
                     />
                   </View>

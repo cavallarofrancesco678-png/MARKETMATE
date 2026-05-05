@@ -1352,8 +1352,14 @@ export default function HomeScreen() {
               // 12 barre per i mesi
               chartLabels = ['G', 'F', 'M', 'A', 'M', 'G', 'L', 'A', 'S', 'O', 'N', 'D'];
               chartData = Array(12).fill(0);
+              chartGiorniPerMese = Array(12).fill(0);
               const yearData = filtered.filter((g) => new Date(g.data).getFullYear() === currentYear);
-              yearData.forEach((g) => { chartData[new Date(g.data).getMonth()] += g.lordo || 0; });
+              yearData.forEach((g) => {
+                const m = new Date(g.data).getMonth();
+                chartData[m] += g.lordo || 0;
+                // Contiamo come "giornata lavorata" se ha incasso > 0
+                if ((g.lordo || 0) > 0) chartGiorniPerMese[m] += 1;
+              });
               giorniCount = yearData.length;
               totale = chartData.reduce((s, v) => s + v, 0);
               media = totale / 12;
