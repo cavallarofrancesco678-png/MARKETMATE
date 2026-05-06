@@ -198,6 +198,11 @@ interface AppState {
   // - MANAGER: home/note/carburante in sola scrittura, NO modifica dati passati
   // - UTENTE: input base in home/fuel/note, niente altro visibile
   currentRole: RuoloUtente;
+  // True se questo dispositivo è stato configurato tramite codice invito
+  // (collaboratore esterno). Serve a distinguere il primo admin che fa setup
+  // completo (per cui mostriamo il tutorial guidato) da chi entra in
+  // un'azienda già configurata da altri.
+  joinedViaInviteCode?: boolean;
   
   // Data
   collaboratori: Collaboratore[];
@@ -295,6 +300,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   speseAnnueDisabilitate: [],
   codiciInvito: [],
   currentRole: 'AMMINISTRATORE',
+  joinedViaInviteCode: false,
   
   collaboratori: [],
   fornitori: [],
@@ -656,6 +662,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         storicoScontrini: state.storicoScontrini,
         codiciInvito: state.codiciInvito || [],
         currentRole: (state as any).currentRole || 'AMMINISTRATORE',
+        joinedViaInviteCode: (state as any).joinedViaInviteCode || false,
         speseExtraSession: (state as any).speseExtraSession || null,
       };
       await storage.setItem('marketmate_data', JSON.stringify(dataToSave));

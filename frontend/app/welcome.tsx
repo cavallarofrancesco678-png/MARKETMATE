@@ -3,6 +3,9 @@
  *
  * Flusso a 6 passi (senza OTP, senza email bloccante):
  *  0. Lingua   → scelta obbligatoria (bandiere circolari)
+ *     ↳ MODALITÀ COLLABORATORE: pulsante "Ho un codice invito" che apre
+ *       schermata dedicata per inserire il codice (ADM-/MGR-/USR-XXXXXX)
+ *       e saltare direttamente alla home con il ruolo decodificato.
  *  1. Valore   → spiegazione + blocco sicurezza
  *  2. Settore  → ALIMENTARE / NON ALIMENTARE
  *  3. Identità → nome attività + nome titolare
@@ -30,6 +33,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../src/store/appStore';
 import { useAppLockStore } from '../src/store/appLockStore';
+import { useTutorialStore } from '../src/store/tutorialStore';
 import { NeuBox } from '../src/components/NeuBox';
 import { Colors } from '../src/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +41,25 @@ import { useTranslation } from 'react-i18next';
 import { changeLanguage, LANGUAGES } from '../src/i18n';
 
 const TOTAL_PAGES = 6;
+
+// ═════════════════════════════════════════════════════════════════════════
+// Validazione codice invito.
+// I codici hanno formato: <PREFIX>-<6 caratteri alfanum>
+//   ADM-XXXXXX  → AMMINISTRATORE
+//   MGR-XXXXXX  → MANAGER
+//   USR-XXXXXX  → UTENTE
+// L'admin genera questi codici da Impostazioni → Codici Invito.
+// ═════════════════════════════════════════════════════════════════════════
+const INVITE_REGEX = /^(ADM|MGR|USR)-[A-Z0-9]{6}$/;
+const decodeRoleFromCode = (code: string): 'AMMINISTRATORE' | 'MANAGER' | 'UTENTE' | null => {
+  const c = code.trim().toUpperCase();
+  if (!INVITE_REGEX.test(c)) return null;
+  const prefix = c.slice(0, 3);
+  if (prefix === 'ADM') return 'AMMINISTRATORE';
+  if (prefix === 'MGR') return 'MANAGER';
+  if (prefix === 'USR') return 'UTENTE';
+  return null;
+};
 
 // ═══ Input shared (extracted to avoid remount on each keystroke) ═══
 interface WInputProps {
@@ -81,6 +104,13 @@ export default function WelcomeScreen() {
   // Step 0: Lingua (obbligatoria)
   const [langSelected, setLangSelected] = useState<string | null>(null);
 
+  // ═══ MODALITÀ COLLABORATORE (codice invito) ═══
+  // Quando true, mostra la schermata di inserimento codice al posto del wizard.
+  const [inviteMode, setInviteMode] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteError, setInviteError] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+
   // Step 2: Settore
   const [isAlimentare, setIsAlimentare] = useState(true);
 
@@ -109,6 +139,62 @@ export default function WelcomeScreen() {
   const showErr = (msg: string) => {
     if (Platform.OS === 'web') window.alert(msg);
     else Alert.alert(t('common.error') || 'Errore', msg);
+  };
+
+  // ═════════════════════════════════════════════════════════════════════
+  // Handler ENTRA NEL TEAM tramite codice invito
+  //  - Decodifica il ruolo dal prefisso del codice (ADM-/MGR-/USR-)
+  //  - Configura l'app con valori di default ragionevoli
+  //  - Salta tutto l'onboarding e va dritto in /home
+  //  - NON imposta un PIN (l'utente potrà farlo dopo da Impostazioni)
+  // ═════════════════════════════════════════════════════════════════════
+  const handleJoinWithCode = async () => {
+    const cleaned = inviteCode.trim().toUpperCase();
+    const role = decodeRoleFromCode(cleaned);
+    if (!role) {
+      setInviteError(t('welcome.inviteCodeInvalid'));
+      return;
+    }
+    setInviteError('');
+    setInviteLoading(true);
+
+    try {
+      // Lingua: usa quella selezionata, oppure default Italiano
+      const lang = langSelected || 'Italiano';
+
+      setConfig({
+        isConfigured: true,
+        lingua: lang,
+        isAlimentare: true,
+        nomeAttivita: 'Team',
+        nomeTitolare: '',
+        pin: '',
+        emailRecupero: '',
+        phoneNumber: '',
+        otpEnabled: false,
+        currentRole: role,
+        joinedViaInviteCode: true,
+      });
+
+      try { await useAppStore.getState().saveToStorage(); } catch {}
+
+      // Salta automaticamente il tutorial: il collaboratore non deve
+      // configurare l'app — l'admin l'ha già fatto. Lo mandiamo subito in home.
+      // setState sincrono per garantire che `hasCompletedOnce` sia true
+      // PRIMA che il componente /home/index.tsx legga lo stato e provi
+      // ad avviare il wizard guidato.
+      useTutorialStore.setState({ active: false, hasCompletedOnce: true });
+      // Persistenza async fire-and-forget (non blocca la navigazione)
+      useTutorialStore.getState().skip().catch(() => {});
+
+      // Nessun PIN → sblocca subito e vai in home
+      unlockLock();
+      router.replace('/home');
+    } catch (e) {
+      setInviteError(t('welcome.inviteCodeInvalid'));
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
   const canGoNext = (): boolean => {
@@ -198,6 +284,82 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={s.root}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        {/* ════════════════════════════════════════════════════════════════
+            MODALITÀ COLLABORATORE — schermata dedicata per inserire codice
+            ════════════════════════════════════════════════════════════════ */}
+        {inviteMode ? (
+          <ScrollView
+            contentContainerStyle={[s.scrollContent, { paddingTop: 24 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={s.stepWrap}>
+              <View style={s.heroIcon}>
+                <Ionicons name="people" size={42} color={Colors.primary} />
+              </View>
+              <Text style={s.stepTitle}>{t('welcome.enterInviteCode')}</Text>
+              <Text style={s.bodyTxt}>{t('welcome.inviteCodeHint')}</Text>
+
+              <View style={{ width: '100%', marginTop: 14 }}>
+                <NeuBox pressed borderRadius={50} padding={0}>
+                  <View style={s.inputRow}>
+                    <Ionicons name="key-outline" size={22} color={Colors.primary} />
+                    <TextInput
+                      testID="invite-code-input"
+                      style={[s.input, { letterSpacing: 2, textAlign: 'center', fontSize: 18 }]}
+                      placeholder={t('welcome.inviteCodePlaceholder')}
+                      placeholderTextColor={`${Colors.marrone}50`}
+                      value={inviteCode}
+                      onChangeText={(v) => {
+                        // Mantieni solo lettere/numeri/trattino, forza maiuscolo
+                        const clean = v.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 10);
+                        setInviteCode(clean);
+                        setInviteError('');
+                      }}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      autoFocus
+                      maxLength={10}
+                      returnKeyType="go"
+                      onSubmitEditing={handleJoinWithCode}
+                    />
+                  </View>
+                </NeuBox>
+
+                {inviteError ? (
+                  <Text style={[s.errTxt, { marginTop: 14 }]}>{inviteError}</Text>
+                ) : null}
+
+                <View style={{ height: 24 }} />
+
+                <TouchableOpacity
+                  testID="invite-join-btn"
+                  style={[s.ctaBtn, (!inviteCode || inviteLoading) && s.ctaBtnDisabled]}
+                  onPress={handleJoinWithCode}
+                  disabled={!inviteCode || inviteLoading}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.ctaBtnTxt}>{t('welcome.inviteCodeJoin')}</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.inviteBackBtn}
+                  onPress={() => {
+                    setInviteMode(false);
+                    setInviteCode('');
+                    setInviteError('');
+                  }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Ionicons name="arrow-back" size={16} color={Colors.grey} />
+                  <Text style={s.inviteBackTxt}>{t('welcome.inviteCodeBack')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        ) : (
+        <>
         <Indicator />
 
         <ScrollView
@@ -243,6 +405,20 @@ export default function WelcomeScreen() {
               >
                 <Text style={s.ctaBtnTxt}>{t('welcome.start')}</Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFF" />
+              </TouchableOpacity>
+
+              {/* ═══ CTA secondario: ENTRA TRAMITE CODICE INVITO ═══ */}
+              <TouchableOpacity
+                testID="invite-mode-btn"
+                style={s.inviteCtaBtn}
+                onPress={() => {
+                  setInviteMode(true);
+                  setInviteError('');
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="people-outline" size={18} color={Colors.primary} />
+                <Text style={s.inviteCtaTxt}>{t('welcome.haveInviteCode')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -379,6 +555,8 @@ export default function WelcomeScreen() {
         </ScrollView>
 
         <NavBar />
+        </>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -434,6 +612,23 @@ const s = StyleSheet.create({
   },
   ctaBtnDisabled: { opacity: 0.5 },
   ctaBtnTxt: { color: '#FFF', fontWeight: '900', fontSize: 14, letterSpacing: 1.5 },
+
+  // ═══ Pulsante secondario "Ho un codice invito" sotto il CTA principale ═══
+  inviteCtaBtn: {
+    width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 8, paddingVertical: 14, marginTop: 14,
+    borderRadius: 16, backgroundColor: 'transparent',
+    borderWidth: 1.5, borderColor: 'rgba(30,127,133,0.35)',
+    borderStyle: 'dashed',
+  },
+  inviteCtaTxt: { color: Colors.primary, fontWeight: '800', fontSize: 13, letterSpacing: 1 },
+
+  // ═══ Pulsante "Torna alla configurazione" nella schermata invito ═══
+  inviteBackBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 14, marginTop: 18, alignSelf: 'center',
+  },
+  inviteBackTxt: { color: Colors.grey, fontSize: 13, fontWeight: '700' },
 
   optionTxt: { fontSize: 15, fontWeight: '900', color: Colors.marrone, textAlign: 'center' },
 

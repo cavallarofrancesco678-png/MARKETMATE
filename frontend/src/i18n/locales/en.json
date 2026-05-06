@@ -121,7 +121,15 @@
     "securityCta": "GOT IT, CONTINUE",
     "confirmPin": "Confirm PIN",
     "pinMismatch": "PINs don't match",
-    "pinTooShort": "PIN must be 6 digits"
+    "pinTooShort": "PIN must be 6 digits",
+    "haveInviteCode": "I have an invite code",
+    "enterInviteCode": "ENTER YOUR CODE",
+    "inviteCodeHint": "Enter the code received from the administrator to join the team",
+    "inviteCodePlaceholder": "EXAMPLE: ADM-A3B7K9",
+    "inviteCodeInvalid": "Invalid code. Must start with ADM- / MGR- / USR-",
+    "inviteCodeSuccess": "Code recognized! Welcome to the team",
+    "inviteCodeJoin": "JOIN THE TEAM",
+    "inviteCodeBack": "Back to setup"
   },
   "settings": {
     "title": "SETTINGS",

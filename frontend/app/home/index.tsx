@@ -139,7 +139,12 @@ export default function HomeScreen() {
      Parte automaticamente SOLO quando l'utente entra per la prima volta in
      /home dopo aver completato il wizard di configurazione.
      Una volta completato o saltato, `tutHasCompleted` diventa true e non
-     ripartirà più al rientro in Home. */
+     ripartirà più al rientro in Home.
+
+     IMPORTANTE: il tutorial è una guida pensata per chi configura l'app
+     da zero (l'AMMINISTRATORE). Chi entra come collaboratore tramite
+     codice invito (MANAGER / UTENTE) NON deve vedere il wizard, perché
+     l'app è già stata configurata da qualcun altro. */
   const tutActive = useTutorialStore((s) => s.active);
   const tutHasCompleted = useTutorialStore((s) => s.hasCompletedOnce);
   const tutIsHydrated = useTutorialStore((s) => s.isHydrated);
@@ -151,10 +156,20 @@ export default function HomeScreen() {
     if (tutHasCompleted) return;
     if (tutActive) { tutAutoStartedRef.current = true; return; }
     if (!store.isConfigured) return; // aspetta che l'utente abbia finito il setup
+    // Skip auto-tutorial per chi è entrato tramite codice invito (collaboratori
+    // o admin che si uniscono ad un'azienda già configurata): il tutorial è
+    // pensato per il PRIMO admin che configura l'app da zero, non per chi
+    // entra in un team già attivo.
+    if ((store as any).joinedViaInviteCode || (store.currentRole && store.currentRole !== 'AMMINISTRATORE')) {
+      tutAutoStartedRef.current = true;
+      // Marca come completato così non ripartirà neanche al prossimo cold start
+      try { useTutorialStore.setState({ hasCompletedOnce: true }); } catch {}
+      return;
+    }
     tutAutoStartedRef.current = true;
     const t = setTimeout(() => { tutStart(); }, 700);
     return () => clearTimeout(t);
-  }, [tutIsHydrated, tutHasCompleted, tutActive, store.isConfigured, tutStart]);
+  }, [tutIsHydrated, tutHasCompleted, tutActive, store.isConfigured, store.currentRole, (store as any).joinedViaInviteCode, tutStart]);
 
   /* ═══ PERSISTENZA SPESE EXTRA (entro lo stesso giorno solare di creazione) ═══
      La sessione dura SOLO fino alle 23:59 del giorno in cui è stata creata.
