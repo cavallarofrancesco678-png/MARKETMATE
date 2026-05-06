@@ -34,6 +34,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../src/store/appStore';
 import { useAppLockStore } from '../src/store/appLockStore';
 import { useTutorialStore } from '../src/store/tutorialStore';
+import { useTeamSyncStore, roleBackendToUi } from '../src/store/teamSyncStore';
 import { NeuBox } from '../src/components/NeuBox';
 import { Colors } from '../src/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,7 +108,10 @@ export default function WelcomeScreen() {
   // ═══ MODALITÀ COLLABORATORE (codice invito) ═══
   // Quando true, mostra la schermata di inserimento codice al posto del wizard.
   const [inviteMode, setInviteMode] = useState(false);
+  const [inviteStep, setInviteStep] = useState<'code' | 'password'>('code');
   const [inviteCode, setInviteCode] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [invitePasswordConfirm, setInvitePasswordConfirm] = useState('');
   const [inviteError, setInviteError] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
 
@@ -142,56 +146,88 @@ export default function WelcomeScreen() {
   };
 
   // ═════════════════════════════════════════════════════════════════════
-  // Handler ENTRA NEL TEAM tramite codice invito
-  //  - Decodifica il ruolo dal prefisso del codice (ADM-/MGR-/USR-)
-  //  - Configura l'app con valori di default ragionevoli
-  //  - Salta tutto l'onboarding e va dritto in /home
-  //  - NON imposta un PIN (l'utente potrà farlo dopo da Impostazioni)
+  // Handler "Continua" step codice → va a step password
   // ═════════════════════════════════════════════════════════════════════
-  const handleJoinWithCode = async () => {
+  const handleCodeContinue = () => {
     const cleaned = inviteCode.trim().toUpperCase();
-    const role = decodeRoleFromCode(cleaned);
-    if (!role) {
+    // Accetta il formato legacy ADM-/MGR-/USR- E il formato nuovo 8-char
+    const legacy = /^(ADM|MGR|USR)-[A-Z0-9]{6}$/.test(cleaned);
+    const newFmt = /^[A-Z0-9]{6,10}$/.test(cleaned);
+    if (!legacy && !newFmt) {
       setInviteError(t('welcome.inviteCodeInvalid'));
       return;
     }
     setInviteError('');
+    setInviteStep('password');
+  };
+
+  // ═════════════════════════════════════════════════════════════════════
+  // Handler FINALE: entra col codice + password chiamando il backend
+  // ═════════════════════════════════════════════════════════════════════
+  const handleJoinWithCode = async () => {
+    setInviteError('');
+    // Validazioni password
+    if (invitePassword.length < 6) {
+      setInviteError(t('welcome.passwordTooShort') || 'Password: minimo 6 caratteri');
+      return;
+    }
+    if (invitePassword !== invitePasswordConfirm) {
+      setInviteError(t('welcome.passwordMismatch') || 'Le password non coincidono');
+      return;
+    }
     setInviteLoading(true);
-
     try {
-      // Lingua: usa quella selezionata, oppure default Italiano
+      // Chiamata backend
+      const join = await useTeamSyncStore.getState().collabJoin(inviteCode, invitePassword);
+      if (!join.ok) {
+        setInviteError(join.error || t('welcome.inviteCodeInvalid'));
+        return;
+      }
       const lang = langSelected || 'Italiano';
+      const uiRole = roleBackendToUi(join.role || null);
 
+      // Merge dei dati del team (se ci sono) con defaults
+      const teamData = join.data || {};
       setConfig({
         isConfigured: true,
         lingua: lang,
-        isAlimentare: true,
-        nomeAttivita: 'Team',
-        nomeTitolare: '',
+        isAlimentare: teamData.isAlimentare ?? true,
+        nomeAttivita: teamData.nomeAttivita || 'Team',
+        nomeTitolare: teamData.nomeTitolare || '',
         pin: '',
         emailRecupero: '',
         phoneNumber: '',
         otpEnabled: false,
-        currentRole: role,
+        currentRole: uiRole,
         joinedViaInviteCode: true,
-      });
+      } as any);
 
-      try { await useAppStore.getState().saveToStorage(); } catch {}
+      // Popola lo storico ecc. dal team cloud — type-safe merge.
+      try {
+        const store = useAppStore.getState() as any;
+        if (Array.isArray(teamData.storicoGiornate)) store.storicoGiornate = teamData.storicoGiornate;
+        if (Array.isArray(teamData.storicoCarburante)) store.storicoCarburante = teamData.storicoCarburante;
+        if (teamData.storicoScontrini && typeof teamData.storicoScontrini === 'object') store.storicoScontrini = teamData.storicoScontrini;
+        if (Array.isArray(teamData.fiere)) store.fiere = teamData.fiere;
+        if (Array.isArray(teamData.appuntiAgenda)) store.appuntiAgenda = teamData.appuntiAgenda;
+        if (Array.isArray(teamData.ordiniAgenda)) store.ordiniAgenda = teamData.ordiniAgenda;
+        if (teamData.storicoDiario && typeof teamData.storicoDiario === 'object') store.storicoDiario = teamData.storicoDiario;
+        if (Array.isArray(teamData.fornitori)) store.fornitori = teamData.fornitori;
+        if (Array.isArray(teamData.collaboratori)) store.collaboratori = teamData.collaboratori;
+        if (Array.isArray(teamData.codiciInvito)) store.codiciInvito = teamData.codiciInvito;
+        if (teamData.speseFisseAnnuali && typeof teamData.speseFisseAnnuali === 'object') store.speseFisseAnnuali = teamData.speseFisseAnnuali;
+        if (teamData.dailyBrief) store.dailyBrief = teamData.dailyBrief;
+        await store.saveToStorage?.();
+      } catch {}
 
-      // Salta automaticamente il tutorial: il collaboratore non deve
-      // configurare l'app — l'admin l'ha già fatto. Lo mandiamo subito in home.
-      // setState sincrono per garantire che `hasCompletedOnce` sia true
-      // PRIMA che il componente /home/index.tsx legga lo stato e provi
-      // ad avviare il wizard guidato.
+      // Skip tutorial
       useTutorialStore.setState({ active: false, hasCompletedOnce: true });
-      // Persistenza async fire-and-forget (non blocca la navigazione)
       useTutorialStore.getState().skip().catch(() => {});
 
-      // Nessun PIN → sblocca subito e vai in home
       unlockLock();
       router.replace('/home');
-    } catch (e) {
-      setInviteError(t('welcome.inviteCodeInvalid'));
+    } catch (e: any) {
+      setInviteError(String(e?.message || e));
     } finally {
       setInviteLoading(false);
     }
@@ -248,6 +284,40 @@ export default function WelcomeScreen() {
     // Attendi che la persistenza sia effettivamente scritta su disco.
     try { await useAppStore.getState().saveToStorage(); } catch {}
 
+    // Auto-registra l'admin sul backend (fire-and-forget): crea un account
+    // cloud "device_<uuid>" che servirà per generare codici invito validi
+    // sul server e sincronizzare i dati col team. Se fallisce (offline,
+    // backend giù), l'app funziona comunque in locale.
+    try {
+      const teamStore = useTeamSyncStore.getState();
+      const ok = await teamStore.adminRegister({
+        nomeAttivita: nomeAttivita.trim() || 'MarketMate',
+        nomeTitolare: nomeTitolare.trim() || 'Titolare',
+      });
+      if (ok) {
+        // Primo sync push: carica lo stato locale sul cloud
+        const fullData = useAppStore.getState() as any;
+        await teamStore.pushData({
+          nomeAttivita: fullData.nomeAttivita,
+          nomeTitolare: fullData.nomeTitolare,
+          isAlimentare: fullData.isAlimentare,
+          lingua: fullData.lingua,
+          storicoGiornate: fullData.storicoGiornate || {},
+          storicoCarburante: fullData.storicoCarburante || [],
+          storicoScontrini: fullData.storicoScontrini || {},
+          fiere: fullData.fiere || [],
+          appuntiAgenda: fullData.appuntiAgenda || [],
+          ordiniAgenda: fullData.ordiniAgenda || [],
+          storicoDiario: fullData.storicoDiario || {},
+          fornitori: fullData.fornitori || [],
+          collaboratori: fullData.collaboratori || [],
+          codiciInvito: fullData.codiciInvito || [],
+          speseFisseAnnuali: fullData.speseFisseAnnuali || {},
+          dailyBrief: fullData.dailyBrief || null,
+        });
+      }
+    } catch {}
+
     // L'utente ha appena creato il PIN → ingresso sbloccato diretto in home
     unlockLock();
     router.replace('/home');
@@ -295,67 +365,138 @@ export default function WelcomeScreen() {
           >
             <View style={s.stepWrap}>
               <View style={s.heroIcon}>
-                <Ionicons name="people" size={42} color={Colors.primary} />
+                <Ionicons name={inviteStep === 'code' ? 'people' : 'lock-closed'} size={42} color={Colors.primary} />
               </View>
-              <Text style={s.stepTitle}>{t('welcome.enterInviteCode')}</Text>
-              <Text style={s.bodyTxt}>{t('welcome.inviteCodeHint')}</Text>
+              <Text style={s.stepTitle}>
+                {inviteStep === 'code' ? t('welcome.enterInviteCode') : (t('welcome.setYourPassword') || 'IMPOSTA LA TUA PASSWORD')}
+              </Text>
+              <Text style={s.bodyTxt}>
+                {inviteStep === 'code'
+                  ? t('welcome.inviteCodeHint')
+                  : (t('welcome.setYourPasswordHint') || 'Questa password protegge il tuo accesso al team. Minimo 6 caratteri.')}
+              </Text>
 
-              <View style={{ width: '100%', marginTop: 14 }}>
-                <NeuBox pressed borderRadius={50} padding={0}>
-                  <View style={s.inputRow}>
-                    <Ionicons name="key-outline" size={22} color={Colors.primary} />
-                    <TextInput
-                      testID="invite-code-input"
-                      style={[s.input, { letterSpacing: 2, textAlign: 'center', fontSize: 18 }]}
-                      placeholder={t('welcome.inviteCodePlaceholder')}
-                      placeholderTextColor={`${Colors.marrone}50`}
-                      value={inviteCode}
-                      onChangeText={(v) => {
-                        // Mantieni solo lettere/numeri/trattino, forza maiuscolo
-                        const clean = v.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 10);
-                        setInviteCode(clean);
-                        setInviteError('');
-                      }}
-                      autoCapitalize="characters"
-                      autoCorrect={false}
-                      autoFocus
-                      maxLength={10}
-                      returnKeyType="go"
-                      onSubmitEditing={handleJoinWithCode}
-                    />
-                  </View>
-                </NeuBox>
+              {inviteStep === 'code' ? (
+                <View style={{ width: '100%', marginTop: 14 }}>
+                  <NeuBox pressed borderRadius={50} padding={0}>
+                    <View style={s.inputRow}>
+                      <Ionicons name="key-outline" size={22} color={Colors.primary} />
+                      <TextInput
+                        testID="invite-code-input"
+                        style={[s.input, { letterSpacing: 2, textAlign: 'center', fontSize: 18 }]}
+                        placeholder={t('welcome.inviteCodePlaceholder')}
+                        placeholderTextColor={`${Colors.marrone}50`}
+                        value={inviteCode}
+                        onChangeText={(v) => {
+                          const clean = v.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 10);
+                          setInviteCode(clean);
+                          setInviteError('');
+                        }}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        autoFocus
+                        maxLength={10}
+                        returnKeyType="next"
+                        onSubmitEditing={handleCodeContinue}
+                      />
+                    </View>
+                  </NeuBox>
 
-                {inviteError ? (
-                  <Text style={[s.errTxt, { marginTop: 14 }]}>{inviteError}</Text>
-                ) : null}
+                  {inviteError ? <Text style={[s.errTxt, { marginTop: 14 }]}>{inviteError}</Text> : null}
+                  <View style={{ height: 24 }} />
 
-                <View style={{ height: 24 }} />
+                  <TouchableOpacity
+                    testID="invite-continue-btn"
+                    style={[s.ctaBtn, !inviteCode && s.ctaBtnDisabled]}
+                    onPress={handleCodeContinue}
+                    disabled={!inviteCode}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={s.ctaBtnTxt}>{t('welcome.continue') || 'CONTINUA'}</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ width: '100%', marginTop: 14 }}>
+                  <NeuBox pressed borderRadius={50} padding={0}>
+                    <View style={s.inputRow}>
+                      <Ionicons name="lock-closed-outline" size={22} color={Colors.primary} />
+                      <TextInput
+                        testID="invite-password-input"
+                        style={s.input}
+                        placeholder={t('welcome.passwordPlaceholder') || 'Password (min. 6 caratteri)'}
+                        placeholderTextColor={`${Colors.marrone}50`}
+                        value={invitePassword}
+                        onChangeText={(v) => { setInvitePassword(v); setInviteError(''); }}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoFocus
+                        maxLength={72}
+                        returnKeyType="next"
+                      />
+                    </View>
+                  </NeuBox>
+                  <View style={{ height: 12 }} />
+                  <NeuBox pressed borderRadius={50} padding={0}>
+                    <View style={s.inputRow}>
+                      <Ionicons name="shield-checkmark-outline" size={22} color={Colors.primary} />
+                      <TextInput
+                        testID="invite-password-confirm-input"
+                        style={s.input}
+                        placeholder={t('welcome.passwordConfirmPlaceholder') || 'Conferma password'}
+                        placeholderTextColor={`${Colors.marrone}50`}
+                        value={invitePasswordConfirm}
+                        onChangeText={(v) => { setInvitePasswordConfirm(v); setInviteError(''); }}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        maxLength={72}
+                        returnKeyType="go"
+                        onSubmitEditing={handleJoinWithCode}
+                      />
+                    </View>
+                  </NeuBox>
 
-                <TouchableOpacity
-                  testID="invite-join-btn"
-                  style={[s.ctaBtn, (!inviteCode || inviteLoading) && s.ctaBtnDisabled]}
-                  onPress={handleJoinWithCode}
-                  disabled={!inviteCode || inviteLoading}
-                  activeOpacity={0.85}
-                >
-                  <Text style={s.ctaBtnTxt}>{t('welcome.inviteCodeJoin')}</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFF" />
-                </TouchableOpacity>
+                  {inviteError ? <Text style={[s.errTxt, { marginTop: 14 }]}>{inviteError}</Text> : null}
+                  <View style={{ height: 24 }} />
 
-                <TouchableOpacity
-                  style={s.inviteBackBtn}
-                  onPress={() => {
+                  <TouchableOpacity
+                    testID="invite-join-btn"
+                    style={[s.ctaBtn, (invitePassword.length < 6 || inviteLoading) && s.ctaBtnDisabled]}
+                    onPress={handleJoinWithCode}
+                    disabled={invitePassword.length < 6 || inviteLoading}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={s.ctaBtnTxt}>{inviteLoading ? '...' : t('welcome.inviteCodeJoin')}</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={s.inviteBackBtn}
+                onPress={() => {
+                  if (inviteStep === 'password') {
+                    setInviteStep('code');
+                    setInvitePassword('');
+                    setInvitePasswordConfirm('');
+                    setInviteError('');
+                  } else {
                     setInviteMode(false);
                     setInviteCode('');
                     setInviteError('');
-                  }}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                >
-                  <Ionicons name="arrow-back" size={16} color={Colors.grey} />
-                  <Text style={s.inviteBackTxt}>{t('welcome.inviteCodeBack')}</Text>
-                </TouchableOpacity>
-              </View>
+                  }
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="arrow-back" size={16} color={Colors.grey} />
+                <Text style={s.inviteBackTxt}>
+                  {inviteStep === 'password'
+                    ? (t('welcome.backToCode') || 'Cambia codice')
+                    : t('welcome.inviteCodeBack')}
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         ) : (

@@ -1190,7 +1190,10 @@ function SettingsPageInner() {
                       </TouchableOpacity>
                     </View>
 
-                    {/* BOTTONE INVIA CODICE — apre il selettore di app (WhatsApp / SMS / Email / Telegram) */}
+                    {/* BOTTONE INVIA CODICE — apre il selettore di app (WhatsApp / SMS / Email / Telegram)
+                        L'utente sceglie tra:
+                          A. Messaggio completo (testo + codice + istruzioni)
+                          B. Solo codice (per incollare velocemente in chat) */}
                     <TouchableOpacity
                       activeOpacity={0.85}
                       onPress={async () => {
@@ -1198,7 +1201,7 @@ function SettingsPageInner() {
                           : (codiceCollab.tipo === 'MANAGER') ? 'Manager' : 'Utente';
                         const titolare = (store as any).nomeTitolare || 'Il titolare';
                         const azienda = (store as any).nomeAttivita || 'MarketMate';
-                        const messaggio =
+                        const messaggioCompleto =
                           `Ciao ${c.nome}! 👋\n\n` +
                           `${titolare} di "${azienda}" ti ha invitato a collaborare su MarketMate come ${ruoloLabel}.\n\n` +
                           `🔑 Codice invito: ${codiceCollab.codice}\n\n` +
@@ -1206,19 +1209,40 @@ function SettingsPageInner() {
                           `1. Scarica MarketMate\n` +
                           `2. Apri l'app e tocca "Ho un codice invito"\n` +
                           `3. Inserisci il codice qui sopra`;
-                        try {
-                          await RNShare.share({
-                            message: messaggio,
-                            title: `Codice MarketMate per ${c.nome}`,
-                          });
-                        } catch (e) {
-                          // Fallback web: copia il messaggio negli appunti via API browser
+                        const soloCodice = codiceCollab.codice;
+
+                        // Helper per condividere
+                        const doShare = async (msg: string) => {
                           try {
-                            if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard) {
-                              await (navigator as any).clipboard.writeText(messaggio);
-                              try { (window as any).alert?.('Messaggio copiato! Incollalo su WhatsApp.'); } catch {}
-                            }
-                          } catch {}
+                            await RNShare.share({ message: msg, title: `Codice MarketMate per ${c.nome}` });
+                          } catch (e) {
+                            try {
+                              if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard) {
+                                await (navigator as any).clipboard.writeText(msg);
+                                try { (window as any).alert?.('Copiato negli appunti!'); } catch {}
+                              }
+                            } catch {}
+                          }
+                        };
+
+                        // Mostra dialogo nativo "completo / solo codice"
+                        if (Platform.OS === 'web') {
+                          const choice = (window as any).confirm?.(
+                            'OK = Invia messaggio completo (testo + istruzioni)\n' +
+                            'Annulla = Invia SOLO il codice (rapido)'
+                          );
+                          await doShare(choice ? messaggioCompleto : soloCodice);
+                        } else {
+                          Alert.alert(
+                            `Invia codice a ${c.nome}`,
+                            'Cosa vuoi inviare?',
+                            [
+                              { text: 'Solo il codice', onPress: () => doShare(soloCodice) },
+                              { text: 'Messaggio completo', onPress: () => doShare(messaggioCompleto) },
+                              { text: 'Annulla', style: 'cancel' },
+                            ],
+                            { cancelable: true }
+                          );
                         }
                       }}
                       style={{
@@ -1244,7 +1268,7 @@ function SettingsPageInner() {
                     </TouchableOpacity>
 
                     <Text style={{ marginTop: 6, fontSize: 10, color: '#7A9090', textAlign: 'center', fontStyle: 'italic' }}>
-                      Si apre WhatsApp / SMS / Email per inviare il codice
+                      Scegli "Solo il codice" per incollarlo velocemente, o "Messaggio completo" per le istruzioni
                     </Text>
                   </View>
                 )}

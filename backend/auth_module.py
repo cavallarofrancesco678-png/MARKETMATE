@@ -441,13 +441,19 @@ class AdminAutoRegisterRequest(BaseModel):
     nome_attivita: Optional[str] = ""
     nome_titolare: Optional[str] = ""
 
+class AdminLoginRequest(BaseModel):
+    # Login does NOT enforce min_length on password — wrong attempts should
+    # always return 401 (not 422 validation error).
+    device_id: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=72)
+
 class JoinByCodeRequest(BaseModel):
     code: str
     password: str = Field(min_length=6, max_length=72)
 
 class LoginByCodeRequest(BaseModel):
     code: str
-    password: str
+    password: str = Field(min_length=1, max_length=72)
 
 class CollaboratorDetailed(BaseModel):
     id: str
@@ -494,7 +500,7 @@ async def admin_auto_register(req: AdminAutoRegisterRequest):
     )
 
 @team_router.post("/admin_login", response_model=AuthResponse)
-async def admin_login(req: AdminAutoRegisterRequest):
+async def admin_login(req: AdminLoginRequest):
     """Login by device_id + password. Used when the admin clears SecureStore or
     re-installs the app on the same account."""
     if _db is None:

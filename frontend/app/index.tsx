@@ -23,6 +23,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
 import { useAppLockStore } from '../src/store/appLockStore';
+import { useTeamSyncStore } from '../src/store/teamSyncStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +52,59 @@ export default function LoginScreen() {
     (async () => {
       await loadFromStorage();
       await hydrateLock();
+      // ═══ Auto-login cloud + sync per collaboratori ═══
+      // Se l'utente è entrato tramite codice invito, prova un login silent
+      // sul backend (riusa code+password salvati in SecureStore) e scarica
+      // i dati aggiornati del team. Se il backend risponde 403 = utente
+      // revocato dall'admin → reset completo dell'app.
+      try {
+        const teamStore = useTeamSyncStore.getState();
+        await teamStore.loadFromSecureStore();
+        const appState = useAppStore.getState() as any;
+        if (appState.joinedViaInviteCode) {
+          const result = await teamStore.collabLoginSilent();
+          if (result.revoked) {
+            // RESET completo: utente revocato
+            await teamStore.logout();
+            try { await (useAppStore.getState() as any).resetAll?.(); } catch {}
+            try { await (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+            setIsLoading(false);
+            return;
+          }
+          // Aggiorna i dati locali con quelli appena scaricati dal cloud
+          if (result.ok && result.data) {
+            try {
+              const td = result.data;
+              const merge: any = {};
+              // Type-safe merging: applichiamo i campi solo se sono effettivamente
+              // del tipo atteso (array vs oggetto), per non rompere consumer
+              // che assumono certe shape (es. storicoGiornate è Array, non Map).
+              if (Array.isArray(td.storicoGiornate)) merge.storicoGiornate = td.storicoGiornate;
+              if (Array.isArray(td.storicoCarburante)) merge.storicoCarburante = td.storicoCarburante;
+              if (td.storicoScontrini && typeof td.storicoScontrini === 'object') merge.storicoScontrini = td.storicoScontrini;
+              if (Array.isArray(td.fiere)) merge.fiere = td.fiere;
+              if (Array.isArray(td.appuntiAgenda)) merge.appuntiAgenda = td.appuntiAgenda;
+              if (Array.isArray(td.ordiniAgenda)) merge.ordiniAgenda = td.ordiniAgenda;
+              if (td.storicoDiario && typeof td.storicoDiario === 'object') merge.storicoDiario = td.storicoDiario;
+              if (Array.isArray(td.fornitori)) merge.fornitori = td.fornitori;
+              if (Array.isArray(td.collaboratori)) merge.collaboratori = td.collaboratori;
+              if (Array.isArray(td.codiciInvito)) merge.codiciInvito = td.codiciInvito;
+              if (td.speseFisseAnnuali && typeof td.speseFisseAnnuali === 'object') merge.speseFisseAnnuali = td.speseFisseAnnuali;
+              if (typeof td.nomeAttivita === 'string') merge.nomeAttivita = td.nomeAttivita;
+              if (typeof td.nomeTitolare === 'string') merge.nomeTitolare = td.nomeTitolare;
+              useAppStore.setState(merge);
+              try { await (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+            } catch {}
+          }
+        } else if (appState.isConfigured) {
+          // ═══ Admin: silent login + pull (in caso di re-install / multi-device) ═══
+          const ok = await teamStore.adminLoginSilent();
+          if (ok) {
+            // Solo pull se la copia cloud è più recente — semplificazione: per ora solo first launch
+            // (saltiamo il pull automatico per non sovrascrivere il lavoro offline)
+          }
+        }
+      } catch {}
       setIsLoading(false);
     })();
   }, []);

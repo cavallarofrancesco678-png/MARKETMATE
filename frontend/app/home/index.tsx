@@ -791,7 +791,7 @@ export default function HomeScreen() {
     const gg = store.storicoGiornate || [];
     const now = dataCorrente;
     const mNome = mercatoNome.toLowerCase();
-    const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome);
+    const filtered = gg.filter((g) => (g.mercato || '').toLowerCase() === mNome);
 
     // ═══ MESE: filtra anche per stesso giorno-della-settimana per coerenza con stats ═══
     const targetDow = now.getDay();
@@ -1320,7 +1320,7 @@ export default function HomeScreen() {
           {(() => {
             const gg = store.storicoGiornate || [];
             const mNome = mercatoNome.toLowerCase();
-            const filtered = gg.filter((g) => g.mercato.toLowerCase() === mNome);
+            const filtered = gg.filter((g) => (g.mercato || '').toLowerCase() === mNome);
             const currentYear = new Date().getFullYear();
             const prevYear = currentYear - 1;
             

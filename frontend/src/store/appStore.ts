@@ -666,6 +666,18 @@ export const useAppStore = create<AppState>((set, get) => ({
         speseExtraSession: (state as any).speseExtraSession || null,
       };
       await storage.setItem('marketmate_data', JSON.stringify(dataToSave));
+
+      // ═══ Sync cloud (debounced 5s) ═══
+      // Se l'utente è autenticato sul cloud (admin o collab), pianifica un push
+      // dei dati. La logica di debounce è in teamSyncStore.scheduleTeamSyncPush.
+      // Importazione dinamica per evitare cicli e per non rompere se il modulo
+      // non è ancora caricato (es. all'avvio prima della hydration).
+      try {
+        const m = await import('./teamSyncStore');
+        if (m && typeof m.scheduleTeamSyncPush === 'function') {
+          m.scheduleTeamSyncPush(() => dataToSave);
+        }
+      } catch {}
     } catch (e) {
       console.warn('Error saving data:', e);
     }
