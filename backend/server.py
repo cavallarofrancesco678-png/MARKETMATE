@@ -1130,10 +1130,11 @@ document.getElementById('dl-txt').addEventListener('click', function() {
     return HTMLResponse(content=html)
 
 # ═══ AUTH & MULTI-USER + SYNC ═══
-from auth_module import auth_router, sync_router, init_auth_db
+from auth_module import auth_router, sync_router, team_router, init_auth_db
 init_auth_db(db)
 app.include_router(auth_router)
 app.include_router(sync_router)
+app.include_router(team_router)
 
 app.add_middleware(
     CORSMiddleware,

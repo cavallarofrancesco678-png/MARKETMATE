@@ -422,3 +422,199 @@ async def sync_pull(current=Depends(get_current_user)):
         updated_at=(doc or {}).get("updated_at"),
         role=current["role"],
     )
+
+
+# ═══════════════════════════════════════════════════════════════
+# TEAM ROUTER — wrappers "codice + password" (no-email flow for
+# mobile MVP). These endpoints adapt the existing auth infra to
+# the user-friendly flow requested by the product:
+#   - Admin device self-registers on first use (synthetic email)
+#   - Collaborator joins with {code, password} only (no email)
+#   - Subsequent logins are {code, password}
+# The underlying auth_module.users collection is unchanged.
+# ═══════════════════════════════════════════════════════════════
+team_router = APIRouter(prefix="/api/team", tags=["team"])
+
+class AdminAutoRegisterRequest(BaseModel):
+    device_id: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=6, max_length=72)
+    nome_attivita: Optional[str] = ""
+    nome_titolare: Optional[str] = ""
+
+class JoinByCodeRequest(BaseModel):
+    code: str
+    password: str = Field(min_length=6, max_length=72)
+
+class LoginByCodeRequest(BaseModel):
+    code: str
+    password: str
+
+class CollaboratorDetailed(BaseModel):
+    id: str
+    code: str  # the invite code they used
+    role: str
+    joined_at: datetime
+
+@team_router.post("/admin_register", response_model=AuthResponse)
+async def admin_auto_register(req: AdminAutoRegisterRequest):
+    """Auto-register an admin (owner) using a device_id as synthetic email.
+    This is transparent to the user — the app generates a device_id and
+    stores the password in SecureStore. If the device_id already exists,
+    returns 409 so the client can call /admin_login instead."""
+    if _db is None:
+        raise HTTPException(status_code=500, detail="DB non inizializzato")
+    await _ensure_indexes()
+    synthetic_email = f"device_{req.device_id.lower()}@marketmate.local"
+    existing = await _db.users.find_one({"email": synthetic_email})
+    if existing:
+        raise HTTPException(status_code=409, detail="Dispositivo già registrato")
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "id": user_id,
+        "email": synthetic_email,
+        "password_hash": _hash_password(req.password),
+        "role": "owner",
+        "account_owner_id": user_id,
+        "nome_attivita": (req.nome_attivita or "").strip(),
+        "nome_titolare": (req.nome_titolare or "").strip(),
+        "device_id": req.device_id,
+        "created_at": datetime.utcnow(),
+    }
+    await _db.users.insert_one(user_doc)
+    token = _create_access_token(user_id, user_id, "owner")
+    return AuthResponse(
+        access_token=token,
+        user=UserInfo(
+            id=user_id, email=synthetic_email, role="owner",
+            account_owner_id=user_id,
+            nome_attivita=user_doc["nome_attivita"],
+            nome_titolare=user_doc["nome_titolare"],
+            created_at=user_doc["created_at"],
+        ),
+    )
+
+@team_router.post("/admin_login", response_model=AuthResponse)
+async def admin_login(req: AdminAutoRegisterRequest):
+    """Login by device_id + password. Used when the admin clears SecureStore or
+    re-installs the app on the same account."""
+    if _db is None:
+        raise HTTPException(status_code=500, detail="DB non inizializzato")
+    synthetic_email = f"device_{req.device_id.lower()}@marketmate.local"
+    user = await _db.users.find_one({"email": synthetic_email})
+    if not user or not _verify_password(req.password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Dispositivo o password errati")
+    token = _create_access_token(user["id"], user["account_owner_id"], user["role"])
+    return AuthResponse(
+        access_token=token,
+        user=UserInfo(
+            id=user["id"], email=user["email"], role=user["role"],
+            account_owner_id=user["account_owner_id"],
+            nome_attivita=user.get("nome_attivita", ""),
+            nome_titolare=user.get("nome_titolare", ""),
+            created_at=user["created_at"],
+        ),
+    )
+
+@team_router.post("/join_by_code", response_model=AuthResponse)
+async def join_by_code(req: JoinByCodeRequest):
+    """First-time join for a COLLABORATOR using just {code, password}.
+    Internally creates a synthetic email collab_<code>@marketmate.local."""
+    if _db is None:
+        raise HTTPException(status_code=500, detail="DB non inizializzato")
+    await _ensure_indexes()
+    code = req.code.strip().upper()
+    invite = await _db.invite_codes.find_one({"code": code})
+    if not invite:
+        raise HTTPException(status_code=404, detail="Codice invito non valido")
+    if invite.get("used_by"):
+        raise HTTPException(status_code=410, detail="Questo codice è già stato utilizzato")
+    owner_id = invite["account_owner_id"]
+    collab_count = await _db.users.count_documents({"account_owner_id": owner_id, "role": {"$in": ["full", "operativo"]}})
+    if collab_count >= MAX_COLLABORATORS_PER_OWNER:
+        raise HTTPException(status_code=400, detail=f"Limite di {MAX_COLLABORATORS_PER_OWNER} collaboratori raggiunto")
+    synthetic_email = f"collab_{code.lower()}@marketmate.local"
+    user_id = str(uuid.uuid4())
+    role = invite.get("role", "operativo")
+    owner_doc = await _db.users.find_one({"id": owner_id}) or {}
+    user_doc = {
+        "id": user_id,
+        "email": synthetic_email,
+        "password_hash": _hash_password(req.password),
+        "role": role,
+        "account_owner_id": owner_id,
+        "nome_attivita": owner_doc.get("nome_attivita", ""),
+        "nome_titolare": "",
+        "invite_code": code,
+        "created_at": datetime.utcnow(),
+    }
+    await _db.users.insert_one(user_doc)
+    await _db.invite_codes.update_one(
+        {"code": code},
+        {"$set": {"used_by": user_id, "used_at": datetime.utcnow()}},
+    )
+    token = _create_access_token(user_id, owner_id, role)
+    return AuthResponse(
+        access_token=token,
+        user=UserInfo(
+            id=user_id, email=synthetic_email, role=role,
+            account_owner_id=owner_id,
+            nome_attivita=user_doc["nome_attivita"],
+            nome_titolare=user_doc["nome_titolare"],
+            created_at=user_doc["created_at"],
+        ),
+    )
+
+@team_router.post("/login_by_code", response_model=AuthResponse)
+async def login_by_code(req: LoginByCodeRequest):
+    """Subsequent collaborator logins via {code, password}. Also checks if the
+    user has been revoked (deleted) by the admin and returns 403 in that case."""
+    if _db is None:
+        raise HTTPException(status_code=500, detail="DB non inizializzato")
+    code = req.code.strip().upper()
+    synthetic_email = f"collab_{code.lower()}@marketmate.local"
+    user = await _db.users.find_one({"email": synthetic_email})
+    if not user:
+        # Either revoked (deleted by admin) or never registered
+        raise HTTPException(status_code=403, detail="Accesso revocato dall'amministratore o codice non trovato")
+    if not _verify_password(req.password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Password errata")
+    token = _create_access_token(user["id"], user["account_owner_id"], user["role"])
+    return AuthResponse(
+        access_token=token,
+        user=UserInfo(
+            id=user["id"], email=user["email"], role=user["role"],
+            account_owner_id=user["account_owner_id"],
+            nome_attivita=user.get("nome_attivita", ""),
+            nome_titolare=user.get("nome_titolare", ""),
+            created_at=user["created_at"],
+        ),
+    )
+
+@team_router.get("/status")
+async def status_check(current=Depends(get_current_user)):
+    """Client polls this endpoint on app open to verify the token is still
+    valid and the user has not been revoked. Returns 401 if JWT invalid (handled
+    by get_current_user) or 403 if the user was deleted from DB."""
+    if _db is None:
+        raise HTTPException(status_code=500, detail="DB non inizializzato")
+    user = await _db.users.find_one({"id": current["user_id"]})
+    if not user:
+        raise HTTPException(status_code=403, detail="Accesso revocato dall'amministratore")
+    return {"ok": True, "role": user["role"], "account_owner_id": user["account_owner_id"]}
+
+@team_router.get("/collaborators_detailed", response_model=List[CollaboratorDetailed])
+async def list_collaborators_detailed(current=Depends(get_current_user)):
+    """Admin-only: returns the list of collaborators WITH the invite code they
+    used (so admin can identify them: 'Codice MGR-A3B7 → Luca Rossi')."""
+    if current["role"] != "owner":
+        raise HTTPException(status_code=403, detail="Solo il titolare può vedere i collaboratori")
+    cur = _db.users.find({"account_owner_id": current["account_owner_id"], "id": {"$ne": current["user_id"]}})
+    out: List[CollaboratorDetailed] = []
+    async for u in cur:
+        out.append(CollaboratorDetailed(
+            id=u["id"],
+            code=u.get("invite_code", "—"),
+            role=u["role"],
+            joined_at=u["created_at"],
+        ))
+    return out

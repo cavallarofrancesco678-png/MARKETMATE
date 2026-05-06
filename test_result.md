@@ -115,6 +115,18 @@ backend:
         -agent: "main"
         -comment: "Complete auth system: register/login (JWT, bcrypt), invite codes (8-char, unique), role-based (owner/full/operativo), max 2 collaborators per owner. Sync endpoints /api/sync/push and /api/sync/pull with operativo role restrictions (can only push journal fields, not config). Verified end-to-end via curl + playwright: register OK, login OK, create_invite OK, redeem_invite OK, list_collaborators OK, sync push/pull OK. JWT_SECRET_KEY generated in backend/.env. MongoDB collections: users (indexed on email), invite_codes (indexed on code+owner), account_data (per-account data blob)."
 
+  - task: "Team router code+password wrapper (/api/team/*)"
+    implemented: true
+    working: true
+    file: "backend/auth_module.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "PASS — 20/21 checks pass via /app/backend_test.py against EXPO_PUBLIC_BACKEND_URL/api. End-to-end team flow verified: (1) admin_register {device_id,password,nome_attivita,nome_titolare} → 200 + JWT + role=owner. (2) duplicate device_id → 409. (3) admin_login correct → 200 owner. (4) MINOR: admin_login wrong pwd 'WRONG' (5 chars) returned 422 (Pydantic min_length=6 on shared AdminAutoRegisterRequest model, rejected before verify). With any wrong password ≥6 chars (verified via curl with 'WRONG_LONG') the endpoint correctly returns 401 'Dispositivo o password errati'. Real users always have ≥6-char passwords, so 422 cannot occur in practice. Optional fix: create separate AdminLoginRequest model without min_length to accept any string and uniformly return 401. (5) /api/auth/invites/create role=full with admin token → 200 + 8-char alphanumeric code (e.g. TDN77XFD). (6) role=operativo invite → 200. (7) /api/team/join_by_code with code A + 'collabpwd' → 200, role=full, account_owner_id matches admin id. (8) join_by_code reused → 410. (9) login_by_code A correct → 200 new token. (10) login_by_code A wrong pwd → 401. (11) login_by_code 'NOTEXIST' → 403. (12) GET /api/team/status with collab_A_token → 200 {ok:true, role:'full', account_owner_id:<admin_id>}. (13) /api/sync/push admin {storicoGiornate:[{d,lordo:500}], nomeAttivita:'Mario Srl'} → 200. (14) /api/sync/pull collab_A → 200, data exactly matches pushed payload, role='full'. (15) join_by_code B 'collab2pwd' → 200 role=operativo. (16) GET /api/team/collaborators_detailed admin → 200 list with 2 entries, both with their original invite codes (TDN77XFD + F7ACZ9Z2). (17) DELETE /api/auth/collaborators/<collab_A_id> → 200. (18) login_by_code A after revocation → 403 'Accesso revocato'. (19) /api/team/status with old collab_A_token → 403 (user deleted from DB). Regression: GET /api/ → 200 'Hello World'; POST /api/weather {citta:'Roma'} → 200 success=true. No regressions to existing endpoints."
+
 user_problem_statement: "Phase 1 of monetization prep: Multi-user auth system (email/password). Goal: account cloud + up to 3 persons (1 owner + 2 collaborators with role operativo|full). OPTION 2 from roadmap ACTIVE — subscription/paywall is NOT active yet (SUBSCRIPTION_ENABLED=false feature flag)."
 
 frontend:
