@@ -28,6 +28,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../../src/store/authStore';
+import { useTeamSyncStore, roleBackendToUi } from '../../src/store/teamSyncStore';
+import * as Clipboard from 'expo-clipboard';
 import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTutorialAnchor, useTutorialScrollHelper } from '../../src/store/tutorialLayoutStore';
 import { router } from 'expo-router';
@@ -1054,9 +1056,73 @@ function SettingsPageInner() {
           : { c: '#D0D0D0', l: '—' };
 
         // Switcher ruolo inline: cambia ruolo con 1 tap (rimuove vecchio + crea nuovo)
-        const setRuoloRapido = (nuovo: 'AMMINISTRATORE' | 'MANAGER' | 'UTENTE' | null) => {
-          if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
-          if (nuovo) store.generateCodiceInvito(nuovo as any, c.nome);
+        // + sync cloud: registra l'admin se non già fatto, push dei dati attuali, e crea
+        // un codice cloud (8 char alfanumerico) sostituendo quello locale.
+        // Questo garantisce che il codice inviato al collaboratore via WhatsApp sia
+        // valido sul backend e che il collab possa scaricare i dati del team al join.
+        const setRuoloRapido = async (nuovo: 'AMMINISTRATORE' | 'MANAGER' | 'UTENTE' | null) => {
+          if (codiceCollab) {
+            // Se c'era un codice precedente, prova a revocarlo anche sul cloud
+            try {
+              const ts = useTeamSyncStore.getState();
+              if (ts.token) {
+                const cloudCollabs = await ts.listCollaborators();
+                const match = cloudCollabs.find((cc: any) => (cc.code || '').toUpperCase() === codiceCollab.codice.toUpperCase());
+                if (match) await ts.revokeCollaborator(match.id);
+                try { await ts.revokeInvite(codiceCollab.codice); } catch {}
+              }
+            } catch {}
+            store.removeCodiceInvito(codiceCollab.codice);
+          }
+          if (!nuovo) return;
+          // 1) Genera codice LOCALE (UX immediata, sostituito dopo)
+          const codiceLocale = store.generateCodiceInvito(nuovo as any, c.nome);
+          // 2) Sync cloud asincrono → sostituzione con codice cloud
+          (async () => {
+            try {
+              const teamStore = useTeamSyncStore.getState();
+              if (!teamStore.token) {
+                let ok = await teamStore.adminLoginSilent();
+                if (!ok) {
+                  ok = await teamStore.adminRegister({
+                    nomeAttivita: (store as any).nomeAttivita || 'MarketMate',
+                    nomeTitolare: (store as any).nomeTitolare || '',
+                  });
+                }
+                if (!ok) return;
+              }
+              const fullData = useAppStore.getState() as any;
+              await teamStore.pushData({
+                nomeAttivita: fullData.nomeAttivita,
+                nomeTitolare: fullData.nomeTitolare,
+                isAlimentare: fullData.isAlimentare,
+                lingua: fullData.lingua,
+                storicoGiornate: fullData.storicoGiornate || [],
+                storicoCarburante: fullData.storicoCarburante || [],
+                storicoScontrini: fullData.storicoScontrini || {},
+                fiere: fullData.fiere || [],
+                appuntiAgenda: fullData.appuntiAgenda || [],
+                ordiniAgenda: fullData.ordiniAgenda || [],
+                storicoDiario: fullData.storicoDiario || {},
+                fornitori: fullData.fornitori || [],
+                collaboratori: fullData.collaboratori || [],
+                codiciInvito: fullData.codiciInvito || [],
+                speseFisseAnnuali: fullData.speseFisseAnnuali || {},
+                dailyBrief: fullData.dailyBrief || null,
+              });
+              const backendRole: 'full' | 'operativo' =
+                (nuovo === 'AMMINISTRATORE' || nuovo === 'MANAGER') ? 'full' : 'operativo';
+              const cloudCode = await teamStore.createInvite(backendRole);
+              if (cloudCode) {
+                const codiciInvito = (useAppStore.getState() as any).codiciInvito || [];
+                const updated = codiciInvito.map((cc: any) =>
+                  cc.codice === codiceLocale ? { ...cc, codice: cloudCode } : cc
+                );
+                useAppStore.setState({ codiciInvito: updated } as any);
+                await (useAppStore.getState() as any).saveToStorage?.();
+              }
+            } catch {}
+          })();
         };
 
         return (
@@ -1174,13 +1240,19 @@ function SettingsPageInner() {
                         activeOpacity={0.6}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         onPress={async () => {
+                          // Copia il codice negli appunti su tutte le piattaforme
+                          // (web → navigator.clipboard, mobile → expo-clipboard)
                           try {
                             if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard) {
                               await (navigator as any).clipboard.writeText(codiceCollab.codice);
-                              try { (window as any).alert?.('Codice copiato!'); } catch {}
                             } else {
-                              // Native: usa Share come fallback (apre il menu condivisione)
-                              await RNShare.share({ message: codiceCollab.codice });
+                              await Clipboard.setStringAsync(codiceCollab.codice);
+                            }
+                            try { hapticTap(); } catch {}
+                            if (Platform.OS === 'web') {
+                              try { (window as any).alert?.('✅ Codice copiato!'); } catch {}
+                            } else {
+                              Alert.alert('✅ Copiato', `Codice "${codiceCollab.codice}" copiato negli appunti.\n\nIncollalo dove vuoi (WhatsApp, Note, ecc.).`);
                             }
                           } catch {}
                         }}
@@ -1273,32 +1345,51 @@ function SettingsPageInner() {
                   </View>
                 )}
 
-                {/* ELIMINA COLLABORATORE */}
+                {/* ELIMINA COLLABORATORE — funziona sia su web che mobile, e revoca anche sul cloud */}
                 <TouchableOpacity
                   activeOpacity={0.6}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   onPress={() => {
-                    Alert.alert(
-                      'Elimina collaboratore',
-                      `Vuoi eliminare ${c.nome}?`,
-                      [
-                        { text: 'Annulla', style: 'cancel' },
-                        {
-                          text: 'Elimina',
-                          style: 'destructive',
-                          onPress: () => {
-                            if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
-                            store.removeCollaboratore(c.nome);
-                            setExpandedCollab(null);
-                          },
-                        },
-                      ]
-                    );
+                    const doDelete = async () => {
+                      // 1) Revoca sul cloud (se questo codice/collab è registrato sul backend)
+                      try {
+                        const teamStore = useTeamSyncStore.getState();
+                        if (teamStore.token && codiceCollab?.codice) {
+                          // Trova il collaboratore cloud che ha usato questo codice
+                          const cloudCollabs = await teamStore.listCollaborators();
+                          const match = cloudCollabs.find((cc: any) => (cc.code || '').toUpperCase() === codiceCollab.codice.toUpperCase());
+                          if (match) await teamStore.revokeCollaborator(match.id);
+                          // Revoca anche il codice se non ancora usato
+                          try { await teamStore.revokeInvite(codiceCollab.codice); } catch {}
+                        }
+                      } catch {}
+                      // 2) Cancella in locale
+                      if (codiceCollab) store.removeCodiceInvito(codiceCollab.codice);
+                      store.removeCollaboratore(c.nome);
+                      setExpandedCollab(null);
+                    };
+                    if (Platform.OS === 'web') {
+                      // window.confirm funziona su tutti i browser
+                      if ((window as any).confirm?.(`Eliminare ${c.nome}?\n\nVerrà rimosso anche il suo accesso al team cloud.`)) {
+                        doDelete();
+                      }
+                    } else {
+                      Alert.alert(
+                        'Elimina collaboratore',
+                        `Vuoi eliminare ${c.nome}?\n\nVerrà rimosso anche il suo accesso al team cloud.`,
+                        [
+                          { text: 'Annulla', style: 'cancel' },
+                          { text: 'Elimina', style: 'destructive', onPress: doDelete },
+                        ]
+                      );
+                    }
                   }}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: '#FCE8E8', borderWidth: 1, borderColor: '#F2C0C0' }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, paddingVertical: 11, borderRadius: 10, backgroundColor: '#FCE8E8', borderWidth: 1, borderColor: '#F2C0C0' }}
                 >
                   <Ionicons name="trash-outline" size={15} color="#D46A6A" />
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#D46A6A', letterSpacing: 0.5 }}>ELIMINA</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#D46A6A', letterSpacing: 0.5 }}>
+                    ELIMINA COLLABORATORE
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1813,13 +1904,93 @@ function SettingsPageInner() {
         collabName={modalConfig.collabName}
         collabCodice={modalConfig.collabCodice}
         initialValues={modalConfig.initialValues}
-        onGenerateCodice={(tipo, nome) => {
-          const codice = store.generateCodiceInvito(tipo, nome);
-          // Aggiorna il modal per mostrare il codice generato inline (non chiudiamo il modal)
+        onGenerateCodice={async (tipo, nome) => {
+          // ═══════════════════════════════════════════════════════════════
+          // FLUSSO IBRIDO: genera SUBITO il codice locale (UX immediata),
+          // poi in parallelo (asincrono):
+          //  1. Auto-registra l'admin sul cloud se non già fatto
+          //  2. Sincronizza i dati attuali al cloud
+          //  3. Crea un codice 'cloud' (8 char alfanum) sul backend
+          //  4. Sostituisce il codice locale con quello cloud nel modal
+          //     (così quando l'admin lo invia, il collab lo trova davvero
+          //     sul backend e può scaricare i dati del team)
+          //
+          // Se il backend non risponde (offline), il codice locale resta
+          // attivo e l'app continua a funzionare in modalità degradata
+          // (il collab vedrà un errore "codice non valido" finché non
+          // c'è connessione).
+          // ═══════════════════════════════════════════════════════════════
+          const codiceLocale = store.generateCodiceInvito(tipo, nome);
           setModalConfig((p) => ({
             ...p,
-            collabCodice: { codice, tipo, nome, attivo: true, dataCreazione: new Date().toISOString() },
+            collabCodice: { codice: codiceLocale, tipo, nome, attivo: true, dataCreazione: new Date().toISOString() },
           }));
+
+          (async () => {
+            try {
+              console.log('[CLOUD-CODE] start, BACKEND_URL =', process.env.EXPO_PUBLIC_BACKEND_URL);
+              const teamStore = useTeamSyncStore.getState();
+              console.log('[CLOUD-CODE] teamStore.token =', teamStore.token ? 'YES' : 'NO');
+              // Step 1: assicura che l'admin sia registrato in cloud
+              if (!teamStore.token) {
+                console.log('[CLOUD-CODE] trying adminLoginSilent...');
+                let ok = await teamStore.adminLoginSilent();
+                console.log('[CLOUD-CODE] adminLoginSilent =', ok);
+                if (!ok) {
+                  console.log('[CLOUD-CODE] trying adminRegister...');
+                  ok = await teamStore.adminRegister({
+                    nomeAttivita: (store as any).nomeAttivita || 'MarketMate',
+                    nomeTitolare: (store as any).nomeTitolare || '',
+                  });
+                  console.log('[CLOUD-CODE] adminRegister =', ok);
+                }
+                if (!ok) { console.warn('[CLOUD-CODE] backend not reachable, aborting'); return; }
+              }
+              // Step 2: push dei dati correnti (così il collab li trova al join)
+              const fullData = useAppStore.getState() as any;
+              const pushOk = await teamStore.pushData({
+                nomeAttivita: fullData.nomeAttivita,
+                nomeTitolare: fullData.nomeTitolare,
+                isAlimentare: fullData.isAlimentare,
+                lingua: fullData.lingua,
+                storicoGiornate: fullData.storicoGiornate || [],
+                storicoCarburante: fullData.storicoCarburante || [],
+                storicoScontrini: fullData.storicoScontrini || {},
+                fiere: fullData.fiere || [],
+                appuntiAgenda: fullData.appuntiAgenda || [],
+                ordiniAgenda: fullData.ordiniAgenda || [],
+                storicoDiario: fullData.storicoDiario || {},
+                fornitori: fullData.fornitori || [],
+                collaboratori: fullData.collaboratori || [],
+                codiciInvito: fullData.codiciInvito || [],
+                speseFisseAnnuali: fullData.speseFisseAnnuali || {},
+                dailyBrief: fullData.dailyBrief || null,
+              });
+              console.log('[CLOUD-CODE] pushData =', pushOk);
+              // Step 3: crea codice cloud (mapping: AMMINISTRATORE→full, MANAGER→full, UTENTE→operativo)
+              const backendRole: 'full' | 'operativo' =
+                (tipo === 'AMMINISTRATORE' || tipo === 'MANAGER') ? 'full' : 'operativo';
+              const cloudCode = await teamStore.createInvite(backendRole);
+              console.log('[CLOUD-CODE] cloudCode =', cloudCode);
+              if (cloudCode) {
+                // Sostituisci il codice locale con quello cloud nel modal e nello store
+                setModalConfig((p) => ({
+                  ...p,
+                  collabCodice: { codice: cloudCode, tipo, nome, attivo: true, dataCreazione: new Date().toISOString() },
+                }));
+                // Aggiorna anche nello store (sostituisci codice locale con cloud)
+                try {
+                  const codiciInvito = (useAppStore.getState() as any).codiciInvito || [];
+                  const updated = codiciInvito.map((c: any) =>
+                    c.codice === codiceLocale ? { ...c, codice: cloudCode } : c
+                  );
+                  useAppStore.setState({ codiciInvito: updated } as any);
+                  await (useAppStore.getState() as any).saveToStorage?.();
+                  console.log('[CLOUD-CODE] store updated, codice locale sostituito con', cloudCode);
+                } catch (e) { console.error('[CLOUD-CODE] store update err', e); }
+              }
+            } catch (e) { console.error('[CLOUD-CODE] outer error', e); }
+          })();
         }}
       />
     </ScrollView>
