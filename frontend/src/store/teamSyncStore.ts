@@ -116,6 +116,7 @@ interface TeamSyncState {
 }
 
 let _syncTimer: any = null;
+let _pollTimer: any = null;
 
 export const useTeamSyncStore = create<TeamSyncState>((set, get) => ({
   kind: null,
@@ -418,4 +419,25 @@ export function scheduleTeamSyncPush(getData: () => any) {
 export function roleBackendToUi(role: RoleBackend | null): 'AMMINISTRATORE' | 'MANAGER' | 'UTENTE' {
   if (role === 'owner' || role === 'full') return role === 'owner' ? 'AMMINISTRATORE' : 'MANAGER';
   return 'UTENTE';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  startBackgroundPull — pull periodico ogni 30 sec mentre l'app è attiva
+//  (sync inverso: ricevere i dati inseriti dall'altro lato).
+//  applyMerge: callback che riceve i dati cloud e fa il merge nello store locale
+// ═══════════════════════════════════════════════════════════════════════
+export function startTeamBackgroundPull(applyMerge: (cloudData: any) => void, intervalMs = 30000) {
+  stopTeamBackgroundPull();
+  _pollTimer = setInterval(async () => {
+    const st = useTeamSyncStore.getState();
+    if (!st.token) return;
+    try {
+      const data = await st.pullData();
+      if (data) applyMerge(data);
+    } catch {}
+  }, intervalMs);
+}
+
+export function stopTeamBackgroundPull() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 }

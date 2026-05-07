@@ -21,6 +21,7 @@ import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react
 import { useAppStore } from '../../src/store/appStore';
 import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
+import { useTeamSyncStore, startTeamBackgroundPull, stopTeamBackgroundPull } from '../../src/store/teamSyncStore';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
 import { CalendarModal } from '../../src/components/CalendarModal';
 import { FieraModal } from '../../src/components/FieraModal';
@@ -170,6 +171,53 @@ export default function HomeScreen() {
     const t = setTimeout(() => { tutStart(); }, 700);
     return () => clearTimeout(t);
   }, [tutIsHydrated, tutHasCompleted, tutActive, store.isConfigured, store.currentRole, (store as any).joinedViaInviteCode, tutStart]);
+
+  /* ═══ POLL TEAM SYNC: pull periodico ogni 30s per vedere i contributi
+     dell'altro lato (admin vede dati collab e viceversa).
+     Si applica un merge intelligente: storicoGiornate per data (cloud-wins
+     in caso di stessa data), array secondari overwrite-if-not-empty,
+     oggetti spread-merge cloud-wins. */
+  useEffect(() => {
+    const applyMerge = (cloudData: any) => {
+      if (!cloudData) return;
+      try {
+        const local: any = useAppStore.getState();
+        const merge: any = {};
+        // storicoGiornate: union per data
+        if (Array.isArray(cloudData.storicoGiornate)) {
+          const cMap = new Map<string, any>();
+          cloudData.storicoGiornate.forEach((g: any) => {
+            try { cMap.set(new Date(g.data).toISOString().slice(0, 10), g); } catch {}
+          });
+          const lMap = new Map<string, any>();
+          (local.storicoGiornate || []).forEach((g: any) => {
+            try { lMap.set(new Date(g.data).toISOString().slice(0, 10), g); } catch {}
+          });
+          const merged = new Map<string, any>(lMap);
+          cMap.forEach((v, k) => merged.set(k, v));
+          merge.storicoGiornate = Array.from(merged.values());
+        }
+        if (Array.isArray(cloudData.collaboratori) && cloudData.collaboratori.length > 0) merge.collaboratori = cloudData.collaboratori;
+        if (Array.isArray(cloudData.fornitori) && cloudData.fornitori.length > 0) merge.fornitori = cloudData.fornitori;
+        if (Array.isArray(cloudData.fiere) && cloudData.fiere.length > 0) merge.fiere = cloudData.fiere;
+        if (Array.isArray(cloudData.appuntiAgenda) && cloudData.appuntiAgenda.length > 0) merge.appuntiAgenda = cloudData.appuntiAgenda;
+        if (Array.isArray(cloudData.ordiniAgenda) && cloudData.ordiniAgenda.length > 0) merge.ordiniAgenda = cloudData.ordiniAgenda;
+        if (Array.isArray(cloudData.storicoCarburante) && cloudData.storicoCarburante.length > 0) merge.storicoCarburante = cloudData.storicoCarburante;
+        if (Array.isArray(cloudData.codiciInvito) && cloudData.codiciInvito.length > 0) merge.codiciInvito = cloudData.codiciInvito;
+        if (cloudData.storicoScontrini && typeof cloudData.storicoScontrini === 'object')
+          merge.storicoScontrini = { ...(local.storicoScontrini || {}), ...cloudData.storicoScontrini };
+        if (cloudData.storicoDiario && typeof cloudData.storicoDiario === 'object')
+          merge.storicoDiario = { ...(local.storicoDiario || {}), ...cloudData.storicoDiario };
+        if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object')
+          merge.speseFisseAnnuali = { ...(local.speseFisseAnnuali || {}), ...cloudData.speseFisseAnnuali };
+        if (Object.keys(merge).length > 0) {
+          useAppStore.setState(merge);
+        }
+      } catch {}
+    };
+    startTeamBackgroundPull(applyMerge, 30000);
+    return () => stopTeamBackgroundPull();
+  }, []);
 
   /* ═══ PERSISTENZA SPESE EXTRA (entro lo stesso giorno solare di creazione) ═══
      La sessione dura SOLO fino alle 23:59 del giorno in cui è stata creata.
@@ -348,6 +396,9 @@ export default function HomeScreen() {
       if (saved.mercato?.toLowerCase() === 'fiera') {
         setIsFiera(true);
       }
+      // Ripristina lo stato del pulsante 'casa/storefront' (vecchi record sono
+      // pre-esistenti senza il campo → default true = sono andato a lavoro).
+      setIsInPiazza((saved as any).inPiazza !== false);
     } else {
       setLordo('');
       setContanti('');
@@ -360,6 +411,8 @@ export default function HomeScreen() {
       setFornDeductionType({});
       setVociGeneriche([]);
       setCostiOverride({});
+      // Reset al default 'sono andato a lavoro' per giornate non ancora salvate
+      setIsInPiazza(true);
       const p: Record<string, boolean> = {};
       collabs.forEach((c) => { p[c.nome] = false; });
       setPresenze(p);
@@ -942,6 +995,10 @@ export default function HomeScreen() {
       dettaglio_fornitori_deduction: dettaglioFornDed,
       dettaglio_spese_extra: dettaglioExtra,
       fornitoriInfo: fornInfo,
+      // Stato del pulsante 'casa/storefront': true = sono andato a lavoro,
+      // false = non sono andato (icona casa rossa). Persistito nel record
+      // così quando si torna a vedere quel giorno, il pulsante mantiene il colore.
+      inPiazza: isInPiazza,
     } as any);
 
     // Integrazione in Ordini e Appuntamenti: per ogni fornitore con scadenza
@@ -965,7 +1022,7 @@ export default function HomeScreen() {
         addOrdine({ data: scadenzaDate, testo });
       } catch { /* skip */ }
     });
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType, perms.canEditHistory, store.storicoGiornate]);
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType, perms.canEditHistory, store.storicoGiornate, isInPiazza]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   // Use a REF to always call the latest handleSalva (avoids stale-closure bug

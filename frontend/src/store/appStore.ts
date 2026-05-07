@@ -129,6 +129,11 @@ export interface Giornata {
   dettaglio_fornitori_deduction?: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>;
   dettaglio_spese_extra?: Record<string, number>;
   fornitoriInfo?: Record<string, { numeroFattura: string; scadenza: string }>;
+  // Indica se l'utente è andato a lavoro in quel giorno (toggle 'casa/storefront')
+  // Default true (in piazza). Se false → giorno di riposo, le spese fisse non
+  // vengono scalate. Mantenuto per ogni giornata così il colore del pulsante
+  // resta coerente quando si torna a rivedere quel giorno passato.
+  inPiazza?: boolean;
 }
 
 export interface Carburante {

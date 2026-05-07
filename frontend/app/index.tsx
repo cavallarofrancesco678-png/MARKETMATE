@@ -97,11 +97,72 @@ export default function LoginScreen() {
             } catch {}
           }
         } else if (appState.isConfigured) {
-          // ═══ Admin: silent login + pull (in caso di re-install / multi-device) ═══
+          // ═══ Admin: silent login + PULL dei dati dal cloud ═══
+          // Se l'admin è già registrato, faccio login silenzioso e poi un pull
+          // per recuperare eventuali contributi dei collaboratori (sync inverso).
+          // Strategia merge:
+          //  - storicoGiornate: union per data, cloud vince in caso di collisione
+          //    (LWW = ultimo che scrive vince, per la stessa data)
+          //  - altri array (collaboratori, fornitori, fiere, ordini, ecc.):
+          //    overwrite con la versione cloud se non vuota
+          //  - oggetti (storicoScontrini, storicoDiario, speseFisseAnnuali):
+          //    spread merge cloud-prima
           const ok = await teamStore.adminLoginSilent();
           if (ok) {
-            // Solo pull se la copia cloud è più recente — semplificazione: per ora solo first launch
-            // (saltiamo il pull automatico per non sovrascrivere il lavoro offline)
+            try {
+              const cloudData = await teamStore.pullData();
+              if (cloudData) {
+                const local: any = useAppStore.getState();
+                const merge: any = {};
+
+                // ── storicoGiornate: union per data ──
+                if (Array.isArray(cloudData.storicoGiornate)) {
+                  const cloudByDate = new Map<string, any>();
+                  cloudData.storicoGiornate.forEach((g: any) => {
+                    try {
+                      const k = new Date(g.data).toISOString().slice(0, 10);
+                      cloudByDate.set(k, g);
+                    } catch {}
+                  });
+                  const localByDate = new Map<string, any>();
+                  (local.storicoGiornate || []).forEach((g: any) => {
+                    try {
+                      const k = new Date(g.data).toISOString().slice(0, 10);
+                      localByDate.set(k, g);
+                    } catch {}
+                  });
+                  // Unione: cloud vince in caso di collisione
+                  const merged = new Map<string, any>(localByDate);
+                  cloudByDate.forEach((v, k) => merged.set(k, v));
+                  merge.storicoGiornate = Array.from(merged.values());
+                }
+
+                // ── Altri array: cloud vince se non vuoto ──
+                if (Array.isArray(cloudData.collaboratori) && cloudData.collaboratori.length > 0) merge.collaboratori = cloudData.collaboratori;
+                if (Array.isArray(cloudData.fornitori) && cloudData.fornitori.length > 0) merge.fornitori = cloudData.fornitori;
+                if (Array.isArray(cloudData.fiere) && cloudData.fiere.length > 0) merge.fiere = cloudData.fiere;
+                if (Array.isArray(cloudData.appuntiAgenda) && cloudData.appuntiAgenda.length > 0) merge.appuntiAgenda = cloudData.appuntiAgenda;
+                if (Array.isArray(cloudData.ordiniAgenda) && cloudData.ordiniAgenda.length > 0) merge.ordiniAgenda = cloudData.ordiniAgenda;
+                if (Array.isArray(cloudData.storicoCarburante) && cloudData.storicoCarburante.length > 0) merge.storicoCarburante = cloudData.storicoCarburante;
+                if (Array.isArray(cloudData.codiciInvito) && cloudData.codiciInvito.length > 0) merge.codiciInvito = cloudData.codiciInvito;
+
+                // ── Oggetti: spread merge ──
+                if (cloudData.storicoScontrini && typeof cloudData.storicoScontrini === 'object') {
+                  merge.storicoScontrini = { ...(local.storicoScontrini || {}), ...cloudData.storicoScontrini };
+                }
+                if (cloudData.storicoDiario && typeof cloudData.storicoDiario === 'object') {
+                  merge.storicoDiario = { ...(local.storicoDiario || {}), ...cloudData.storicoDiario };
+                }
+                if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object') {
+                  merge.speseFisseAnnuali = { ...(local.speseFisseAnnuali || {}), ...cloudData.speseFisseAnnuali };
+                }
+
+                if (Object.keys(merge).length > 0) {
+                  useAppStore.setState(merge);
+                  try { await (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+                }
+              }
+            } catch {}
           }
         }
       } catch {}
