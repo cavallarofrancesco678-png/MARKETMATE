@@ -1687,6 +1687,79 @@ function SettingsPageInner() {
         <Text style={s.saveAllTxt}>{t('settings.saveSettings')}</Text>
       </TouchableOpacity>
 
+      {/* ─── INFORMAZIONI E PRIVACY ───
+          Sezione obbligatoria per la conformità Google Play: link alla
+          privacy policy pubblica + versione app. Senza questo link Google
+          rifiuta gli AAB che dichiarano permessi sensibili (CAMERA). */}
+      <Text style={[s.secTitle, { marginTop: 28 }]}>{t('settings.infoAndPrivacy') || 'INFORMAZIONI E PRIVACY'}</Text>
+      <View style={s.card}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
+          onPress={async () => {
+            const url = `${process.env.EXPO_PUBLIC_BACKEND_URL || 'https://marketmate-hub-1.emergent.host'}/api/privacy-policy`;
+            try {
+              const Linking = await import('expo-linking');
+              await Linking.openURL(url);
+            } catch {
+              try { (window as any).open?.(url, '_blank'); } catch {}
+            }
+          }}
+        >
+          <Ionicons name="shield-checkmark-outline" size={22} color="#1E7F85" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
+              {t('settings.privacyPolicy') || 'Privacy Policy'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
+              {t('settings.privacyPolicyDesc') || "Come trattiamo i tuoi dati e l'uso della fotocamera"}
+            </Text>
+          </View>
+          <Ionicons name="open-outline" size={16} color="#7A9090" />
+        </TouchableOpacity>
+
+        <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+          <Ionicons name="information-circle-outline" size={22} color="#1E7F85" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
+              {t('settings.appVersion') || 'Versione App'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
+              MarketMate v3.9.0 · {t('settings.appBy') || 'Sviluppata da T.V.S di Cavallaro Francesco'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
+          onPress={async () => {
+            const email = 'tvscavallaro@gmail.com';
+            const subject = encodeURIComponent('MarketMate — Supporto');
+            const url = `mailto:${email}?subject=${subject}`;
+            try {
+              const Linking = await import('expo-linking');
+              await Linking.openURL(url);
+            } catch {
+              try { (window as any).open?.(url, '_blank'); } catch {}
+            }
+          }}
+        >
+          <Ionicons name="mail-outline" size={22} color="#1E7F85" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
+              {t('settings.contactSupport') || 'Contatta il supporto'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>tvscavallaro@gmail.com</Text>
+          </View>
+          <Ionicons name="open-outline" size={16} color="#7A9090" />
+        </TouchableOpacity>
+      </View>
+
       {/* ─── RESET ─── */}
       <Text style={[s.secTitle, { marginTop: 24, color: '#D46A6A' }]}>{t('settings.dangerZone') || 'ZONA PERICOLOSA'}</Text>
       <View style={[s.card, { borderWidth: 2, borderColor: '#D46A6A' }]}>
