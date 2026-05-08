@@ -129,7 +129,15 @@
     "inviteCodeInvalid": "Invalid code. Must start with ADM- / MGR- / USR-",
     "inviteCodeSuccess": "Code recognized! Welcome to the team",
     "inviteCodeJoin": "JOIN THE TEAM",
-    "inviteCodeBack": "Back to setup"
+    "inviteCodeBack": "Back to setup",
+    "setYourPassword": "SET YOUR PASSWORD",
+    "setYourPasswordHint": "This password protects your access to the team. Min 6 characters.",
+    "passwordPlaceholder": "Password (min. 6 characters)",
+    "passwordConfirmPlaceholder": "Confirm password",
+    "passwordTooShort": "Password too short (min 6 characters)",
+    "passwordMismatch": "Passwords don't match",
+    "continue": "CONTINUE",
+    "backToCode": "Change code"
   },
   "settings": {
     "title": "SETTINGS",

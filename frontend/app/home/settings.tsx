@@ -1837,8 +1837,9 @@ function SettingsPageInner() {
         </Text>
       </View>
 
-      {/* ─── ACCOUNT & COLLABORATORI ─── */}
-      <AccountSection />
+      {/* ─── ACCOUNT CLOUD rimosso: il sync è ora gestito automaticamente
+            tramite il sistema team (codice invito + auto-register admin) e
+            non serve più una sezione manuale di login/register ─── */}
 
       {/* ─── EXPORT DATI ─── */}
       <View style={[s.card, { marginTop: 20 }]}>

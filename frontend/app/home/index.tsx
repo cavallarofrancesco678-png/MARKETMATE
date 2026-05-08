@@ -174,45 +174,74 @@ export default function HomeScreen() {
 
   /* ═══ POLL TEAM SYNC: pull periodico ogni 30s per vedere i contributi
      dell'altro lato (admin vede dati collab e viceversa).
-     Si applica un merge intelligente: storicoGiornate per data (cloud-wins
-     in caso di stessa data), array secondari overwrite-if-not-empty,
-     oggetti spread-merge cloud-wins. */
+     IMPORTANTE — Strategia merge ANTI-PERDITA-DATI:
+      - storicoGiornate: union per data (cloud-wins su collisione)
+      - collaboratori/fornitori/fiere/appuntiAgenda/ordiniAgenda: union PER NOME
+        — i record locali NON ancora pushati al cloud non vengono cancellati,
+        i record cloud nuovi vengono aggiunti. (Bug fix: prima overwriteavamo
+        e i collab appena aggiunti sparivano.)
+      - oggetti (storicoScontrini, storicoDiario, speseFisseAnnuali):
+        spread merge cloud-wins. */
   useEffect(() => {
     const applyMerge = (cloudData: any) => {
       if (!cloudData) return;
       try {
         const local: any = useAppStore.getState();
         const merge: any = {};
-        // storicoGiornate: union per data
+
+        // ── Helper: union-by-key generico (cloud aggiorna i campi degli
+        // esistenti, locale tiene i record non in cloud) ──
+        const unionByKey = (cloudArr: any[], localArr: any[], keyOf: (x: any) => string) => {
+          const out = new Map<string, any>();
+          (localArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
+          (cloudArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
+          return Array.from(out.values());
+        };
+
+        // ── storicoGiornate: union per data ──
         if (Array.isArray(cloudData.storicoGiornate)) {
-          const cMap = new Map<string, any>();
-          cloudData.storicoGiornate.forEach((g: any) => {
-            try { cMap.set(new Date(g.data).toISOString().slice(0, 10), g); } catch {}
-          });
-          const lMap = new Map<string, any>();
-          (local.storicoGiornate || []).forEach((g: any) => {
-            try { lMap.set(new Date(g.data).toISOString().slice(0, 10), g); } catch {}
-          });
-          const merged = new Map<string, any>(lMap);
-          cMap.forEach((v, k) => merged.set(k, v));
-          merge.storicoGiornate = Array.from(merged.values());
+          merge.storicoGiornate = unionByKey(
+            cloudData.storicoGiornate, local.storicoGiornate || [],
+            (g: any) => { try { return new Date(g.data).toISOString().slice(0, 10); } catch { return String(g.data); } }
+          );
         }
-        if (Array.isArray(cloudData.collaboratori) && cloudData.collaboratori.length > 0) merge.collaboratori = cloudData.collaboratori;
-        if (Array.isArray(cloudData.fornitori) && cloudData.fornitori.length > 0) merge.fornitori = cloudData.fornitori;
-        if (Array.isArray(cloudData.fiere) && cloudData.fiere.length > 0) merge.fiere = cloudData.fiere;
-        if (Array.isArray(cloudData.appuntiAgenda) && cloudData.appuntiAgenda.length > 0) merge.appuntiAgenda = cloudData.appuntiAgenda;
-        if (Array.isArray(cloudData.ordiniAgenda) && cloudData.ordiniAgenda.length > 0) merge.ordiniAgenda = cloudData.ordiniAgenda;
-        if (Array.isArray(cloudData.storicoCarburante) && cloudData.storicoCarburante.length > 0) merge.storicoCarburante = cloudData.storicoCarburante;
-        if (Array.isArray(cloudData.codiciInvito) && cloudData.codiciInvito.length > 0) merge.codiciInvito = cloudData.codiciInvito;
-        if (cloudData.storicoScontrini && typeof cloudData.storicoScontrini === 'object')
-          merge.storicoScontrini = { ...(local.storicoScontrini || {}), ...cloudData.storicoScontrini };
-        if (cloudData.storicoDiario && typeof cloudData.storicoDiario === 'object')
-          merge.storicoDiario = { ...(local.storicoDiario || {}), ...cloudData.storicoDiario };
-        if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object')
+
+        // ── Array critici (utente li edita di frequente): union per nome ──
+        if (Array.isArray(cloudData.collaboratori)) {
+          merge.collaboratori = unionByKey(cloudData.collaboratori, local.collaboratori || [], (x: any) => (x.nome || '').trim().toLowerCase());
+        }
+        if (Array.isArray(cloudData.fornitori)) {
+          merge.fornitori = unionByKey(cloudData.fornitori, local.fornitori || [], (x: any) => (x.nome || '').trim().toLowerCase());
+        }
+        if (Array.isArray(cloudData.fiere)) {
+          merge.fiere = unionByKey(cloudData.fiere, local.fiere || [], (x: any) => `${(x.nome || '').trim().toLowerCase()}|${x.data || ''}`);
+        }
+        if (Array.isArray(cloudData.appuntiAgenda)) {
+          merge.appuntiAgenda = unionByKey(cloudData.appuntiAgenda, local.appuntiAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
+        }
+        if (Array.isArray(cloudData.ordiniAgenda)) {
+          merge.ordiniAgenda = unionByKey(cloudData.ordiniAgenda, local.ordiniAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
+        }
+        if (Array.isArray(cloudData.storicoCarburante)) {
+          merge.storicoCarburante = unionByKey(cloudData.storicoCarburante, local.storicoCarburante || [], (x: any) => `${x.data || ''}|${x.litri || ''}|${x.euro || ''}`);
+        }
+        if (Array.isArray(cloudData.codiciInvito)) {
+          merge.codiciInvito = unionByKey(cloudData.codiciInvito, local.codiciInvito || [], (x: any) => x.codice || '');
+        }
+
+        // ── Oggetti veri (Record): spread merge cloud-wins ──
+        // NB: storicoDiario e storicoScontrini sono ARRAY nel modello,
+        // quindi vanno mergiati con union, non con spread!
+        if (Array.isArray(cloudData.storicoDiario)) {
+          merge.storicoDiario = unionByKey(cloudData.storicoDiario, local.storicoDiario || [], (x: any) => `${x.data ? new Date(x.data).toISOString().slice(0, 10) : ''}|${(x.testo || '').slice(0, 30)}`);
+        }
+        if (Array.isArray(cloudData.storicoScontrini)) {
+          merge.storicoScontrini = unionByKey(cloudData.storicoScontrini, local.storicoScontrini || [], (x: any) => `${x.mercato || ''}|${x.data || ''}|${x.numero || ''}`);
+        }
+        if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object' && !Array.isArray(cloudData.speseFisseAnnuali))
           merge.speseFisseAnnuali = { ...(local.speseFisseAnnuali || {}), ...cloudData.speseFisseAnnuali };
-        if (Object.keys(merge).length > 0) {
-          useAppStore.setState(merge);
-        }
+
+        if (Object.keys(merge).length > 0) useAppStore.setState(merge);
       } catch {}
     };
     startTeamBackgroundPull(applyMerge, 30000);

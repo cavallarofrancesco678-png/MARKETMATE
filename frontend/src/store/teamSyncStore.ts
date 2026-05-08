@@ -398,9 +398,12 @@ export const useTeamSyncStore = create<TeamSyncState>((set, get) => ({
 }));
 
 // ═══════════════════════════════════════════════════════════════════════
-//  debouncedPush — da chiamare dopo ogni modifica dati nell'appStore
+//  debouncedPush — da chiamare dopo ogni modifica dati nell'appStore.
+//  Marca SUBITO _localChangeAt per attivare la finestra anti-rollback nel
+//  pull, così pull pendenti non sovrascrivono modifiche locali appena fatte.
 // ═══════════════════════════════════════════════════════════════════════
 export function scheduleTeamSyncPush(getData: () => any) {
+  _localChangeAt = Date.now();
   if (_syncTimer) clearTimeout(_syncTimer);
   _syncTimer = setTimeout(async () => {
     _syncTimer = null;
@@ -424,13 +427,22 @@ export function roleBackendToUi(role: RoleBackend | null): 'AMMINISTRATORE' | 'M
 // ═══════════════════════════════════════════════════════════════════════
 //  startBackgroundPull — pull periodico ogni 30 sec mentre l'app è attiva
 //  (sync inverso: ricevere i dati inseriti dall'altro lato).
-//  applyMerge: callback che riceve i dati cloud e fa il merge nello store locale
+//  applyMerge: callback che riceve i dati cloud e fa il merge nello store locale.
+//  ANTI-ROLLBACK: se ci sono modifiche locali recenti (push appena programmato
+//  o appena fatto entro PUSH_DEBOUNCE_MS+5000), il pull viene saltato per non
+//  rischiare di sovrascrivere modifiche non ancora arrivate al cloud.
 // ═══════════════════════════════════════════════════════════════════════
+let _localChangeAt = 0;
+export function markLocalChange() { _localChangeAt = Date.now(); }
+const ANTI_ROLLBACK_WINDOW_MS = 12000;
+
 export function startTeamBackgroundPull(applyMerge: (cloudData: any) => void, intervalMs = 30000) {
   stopTeamBackgroundPull();
   _pollTimer = setInterval(async () => {
     const st = useTeamSyncStore.getState();
     if (!st.token) return;
+    // Se ho modifiche locali entro la finestra anti-rollback, salto il pull
+    if (Date.now() - _localChangeAt < ANTI_ROLLBACK_WINDOW_MS) return;
     try {
       const data = await st.pullData();
       if (data) applyMerge(data);

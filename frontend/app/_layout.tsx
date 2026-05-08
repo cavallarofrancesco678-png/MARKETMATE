@@ -62,48 +62,21 @@ export default function RootLayout() {
   }, [loadFromStorage, authHydrate, tutHydrate, hydrateLock]);
 
   // ═══ APP LOCK GATE ═══
-  // Quando l'app passa in background/inactive → re-lock. Al ritorno in foreground,
-  // se era sbloccata, forziamo redirect a `/` (login) per richiedere il PIN.
-  // La navigazione interna tra pagine NON triggera questo: solo il passaggio
-  // dell'app in background lo fa.
+  // FIX UX (richiesta utente): il re-lock automatico quando l'app va in
+  // background/inactive è stato DISATTIVATO. Il PIN viene richiesto SOLO al
+  // cold start dell'app (apertura completa dopo chiusura totale). Quando
+  // l'utente naviga tra le pagine o apre brevemente un'altra app
+  // (es. WhatsApp per condividere, image picker, ecc.) e torna, NON deve
+  // più reinserire il PIN.
   //
-  // IMPORTANTE:
-  //  • Su WEB il re-lock è DISATTIVATO: nel browser "andare in background"
-  //    significa cambiare tab / minimizzare la finestra, quindi chiedere il PIN
-  //    ogni volta sarebbe scomodo. Su web il PIN è richiesto solo al cold start.
-  //  • Su mobile nativo è attivo MA con un grace period di 60 secondi:
-  //    se l'utente rientra entro questo tempo (es. risposta a notifica rapida)
-  //    non viene richiesto il PIN.
-  const prevAppState = useRef<AppStateStatus>(AppState.currentState);
-  const lastBackgroundAt = useRef<number>(0);
-  const GRACE_MS = 60_000; // 60 secondi
-
-  useEffect(() => {
-    if (Platform.OS === 'web') return; // disattivato su web
-    const handler = (next: AppStateStatus) => {
-      const prev = prevAppState.current;
-      // active → background/inactive → memorizza timestamp
-      if (prev === 'active' && (next === 'background' || next === 'inactive')) {
-        lastBackgroundAt.current = Date.now();
-      }
-      // background/inactive → active
-      if ((prev === 'background' || prev === 'inactive') && next === 'active') {
-        const elapsed = Date.now() - lastBackgroundAt.current;
-        if (elapsed > GRACE_MS) {
-          // Oltre il grace period: re-lock e redirect al login
-          lockApp();
-          const { hasPin } = useAppLockStore.getState();
-          const { isConfigured } = useAppStore.getState();
-          if (hasPin && isConfigured) {
-            try { router.replace('/'); } catch {}
-          }
-        }
-      }
-      prevAppState.current = next;
-    };
-    const sub = AppState.addEventListener('change', handler);
-    return () => { sub.remove(); };
-  }, [lockApp]);
+  // Razionale: l'utente è in genere il titolare/collaboratore con il telefono
+  // in mano per tutto il giorno; il blocco continuo era una frizione UX
+  // inaccettabile. La sicurezza al cold start (boot, kill manuale dell'app)
+  // resta intatta.
+  //
+  // Se in futuro serve un re-lock dopo tot minuti di inattività, va aggiunto
+  // un timer più morbido (es. 30 minuti) anziché basato su AppState.
+  // ═══════════════════════════════════════════════════════════════════
 
   // ═══ NOTA: l'auto-start del tutorial è stato spostato in /home/index.tsx
   // Così i pop-up NON appaiono durante la schermata Welcome / Setup iniziale

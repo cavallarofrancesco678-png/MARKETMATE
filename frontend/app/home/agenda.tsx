@@ -158,10 +158,24 @@ export default function AgendaScreen() {
   }, [calMonth]);
 
   /* ═══ ARCHIVIO NOTE ═══
-     Single source: unisce appuntiAgenda (note dei giorni) + storicoDiario (diario rapido) */
+     Single source: unisce appuntiAgenda (note dei giorni) + storicoDiario.
+     storicoDiario è un Array<DiarioEntry> nel modello. Defensive: se per
+     errore arriva come Object (es. da vecchi sync), lo convertiamo. */
   const noteArchive = useMemo(() => {
     const fromAppunti = (appuntiAgenda || []).map((a: any) => ({ data: new Date(a.data), testo: a.testo, src: 'appunto' }));
-    const fromDiario = (storicoDiario || []).map((d: any) => ({ data: new Date(d.data), testo: d.testo, src: 'diario' }));
+    let diarioList: any[] = [];
+    if (Array.isArray(storicoDiario)) {
+      diarioList = storicoDiario;
+    } else if (storicoDiario && typeof storicoDiario === 'object') {
+      // Legacy: storicoDiario poteva essere { dataKey: testo }
+      diarioList = Object.entries(storicoDiario).map(([dataKey, value]: [string, any]) => ({
+        data: dataKey,
+        testo: typeof value === 'string' ? value : (value?.testo || '')
+      }));
+    }
+    const fromDiario = diarioList
+      .map((d: any) => ({ data: new Date(d.data), testo: d.testo, src: 'diario' }))
+      .filter((n) => !isNaN(n.data.getTime()));
     return [...fromAppunti, ...fromDiario]
       .filter((n) => n.testo && n.testo.trim() !== '')
       .sort((a, b) => b.data.getTime() - a.data.getTime())

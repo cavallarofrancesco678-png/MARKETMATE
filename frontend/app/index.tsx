@@ -115,47 +115,47 @@ export default function LoginScreen() {
                 const local: any = useAppStore.getState();
                 const merge: any = {};
 
+                // Helper: union-by-key (cloud aggiorna esistenti, locale tiene non-cloud)
+                const unionByKey = (cArr: any[], lArr: any[], keyOf: (x: any) => string) => {
+                  const out = new Map<string, any>();
+                  (lArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
+                  (cArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
+                  return Array.from(out.values());
+                };
+
                 // ── storicoGiornate: union per data ──
                 if (Array.isArray(cloudData.storicoGiornate)) {
-                  const cloudByDate = new Map<string, any>();
-                  cloudData.storicoGiornate.forEach((g: any) => {
-                    try {
-                      const k = new Date(g.data).toISOString().slice(0, 10);
-                      cloudByDate.set(k, g);
-                    } catch {}
-                  });
-                  const localByDate = new Map<string, any>();
-                  (local.storicoGiornate || []).forEach((g: any) => {
-                    try {
-                      const k = new Date(g.data).toISOString().slice(0, 10);
-                      localByDate.set(k, g);
-                    } catch {}
-                  });
-                  // Unione: cloud vince in caso di collisione
-                  const merged = new Map<string, any>(localByDate);
-                  cloudByDate.forEach((v, k) => merged.set(k, v));
-                  merge.storicoGiornate = Array.from(merged.values());
+                  merge.storicoGiornate = unionByKey(
+                    cloudData.storicoGiornate, local.storicoGiornate || [],
+                    (g: any) => { try { return new Date(g.data).toISOString().slice(0, 10); } catch { return String(g.data); } }
+                  );
                 }
+                // ── Array editabili: union PER NOME (no overwrite) ──
+                if (Array.isArray(cloudData.collaboratori))
+                  merge.collaboratori = unionByKey(cloudData.collaboratori, local.collaboratori || [], (x: any) => (x.nome || '').trim().toLowerCase());
+                if (Array.isArray(cloudData.fornitori))
+                  merge.fornitori = unionByKey(cloudData.fornitori, local.fornitori || [], (x: any) => (x.nome || '').trim().toLowerCase());
+                if (Array.isArray(cloudData.fiere))
+                  merge.fiere = unionByKey(cloudData.fiere, local.fiere || [], (x: any) => `${(x.nome || '').trim().toLowerCase()}|${x.data || ''}`);
+                if (Array.isArray(cloudData.appuntiAgenda))
+                  merge.appuntiAgenda = unionByKey(cloudData.appuntiAgenda, local.appuntiAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
+                if (Array.isArray(cloudData.ordiniAgenda))
+                  merge.ordiniAgenda = unionByKey(cloudData.ordiniAgenda, local.ordiniAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
+                if (Array.isArray(cloudData.storicoCarburante))
+                  merge.storicoCarburante = unionByKey(cloudData.storicoCarburante, local.storicoCarburante || [], (x: any) => `${x.data || ''}|${x.litri || ''}|${x.euro || ''}`);
+                if (Array.isArray(cloudData.codiciInvito))
+                  merge.codiciInvito = unionByKey(cloudData.codiciInvito, local.codiciInvito || [], (x: any) => x.codice || '');
 
-                // ── Altri array: cloud vince se non vuoto ──
-                if (Array.isArray(cloudData.collaboratori) && cloudData.collaboratori.length > 0) merge.collaboratori = cloudData.collaboratori;
-                if (Array.isArray(cloudData.fornitori) && cloudData.fornitori.length > 0) merge.fornitori = cloudData.fornitori;
-                if (Array.isArray(cloudData.fiere) && cloudData.fiere.length > 0) merge.fiere = cloudData.fiere;
-                if (Array.isArray(cloudData.appuntiAgenda) && cloudData.appuntiAgenda.length > 0) merge.appuntiAgenda = cloudData.appuntiAgenda;
-                if (Array.isArray(cloudData.ordiniAgenda) && cloudData.ordiniAgenda.length > 0) merge.ordiniAgenda = cloudData.ordiniAgenda;
-                if (Array.isArray(cloudData.storicoCarburante) && cloudData.storicoCarburante.length > 0) merge.storicoCarburante = cloudData.storicoCarburante;
-                if (Array.isArray(cloudData.codiciInvito) && cloudData.codiciInvito.length > 0) merge.codiciInvito = cloudData.codiciInvito;
-
-                // ── Oggetti: spread merge ──
-                if (cloudData.storicoScontrini && typeof cloudData.storicoScontrini === 'object') {
-                  merge.storicoScontrini = { ...(local.storicoScontrini || {}), ...cloudData.storicoScontrini };
+                // ── Oggetti veri (Record): spread merge cloud-wins ──
+                // NB: storicoDiario e storicoScontrini sono ARRAY, non oggetti!
+                if (Array.isArray(cloudData.storicoDiario)) {
+                  merge.storicoDiario = unionByKey(cloudData.storicoDiario, local.storicoDiario || [], (x: any) => `${x.data ? new Date(x.data).toISOString().slice(0, 10) : ''}|${(x.testo || '').slice(0, 30)}`);
                 }
-                if (cloudData.storicoDiario && typeof cloudData.storicoDiario === 'object') {
-                  merge.storicoDiario = { ...(local.storicoDiario || {}), ...cloudData.storicoDiario };
+                if (Array.isArray(cloudData.storicoScontrini)) {
+                  merge.storicoScontrini = unionByKey(cloudData.storicoScontrini, local.storicoScontrini || [], (x: any) => `${x.mercato || ''}|${x.data || ''}|${x.numero || ''}`);
                 }
-                if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object') {
+                if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object' && !Array.isArray(cloudData.speseFisseAnnuali))
                   merge.speseFisseAnnuali = { ...(local.speseFisseAnnuali || {}), ...cloudData.speseFisseAnnuali };
-                }
 
                 if (Object.keys(merge).length > 0) {
                   useAppStore.setState(merge);

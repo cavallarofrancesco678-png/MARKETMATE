@@ -756,41 +756,45 @@ function StatsScreenInner() {
   }, [filteredByTime]);
   const totFiere = arrSum(fiereDays.map((g) => g.lordo || 0));
 
-  /* ── Giorni lavorati vs non lavorati (per grafico) ── */
+  /* ── Giorni lavorati vs non lavorati (per grafico) ──
+     IMPORTANTE: 'lavorati' conta SOLO le giornate con inPiazza !== false.
+     Le giornate dove l'utente ha cliccato il pulsante 'casa' (icona rossa
+     = NON sono andato a lavoro) sono escluse dal conteggio dei giorni
+     lavorati e contate come non-lavorati. */
   const giorniLavoroData = useMemo(() => {
     const allDates = store.storicoGiornate.map(g => new Date(g.data).getTime());
     const firstDataDate = allDates.length > 0 ? new Date(Math.min(...allDates)) : null;
-    
+
     if (!firstDataDate) {
       return { lavorati: 0, nonLavorati: 0, totale: 0 };
     }
 
-    // Conta i giorni dal primo inserimento dati fino ad oggi
+    // Quante giornate del filtro hanno inPiazza !== false (= sono andato a lavoro).
+    // Per backward compat: i record senza il campo (precedenti al fix) sono
+    // considerati lavorati di default.
+    const lavoratiCount = filteredData.filter((g: any) => (g as any).inPiazza !== false).length;
+
     const oggi = new Date();
     oggi.setHours(23, 59, 59, 999);
-    
+
     if (filtroTempo === 'Sett.') {
       const weekStart = new Date(now);
       weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
       weekStart.setHours(0,0,0,0);
-      // Conta solo i giorni dalla partenza effettiva (o inizio settimana se dopo)
       const startDate = firstDataDate > weekStart ? firstDataDate : weekStart;
       const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const lavorati = filteredData.length;
-      return { lavorati, nonLavorati: Math.max(0, daysPassed - lavorati), totale: daysPassed };
+      return { lavorati: lavoratiCount, nonLavorati: Math.max(0, daysPassed - lavoratiCount), totale: daysPassed };
     } else if (filtroTempo === 'Mese') {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const startDate = firstDataDate > monthStart ? firstDataDate : monthStart;
       const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const lavorati = filteredData.length;
-      return { lavorati, nonLavorati: Math.max(0, daysPassed - lavorati), totale: daysPassed };
+      return { lavorati: lavoratiCount, nonLavorati: Math.max(0, daysPassed - lavoratiCount), totale: daysPassed };
     } else {
       // Anno o Personalizzato: dal primo dato inserito
       const yearStart = new Date(now.getFullYear(), 0, 1);
       const startDate = firstDataDate > yearStart ? firstDataDate : yearStart;
       const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const lavorati = filteredData.length;
-      return { lavorati, nonLavorati: Math.max(0, daysPassed - lavorati), totale: daysPassed };
+      return { lavorati: lavoratiCount, nonLavorati: Math.max(0, daysPassed - lavoratiCount), totale: daysPassed };
     }
   }, [filteredData, filtroTempo, store.storicoGiornate]);
 
