@@ -626,6 +626,29 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (!parsed.currentRole || (parsed.currentRole !== 'AMMINISTRATORE' && parsed.currentRole !== 'MANAGER' && parsed.currentRole !== 'UTENTE')) {
           parsed.currentRole = 'AMMINISTRATORE';
         }
+
+        // ═══ MIGRAZIONE DEFENSIVE: recupera dati corrotti dal vecchio merge bug ═══
+        // Il vecchio merge sync convertiva storicoDiario / storicoScontrini da
+        // Array a Object con chiavi numeriche. Se troviamo un object qui, lo
+        // riconvertiamo in array per evitare crash di .map() / .find() / .filter().
+        const fixArr = (val: any): any[] => {
+          if (Array.isArray(val)) return val;
+          if (val && typeof val === 'object') {
+            try { return Object.values(val).filter(Boolean); } catch { return []; }
+          }
+          return [];
+        };
+        parsed.storicoDiario = fixArr(parsed.storicoDiario);
+        parsed.storicoScontrini = fixArr(parsed.storicoScontrini);
+        parsed.storicoGiornate = fixArr(parsed.storicoGiornate);
+        parsed.storicoCarburante = fixArr(parsed.storicoCarburante);
+        parsed.fiere = fixArr(parsed.fiere);
+        parsed.appuntiAgenda = fixArr(parsed.appuntiAgenda);
+        parsed.ordiniAgenda = fixArr(parsed.ordiniAgenda);
+        parsed.fornitori = fixArr(parsed.fornitori);
+        parsed.collaboratori = fixArr(parsed.collaboratori);
+        parsed.codiciInvito = fixArr(parsed.codiciInvito);
+
         set(parsed);
       }
     } catch (e) {

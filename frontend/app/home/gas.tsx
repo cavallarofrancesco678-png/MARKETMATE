@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   Modal,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/appStore';
@@ -266,7 +267,12 @@ export default function GasScreen() {
   const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
 
   return (
-    <View style={[s.root, { height: contentH, paddingTop: topPad }]}>
+    <ScrollView
+      style={[s.root, { paddingTop: topPad }]}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* ═══ TITOLO ═══ */}
       <Text style={s.pageTitle}>{t('gas.title')}</Text>
 
@@ -454,7 +460,7 @@ export default function GasScreen() {
           setShowPersCal(false);
         }}
       />
-    </View>
+    </ScrollView>
   );
 }
 
