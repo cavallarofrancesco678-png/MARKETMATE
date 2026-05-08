@@ -129,10 +129,21 @@ export default function HomeScreen() {
   const giorno = dayNames[(dataCorrente.getDay() + 6) % 7]; // dayNames is Mon-Sun, getDay() is Sun=0
   const data = `${dataCorrente.getDate()} ${monthNames[dataCorrente.getMonth()]}`;
 
+  /* Sincronizza la mappa presenze con la lista dei collaboratori SENZA
+     resettare le presenze esistenti.
+     IMPORTANTE: il sync polling rigenera l'array collaboratori (nuovo
+     riferimento) e prima questo effect resettava TUTTE le presenze a false,
+     facendo "scomparire" la spunta sui collaboratori che erano stati
+     marcati come presenti per la giornata. Ora preserva i valori esistenti
+     e aggiunge solo le chiavi nuove (nuovi collaboratori) a false. */
   useEffect(() => {
-    const p: Record<string, boolean> = {};
-    collaboratori.forEach((c) => { p[c.nome] = false; });
-    setPresenze(p);
+    setPresenze((prev) => {
+      const next: Record<string, boolean> = {};
+      collaboratori.forEach((c) => {
+        next[c.nome] = prev[c.nome] ?? false;
+      });
+      return next;
+    });
   }, [collaboratori]);
 
   /* ═══ AUTO-START TUTORIAL AL PRIMO INGRESSO IN HOME ═══
@@ -578,8 +589,24 @@ export default function HomeScreen() {
     }
   };
 
-  /* ── Conteggio notifiche totale (appuntamenti + ordini + fiere, NO diario) ── */
-  const notificheCount = appuntiProssimi.length + ordiniProssimi.length + fiereProssime.length;
+  /* ── Note del diario degli ultimi e prossimi 7 giorni: incluse nella campanella ──
+     Senza questo, le note scritte nel diario non scattavano la notifica. */
+  const diarioRecenti = useMemo(() => {
+    const sd = (store as any).storicoDiario;
+    if (!Array.isArray(sd)) return [];
+    const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+    const sevenDaysAhead = now.getTime() + 7 * 24 * 60 * 60 * 1000;
+    return sd.filter((d: any) => {
+      try {
+        if (!d.testo || !d.testo.trim()) return false;
+        const t = new Date(d.data).getTime();
+        return t >= sevenDaysAgo && t <= sevenDaysAhead;
+      } catch { return false; }
+    });
+  }, [(store as any).storicoDiario, now]);
+
+  /* ── Conteggio notifiche totale (appuntamenti + ordini + fiere + note diario) ── */
+  const notificheCount = appuntiProssimi.length + ordiniProssimi.length + fiereProssime.length + diarioRecenti.length;
 
   /* ── Suono leggero quando aumentano le notifiche ── */
   const prevNotificheRef = useRef(notificheCount);

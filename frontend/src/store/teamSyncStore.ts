@@ -434,7 +434,11 @@ export function roleBackendToUi(role: RoleBackend | null): 'AMMINISTRATORE' | 'M
 // ═══════════════════════════════════════════════════════════════════════
 let _localChangeAt = 0;
 export function markLocalChange() { _localChangeAt = Date.now(); }
-const ANTI_ROLLBACK_WINDOW_MS = 12000;
+// Allungato da 12s a 60s perché il debounce push è 5s e dopo serve tempo per
+// che il backend lo abbia processato prima del prossimo pull, altrimenti il
+// pull restituisce dati obsoleti (es. senza l'ultimo collaboratore aggiunto)
+// e il merge potrebbe sovrascrivere il locale fresco.
+const ANTI_ROLLBACK_WINDOW_MS = 60000;
 
 export function startTeamBackgroundPull(applyMerge: (cloudData: any) => void, intervalMs = 30000) {
   stopTeamBackgroundPull();

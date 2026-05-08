@@ -46,6 +46,13 @@ export default function AgendaScreen() {
   const [dayModalText, setDayModalText] = useState('');
   const [dayModalType, setDayModalType] = useState<'new' | 'edit' | 'fiera'>('new');
 
+  // ═══ MODAL EDIT NOTA (apre quando clicchi una nota nell'archivio) ═══
+  // Su mobile lo scroll-to-top non era abbastanza chiaro, quindi mostriamo
+  // un modal centrato con textarea precompilato + bottoni Salva/Annulla.
+  const [editNoteModal, setEditNoteModal] = useState<{ visible: boolean; data: string; testo: string }>({
+    visible: false, data: '', testo: ''
+  });
+
   // ═══ NOTE DEL GIORNO ═══
   const [noteText, setNoteText] = useState('');
   const [showArchive, setShowArchive] = useState(false);
@@ -502,10 +509,36 @@ export default function AgendaScreen() {
     else playSuccess();
   };
   const startEditNote = (data: string, testo: string) => {
-    setEditingNote({ data, testo });
-    setNoteText(testo);
-    // Scroll al textarea (web only)
-    if (Platform.OS === 'web') window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Apre il modal di modifica con la nota precompilata.
+    setEditNoteModal({ visible: true, data, testo });
+  };
+  const handleSaveEditNote = () => {
+    if (!editNoteModal.visible) return;
+    const txt = (editNoteModal.testo || '').trim();
+    const dataDate = new Date(editNoteModal.data);
+    if (!txt) {
+      // Testo vuoto = elimina la nota
+      removeDiario(dataDate);
+    } else {
+      removeDiario(dataDate);
+      addDiario({ data: dataDate, testo: txt });
+    }
+    // Se era oggi, sincronizza anche il textarea principale
+    const today = new Date();
+    if (dataDate.toDateString() === today.toDateString()) setNoteText(txt);
+    setEditNoteModal({ visible: false, data: '', testo: '' });
+    setNoteSavedFlash(true);
+    setTimeout(() => setNoteSavedFlash(false), 1800);
+    if (Platform.OS === 'web') window.alert(t('agenda.noteSaved') || 'Nota salvata!');
+    else playSuccess();
+  };
+  const handleDeleteEditNote = () => {
+    if (!editNoteModal.visible) return;
+    const dataDate = new Date(editNoteModal.data);
+    removeDiario(dataDate);
+    const today = new Date();
+    if (dataDate.toDateString() === today.toDateString()) setNoteText('');
+    setEditNoteModal({ visible: false, data: '', testo: '' });
   };
 
   return (
@@ -1061,6 +1094,66 @@ export default function AgendaScreen() {
                 </View>
               </>
             )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ═══ MODAL EDIT NOTA — apre cliccando una nota dell'archivio ═══ */}
+      <Modal
+        visible={editNoteModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditNoteModal({ visible: false, data: '', testo: '' })}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setEditNoteModal({ visible: false, data: '', testo: '' })}
+          style={s.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} style={[s.modalCard, { width: '100%' }]} onPress={(e) => e.stopPropagation && e.stopPropagation()}>
+            <Text style={s.modalTitle}>
+              {t('agenda.editNote') || 'MODIFICA NOTA'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 10, textAlign: 'center' }}>
+              {(() => { try { return new Date(editNoteModal.data).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }); } catch { return ''; } })()}
+            </Text>
+            <TextInput
+              value={editNoteModal.testo}
+              onChangeText={(v) => setEditNoteModal((p) => ({ ...p, testo: v }))}
+              placeholder={t('agenda.notePlaceholder') || 'Scrivi qui...'}
+              placeholderTextColor="#A0B0B0"
+              multiline
+              autoFocus
+              style={[s.modalInput, { minHeight: 120 }]}
+            />
+            <View style={s.modalBtns}>
+              <TouchableOpacity
+                style={[s.modalBtn, { backgroundColor: '#FCE8E8', flex: 1 }]}
+                onPress={handleDeleteEditNote}
+              >
+                <Ionicons name="trash-outline" size={14} color="#D46A6A" />
+                <Text style={[s.modalBtnTxt, { color: '#D46A6A' }]}>
+                  {t('common.delete') || 'ELIMINA'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.modalBtn, { backgroundColor: '#E2D9C4', flex: 1 }]}
+                onPress={() => setEditNoteModal({ visible: false, data: '', testo: '' })}
+              >
+                <Text style={[s.modalBtnTxt, { color: '#1A3A3A' }]}>
+                  {t('common.cancel') || 'ANNULLA'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.modalBtn, { backgroundColor: '#1E7F85', flex: 1.4 }]}
+                onPress={handleSaveEditNote}
+              >
+                <Ionicons name="checkmark" size={14} color="#FFF" />
+                <Text style={s.modalBtnTxt}>
+                  {t('common.save') || 'SALVA'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
