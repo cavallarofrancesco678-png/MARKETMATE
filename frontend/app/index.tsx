@@ -76,20 +76,35 @@ export default function LoginScreen() {
             try {
               const td = result.data;
               const merge: any = {};
-              // Type-safe merging: applichiamo i campi solo se sono effettivamente
-              // del tipo atteso (array vs oggetto), per non rompere consumer
-              // che assumono certe shape (es. storicoGiornate è Array, non Map).
-              if (Array.isArray(td.storicoGiornate)) merge.storicoGiornate = td.storicoGiornate;
-              if (Array.isArray(td.storicoCarburante)) merge.storicoCarburante = td.storicoCarburante;
-              if (td.storicoScontrini && typeof td.storicoScontrini === 'object') merge.storicoScontrini = td.storicoScontrini;
-              if (Array.isArray(td.fiere)) merge.fiere = td.fiere;
-              if (Array.isArray(td.appuntiAgenda)) merge.appuntiAgenda = td.appuntiAgenda;
-              if (Array.isArray(td.ordiniAgenda)) merge.ordiniAgenda = td.ordiniAgenda;
-              if (td.storicoDiario && typeof td.storicoDiario === 'object') merge.storicoDiario = td.storicoDiario;
-              if (Array.isArray(td.fornitori)) merge.fornitori = td.fornitori;
-              if (Array.isArray(td.collaboratori)) merge.collaboratori = td.collaboratori;
-              if (Array.isArray(td.codiciInvito)) merge.codiciInvito = td.codiciInvito;
-              if (td.speseFisseAnnuali && typeof td.speseFisseAnnuali === 'object') merge.speseFisseAnnuali = td.speseFisseAnnuali;
+              // ═══ ENSURE ARRAY: helper defensive contro dati cloud corrotti ═══
+              // Il vecchio sync bug salvava in cloud array convertiti in object
+              // con chiavi numeriche (es. {"0": {...}, "1": {...}}). Senza
+              // questa conversione, il merge li applicava come object causando
+              // crash su mobile quando agenda.tsx prova .map() / .find().
+              const ensureArray = (val: any): any[] | null => {
+                if (Array.isArray(val)) return val;
+                if (val && typeof val === 'object') {
+                  try { return Object.values(val).filter(Boolean); } catch { return []; }
+                }
+                return null;
+              };
+              const ensureObject = (val: any): Record<string, any> | null => {
+                if (val && typeof val === 'object' && !Array.isArray(val)) return val;
+                return null;
+              };
+
+              const sgArr = ensureArray(td.storicoGiornate); if (sgArr) merge.storicoGiornate = sgArr;
+              const scArr = ensureArray(td.storicoCarburante); if (scArr) merge.storicoCarburante = scArr;
+              const ssArr = ensureArray(td.storicoScontrini); if (ssArr) merge.storicoScontrini = ssArr;
+              const fiereArr = ensureArray(td.fiere); if (fiereArr) merge.fiere = fiereArr;
+              const aaArr = ensureArray(td.appuntiAgenda); if (aaArr) merge.appuntiAgenda = aaArr;
+              const oaArr = ensureArray(td.ordiniAgenda); if (oaArr) merge.ordiniAgenda = oaArr;
+              const sdArr = ensureArray(td.storicoDiario); if (sdArr) merge.storicoDiario = sdArr;
+              const fornArr = ensureArray(td.fornitori); if (fornArr) merge.fornitori = fornArr;
+              const collArr = ensureArray(td.collaboratori); if (collArr) merge.collaboratori = collArr;
+              const ciArr = ensureArray(td.codiciInvito); if (ciArr) merge.codiciInvito = ciArr;
+
+              const sfaObj = ensureObject(td.speseFisseAnnuali); if (sfaObj) merge.speseFisseAnnuali = sfaObj;
               if (typeof td.nomeAttivita === 'string') merge.nomeAttivita = td.nomeAttivita;
               if (typeof td.nomeTitolare === 'string') merge.nomeTitolare = td.nomeTitolare;
               useAppStore.setState(merge);

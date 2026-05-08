@@ -650,6 +650,19 @@ export const useAppStore = create<AppState>((set, get) => ({
         parsed.codiciInvito = fixArr(parsed.codiciInvito);
 
         set(parsed);
+
+        // Se almeno un campo è stato sanitizzato (non era un array originariamente),
+        // salviamo subito su disk il dato corretto così la corruzione viene
+        // riparata definitivamente senza dover fare la migrazione ad ogni avvio.
+        try {
+          const wasMigrated = !Array.isArray(JSON.parse(stored).storicoDiario)
+            || !Array.isArray(JSON.parse(stored).storicoScontrini)
+            || !Array.isArray(JSON.parse(stored).storicoGiornate);
+          if (wasMigrated) {
+            // Salva la versione fixata
+            await storage.setItem('marketmate_data', JSON.stringify(parsed));
+          }
+        } catch {}
       }
     } catch (e) {
       console.warn('Error loading data:', e);
