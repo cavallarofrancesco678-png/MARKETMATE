@@ -195,7 +195,7 @@ export default function HomeScreen() {
         spread merge cloud-wins. */
   useEffect(() => {
     const applyMerge = (cloudData: any) => {
-      if (!cloudData) return;
+      if (!cloudData || typeof cloudData !== 'object') return;
       try {
         const local: any = useAppStore.getState();
         const merge: any = {};
@@ -204,59 +204,68 @@ export default function HomeScreen() {
         // esistenti, locale tiene i record non in cloud) ──
         const unionByKey = (cloudArr: any[], localArr: any[], keyOf: (x: any) => string) => {
           const out = new Map<string, any>();
-          (localArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
-          (cloudArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
+          (Array.isArray(localArr) ? localArr : []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
+          (Array.isArray(cloudArr) ? cloudArr : []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
           return Array.from(out.values());
         };
 
+        // ── Helper defensive: converte object→array se serve ──
+        const ensureArr = (val: any): any[] => {
+          if (Array.isArray(val)) return val;
+          if (val && typeof val === 'object') {
+            try { return Object.values(val).filter(Boolean); } catch { return []; }
+          }
+          return [];
+        };
+
         // ── storicoGiornate: union per data ──
-        if (Array.isArray(cloudData.storicoGiornate)) {
+        if (cloudData.storicoGiornate !== undefined) {
+          const cloudArr = ensureArr(cloudData.storicoGiornate);
           merge.storicoGiornate = unionByKey(
-            cloudData.storicoGiornate, local.storicoGiornate || [],
+            cloudArr, local.storicoGiornate || [],
             (g: any) => { try { return new Date(g.data).toISOString().slice(0, 10); } catch { return String(g.data); } }
           );
         }
 
         // ── Array critici (utente li edita di frequente): union per nome ──
-        if (Array.isArray(cloudData.collaboratori)) {
-          merge.collaboratori = unionByKey(cloudData.collaboratori, local.collaboratori || [], (x: any) => (x.nome || '').trim().toLowerCase());
-        }
-        if (Array.isArray(cloudData.fornitori)) {
-          merge.fornitori = unionByKey(cloudData.fornitori, local.fornitori || [], (x: any) => (x.nome || '').trim().toLowerCase());
-        }
-        if (Array.isArray(cloudData.fiere)) {
-          merge.fiere = unionByKey(cloudData.fiere, local.fiere || [], (x: any) => `${(x.nome || '').trim().toLowerCase()}|${x.data || ''}`);
-        }
-        if (Array.isArray(cloudData.appuntiAgenda)) {
-          merge.appuntiAgenda = unionByKey(cloudData.appuntiAgenda, local.appuntiAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
-        }
-        if (Array.isArray(cloudData.ordiniAgenda)) {
-          merge.ordiniAgenda = unionByKey(cloudData.ordiniAgenda, local.ordiniAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
-        }
-        if (Array.isArray(cloudData.storicoCarburante)) {
-          merge.storicoCarburante = unionByKey(cloudData.storicoCarburante, local.storicoCarburante || [], (x: any) => `${x.data || ''}|${x.litri || ''}|${x.euro || ''}`);
-        }
-        if (Array.isArray(cloudData.codiciInvito)) {
-          merge.codiciInvito = unionByKey(cloudData.codiciInvito, local.codiciInvito || [], (x: any) => x.codice || '');
-        }
+        if (cloudData.collaboratori !== undefined)
+          merge.collaboratori = unionByKey(ensureArr(cloudData.collaboratori), local.collaboratori || [], (x: any) => (x.nome || '').trim().toLowerCase());
+        if (cloudData.fornitori !== undefined)
+          merge.fornitori = unionByKey(ensureArr(cloudData.fornitori), local.fornitori || [], (x: any) => (x.nome || '').trim().toLowerCase());
+        if (cloudData.fiere !== undefined)
+          merge.fiere = unionByKey(ensureArr(cloudData.fiere), local.fiere || [], (x: any) => `${(x.nome || '').trim().toLowerCase()}|${x.data || ''}`);
+        if (cloudData.appuntiAgenda !== undefined)
+          merge.appuntiAgenda = unionByKey(ensureArr(cloudData.appuntiAgenda), local.appuntiAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
+        if (cloudData.ordiniAgenda !== undefined)
+          merge.ordiniAgenda = unionByKey(ensureArr(cloudData.ordiniAgenda), local.ordiniAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
+        if (cloudData.storicoCarburante !== undefined)
+          merge.storicoCarburante = unionByKey(ensureArr(cloudData.storicoCarburante), local.storicoCarburante || [], (x: any) => `${x.data || ''}|${x.litri || ''}|${x.euro || ''}`);
+        if (cloudData.codiciInvito !== undefined)
+          merge.codiciInvito = unionByKey(ensureArr(cloudData.codiciInvito), local.codiciInvito || [], (x: any) => x.codice || '');
 
-        // ── Oggetti veri (Record): spread merge cloud-wins ──
-        // NB: storicoDiario e storicoScontrini sono ARRAY nel modello,
-        // quindi vanno mergiati con union, non con spread!
-        if (Array.isArray(cloudData.storicoDiario)) {
-          merge.storicoDiario = unionByKey(cloudData.storicoDiario, local.storicoDiario || [], (x: any) => `${x.data ? new Date(x.data).toISOString().slice(0, 10) : ''}|${(x.testo || '').slice(0, 30)}`);
-        }
-        if (Array.isArray(cloudData.storicoScontrini)) {
-          merge.storicoScontrini = unionByKey(cloudData.storicoScontrini, local.storicoScontrini || [], (x: any) => `${x.mercato || ''}|${x.data || ''}|${x.numero || ''}`);
-        }
+        // ── storicoDiario / storicoScontrini: ARRAY nel modello, NON oggetti ──
+        if (cloudData.storicoDiario !== undefined)
+          merge.storicoDiario = unionByKey(ensureArr(cloudData.storicoDiario), local.storicoDiario || [], (x: any) => `${x.data ? new Date(x.data).toISOString().slice(0, 10) : ''}|${(x.testo || '').slice(0, 30)}`);
+        if (cloudData.storicoScontrini !== undefined)
+          merge.storicoScontrini = unionByKey(ensureArr(cloudData.storicoScontrini), local.storicoScontrini || [], (x: any) => `${x.mercato || ''}|${x.data || ''}|${x.numero || ''}`);
         if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object' && !Array.isArray(cloudData.speseFisseAnnuali))
           merge.speseFisseAnnuali = { ...(local.speseFisseAnnuali || {}), ...cloudData.speseFisseAnnuali };
 
         if (Object.keys(merge).length > 0) useAppStore.setState(merge);
-      } catch {}
+      } catch (e) {
+        // Non far crashare l'app se il merge fallisce per un dato malformato
+        console.warn('[poll-merge] error', e);
+      }
     };
-    startTeamBackgroundPull(applyMerge, 30000);
-    return () => stopTeamBackgroundPull();
+    // Aspetta 5s prima di iniziare il polling per dare tempo alla home di
+    // stabilizzarsi (evita race condition su unlock + mount).
+    const startTimer = setTimeout(() => {
+      try { startTeamBackgroundPull(applyMerge, 30000); } catch (e) { console.warn('[poll-start] error', e); }
+    }, 5000);
+    return () => {
+      clearTimeout(startTimer);
+      try { stopTeamBackgroundPull(); } catch {}
+    };
   }, []);
 
   /* ═══ PERSISTENZA SPESE EXTRA (entro lo stesso giorno solare di creazione) ═══

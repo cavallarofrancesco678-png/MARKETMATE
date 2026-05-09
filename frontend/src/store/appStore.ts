@@ -615,6 +615,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await storage.getItem('marketmate_data');
       if (data) {
         const parsed = JSON.parse(data);
+        // Salva una flag per capire se serve riscrivere su disk dopo migrazione
+        const originalShape = {
+          sd: Array.isArray(parsed.storicoDiario),
+          ss: Array.isArray(parsed.storicoScontrini),
+          sg: Array.isArray(parsed.storicoGiornate),
+          sc: Array.isArray(parsed.storicoCarburante),
+          fi: Array.isArray(parsed.fiere),
+          aa: Array.isArray(parsed.appuntiAgenda),
+          oa: Array.isArray(parsed.ordiniAgenda),
+          fr: Array.isArray(parsed.fornitori),
+          co: Array.isArray(parsed.collaboratori),
+          ci: Array.isArray(parsed.codiciInvito),
+        };
+
         // ═══ Migrazione codici invito legacy 'A' / 'B' → nuovi ruoli ═══
         if (Array.isArray(parsed.codiciInvito)) {
           parsed.codiciInvito = parsed.codiciInvito.map((c: any) => {
@@ -654,15 +668,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         // Se almeno un campo è stato sanitizzato (non era un array originariamente),
         // salviamo subito su disk il dato corretto così la corruzione viene
         // riparata definitivamente senza dover fare la migrazione ad ogni avvio.
-        try {
-          const wasMigrated = !Array.isArray(JSON.parse(stored).storicoDiario)
-            || !Array.isArray(JSON.parse(stored).storicoScontrini)
-            || !Array.isArray(JSON.parse(stored).storicoGiornate);
-          if (wasMigrated) {
-            // Salva la versione fixata
-            await storage.setItem('marketmate_data', JSON.stringify(parsed));
-          }
-        } catch {}
+        const wasMigrated = !originalShape.sd || !originalShape.ss || !originalShape.sg
+          || !originalShape.sc || !originalShape.fi || !originalShape.aa
+          || !originalShape.oa || !originalShape.fr || !originalShape.co || !originalShape.ci;
+        if (wasMigrated) {
+          try { await storage.setItem('marketmate_data', JSON.stringify(parsed)); } catch {}
+        }
       }
     } catch (e) {
       console.warn('Error loading data:', e);
