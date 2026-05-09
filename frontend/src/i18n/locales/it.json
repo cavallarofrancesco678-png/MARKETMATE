@@ -126,7 +126,7 @@
     "haveInviteCode": "Ho un codice invito",
     "enterInviteCode": "INSERISCI IL CODICE",
     "inviteCodeHint": "Inserisci il codice ricevuto dall'amministratore per entrare nel team",
-    "inviteCodePlaceholder": "ESEMPIO: ADM-A3B7K9",
+    "inviteCodePlaceholder": "Codice ricevuto dall'admin",
     "inviteCodeInvalid": "Codice non valido. Deve iniziare con ADM- / MGR- / USR-",
     "inviteCodeSuccess": "Codice riconosciuto! Benvenuto nel team",
     "inviteCodeJoin": "ENTRA NEL TEAM",
