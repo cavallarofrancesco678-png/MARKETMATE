@@ -599,12 +599,16 @@ export default function HomeScreen() {
   };
 
   /* ── Note del diario degli ultimi e prossimi 7 giorni: incluse nella campanella ──
-     Senza questo, le note scritte nel diario non scattavano la notifica. */
+     Senza questo, le note scritte nel diario non scattavano la notifica.
+     FIX: `now` non era definito → JS ReferenceError che chiudeva l'app subito
+     dopo l'inserimento del PIN. Ora ricavato dalla `dataCorrente` (la data
+     selezionata in home) così il calcolo è coerente con il resto della UI. */
   const diarioRecenti = useMemo(() => {
     const sd = (store as any).storicoDiario;
     if (!Array.isArray(sd)) return [];
-    const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-    const sevenDaysAhead = now.getTime() + 7 * 24 * 60 * 60 * 1000;
+    const baseTs = (dataCorrente instanceof Date ? dataCorrente : new Date()).getTime();
+    const sevenDaysAgo = baseTs - 7 * 24 * 60 * 60 * 1000;
+    const sevenDaysAhead = baseTs + 7 * 24 * 60 * 60 * 1000;
     return sd.filter((d: any) => {
       try {
         if (!d.testo || !d.testo.trim()) return false;
@@ -612,7 +616,7 @@ export default function HomeScreen() {
         return t >= sevenDaysAgo && t <= sevenDaysAhead;
       } catch { return false; }
     });
-  }, [(store as any).storicoDiario, now]);
+  }, [(store as any).storicoDiario, dataCorrente]);
 
   /* ── Conteggio notifiche totale (appuntamenti + ordini + fiere + note diario) ── */
   const notificheCount = appuntiProssimi.length + ordiniProssimi.length + fiereProssime.length + diarioRecenti.length;

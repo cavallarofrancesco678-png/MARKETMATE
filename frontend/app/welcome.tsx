@@ -15,7 +15,7 @@
  * Il PIN è memorizzato via expo-secure-store (Keychain iOS / Keystore Android),
  * equivalente a flutter_secure_storage.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -144,6 +145,64 @@ export default function WelcomeScreen() {
     if (Platform.OS === 'web') window.alert(msg);
     else Alert.alert(t('common.error') || 'Errore', msg);
   };
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Hardware back button (Android) — gestisce il flusso a ritroso del wizard
+  //  Comportamento richiesto dall'utente:
+  //   - In modalità invito (password)        → torna allo step "code"
+  //   - In modalità invito (code)            → esce dalla modalità invito
+  //   - Wizard step > 0                      → torna allo step precedente
+  //   - Wizard step 0 (lingua)               → chiede conferma e chiude l'app
+  //  Su iOS/web il BackHandler non triggera (non c'è un tasto fisico),
+  //  quindi viene usato il pulsante in UI (vedi bottone "indietro/esci").
+  // ═════════════════════════════════════════════════════════════════════════
+  const confirmExit = () => {
+    if (Platform.OS === 'web') {
+      try { window.close(); } catch {}
+      return;
+    }
+    Alert.alert(
+      t('settings.exitApp') || "ESCI DALL'APP",
+      t('settings.exitAppConfirm') || 'Vuoi chiudere MarketMate?',
+      [
+        { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+        { text: t('settings.exitApp') || 'ESCI', style: 'destructive', onPress: () => { try { BackHandler.exitApp(); } catch {} } },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handleBackPress = (): boolean => {
+    // Modalità collaboratore (invito)
+    if (inviteMode) {
+      if (inviteStep === 'password') {
+        setInviteStep('code');
+        setInvitePassword('');
+        setInvitePasswordConfirm('');
+        setInviteError('');
+      } else {
+        setInviteMode(false);
+        setInviteCode('');
+        setInviteError('');
+      }
+      return true;
+    }
+    // Wizard standard
+    if (page > 0) {
+      setPage(page - 1);
+      return true;
+    }
+    // Step 0: chiedi conferma uscita
+    confirmExit();
+    return true;
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => { try { sub.remove(); } catch {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, inviteMode, inviteStep]);
 
   // ═════════════════════════════════════════════════════════════════════
   // Handler "Continua" step codice → va a step password
@@ -341,7 +400,20 @@ export default function WelcomeScreen() {
           <TouchableOpacity style={s.navBtn} onPress={goBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Ionicons name="arrow-back" size={26} color={Colors.marrone} />
           </TouchableOpacity>
-        ) : <View style={s.navBtn} />}
+        ) : (
+          // Step 0: pulsante "Esci" per consentire all'utente di chiudere
+          // l'app durante la prima registrazione (richiesta utente).
+          // Su iOS/web usa il pulsante UI; su Android è ridondante con il
+          // tasto fisico back ma migliora la scopribilità.
+          <TouchableOpacity
+            style={s.navBtn}
+            onPress={confirmExit}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            testID="welcome-exit-btn"
+          >
+            <Ionicons name="close" size={26} color={Colors.grey} />
+          </TouchableOpacity>
+        )}
         {!hideNext && canGoNext() ? (
           <TouchableOpacity testID="onboard-forward-btn" style={s.navBtn} onPress={goNext} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Ionicons name="arrow-forward" size={30} color={Colors.primary} />
