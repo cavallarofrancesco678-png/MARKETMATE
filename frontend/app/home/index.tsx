@@ -1792,6 +1792,39 @@ export default function HomeScreen() {
                 </View>
               )}
 
+              {/* NOTE DEL DIARIO ±7 giorni — FIX: prima erano contate in
+                  notificheCount ma NON renderizzate nel modale, quindi
+                  l'utente vedeva il badge ma non il dettaglio. */}
+              {diarioRecenti.length > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#9B59B6', marginBottom: 6, letterSpacing: 1 }}>{t('home.notesDiary') || 'NOTE / DIARIO'}</Text>
+                  {diarioRecenti
+                    .slice()
+                    .sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime())
+                    .map((n: any, i: number) => {
+                      const d = new Date(n.data);
+                      const isToday = d.toDateString() === dataCorrente.toDateString();
+                      const dateLabel = isToday ? t('home.today') : `${d.getDate()}/${d.getMonth() + 1}`;
+                      const isPast = d.getTime() < dataCorrente.getTime() && !isToday;
+                      const badgeBg = isToday ? '#9B59B6' : (isPast ? '#B0A898' : '#7A5BA8');
+                      return (
+                        <View key={`note-${i}`} style={s.modalRow}>
+                          <View style={{ backgroundColor: badgeBg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6 }}>
+                            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{dateLabel}</Text>
+                          </View>
+                          <Ionicons name="document-text" size={16} color="#9B59B6" />
+                          <Text style={[s.modalLabel, { flex: 1 }]} numberOfLines={3}>{n.testo}</Text>
+                          <TouchableOpacity onPress={() => {
+                            try { (useAppStore.getState() as any).removeDiario?.(n.data); } catch {}
+                          }}>
+                            <Ionicons name="close-circle" size={20} color="#D46A6A" />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                </View>
+              )}
+
               {notificheCount === 0 && (
                 <Text style={s.modalEmpty}>{t('home.noCommitmentsNext2days')}</Text>
               )}

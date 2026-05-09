@@ -332,11 +332,13 @@ const s = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 28, alignItems: 'center' },
   loadingTxt: { fontSize: 14, fontWeight: '700', color: '#1A4040' },
 
-  logoWrap: { marginBottom: 10 },
-  logoWrapBig: { marginBottom: 18, alignItems: 'center' },
+  logoWrap: { marginBottom: 14 },
+  logoWrapBig: { marginBottom: 22, alignItems: 'center' },
+  // Logo grande per la schermata BUONGIORNO (app fresca, prima registrazione).
+  // Richiesta utente: ingrandire il logo nella prima schermata.
+  logoBig: { width: 420, height: 420, borderRadius: 28 },
+  logoSmall: { width: 150, height: 150 },
   logo: { width: 240, height: 240, borderRadius: 20 },
-  logoBig: { width: 320, height: 320, borderRadius: 24 },
-  logoSmall: { width: 110, height: 110 },
 
   welcomeTitle: { fontSize: 28, fontWeight: '900', color: '#1A4040', letterSpacing: 3, marginTop: 10, marginBottom: 4 },
   welcomeSub: { fontSize: 14, fontWeight: '600', color: '#7A9090', marginBottom: 10 },
