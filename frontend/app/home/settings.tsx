@@ -34,6 +34,7 @@ import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTutorialAnchor, useTutorialScrollHelper } from '../../src/store/tutorialLayoutStore';
 import { router } from 'expo-router';
 import { RoleGuard } from '../../src/components/RoleGuard';
+import { NotificationsCard } from '../../src/components/NotificationsCard';
 
 // ═══════════════════════════════════════════════════════════════
 // AccountSection — Login/Register/Multi-user entrypoint
@@ -1040,6 +1041,9 @@ function SettingsPageInner() {
           />
         </View>
       </View>
+
+      {/* ─── PROMEMORIA GIORNALIERI (notifiche locali) ─── */}
+      <NotificationsCard />
 
       {/* ─── SQUADRA COLLABORATORI ─── */}
       <Text style={s.secTitle} testID="sett-collab-card" ref={anchorCollab as any}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>

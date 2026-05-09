@@ -24,6 +24,7 @@ import { router } from 'expo-router';
 import { useAppStore } from '../src/store/appStore';
 import { useAppLockStore } from '../src/store/appLockStore';
 import { useTeamSyncStore } from '../src/store/teamSyncStore';
+import { buildSyncMerge } from '../src/utils/syncMerge';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,106 +75,36 @@ export default function LoginScreen() {
           // Aggiorna i dati locali con quelli appena scaricati dal cloud
           if (result.ok && result.data) {
             try {
-              const td = result.data;
-              const merge: any = {};
-              // ═══ ENSURE ARRAY: helper defensive contro dati cloud corrotti ═══
-              // Il vecchio sync bug salvava in cloud array convertiti in object
-              // con chiavi numeriche (es. {"0": {...}, "1": {...}}). Senza
-              // questa conversione, il merge li applicava come object causando
-              // crash su mobile quando agenda.tsx prova .map() / .find().
-              const ensureArray = (val: any): any[] | null => {
-                if (Array.isArray(val)) return val;
-                if (val && typeof val === 'object') {
-                  try { return Object.values(val).filter(Boolean); } catch { return []; }
-                }
-                return null;
-              };
-              const ensureObject = (val: any): Record<string, any> | null => {
-                if (val && typeof val === 'object' && !Array.isArray(val)) return val;
-                return null;
-              };
-
-              const sgArr = ensureArray(td.storicoGiornate); if (sgArr) merge.storicoGiornate = sgArr;
-              const scArr = ensureArray(td.storicoCarburante); if (scArr) merge.storicoCarburante = scArr;
-              const ssArr = ensureArray(td.storicoScontrini); if (ssArr) merge.storicoScontrini = ssArr;
-              const fiereArr = ensureArray(td.fiere); if (fiereArr) merge.fiere = fiereArr;
-              const aaArr = ensureArray(td.appuntiAgenda); if (aaArr) merge.appuntiAgenda = aaArr;
-              const oaArr = ensureArray(td.ordiniAgenda); if (oaArr) merge.ordiniAgenda = oaArr;
-              const sdArr = ensureArray(td.storicoDiario); if (sdArr) merge.storicoDiario = sdArr;
-              const fornArr = ensureArray(td.fornitori); if (fornArr) merge.fornitori = fornArr;
-              const collArr = ensureArray(td.collaboratori); if (collArr) merge.collaboratori = collArr;
-              const ciArr = ensureArray(td.codiciInvito); if (ciArr) merge.codiciInvito = ciArr;
-
-              const sfaObj = ensureObject(td.speseFisseAnnuali); if (sfaObj) merge.speseFisseAnnuali = sfaObj;
-              if (typeof td.nomeAttivita === 'string') merge.nomeAttivita = td.nomeAttivita;
-              if (typeof td.nomeTitolare === 'string') merge.nomeTitolare = td.nomeTitolare;
-              useAppStore.setState(merge);
-              try { await (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+              // Usa la utility unificata per il merge difensivo cloud→local.
+              // (Stessa logica usata da home/index.tsx polling 30s e
+              // welcome.tsx primo join — vedi /app/frontend/src/utils/syncMerge.ts)
+              const local = useAppStore.getState() as any;
+              const merge = buildSyncMerge(result.data, local);
+              if (typeof result.data.nomeAttivita === 'string') merge.nomeAttivita = result.data.nomeAttivita;
+              if (typeof result.data.nomeTitolare === 'string') merge.nomeTitolare = result.data.nomeTitolare;
+              if (Object.keys(merge).length > 0) {
+                useAppStore.setState(merge as any);
+                try { await (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+              }
             } catch {}
           }
         } else if (appState.isConfigured) {
           // ═══ Admin: silent login + PULL dei dati dal cloud ═══
           // Se l'admin è già registrato, faccio login silenzioso e poi un pull
           // per recuperare eventuali contributi dei collaboratori (sync inverso).
-          // Strategia merge:
-          //  - storicoGiornate: union per data, cloud vince in caso di collisione
-          //    (LWW = ultimo che scrive vince, per la stessa data)
-          //  - altri array (collaboratori, fornitori, fiere, ordini, ecc.):
-          //    overwrite con la versione cloud se non vuota
-          //  - oggetti (storicoScontrini, storicoDiario, speseFisseAnnuali):
-          //    spread merge cloud-prima
+          // La logica di merge è centralizzata in `buildSyncMerge`:
+          //  - storicoGiornate: union per data, cloud vince in caso di collisione (LWW)
+          //  - collaboratori/fornitori/fiere/agende: union PER NOME (no overwrite)
+          //  - speseFisseAnnuali: spread merge cloud-wins
           const ok = await teamStore.adminLoginSilent();
           if (ok) {
             try {
               const cloudData = await teamStore.pullData();
               if (cloudData) {
-                const local: any = useAppStore.getState();
-                const merge: any = {};
-
-                // Helper: union-by-key (cloud aggiorna esistenti, locale tiene non-cloud)
-                const unionByKey = (cArr: any[], lArr: any[], keyOf: (x: any) => string) => {
-                  const out = new Map<string, any>();
-                  (lArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
-                  (cArr || []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
-                  return Array.from(out.values());
-                };
-
-                // ── storicoGiornate: union per data ──
-                if (Array.isArray(cloudData.storicoGiornate)) {
-                  merge.storicoGiornate = unionByKey(
-                    cloudData.storicoGiornate, local.storicoGiornate || [],
-                    (g: any) => { try { return new Date(g.data).toISOString().slice(0, 10); } catch { return String(g.data); } }
-                  );
-                }
-                // ── Array editabili: union PER NOME (no overwrite) ──
-                if (Array.isArray(cloudData.collaboratori))
-                  merge.collaboratori = unionByKey(cloudData.collaboratori, local.collaboratori || [], (x: any) => (x.nome || '').trim().toLowerCase());
-                if (Array.isArray(cloudData.fornitori))
-                  merge.fornitori = unionByKey(cloudData.fornitori, local.fornitori || [], (x: any) => (x.nome || '').trim().toLowerCase());
-                if (Array.isArray(cloudData.fiere))
-                  merge.fiere = unionByKey(cloudData.fiere, local.fiere || [], (x: any) => `${(x.nome || '').trim().toLowerCase()}|${x.data || ''}`);
-                if (Array.isArray(cloudData.appuntiAgenda))
-                  merge.appuntiAgenda = unionByKey(cloudData.appuntiAgenda, local.appuntiAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
-                if (Array.isArray(cloudData.ordiniAgenda))
-                  merge.ordiniAgenda = unionByKey(cloudData.ordiniAgenda, local.ordiniAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
-                if (Array.isArray(cloudData.storicoCarburante))
-                  merge.storicoCarburante = unionByKey(cloudData.storicoCarburante, local.storicoCarburante || [], (x: any) => `${x.data || ''}|${x.litri || ''}|${x.euro || ''}`);
-                if (Array.isArray(cloudData.codiciInvito))
-                  merge.codiciInvito = unionByKey(cloudData.codiciInvito, local.codiciInvito || [], (x: any) => x.codice || '');
-
-                // ── Oggetti veri (Record): spread merge cloud-wins ──
-                // NB: storicoDiario e storicoScontrini sono ARRAY, non oggetti!
-                if (Array.isArray(cloudData.storicoDiario)) {
-                  merge.storicoDiario = unionByKey(cloudData.storicoDiario, local.storicoDiario || [], (x: any) => `${x.data ? new Date(x.data).toISOString().slice(0, 10) : ''}|${(x.testo || '').slice(0, 30)}`);
-                }
-                if (Array.isArray(cloudData.storicoScontrini)) {
-                  merge.storicoScontrini = unionByKey(cloudData.storicoScontrini, local.storicoScontrini || [], (x: any) => `${x.mercato || ''}|${x.data || ''}|${x.numero || ''}`);
-                }
-                if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object' && !Array.isArray(cloudData.speseFisseAnnuali))
-                  merge.speseFisseAnnuali = { ...(local.speseFisseAnnuali || {}), ...cloudData.speseFisseAnnuali };
-
+                const local = useAppStore.getState() as any;
+                const merge = buildSyncMerge(cloudData, local);
                 if (Object.keys(merge).length > 0) {
-                  useAppStore.setState(merge);
+                  useAppStore.setState(merge as any);
                   try { await (useAppStore.getState() as any).saveToStorage?.(); } catch {}
                 }
               }

@@ -21,7 +21,8 @@ import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react
 import { useAppStore } from '../../src/store/appStore';
 import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
-import { useTeamSyncStore, startTeamBackgroundPull, stopTeamBackgroundPull } from '../../src/store/teamSyncStore';
+import { useTeamSyncStore } from '../../src/store/teamSyncStore';
+import { useTeamSyncPolling } from '../../src/hooks/useTeamSyncPolling';
 import { getGiornoIndex } from '../../src/utils/dateUtils';
 import { CalendarModal } from '../../src/components/CalendarModal';
 import { FieraModal } from '../../src/components/FieraModal';
@@ -192,81 +193,15 @@ export default function HomeScreen() {
         i record cloud nuovi vengono aggiunti. (Bug fix: prima overwriteavamo
         e i collab appena aggiunti sparivano.)
       - oggetti (storicoScontrini, storicoDiario, speseFisseAnnuali):
-        spread merge cloud-wins. */
-  useEffect(() => {
-    const applyMerge = (cloudData: any) => {
-      if (!cloudData || typeof cloudData !== 'object') return;
-      try {
-        const local: any = useAppStore.getState();
-        const merge: any = {};
-
-        // ── Helper: union-by-key generico (cloud aggiorna i campi degli
-        // esistenti, locale tiene i record non in cloud) ──
-        const unionByKey = (cloudArr: any[], localArr: any[], keyOf: (x: any) => string) => {
-          const out = new Map<string, any>();
-          (Array.isArray(localArr) ? localArr : []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
-          (Array.isArray(cloudArr) ? cloudArr : []).forEach((x) => { try { out.set(keyOf(x), x); } catch {} });
-          return Array.from(out.values());
-        };
-
-        // ── Helper defensive: converte object→array se serve ──
-        const ensureArr = (val: any): any[] => {
-          if (Array.isArray(val)) return val;
-          if (val && typeof val === 'object') {
-            try { return Object.values(val).filter(Boolean); } catch { return []; }
-          }
-          return [];
-        };
-
-        // ── storicoGiornate: union per data ──
-        if (cloudData.storicoGiornate !== undefined) {
-          const cloudArr = ensureArr(cloudData.storicoGiornate);
-          merge.storicoGiornate = unionByKey(
-            cloudArr, local.storicoGiornate || [],
-            (g: any) => { try { return new Date(g.data).toISOString().slice(0, 10); } catch { return String(g.data); } }
-          );
-        }
-
-        // ── Array critici (utente li edita di frequente): union per nome ──
-        if (cloudData.collaboratori !== undefined)
-          merge.collaboratori = unionByKey(ensureArr(cloudData.collaboratori), local.collaboratori || [], (x: any) => (x.nome || '').trim().toLowerCase());
-        if (cloudData.fornitori !== undefined)
-          merge.fornitori = unionByKey(ensureArr(cloudData.fornitori), local.fornitori || [], (x: any) => (x.nome || '').trim().toLowerCase());
-        if (cloudData.fiere !== undefined)
-          merge.fiere = unionByKey(ensureArr(cloudData.fiere), local.fiere || [], (x: any) => `${(x.nome || '').trim().toLowerCase()}|${x.data || ''}`);
-        if (cloudData.appuntiAgenda !== undefined)
-          merge.appuntiAgenda = unionByKey(ensureArr(cloudData.appuntiAgenda), local.appuntiAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
-        if (cloudData.ordiniAgenda !== undefined)
-          merge.ordiniAgenda = unionByKey(ensureArr(cloudData.ordiniAgenda), local.ordiniAgenda || [], (x: any) => x.id || `${x.data}|${(x.testo || '').slice(0, 30)}`);
-        if (cloudData.storicoCarburante !== undefined)
-          merge.storicoCarburante = unionByKey(ensureArr(cloudData.storicoCarburante), local.storicoCarburante || [], (x: any) => `${x.data || ''}|${x.litri || ''}|${x.euro || ''}`);
-        if (cloudData.codiciInvito !== undefined)
-          merge.codiciInvito = unionByKey(ensureArr(cloudData.codiciInvito), local.codiciInvito || [], (x: any) => x.codice || '');
-
-        // ── storicoDiario / storicoScontrini: ARRAY nel modello, NON oggetti ──
-        if (cloudData.storicoDiario !== undefined)
-          merge.storicoDiario = unionByKey(ensureArr(cloudData.storicoDiario), local.storicoDiario || [], (x: any) => `${x.data ? new Date(x.data).toISOString().slice(0, 10) : ''}|${(x.testo || '').slice(0, 30)}`);
-        if (cloudData.storicoScontrini !== undefined)
-          merge.storicoScontrini = unionByKey(ensureArr(cloudData.storicoScontrini), local.storicoScontrini || [], (x: any) => `${x.mercato || ''}|${x.data || ''}|${x.numero || ''}`);
-        if (cloudData.speseFisseAnnuali && typeof cloudData.speseFisseAnnuali === 'object' && !Array.isArray(cloudData.speseFisseAnnuali))
-          merge.speseFisseAnnuali = { ...(local.speseFisseAnnuali || {}), ...cloudData.speseFisseAnnuali };
-
-        if (Object.keys(merge).length > 0) useAppStore.setState(merge);
-      } catch (e) {
-        // Non far crashare l'app se il merge fallisce per un dato malformato
-        console.warn('[poll-merge] error', e);
-      }
-    };
-    // Aspetta 5s prima di iniziare il polling per dare tempo alla home di
-    // stabilizzarsi (evita race condition su unlock + mount).
-    const startTimer = setTimeout(() => {
-      try { startTeamBackgroundPull(applyMerge, 30000); } catch (e) { console.warn('[poll-start] error', e); }
-    }, 5000);
-    return () => {
-      clearTimeout(startTimer);
-      try { stopTeamBackgroundPull(); } catch {}
-    };
-  }, []);
+        spread merge cloud-wins.
+     ─────────────────────────────────────────────────────────────────
+     REFACTOR: tutta la logica di polling + merge è stata estratta nel
+     hook `useTeamSyncPolling` (/app/frontend/src/hooks/useTeamSyncPolling.ts)
+     che a sua volta delega `buildSyncMerge` a /app/frontend/src/utils/syncMerge.ts.
+     Vantaggi: home/index.tsx torna concentrato sulla UI, la logica di
+     sync è riusabile da altri schermi (login silent-pull, welcome
+     collab join), ed è 100% testabile in isolamento. */
+  useTeamSyncPolling();
 
   /* ═══ PERSISTENZA SPESE EXTRA (entro lo stesso giorno solare di creazione) ═══
      La sessione dura SOLO fino alle 23:59 del giorno in cui è stata creata.

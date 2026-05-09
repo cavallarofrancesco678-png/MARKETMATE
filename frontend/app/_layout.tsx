@@ -11,6 +11,7 @@ import { useAppStore } from '../src/store/appStore';
 import { useAuthStore } from '../src/store/authStore';
 import { useTutorialStore } from '../src/store/tutorialStore';
 import { useAppLockStore } from '../src/store/appLockStore';
+import { useNotificationsStore } from '../src/store/notificationsStore';
 import { TutorialOverlay } from '../src/components/TutorialOverlay';
 
 SplashScreen.preventAutoHideAsync();
@@ -39,6 +40,7 @@ export default function RootLayout() {
   const tutHydrated = useTutorialStore((s) => s.isHydrated);
   const hydrateLock = useAppLockStore((s) => s.hydrate);
   const lockApp = useAppLockStore((s) => s.lock);
+  const hydrateNotifs = useNotificationsStore((s) => s.hydrate);
 
   const onLayoutReady = useCallback(async () => {
     if (fontsLoaded && storageHydrated && authHydrated && tutHydrated) {
@@ -55,6 +57,7 @@ export default function RootLayout() {
       try { await authHydrate(); } catch (e) { console.warn('auth hydrate failed', e); }
       try { await tutHydrate(); } catch (e) { console.warn('tut hydrate failed', e); }
       try { await hydrateLock(); } catch (e) { console.warn('lock hydrate failed', e); }
+      try { await hydrateNotifs(); } catch (e) { console.warn('notif hydrate failed', e); }
 
       if (!cancelled) setStorageHydrated(true);
     })();

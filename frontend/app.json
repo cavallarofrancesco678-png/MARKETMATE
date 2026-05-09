@@ -25,7 +25,11 @@
       "package": "it.tvscavallaro.marketmate",
       "permissions": [
         "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "READ_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM"
       ]
     },
     "web": {
@@ -54,6 +58,14 @@
       ],
       "expo-secure-store",
       "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#1E7F85",
+          "defaultChannel": "marketmate-reminders"
+        }
+      ],
       "./plugins/with-adi-registration"
     ],
     "experiments": {
