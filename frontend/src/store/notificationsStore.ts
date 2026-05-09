@@ -246,22 +246,42 @@ export const useNotificationsStore = create<NotifStore>((set, get) => ({
     await get().cancelScheduled();
     try {
       await ensureAndroidChannel();
+      // ─── Trigger DAILY: usato il formato CALENDAR repeats:true che è
+      //     compatibile sia con expo-notifications 0.32 che con eventuali
+      //     fallback su iOS/Android (su Android 13+ richiede POST_NOTIFICATIONS
+      //     già richiesto in app.json + /requestPermissionsAsync). ───
+      const trigger: any = Platform.OS === 'android'
+        ? {
+            // Android richiede il channelId nel trigger (non basta passarlo
+            // alla `setNotificationChannelAsync`). Senza questo la notifica
+            // verrebbe schedulata ma scartata silenziosamente sul canale di
+            // default che ha priority=DEFAULT (no banner sopra).
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour,
+            minute,
+            channelId: 'marketmate-reminders',
+          }
+        : {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour,
+            minute,
+          };
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: title || DEFAULTS.title,
           body: body || DEFAULTS.body,
           sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour,
-          minute,
+          // Su Android, il channelId è settato anche nel content per
+          // compatibilità con SDK pre-trigger.channelId.
+          ...(Platform.OS === 'android' ? { channelId: 'marketmate-reminders' } : {}),
         } as any,
+        trigger,
       });
       await persist({ lastScheduledId: id });
       set({ lastScheduledId: id });
       return id;
     } catch (e) {
+      console.warn('[notif-reschedule] error', e);
       return null;
     }
   },

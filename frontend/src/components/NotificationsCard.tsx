@@ -69,6 +69,26 @@ export const NotificationsCard: React.FC = () => {
           ]
         );
       }
+    } else if (v) {
+      // ✅ Promemoria attivato — mostra all'utente l'orario del prossimo trigger.
+      // Aiuta a capire QUANDO arriverà la prima notifica (oggi se l'orario
+      // non è ancora passato, altrimenti domani).
+      const { hour, minute } = useNotificationsStore.getState();
+      const now = new Date();
+      const next = new Date();
+      next.setHours(hour, minute, 0, 0);
+      if (next.getTime() <= now.getTime()) {
+        next.setDate(next.getDate() + 1);
+      }
+      const isToday = next.toDateString() === now.toDateString();
+      const fmt = formatHHmm(hour, minute);
+      const when = isToday
+        ? (t('settings.notifNextToday', { time: fmt }) as string) || `oggi alle ${fmt}`
+        : (t('settings.notifNextTomorrow', { time: fmt }) as string) || `domani alle ${fmt}`;
+      Alert.alert(
+        t('settings.notifEnabledTitle') || 'Promemoria attivato',
+        (t('settings.notifEnabledDesc', { when }) as string) || `Riceverai il primo promemoria ${when} e poi ogni giorno alla stessa ora.`
+      );
     }
   };
 
@@ -81,7 +101,10 @@ export const NotificationsCard: React.FC = () => {
   };
 
   // ───────────────────────────────────────────────────
-  // Notifica di test (immediata, ~5s nel futuro)
+  // Notifica di test (immediata, ~3s nel futuro)
+  // PMer aiutare l'utente a verificare i permessi PRIMA di attivare il
+  // promemoria, il pulsante è disponibile anche se il toggle è OFF —
+  // chiediamo solo la permission al primo click.
   // ───────────────────────────────────────────────────
   const sendTest = async () => {
     if (isWeb) {
@@ -91,12 +114,20 @@ export const NotificationsCard: React.FC = () => {
       );
       return;
     }
+    // Garantisci channel + permission
     if (permission !== 'granted') {
-      Alert.alert(
-        t('settings.notifPermDeniedTitle') || 'Permesso negato',
-        t('settings.notifEnableFirst') || "Attiva prima i promemoria per dare il permesso al sistema.",
-      );
-      return;
+      const granted = await useNotificationsStore.getState().requestPermission();
+      if (!granted) {
+        Alert.alert(
+          t('settings.notifPermDeniedTitle') || 'Permesso negato',
+          t('settings.notifPermDeniedDesc') || "Per ricevere i promemoria devi abilitare le notifiche nelle Impostazioni del sistema.",
+          [
+            { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+            { text: t('settings.openSystemSettings') || 'Apri Impostazioni', onPress: () => { try { Linking.openSettings(); } catch {} } },
+          ]
+        );
+        return;
+      }
     }
     try {
       await Notifications.scheduleNotificationAsync({
@@ -104,8 +135,11 @@ export const NotificationsCard: React.FC = () => {
           title: t('settings.notifTestTitle') || 'MarketMate · Test',
           body: t('settings.notifTestBody') || 'Notifica di prova ricevuta correttamente!',
           sound: 'default',
-        },
-        trigger: { seconds: 3 } as any,
+          ...(Platform.OS === 'android' ? { channelId: 'marketmate-reminders' } : {}),
+        } as any,
+        trigger: Platform.OS === 'android'
+          ? { seconds: 3, channelId: 'marketmate-reminders' } as any
+          : { seconds: 3 } as any,
       });
       Alert.alert(
         t('settings.notifTestSentTitle') || 'Notifica inviata',
@@ -195,12 +229,14 @@ export const NotificationsCard: React.FC = () => {
           </View>
         </View>
 
-        {/* Test notification button */}
+        {/* Test notification button — sempre cliccabile sui dispositivi
+            mobili. Se la permission non è ancora stata richiesta, il primo
+            click chiede il permesso. Disabilitato solo su web. */}
         <View style={s.divider} />
         <TouchableOpacity
-          style={[s.testBtn, (!enabled || permission !== 'granted') && { opacity: 0.4 }]}
+          style={[s.testBtn, isWeb && { opacity: 0.4 }]}
           onPress={sendTest}
-          disabled={!enabled || permission !== 'granted'}
+          disabled={isWeb}
           activeOpacity={0.85}
         >
           <Ionicons name="paper-plane-outline" size={16} color="#FFF" />
