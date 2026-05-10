@@ -50,7 +50,7 @@ interface Props {
   onClose: () => void;
   fornitori: Fornitore[];
   speseExtraFornitore: Record<string, SpeseExtraEntry>;
-  setSpeseExtraFornitore: (v: Record<string, SpeseExtraEntry>) => void;
+  setSpeseExtraFornitore: React.Dispatch<React.SetStateAction<Record<string, SpeseExtraEntry>>>;
   vociGeneriche: VoceGenerica[];
   setVociGeneriche: (v: VoceGenerica[]) => void;
   fornInfo: Record<string, FornInfoEntry>;
@@ -146,23 +146,21 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
   const updateEntry = (key: string, field: 'importo' | 'periodo', value: string) => {
     if (field === 'importo') {
-      // Round 41 fix: aggiorna IMMEDIATAMENTE entrambi gli stati
-      // (locale + parent) ad ogni keystroke. In questo modo se l'utente
-      // preme "Salva Giornata" SENZA fare blur prima, il salvataggio
-      // legge sempre il valore aggiornato dal parent. Risolve il bug
-      // segnalato: "metto importo in fattura ma non lo tiene".
+      // ⚠️ Round 41bis (FIX critico stale closure): usa FUNCTIONAL UPDATER
+      // ovunque mutiamo `speseExtraFornitore`. Senza `prev =>`, ogni
+      // keystroke leggeva una versione obsoleta di speseExtraFornitore
+      // catturata al render precedente → race condition: l'ultima
+      // setSpeseExtraFornitore vinceva e sovrascriveva le precedenti con
+      // dati STALE, causando la perdita del valore appena digitato.
       setLocalImporti(prev => ({ ...prev, [key]: value }));
-      const current = speseExtraFornitore[key] || { importo: '', periodo: 'giornaliero' };
-      setSpeseExtraFornitore({
-        ...speseExtraFornitore,
-        [key]: { ...current, importo: value },
+      setSpeseExtraFornitore((prev: any) => {
+        const current = prev[key] || { importo: '', periodo: 'giornaliero' };
+        return { ...prev, [key]: { ...current, importo: value } };
       });
     } else {
-      // For periodo changes, update parent directly
-      const current = speseExtraFornitore[key] || { importo: localImporti[key] || '', periodo: 'giornaliero' };
-      setSpeseExtraFornitore({
-        ...speseExtraFornitore,
-        [key]: { ...current, [field]: value, importo: localImporti[key] || current.importo },
+      setSpeseExtraFornitore((prev: any) => {
+        const current = prev[key] || { importo: localImporti[key] || '', periodo: 'giornaliero' };
+        return { ...prev, [key]: { ...current, [field]: value, importo: localImporti[key] || current.importo } };
       });
     }
   };
@@ -170,22 +168,23 @@ export const SpeseExtraModal: React.FC<Props> = ({
   const flushImporto = (key: string) => {
     const val = localImporti[key];
     if (val !== undefined) {
-      const current = speseExtraFornitore[key] || { importo: '', periodo: 'giornaliero' };
-      setSpeseExtraFornitore({
-        ...speseExtraFornitore,
-        [key]: { ...current, importo: val },
+      setSpeseExtraFornitore((prev: any) => {
+        const current = prev[key] || { importo: '', periodo: 'giornaliero' };
+        return { ...prev, [key]: { ...current, importo: val } };
       });
     }
   };
 
   const handleClose = () => {
-    // Flush all local importi to parent state before closing
-    const updated = { ...speseExtraFornitore };
-    Object.entries(localImporti).forEach(([key, val]) => {
-      const current = updated[key] || { importo: '', periodo: 'giornaliero' };
-      updated[key] = { ...current, importo: val };
+    // Flush all local importi to parent state before closing (functional updater)
+    setSpeseExtraFornitore((prev: any) => {
+      const updated = { ...prev };
+      Object.entries(localImporti).forEach(([key, val]) => {
+        const current = updated[key] || { importo: '', periodo: 'giornaliero' };
+        updated[key] = { ...current, importo: val };
+      });
+      return updated;
     });
-    setSpeseExtraFornitore(updated);
     setLocalImporti({});
     onClose();
   };
@@ -305,10 +304,13 @@ export const SpeseExtraModal: React.FC<Props> = ({
                       )}
                       {totFornitore > 0 ? (
                         <TouchableOpacity onPress={() => {
-                          const updated = { ...speseExtraFornitore };
-                          delete updated[f.nome];
-                          delete updated[libKey];
-                          setSpeseExtraFornitore(updated);
+                          // Round 41bis: functional updater to avoid stale closure
+                          setSpeseExtraFornitore((prev: any) => {
+                            const updated = { ...prev };
+                            delete updated[f.nome];
+                            delete updated[libKey];
+                            return updated;
+                          });
                           setLocalImporti(prev => { const n = { ...prev }; delete n[f.nome]; delete n[libKey]; return n; });
                         }} style={{ marginLeft: 6 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                           <Ionicons name="close-circle" size={20} color="#D46A6A" />
