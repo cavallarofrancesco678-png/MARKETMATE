@@ -683,9 +683,10 @@
     "productNamePlaceholder": "Nome prodotto (es. Pane Toscano)",
     "productName": "Nome",
     "costPlaceholder": "Costo unitario € (es. 2.50)",
-    "cost": "Costo",
-    "price": "Prezzo",
+    "cost": "COSTO",
+    "price": "PREZZO",
     "priceOverride": "Manuale",
+    "markupAuto": "Auto",
     "confirmDeleteTitle": "Elimina fornitore",
     "confirmDeleteDesc": "Eliminare \"{{nome}}\" e tutti i suoi prodotti?"
   }

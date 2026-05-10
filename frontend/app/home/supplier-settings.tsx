@@ -344,76 +344,152 @@ interface ProductRowProps {
   onDelete: () => void;
 }
 
+/** Regex per accettare numeri decimali in fase di digitazione:
+ *  - vuoto, oppure
+ *  - cifre, opzionale punto/virgola e fino a 2 decimali */
+const NUM_INPUT_RE = /^\d*[.,]?\d{0,2}$/;
+
 const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoMedio, onChange, onDelete }) => {
   const { t } = useTranslation();
-  const prezzoSuggerito = useMemo(
-    () => calcolaPrezzoSuggerito(prodotto.costo || 0, ricaricoMedio),
-    [prodotto.costo, ricaricoMedio]
+
+  // ─── State LOCALE per gli input numerici ───────────────────────────
+  // Bug fix: prima usavamo direttamente `prodotto.costo` come `value`
+  // del TextInput → `parseFloat("4.")` = 4 → React forzava il value a "4"
+  // → il punto decimale spariva mentre l'utente stava ancora digitando.
+  // Ora teniamo una stringa di EDITING locale e parsiamo solo onBlur o
+  // quando il valore è chiaramente completo (es. "4.90").
+  const [costoText, setCostoText] = React.useState<string>(
+    prodotto.costo ? String(prodotto.costo) : ''
+  );
+  const [prezzoText, setPrezzoText] = React.useState<string>(
+    prodotto.prezzo ? String(prodotto.prezzo) : ''
   );
 
+  // Se il ricarico medio cambia esternamente (es. l'utente lo modifica
+  // dal campo del fornitore) e questo prodotto NON è in overwrite,
+  // ricalcoliamo il prezzo suggerito anche nel testo della riga.
+  React.useEffect(() => {
+    if (!prodotto.prezzoOverwrite) {
+      setPrezzoText(prodotto.prezzo ? String(prodotto.prezzo) : '');
+    }
+  }, [prodotto.prezzo, prodotto.prezzoOverwrite]);
+
+  // ─── Helpers parsing ────────────────────────────────────────────────
+  const parseNum = (s: string): number => {
+    const n = parseFloat((s || '').replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  };
+
+  // ─── Costo: handlers ────────────────────────────────────────────────
   const handleCostChange = (v: string) => {
-    const cost = parseFloat(v.replace(',', '.'));
-    if (isNaN(cost) || cost < 0) {
+    // Accetta solo input numerici parziali (es. "4." durante la digitazione)
+    if (v === '' || NUM_INPUT_RE.test(v)) {
+      setCostoText(v);
+    }
+  };
+  const commitCost = () => {
+    const cost = parseNum(costoText);
+    if (cost <= 0) {
       onChange({ costo: 0 });
       return;
     }
     if (prodotto.prezzoOverwrite) {
       onChange({ costo: cost });
+      // (non aggiorniamo il prezzo: l'utente ha imposto un prezzo manuale)
     } else {
-      onChange({ costo: cost, prezzo: calcolaPrezzoSuggerito(cost, ricaricoMedio) });
+      const newPrezzo = calcolaPrezzoSuggerito(cost, ricaricoMedio);
+      setPrezzoText(String(newPrezzo));
+      onChange({ costo: cost, prezzo: newPrezzo });
     }
   };
 
+  // ─── Prezzo: handlers ───────────────────────────────────────────────
   const handlePriceChange = (v: string) => {
-    const p = parseFloat(v.replace(',', '.'));
-    if (isNaN(p) || p < 0) return;
+    if (v === '' || NUM_INPUT_RE.test(v)) {
+      setPrezzoText(v);
+    }
+  };
+  const commitPrice = () => {
+    const p = parseNum(prezzoText);
+    if (p <= 0) {
+      onChange({ prezzo: 0, prezzoOverwrite: false });
+      return;
+    }
     onChange({ prezzo: p, prezzoOverwrite: true });
   };
 
   const handleResetOverwrite = () => {
+    const newPrezzo = calcolaPrezzoSuggerito(prodotto.costo || 0, ricaricoMedio);
+    setPrezzoText(String(newPrezzo));
     onChange({
       prezzoOverwrite: false,
-      prezzo: calcolaPrezzoSuggerito(prodotto.costo || 0, ricaricoMedio),
+      prezzo: newPrezzo,
     });
   };
 
+  // ─── Calcolo del ricarico effettivo (utile quando l'utente fa overwrite) ─
+  // Esempio: costo 2€, prezzo manuale 5€ → ricarico effettivo 150%
+  // Mostriamo SEMPRE il ricarico effettivo della riga, così l'utente vede
+  // subito di quanto si discosta dal default del fornitore.
+  const ricaricoEffettivo = React.useMemo(() => {
+    const c = prodotto.costo || 0;
+    const p = prodotto.prezzo || 0;
+    if (c <= 0 || p <= 0) return null;
+    return ((p / c - 1) * 100);
+  }, [prodotto.costo, prodotto.prezzo]);
+
   return (
     <View style={ps.row}>
-      {/* Nome prodotto */}
-      <TextInput
-        style={ps.nameInput}
-        value={prodotto.nome}
-        onChangeText={(v) => onChange({ nome: v })}
-        placeholder={t('supplier.productName') || 'Nome'}
-        placeholderTextColor="#9A9890"
-      />
+      {/* Riga 1: nome prodotto */}
+      <View style={ps.nameRow}>
+        <TextInput
+          style={ps.nameInput}
+          value={prodotto.nome}
+          onChangeText={(v) => onChange({ nome: v })}
+          placeholder={t('supplier.productName') || 'Nome prodotto'}
+          placeholderTextColor="#A6A095"
+        />
+        <TouchableOpacity
+          onPress={onDelete}
+          style={ps.delBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="close-circle" size={22} color="#D46A6A" />
+        </TouchableOpacity>
+      </View>
 
-      <View style={ps.priceCol}>
-        {/* Costo */}
+      {/* Riga 2: COSTO → PREZZO con larghezza generosa e allineamento perfetto */}
+      <View style={ps.priceRow}>
+        {/* COSTO */}
         <View style={ps.priceField}>
-          <Text style={ps.priceLabel}>{t('supplier.cost') || 'Costo'}</Text>
+          <Text style={ps.priceLabel}>{t('supplier.cost') || 'COSTO'}</Text>
           <View style={ps.priceInputBox}>
             <Text style={ps.eur}>€</Text>
             <TextInput
               style={ps.priceInput}
-              value={prodotto.costo ? String(prodotto.costo) : ''}
+              value={costoText}
               onChangeText={handleCostChange}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor="#B0B0A0"
+              onBlur={commitCost}
+              onEndEditing={commitCost}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor="#B8B0A0"
+              testID="supplier-cost-input"
             />
           </View>
         </View>
 
-        <Ionicons name="arrow-forward" size={14} color="#7A9090" />
+        <View style={ps.arrowWrap}>
+          <Ionicons name="arrow-forward" size={18} color="#1E7F85" />
+        </View>
 
-        {/* Prezzo */}
+        {/* PREZZO */}
         <View style={ps.priceField}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={ps.priceLabel}>{t('supplier.price') || 'Prezzo'}</Text>
+          <View style={ps.priceLabelRow}>
+            <Text style={ps.priceLabel}>{t('supplier.price') || 'PREZZO'}</Text>
             {prodotto.prezzoOverwrite ? (
               <TouchableOpacity onPress={handleResetOverwrite} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
-                <Ionicons name="refresh" size={11} color="#1E7F85" />
+                <Ionicons name="refresh" size={13} color="#1E7F85" />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -421,28 +497,39 @@ const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoMedio, onChan
             <Text style={ps.eur}>€</Text>
             <TextInput
               style={ps.priceInput}
-              value={prodotto.prezzo ? String(prodotto.prezzo) : (prezzoSuggerito ? String(prezzoSuggerito) : '')}
+              value={prezzoText}
               onChangeText={handlePriceChange}
-              keyboardType="numeric"
-              placeholder={String(prezzoSuggerito || 0)}
-              placeholderTextColor="#B0B0A0"
+              onBlur={commitPrice}
+              onEndEditing={commitPrice}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor="#B8B0A0"
+              testID="supplier-price-input"
             />
           </View>
-          {prodotto.prezzoOverwrite ? (
-            <Text style={ps.overrideHint}>{t('supplier.priceOverride') || 'Manuale'}</Text>
-          ) : prodotto.costo ? (
-            <Text style={ps.suggestedHint}>{`+${ricaricoMedio}%`}</Text>
-          ) : null}
         </View>
       </View>
 
-      <TouchableOpacity
-        onPress={onDelete}
-        style={ps.delBtn}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="close-circle" size={20} color="#D46A6A" />
-      </TouchableOpacity>
+      {/* Riga 3: indicatore ricarico effettivo */}
+      {ricaricoEffettivo !== null && (
+        <View style={ps.markupRow}>
+          {prodotto.prezzoOverwrite ? (
+            <View style={[ps.markupBadge, ps.markupBadgeManual]}>
+              <Ionicons name="create-outline" size={12} color="#FFF" />
+              <Text style={ps.markupBadgeTxt}>
+                {(t('supplier.priceOverride') || 'Manuale')} · +{ricaricoEffettivo.toFixed(1)}%
+              </Text>
+            </View>
+          ) : (
+            <View style={[ps.markupBadge, ps.markupBadgeAuto]}>
+              <Ionicons name="trending-up" size={12} color="#FFF" />
+              <Text style={ps.markupBadgeTxt}>
+                {(t('supplier.markupAuto') || 'Auto')} · +{ricaricoEffettivo.toFixed(1)}%
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -551,53 +638,90 @@ const s = StyleSheet.create({
 });
 
 const ps = StyleSheet.create({
+  // ─── Card-row del prodotto ──────────────────────────────────────────
+  // Layout verticale: nome → COSTO+PREZZO → badge ricarico
+  // Padding/font generosi come richiesto dall'utente.
   row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     backgroundColor: '#FFFAEC',
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 8,
-    gap: 8,
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E5DECF',
   },
+  // Riga 1: nome prodotto + cestino
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nameInput: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#1A4040',
-    paddingVertical: 4,
-    paddingHorizontal: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: '#FFF',
-    borderRadius: 8,
-    minHeight: 36,
+    borderRadius: 10,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: '#E5DECF',
   },
-  priceCol: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  priceField: { alignItems: 'center', minWidth: 64 },
-  priceLabel: { fontSize: 9, fontWeight: '800', color: '#7A9090', letterSpacing: 0.5 },
+  delBtn: { padding: 4 },
+
+  // Riga 2: Costo → Prezzo (allineati con flex 1 / 1 + freccia centrale)
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  priceField: {
+    flex: 1,        // Allineamento perfetto: i due box hanno la STESSA larghezza
+    minWidth: 0,    // Evita overflow su schermi stretti
+  },
+  priceLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  priceLabel: { fontSize: 11, fontWeight: '900', color: '#7A9090', letterSpacing: 0.8 },
+
+  // Box di input GRANDE — padding generoso, font da 18 (era 13)
   priceInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 2,
     borderColor: '#E5DECF',
-    marginTop: 2,
+    minHeight: 52,    // ≥ 48 = touch target Android, ≥ 44 = iOS
   },
-  priceInputBoxOverride: { borderColor: '#D4AF37' },
-  eur: { fontSize: 11, color: '#7A9090', fontWeight: '700' },
+  priceInputBoxOverride: { borderColor: '#D4AF37', backgroundColor: '#FFF8E6' },
+  eur: { fontSize: 16, color: '#7A9090', fontWeight: '800', marginRight: 4 },
   priceInput: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 18,
     fontWeight: '900',
     color: '#1A4040',
-    minWidth: 36,
-    paddingVertical: 2,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
+
+  // Freccia centrale tra costo e prezzo
+  arrowWrap: {
+    paddingBottom: 14,   // così la freccia è centrata sul box (label + input)
     paddingHorizontal: 2,
   },
-  overrideHint: { fontSize: 8, color: '#D4AF37', fontWeight: '900', marginTop: 2, letterSpacing: 0.5 },
-  suggestedHint: { fontSize: 8, color: '#1E7F85', fontWeight: '900', marginTop: 2 },
-  delBtn: { padding: 2 },
+
+  // Badge ricarico effettivo (riga 3)
+  markupRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+  markupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  markupBadgeAuto: { backgroundColor: '#1E7F85' },
+  markupBadgeManual: { backgroundColor: '#D4AF37' },
+  markupBadgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
 });
 
 const ms = StyleSheet.create({
