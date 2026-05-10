@@ -28,7 +28,7 @@ import * as Sharing from 'expo-sharing';
 import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 import { RoleGuard } from '../../src/components/RoleGuard';
-import { calcolaCostoMerceProporzionale } from '../../src/utils/proporzionaleFornitori';
+import { calcolaCostoMerceProporzionale, calcolaCostoMerceProporzionalePerFornitore } from '../../src/utils/proporzionaleFornitori';
 
 const { width: screenW } = Dimensions.get('window');
 
@@ -499,6 +499,58 @@ function StatsScreenInner() {
     }, 0);
   }, [filteredData, costoMerceProporzionaleMap]);
 
+  /* ═══════════════════════════════════════════════════════════════════
+     RIPARTIZIONE PER FORNITORE (Round 38 — Spec utente):
+     "Il costo della merce ripartita va messo giornalmente nelle spese
+      extra del fornitore di riferimento, e quindi tolto dall'utile."
+     ─────────────────────────────────────────────────────────────────
+     Calcola:
+      1. `costoMerceProporzionalePerFornMap`: { forn → { 'YYYY-MM-DD' → quota } }
+         per TUTTI i giorni dello storico, escludendo fornitori DAILY
+         (già detratti in g.netto al momento del Salva Giornata).
+      2. `costoMerceProporzPerFornPeriodo`: { forn → totaleProporzionato }
+         filtrato al periodo correntemente visualizzato. Σ = `totCostoMerceProp`.
+      3. `costoMerceDailyPerFornFiltered`: lista giorni/€ per visualizzare
+         la distribuzione giornaliera dentro l'espansione di ogni fornitore.
+     ───────────────────────────────────────────────────────────────── */
+  const costoMerceProporzionalePerFornMap = useMemo(() => {
+    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }> = {};
+    (fornitori || []).forEach((f: any) => {
+      if (!f || !f.nome) return;
+      fornCfg[f.nome] = { mode: f.deductionMode, days: f.deductionDays };
+    });
+    const full = calcolaCostoMerceProporzionalePerFornitore(
+      (storicoGiornate || []) as any,
+      fornCfg
+    );
+    // Filtra fuori i fornitori DAILY (già in g.netto, evita double-counting)
+    const customOnly: Record<string, Record<string, number>> = {};
+    Object.entries(full).forEach(([forn, daysMap]) => {
+      const cfg = fornCfg[forn];
+      const mode = cfg?.mode || 'DAILY';
+      if (mode === 'DAILY') return;
+      customOnly[forn] = daysMap;
+    });
+    return customOnly;
+  }, [storicoGiornate, fornitori]);
+
+  /** Per ogni fornitore CUSTOM, somma € distribuiti nei giorni del periodo selezionato. */
+  const costoMerceProporzPerFornPeriodo = useMemo(() => {
+    const out: Record<string, number> = {};
+    const periodKeys = new Set<string>();
+    filteredData.forEach((g) => {
+      try { periodKeys.add(new Date(g.data).toISOString().slice(0, 10)); } catch {}
+    });
+    Object.entries(costoMerceProporzionalePerFornMap).forEach(([forn, daysMap]) => {
+      let tot = 0;
+      Object.entries(daysMap).forEach(([day, val]) => {
+        if (periodKeys.has(day)) tot += val;
+      });
+      if (tot > 0.5) out[forn] = tot;
+    });
+    return out;
+  }, [costoMerceProporzionalePerFornMap, filteredData]);
+
   const totLordo = arrSum(filteredData.map((g) => g.lordo || 0));
   /* Netto: prima usavamo `g.netto` calcolato in home con solo DAILY costs.
      Ora dobbiamo SOTTRARRE anche la quota proporzionale CUSTOM per
@@ -752,6 +804,19 @@ function StatsScreenInner() {
     Object.entries(perVoce).forEach(([nome, val], i) => {
       items.push({ label: nome, value: Math.round(val), color: PALETTE[i % PALETTE.length] });
     });
+    // ═══ COSTO MERCE RIPARTITO PER FORNITORE (Round 38) ═══
+    // Per ogni fornitore con modalità CUSTOM, mostra la quota proporzionata
+    // distribuita nel periodo come voce di "Spese Extra" → l'utente la vede
+    // come una spesa giornaliera del singolo fornitore.
+    Object.entries(costoMerceProporzPerFornPeriodo).forEach(([forn, importo]) => {
+      const rounded = Math.round(importo);
+      if (rounded <= 0) return;
+      items.push({
+        label: `Forn. ${forn}`,
+        value: rounded,
+        color: PALETTE[(items.length + 2) % PALETTE.length],
+      });
+    });
     if (totInvenduto > 0) {
       items.push({ label: t('stats.unsold'), value: totInvenduto, color: '#D46A6A' });
     }
@@ -761,7 +826,7 @@ function StatsScreenInner() {
       if (totSpeseExtra > 0) items.push({ label: t('stats.extraExpenses'), value: totSpeseExtra, color: PALETTE[1] });
     }
     return items.filter((i) => i.value > 0);
-  }, [filteredData, t]);
+  }, [filteredData, t, costoMerceProporzPerFornPeriodo]);
 
   // Calcolo totali fornitori: fatturata vs libera
   const fornitoriTotals = useMemo(() => {
@@ -1658,6 +1723,85 @@ function StatsScreenInner() {
                             ))}
                           </View>
                         </View>
+
+                        {/* ═══ COSTO MERCE GIORNALIERO PROPORZIONALE (Round 38) ═══
+                            "Il costo della merce ripartita va messo giornalmente nelle
+                             spese extra del fornitore di riferimento."
+                            Mostriamo per ogni giornata del periodo selezionato
+                            la quota ponderata di costo merce attribuita a
+                            QUESTO fornitore (algoritmo proporzionale al lordo
+                            giornaliero). Σ = importo fattura del periodo. */}
+                        {(() => {
+                          const dailyMap = costoMerceProporzionalePerFornMap[f.nome] || {};
+                          // Solo i giorni del periodo filtrato
+                          const rows: { day: string; importo: number; lordo: number; iso: string }[] = [];
+                          filteredData
+                            .slice()
+                            .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
+                            .forEach((g) => {
+                              try {
+                                const iso = new Date(g.data).toISOString().slice(0, 10);
+                                const imp = dailyMap[iso] || 0;
+                                if (imp <= 0.5) return;
+                                const d = new Date(g.data);
+                                rows.push({
+                                  iso,
+                                  day: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+                                  importo: imp,
+                                  lordo: g.lordo || 0,
+                                });
+                              } catch {}
+                            });
+                          if (rows.length === 0) return null;
+                          const totRipartito = rows.reduce((s, r) => s + r.importo, 0);
+                          const maxImp = Math.max(...rows.map((r) => r.importo), 1);
+                          return (
+                            <View style={{
+                              marginTop: 10,
+                              backgroundColor: '#FFF7E8',
+                              borderRadius: 14,
+                              padding: 12,
+                              borderLeftWidth: 3,
+                              borderLeftColor: '#E8A060',
+                            }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                <Ionicons name="trending-up" size={14} color="#B86A1F" />
+                                <Text style={{ flex: 1, fontSize: 10, fontWeight: '900', color: '#8A6A1F', letterSpacing: 0.8 }}>
+                                  COSTO MERCE GIORNALIERO RIPARTITO
+                                </Text>
+                                <Text style={{ fontSize: 11, fontWeight: '900', color: '#B86A1F' }}>
+                                  €{totRipartito.toFixed(0)}
+                                </Text>
+                              </View>
+                              <Text style={{ fontSize: 9, color: '#8A6A1F', fontStyle: 'italic', marginBottom: 8 }}>
+                                Quota della fattura distribuita proporzionalmente al lordo di ciascun giorno
+                                (detratta dall'utile).
+                              </Text>
+                              {/* Lista compatta: data — barra — importo */}
+                              <View style={{ gap: 5 }}>
+                                {rows.slice(0, 10).map((r) => {
+                                  const pctW = Math.max(8, (r.importo / maxImp) * 100);
+                                  return (
+                                    <View key={r.iso} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                      <Text style={{ width: 38, fontSize: 9.5, fontWeight: '800', color: '#5A4A2A' }}>{r.day}</Text>
+                                      <View style={{ flex: 1, height: 10, backgroundColor: '#F5E8C8', borderRadius: 5, overflow: 'hidden' }}>
+                                        <View style={{ width: `${pctW}%`, height: '100%', backgroundColor: '#E8A060', borderRadius: 5 }} />
+                                      </View>
+                                      <Text style={{ width: 50, textAlign: 'right', fontSize: 10, fontWeight: '900', color: '#B86A1F' }}>
+                                        €{r.importo.toFixed(2)}
+                                      </Text>
+                                    </View>
+                                  );
+                                })}
+                                {rows.length > 10 && (
+                                  <Text style={{ fontSize: 9, color: '#8A6A1F', fontStyle: 'italic', textAlign: 'center', marginTop: 4 }}>
+                                    +{rows.length - 10} giornate non mostrate
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          );
+                        })()}
                       </View>
                     )}
                   </View>

@@ -57,7 +57,7 @@ export function monthKey(d: Date | string): string {
 // ─────────────────────────────────────────────────────────────────────
 // Tipo: voce fornitore con flag di periodicità
 // ─────────────────────────────────────────────────────────────────────
-export type DeductionMode = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type DeductionMode = 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY';
 
 export interface VoceFornitorePeriodo {
   /** Nome del fornitore (es. "Andrea Pane") */
@@ -113,6 +113,117 @@ export function distribuisciFatturaProporzionalmente(
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// AGGREGATO PER FORNITORE: per ogni fornitore, calcola la quota di
+// costo merce distribuita su ciascun giorno. È la primitiva di base:
+// il totale per-giorno (`calcolaCostoMerceProporzionale`) è la somma
+// di tutte le mappe per-fornitore.
+// ─────────────────────────────────────────────────────────────────────
+/**
+ * Restituisce mappa: { [nomeFornitore]: { 'YYYY-MM-DD': quotaGiornaliera } }.
+ *
+ * Usata da `stats.tsx` per:
+ *   1. visualizzare, dentro l'espansione di ogni fornitore, la
+ *      distribuzione "spese extra giornaliera" della sua fattura;
+ *   2. addizionare ogni fornitore come voce a sé nell'areogramma
+ *      "SPESE EXTRA" (l'utente le vede come spese del singolo fornitore).
+ *
+ * Le regole di periodicità (DAILY / CUSTOM / WEEKLY legacy / MONTHLY legacy)
+ * sono identiche a `calcolaCostoMerceProporzionale`.
+ */
+export function calcolaCostoMerceProporzionalePerFornitore(
+  tutteLeGiornate: Giornata[],
+  fornitoriConfig?: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }>
+): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  if (!Array.isArray(tutteLeGiornate)) return out;
+
+  // Bucket per evitare di distribuire DUE volte la stessa fattura
+  type Bucket = { fornitore: string; mode: DeductionMode; periodKey: string; importo: number; data: Date; days?: number };
+  const buckets = new Map<string, Bucket>();
+
+  // Pre-ordina le giornate per data (servirà per CUSTOM)
+  const sortedGiornate = [...tutteLeGiornate].sort(
+    (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
+  );
+
+  tutteLeGiornate.forEach((g) => {
+    const det = g.dettaglio_fornitori || {};
+    const ded = g.dettaglio_fornitori_deduction || {};
+    const dedDays = g.dettaglio_fornitori_days || {};
+    Object.entries(det).forEach(([nomeForn, importo]) => {
+      const imp = Number(importo) || 0;
+      if (imp <= 0) return;
+      if (nomeForn.includes('__libera')) return;
+
+      const supplierCfg = fornitoriConfig?.[nomeForn];
+      const rawMode = supplierCfg?.mode || (ded[nomeForn] as DeductionMode) || 'DAILY';
+      let mode: DeductionMode;
+      let customDays: number | undefined;
+      if (rawMode === 'DAILY') {
+        mode = 'DAILY';
+      } else if (rawMode === 'CUSTOM') {
+        mode = 'CUSTOM';
+        customDays = supplierCfg?.days || dedDays[nomeForn] || 7;
+      } else if (rawMode === 'WEEKLY') {
+        mode = 'CUSTOM';
+        customDays = supplierCfg?.days || dedDays[nomeForn] || 7;
+      } else {
+        mode = 'CUSTOM';
+        customDays = supplierCfg?.days || dedDays[nomeForn] || 30;
+      }
+
+      let periodKey: string;
+      if (mode === 'CUSTOM') {
+        periodKey = `${nomeForn}|C|${new Date(g.data).toISOString().slice(0, 10)}|${customDays || 7}`;
+      } else {
+        // DAILY (le legacy WEEKLY/MONTHLY sono state già normalizzate a CUSTOM sopra)
+        periodKey = `${nomeForn}|D|${new Date(g.data).toISOString().slice(0, 10)}`;
+      }
+
+      const existing = buckets.get(periodKey);
+      if (!existing || new Date(g.data).getTime() >= existing.data.getTime()) {
+        buckets.set(periodKey, { fornitore: nomeForn, mode, periodKey, importo: imp, data: new Date(g.data), days: customDays });
+      }
+    });
+  });
+
+  // Distribuisci ogni bucket sul giorno/periodo, accumulando per fornitore
+  const addQuota = (forn: string, day: string, val: number) => {
+    if (!out[forn]) out[forn] = {};
+    out[forn][day] = (out[forn][day] || 0) + val;
+  };
+
+  buckets.forEach((b) => {
+    if (b.mode === 'DAILY') {
+      const k = new Date(b.data).toISOString().slice(0, 10);
+      addQuota(b.fornitore, k, b.importo);
+      return;
+    }
+    if (b.mode === 'CUSTOM') {
+      const N = Math.max(1, Math.min(365, b.days || 7));
+      const startTs = new Date(b.data).getTime();
+      const endTs = startTs + (N - 1) * 24 * 60 * 60 * 1000;
+      const periodGiornate = sortedGiornate.filter((g) => {
+        const t = new Date(g.data).getTime();
+        return t >= startTs && t <= endTs;
+      });
+      if (periodGiornate.length === 0) {
+        const k = new Date(b.data).toISOString().slice(0, 10);
+        addQuota(b.fornitore, k, b.importo);
+        return;
+      }
+      const quote = distribuisciFatturaProporzionalmente(periodGiornate, b.importo);
+      Object.entries(quote).forEach(([k, v]) => addQuota(b.fornitore, k, v));
+      return;
+    }
+    // Nessun altro mode possibile: WEEKLY/MONTHLY legacy sono stati normalizzati
+    // a CUSTOM nel blocco di parsing iniziale.
+  });
+
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // AGGREGATO: per tutte le giornate di un set, calcola il costo merce
 // proporzionale considerando TUTTE le fatture WEEKLY/MONTHLY/CUSTOM presenti.
 // ─────────────────────────────────────────────────────────────────────
@@ -141,120 +252,13 @@ export function calcolaCostoMerceProporzionale(
   fornitoriConfig?: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }>
 ): Record<string, number> {
   const out: Record<string, number> = {};
-  if (!Array.isArray(tutteLeGiornate)) return out;
-
-  // Indici per ricerca rapida
-  const byWeek: Record<string, Giornata[]> = {};
-  const byMonth: Record<string, Giornata[]> = {};
-  tutteLeGiornate.forEach((g) => {
-    const wk = isoWeekKey(g.data);
-    const mo = monthKey(g.data);
-    (byWeek[wk] = byWeek[wk] || []).push(g);
-    (byMonth[mo] = byMonth[mo] || []).push(g);
-  });
-
-  // Estrai TUTTE le voci fornitore con la loro modalità di detrazione
-  // e raggruppa per (fornitore, periodKey, mode) per evitare di
-  // distribuire DUE volte la stessa fattura — l'utente potrebbe aver
-  // re-inserito la stessa fattura su giornate diverse della stessa
-  // settimana (in quel caso vince l'ULTIMA registrazione).
-  type Bucket = { fornitore: string; mode: DeductionMode; periodKey: string; importo: number; data: Date; days?: number };
-  const buckets = new Map<string, Bucket>();
-
-  // Pre-ordina le giornate per data (servirà per CUSTOM)
-  const sortedGiornate = [...tutteLeGiornate].sort(
-    (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
-  );
-
-  tutteLeGiornate.forEach((g) => {
-    const det = g.dettaglio_fornitori || {};
-    const ded = g.dettaglio_fornitori_deduction || {};
-    const dedDays = g.dettaglio_fornitori_days || {};
-    Object.entries(det).forEach(([nomeForn, importo]) => {
-      const imp = Number(importo) || 0;
-      if (imp <= 0) return;
-      // Skippa le sotto-chiavi tecniche tipo "__libera"
-      if (nomeForn.includes('__libera')) return;
-
-      // ─── PRIORITÀ DEL MODE/DAYS ───
-      // 1. fornitoriConfig (single source of truth, es. dal Settings/SpeseModal)
-      // 2. dettaglio_fornitori_deduction salvato sulla giornata (legacy/snapshot)
-      // 3. fallback DAILY
-      const supplierCfg = fornitoriConfig?.[nomeForn];
-      const rawMode = supplierCfg?.mode || (ded[nomeForn] as DeductionMode) || 'DAILY';
-      // Normalizza: WEEKLY/MONTHLY legacy → CUSTOM (con 7g/30g rispettivamente)
-      let mode: DeductionMode;
-      let customDays: number | undefined;
-      if (rawMode === 'DAILY') {
-        mode = 'DAILY';
-      } else if (rawMode === 'CUSTOM') {
-        mode = 'CUSTOM';
-        customDays = supplierCfg?.days || dedDays[nomeForn] || 7;
-      } else if (rawMode === 'WEEKLY') {
-        mode = 'CUSTOM';
-        customDays = supplierCfg?.days || dedDays[nomeForn] || 7;
-      } else {
-        // MONTHLY legacy → CUSTOM 30g
-        mode = 'CUSTOM';
-        customDays = supplierCfg?.days || dedDays[nomeForn] || 30;
-      }
-
-      let periodKey: string;
-      if (mode === 'CUSTOM') {
-        // Per CUSTOM: chiave per fornitore + data → ogni fattura registrata
-        // viene distribuita sul proprio periodo di N giorni (NON aggreghiamo
-        // per settimana ISO o mese di calendario).
-        periodKey = `${nomeForn}|C|${new Date(g.data).toISOString().slice(0, 10)}|${customDays || 7}`;
-      } else if (mode === 'WEEKLY') {
-        periodKey = `${nomeForn}|W|${isoWeekKey(g.data)}`;
-      } else if (mode === 'MONTHLY') {
-        periodKey = `${nomeForn}|M|${monthKey(g.data)}`;
-      } else {
-        periodKey = `${nomeForn}|D|${new Date(g.data).toISOString().slice(0, 10)}`;
-      }
-
-      const existing = buckets.get(periodKey);
-      if (!existing || new Date(g.data).getTime() >= existing.data.getTime()) {
-        buckets.set(periodKey, { fornitore: nomeForn, mode, periodKey, importo: imp, data: new Date(g.data), days: customDays });
-      }
+  // Delega alla primitiva per-fornitore e somma per giornata.
+  const perForn = calcolaCostoMerceProporzionalePerFornitore(tutteLeGiornate, fornitoriConfig);
+  Object.values(perForn).forEach((daysMap) => {
+    Object.entries(daysMap).forEach(([day, amount]) => {
+      out[day] = (out[day] || 0) + amount;
     });
   });
-
-  // Ora distribuisci ogni bucket
-  buckets.forEach((b) => {
-    if (b.mode === 'DAILY') {
-      const k = new Date(b.data).toISOString().slice(0, 10);
-      out[k] = (out[k] || 0) + b.importo;
-      return;
-    }
-    if (b.mode === 'CUSTOM') {
-      // Distribuisci su N giorni a partire dalla data di registrazione (incluso)
-      const N = Math.max(1, Math.min(365, b.days || 7));
-      const startTs = new Date(b.data).getTime();
-      const endTs = startTs + (N - 1) * 24 * 60 * 60 * 1000;
-      // Trova le giornate in `sortedGiornate` che cadono in [start, end]
-      const periodGiornate = sortedGiornate.filter((g) => {
-        const t = new Date(g.data).getTime();
-        return t >= startTs && t <= endTs;
-      });
-      if (periodGiornate.length === 0) {
-        // Nessun lordo registrato in quei giorni: assegna interamente al
-        // giorno della fattura (fallback prudente)
-        const k = new Date(b.data).toISOString().slice(0, 10);
-        out[k] = (out[k] || 0) + b.importo;
-        return;
-      }
-      const quote = distribuisciFatturaProporzionalmente(periodGiornate, b.importo);
-      Object.entries(quote).forEach(([k, v]) => { out[k] = (out[k] || 0) + v; });
-      return;
-    }
-    // Legacy WEEKLY/MONTHLY (non dovrebbe accadere dopo la normalizzazione)
-    const periodGiornate = b.mode === 'WEEKLY' ? byWeek[isoWeekKey(b.data)] : byMonth[monthKey(b.data)];
-    if (!periodGiornate || periodGiornate.length === 0) return;
-    const quote = distribuisciFatturaProporzionalmente(periodGiornate, b.importo);
-    Object.entries(quote).forEach(([k, v]) => { out[k] = (out[k] || 0) + v; });
-  });
-
   return out;
 }
 
