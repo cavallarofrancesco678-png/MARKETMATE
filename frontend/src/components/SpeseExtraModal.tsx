@@ -110,24 +110,53 @@ export const SpeseExtraModal: React.FC<Props> = ({
   const toggleVoce = (idx: number) =>
     setExpandedVoce(prev => ({ ...prev, [idx]: !prev[idx] }));
 
-  // Local state for input values to prevent re-render losing characters
+  // Local state for input values to prevent re-render losing characters.
+  // ⚠️ Round 41: snapshot LIVE del parent (speseExtraFornitore) cosi le
+  // modifiche esterne (es. caricamento sessione) si propagano subito agli
+  // input quando il modal è aperto. Tutti gli onChangeText scrivono PRIMA
+  // sul parent (debounce) e POI aggiornano localImporti per il rendering
+  // del TextInput. Questo evita il bug "valore sparisce dopo blur" perché
+  // la sorgente di verità è SEMPRE il parent.
   const [localImporti, setLocalImporti] = useState<Record<string, string>>({});
 
-  // Sync local state when modal opens
+  // Sync local state when modal opens AND when parent speseExtraFornitore
+  // changes (es. dopo restore di sessione): rebuild i valori da parent.
+  // Round 41: aggiungiamo `speseExtraFornitore` alla dependency array.
   useEffect(() => {
     if (visible) {
       const initial: Record<string, string> = {};
+      // Carica TUTTE le chiavi da parent (sia fattura che __libera) — non
+      // solo le entry su fornitori conosciuti. Ciò evita che switch
+      // contanti↔fattura mostri campi vuoti.
+      Object.entries(speseExtraFornitore).forEach(([k, v]) => {
+        if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+        initial[k] = v?.importo || '';
+      });
+      // Garantisci che ogni fornitore visibile abbia almeno una key
+      // inizializzata (vuota) per evitare re-init successivi.
       fornitori.forEach(f => {
-        initial[f.nome] = speseExtraFornitore[f.nome]?.importo || '';
+        if (initial[f.nome] === undefined) initial[f.nome] = '';
+        const lk = `${f.nome}__libera`;
+        if (initial[lk] === undefined) initial[lk] = '';
       });
       setLocalImporti(initial);
     }
-  }, [visible]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, speseExtraFornitore]);
 
   const updateEntry = (key: string, field: 'importo' | 'periodo', value: string) => {
     if (field === 'importo') {
-      // Update local state only for typing
+      // Round 41 fix: aggiorna IMMEDIATAMENTE entrambi gli stati
+      // (locale + parent) ad ogni keystroke. In questo modo se l'utente
+      // preme "Salva Giornata" SENZA fare blur prima, il salvataggio
+      // legge sempre il valore aggiornato dal parent. Risolve il bug
+      // segnalato: "metto importo in fattura ma non lo tiene".
       setLocalImporti(prev => ({ ...prev, [key]: value }));
+      const current = speseExtraFornitore[key] || { importo: '', periodo: 'giornaliero' };
+      setSpeseExtraFornitore({
+        ...speseExtraFornitore,
+        [key]: { ...current, importo: value },
+      });
     } else {
       // For periodo changes, update parent directly
       const current = speseExtraFornitore[key] || { importo: localImporti[key] || '', periodo: 'giornaliero' };

@@ -30,6 +30,13 @@ interface Props {
   // Info extra per hint (totali WEEKLY/MONTHLY accantonati)
   fornitoriWeekly?: number;
   fornitoriMonthly?: number;
+  /**
+   * Round 41: Totale fatture CUSTOM (periodo personalizzato) inserite oggi.
+   * NON detratta da utile di oggi (è distribuita sui prossimi N giorni in
+   * Statistiche), ma mostrata come riga informativa così l'utente vede
+   * subito che la spesa è stata registrata.
+   */
+  fornitoriCustom?: number;
   invenduto: number;
   excludeInvenduto: boolean;
   toggleExcludeInvenduto: () => void;
@@ -80,7 +87,7 @@ export const UtileModal: React.FC<Props> = ({
   collabCosto, excludeCollaboratori, toggleExcludeCollaboratori,
   speseExtra, excludeSpeseExtra, toggleExcludeSpeseExtra,
   fornitoriDaily, excludeFornitori, toggleExcludeFornitori,
-  fornitoriWeekly = 0, fornitoriMonthly = 0,
+  fornitoriWeekly = 0, fornitoriMonthly = 0, fornitoriCustom = 0,
   invenduto, excludeInvenduto, toggleExcludeInvenduto,
   utile, lordo,
 }) => {
@@ -117,9 +124,17 @@ export const UtileModal: React.FC<Props> = ({
       value: fornitoriDaily,
       excluded: excludeFornitori,
       onToggle: toggleExcludeFornitori,
-      hint: (fornitoriWeekly + fornitoriMonthly) > 0
-        ? `+ €${fornitoriWeekly} settim. + €${fornitoriMonthly} mens. scalati in Statistiche`
-        : undefined,
+      hint: (() => {
+        const parts: string[] = [];
+        if (fornitoriCustom > 0) {
+          parts.push(`+ €${fornitoriCustom.toFixed(0)} accantonati (distribuiti su più giorni)`);
+        }
+        const wm = fornitoriWeekly + fornitoriMonthly;
+        if (wm > 0 && fornitoriCustom === 0) {
+          parts.push(`+ €${fornitoriWeekly} settim. + €${fornitoriMonthly} mens. scalati in Statistiche`);
+        }
+        return parts.length > 0 ? parts.join(' · ') : undefined;
+      })(),
     },
     {
       label: 'SPESE EXTRA',

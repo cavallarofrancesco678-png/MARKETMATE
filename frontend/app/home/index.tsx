@@ -2201,6 +2201,7 @@ export default function HomeScreen() {
         toggleExcludeFornitori={() => setExcludeFornitori(!excludeFornitori)}
         fornitoriWeekly={speseExtraFornWeekly}
         fornitoriMonthly={speseExtraFornMonthly}
+        fornitoriCustom={speseExtraFornCustom}
         invenduto={parseFloat(invenduto.replace(',', '.')) || 0}
         excludeInvenduto={excludeInvenduto}
         toggleExcludeInvenduto={() => setExcludeInvenduto(!excludeInvenduto)}
