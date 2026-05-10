@@ -112,8 +112,12 @@ export default function HomeScreen() {
   const [fornInfo, setFornInfo] = useState<Record<string, { numeroFattura: string; scadenza: string }>>({});
   const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'custom'; from: string; to: string }>>({});
   const [pagamentoMode, setPagamentoMode] = useState<Record<string, 'contanti' | 'fattura' | 'misto'>>({});
-  // Tipo di detrazione per fornitore: DAILY (default) | WEEKLY | MONTHLY
-  const [fornDeductionType, setFornDeductionType] = useState<Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>>({});
+  // Tipo di detrazione per fornitore: DAILY (default) | CUSTOM
+  // Backwards-compat: i valori legacy 'WEEKLY' e 'MONTHLY' vengono accettati
+  // dal modello Giornata e mappati a CUSTOM (7g / 30g) all'apertura.
+  const [fornDeductionType, setFornDeductionType] = useState<Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'>>({});
+  // Numero di giorni del periodo personalizzato (CUSTOM). Default 7 quando assente.
+  const [fornDeductionDays, setFornDeductionDays] = useState<Record<string, number>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
   
@@ -234,6 +238,7 @@ export default function HomeScreen() {
         setPagamentoMode(stored.pagamentoMode || {});
         setRipartizione(stored.ripartizione || {});
         setFornDeductionType(stored.fornDeductionType || {});
+        setFornDeductionDays((stored as any).fornDeductionDays || {});
       } else {
         (store as any).clearSpeseExtraSession?.();
       }
@@ -265,7 +270,8 @@ export default function HomeScreen() {
       const hasRipart = Object.keys(ripartizione || {}).length > 0;
       const hasMode = Object.keys(pagamentoMode || {}).length > 0;
       const hasDed = Object.keys(fornDeductionType || {}).length > 0;
-      if (!hasSupplierData && !hasVoci && !hasFornInfo && !hasRipart && !hasMode && !hasDed) {
+      const hasDays = Object.keys(fornDeductionDays || {}).length > 0;
+      if (!hasSupplierData && !hasVoci && !hasFornInfo && !hasRipart && !hasMode && !hasDed && !hasDays) {
         if ((store as any).speseExtraSession) (store as any).clearSpeseExtraSession?.();
         return;
       }
@@ -280,12 +286,13 @@ export default function HomeScreen() {
         pagamentoMode,
         ripartizione,
         fornDeductionType,
+        fornDeductionDays,
         createdAt,
       });
     }, 600);
     return () => { if (speseExtraSaveTimerRef.current) clearTimeout(speseExtraSaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speseExtraFornitore, vociGeneriche, fornInfo, pagamentoMode, ripartizione, fornDeductionType]);
+  }, [speseExtraFornitore, vociGeneriche, fornInfo, pagamentoMode, ripartizione, fornDeductionType, fornDeductionDays]);
 
   /* ── Funzione per caricare i dati salvati di una data ── */
   const loadSavedData = useCallback((targetDate: Date) => {
@@ -364,8 +371,26 @@ export default function HomeScreen() {
       }
       // Carica fornitori info (numero fattura + scadenza)
       setFornInfo((saved as any).fornitoriInfo || {});
-      // Carica deduction type per fornitore (default DAILY se non salvato)
-      setFornDeductionType((saved as any).dettaglio_fornitori_deduction || {});
+      // Carica deduction type per fornitore + giorni custom (default DAILY)
+      // Backwards-compat: se ci sono valori legacy 'WEEKLY'/'MONTHLY', li
+      // mappiamo a CUSTOM 7g/30g e li reinvieremo aggiornati al prossimo save.
+      const savedDed = (saved as any).dettaglio_fornitori_deduction || {};
+      const savedDays = (saved as any).dettaglio_fornitori_days || {};
+      const migratedDed: Record<string, 'DAILY' | 'CUSTOM'> = {};
+      const migratedDays: Record<string, number> = { ...savedDays };
+      Object.entries(savedDed).forEach(([nome, mode]) => {
+        if (mode === 'WEEKLY') {
+          migratedDed[nome] = 'CUSTOM';
+          if (!migratedDays[nome]) migratedDays[nome] = 7;
+        } else if (mode === 'MONTHLY') {
+          migratedDed[nome] = 'CUSTOM';
+          if (!migratedDays[nome]) migratedDays[nome] = 30;
+        } else {
+          migratedDed[nome] = (mode === 'CUSTOM' ? 'CUSTOM' : 'DAILY');
+        }
+      });
+      setFornDeductionType(migratedDed);
+      setFornDeductionDays(migratedDays);
       // Ripristina le voci generiche (spese extra dettagliate)
       if ((saved as any).dettaglio_spese_extra && Object.keys((saved as any).dettaglio_spese_extra).length > 0) {
         const voci = Object.entries((saved as any).dettaglio_spese_extra).map(([nome, val]) => ({
@@ -696,7 +721,8 @@ export default function HomeScreen() {
     });
     fornitoriNomi.forEach((nomeBase) => {
       // Solo i fornitori DAILY (default) vengono detratti dal netto del giorno.
-      // WEEKLY e MONTHLY sono accantonati e mostrati in Statistiche.
+      // CUSTOM (e i legacy WEEKLY/MONTHLY) sono accantonati e distribuiti
+      // proporzionalmente nei prossimi N giorni — mostrati nelle Statistiche.
       const dedType = fornDeductionType[nomeBase] || 'DAILY';
       if (dedType !== 'DAILY') return;
       const mode = pagamentoMode[nomeBase] || 'contanti';
@@ -711,8 +737,11 @@ export default function HomeScreen() {
     return tot;
   }, [speseExtraFornitore, pagamentoMode, fornDeductionType]);
 
-  /* ── Fornitori del GIORNO accantonati: WEEKLY e MONTHLY separati (per hint UtileModal + AI) ── */
-  const speseExtraFornWeekly = useMemo(() => {
+  /* ── Fornitori CUSTOM (periodo personalizzato) accantonati per oggi ──
+     Sostituisce i vecchi `speseExtraFornWeekly` + `speseExtraFornMonthly`.
+     Include anche i legacy WEEKLY/MONTHLY (mappati a CUSTOM).
+     Usato come hint informativo nell'UtileModal e nell'AI Brief. */
+  const speseExtraFornCustom = useMemo(() => {
     let tot = 0;
     const nomi = new Set<string>();
     Object.keys(speseExtraFornitore).forEach((k) => {
@@ -720,35 +749,26 @@ export default function HomeScreen() {
       nomi.add(k.replace(/__libera$/, ''));
     });
     nomi.forEach((nomeBase) => {
-      if ((fornDeductionType[nomeBase] || 'DAILY') !== 'WEEKLY') return;
-      const mode = pagamentoMode[nomeBase] || 'contanti';
+      const mode = fornDeductionType[nomeBase] || 'DAILY';
+      if (mode === 'DAILY') return; // solo non-DAILY
+      const payMode = pagamentoMode[nomeBase] || 'contanti';
       const impF = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
       const impC = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
-      if (mode === 'contanti') tot += impC;
-      else if (mode === 'fattura') tot += impF;
+      if (payMode === 'contanti') tot += impC;
+      else if (payMode === 'fattura') tot += impF;
       else tot += impF + impC;
     });
     return tot;
   }, [speseExtraFornitore, pagamentoMode, fornDeductionType]);
 
-  const speseExtraFornMonthly = useMemo(() => {
-    let tot = 0;
-    const nomi = new Set<string>();
-    Object.keys(speseExtraFornitore).forEach((k) => {
-      if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
-      nomi.add(k.replace(/__libera$/, ''));
-    });
-    nomi.forEach((nomeBase) => {
-      if ((fornDeductionType[nomeBase] || 'DAILY') !== 'MONTHLY') return;
-      const mode = pagamentoMode[nomeBase] || 'contanti';
-      const impF = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
-      const impC = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
-      if (mode === 'contanti') tot += impC;
-      else if (mode === 'fattura') tot += impF;
-      else tot += impF + impC;
-    });
-    return tot;
-  }, [speseExtraFornitore, pagamentoMode, fornDeductionType]);
+  // ─── Alias di retrocompatibilità: alcuni componenti vecchi (es. UtileModal,
+  //     AI Brief) leggono ancora `speseExtraFornWeekly` / `speseExtraFornMonthly`.
+  //     Manteniamo i nomi ma puntiamo allo stesso valore "custom" così non
+  //     dobbiamo riscrivere quei componenti. La distinzione settimanale/mensile
+  //     non esiste più in UI, ma se serve in stats userà il nuovo periodo
+  //     custom dei `dettaglio_fornitori_days`. ───
+  const speseExtraFornWeekly = speseExtraFornCustom;
+  const speseExtraFornMonthly = 0;
 
   /* ── Spese Extra generiche totale (importo del giorno, NO ripartizione) ── */
   const speseExtraGenTotale = useMemo(() => {
@@ -925,7 +945,8 @@ export default function HomeScreen() {
 
     // ═══ Salva importi INTEGRI (NO ripartizione) ═══
     const dettaglioForn: Record<string, number> = {};
-    const dettaglioFornDed: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'> = {};
+    const dettaglioFornDed: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'> = {};
+    const dettaglioFornDays: Record<string, number> = {};
     const fornitoriNomi = new Set<string>();
     Object.keys(speseExtraFornitore).forEach((k) => {
       if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
@@ -952,7 +973,14 @@ export default function HomeScreen() {
         if (impContanti > 0) { dettaglioForn[`${nomeBase}__libera`] = Math.round(impContanti * 100) / 100; hasAmount = true; }
       }
       // Salva il deduction type sempre (anche solo se c'è importo o se l'utente ha selezionato)
-      if (hasAmount) dettaglioFornDed[nomeBase] = dedType;
+      if (hasAmount) {
+        dettaglioFornDed[nomeBase] = dedType;
+        // Se CUSTOM (o legacy WEEKLY/MONTHLY) salva anche il numero giorni del periodo
+        if (dedType !== 'DAILY') {
+          const days = fornDeductionDays[nomeBase] || (dedType === 'MONTHLY' ? 30 : 7);
+          dettaglioFornDays[nomeBase] = days;
+        }
+      }
     });
 
     // Build dettaglio_spese_extra from vociGeneriche (importo intero, NO ripartizione)
@@ -997,6 +1025,7 @@ export default function HomeScreen() {
       dettaglio_invenduto: dettaglioInv,
       dettaglio_fornitori: dettaglioForn,
       dettaglio_fornitori_deduction: dettaglioFornDed,
+      dettaglio_fornitori_days: dettaglioFornDays,
       dettaglio_spese_extra: dettaglioExtra,
       fornitoriInfo: fornInfo,
       // Stato del pulsante 'casa/storefront': true = sono andato a lavoro,
@@ -2072,6 +2101,8 @@ export default function HomeScreen() {
         setPagamentoMode={setPagamentoMode}
         fornDeductionType={fornDeductionType}
         setFornDeductionType={setFornDeductionType}
+        fornDeductionDays={fornDeductionDays}
+        setFornDeductionDays={setFornDeductionDays}
         weeklyTotalsByForn={weeklyTotalsByForn}
       />
 

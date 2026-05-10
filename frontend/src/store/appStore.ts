@@ -145,10 +145,18 @@ export interface Giornata {
   dettaglio_staff: Record<string, number>;
   dettaglio_invenduto: Record<string, number>;
   dettaglio_fornitori: Record<string, number>;
-  // Mappa: nomeBase -> 'DAILY' | 'WEEKLY' | 'MONTHLY' (default DAILY se assente)
-  // Determina se la spesa fornitore viene detratta dal netto del giorno (DAILY)
-  // oppure accantonata e mostrata solo nel riepilogo periodico (WEEKLY/MONTHLY).
-  dettaglio_fornitori_deduction?: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>;
+  // Mappa: nomeBase -> 'DAILY' | 'CUSTOM' (default DAILY se assente)
+  // - DAILY: detratta interamente dal netto del giorno corrente
+  // - CUSTOM: distribuita proporzionalmente al lordo dei giorni del periodo
+  //   personalizzato (vedi `dettaglio_fornitori_days`). Default 7 giorni se
+  //   non specificato.
+  // Legacy values 'WEEKLY' e 'MONTHLY' sono ancora accettati per retrocompat
+  // e vengono mappati a CUSTOM 7g / 30g rispettivamente al primo load.
+  dettaglio_fornitori_deduction?: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'>;
+  // Mappa: nomeBase -> numero di giorni del periodo personalizzato (CUSTOM).
+  // Esempio: { "Andrea Pane": 14 } → la fattura viene distribuita sui 14
+  // giorni a cavallo della data di registrazione, proporzionalmente al lordo.
+  dettaglio_fornitori_days?: Record<string, number>;
   dettaglio_spese_extra?: Record<string, number>;
   fornitoriInfo?: Record<string, { numeroFattura: string; scadenza: string }>;
   // Indica se l'utente è andato a lavoro in quel giorno (toggle 'casa/storefront')

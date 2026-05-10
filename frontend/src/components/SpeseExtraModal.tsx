@@ -57,9 +57,14 @@ interface Props {
   setFornInfo: (v: Record<string, FornInfoEntry>) => void;
   pagamentoMode: Record<string, 'contanti' | 'fattura' | 'misto'>;
   setPagamentoMode: (v: Record<string, 'contanti' | 'fattura' | 'misto'>) => void;
-  // Frequenza di detrazione per fornitore: DAILY (default) | WEEKLY | MONTHLY
-  fornDeductionType: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>;
-  setFornDeductionType: (v: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY'>) => void;
+  // Frequenza di detrazione per fornitore: DAILY (default) | CUSTOM
+  // Legacy values WEEKLY/MONTHLY accettati per retrocompat e mappati
+  // a CUSTOM con 7/30 giorni rispettivamente all'ingresso del modal.
+  fornDeductionType: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'>;
+  setFornDeductionType: (v: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'>) => void;
+  // Numero di giorni del periodo personalizzato per ciascun fornitore (solo se CUSTOM)
+  fornDeductionDays: Record<string, number>;
+  setFornDeductionDays: (v: Record<string, number>) => void;
   // Totali settimanali per fornitore (Lun-Dom): contanti / fattura
   weeklyTotalsByForn: Record<string, { contanti: number; fattura: number }>;
 }
@@ -75,6 +80,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
   vociGeneriche, setVociGeneriche, fornInfo, setFornInfo,
   pagamentoMode, setPagamentoMode,
   fornDeductionType, setFornDeductionType,
+  fornDeductionDays, setFornDeductionDays,
   weeklyTotalsByForn,
 }) => {
   const { t } = useTranslation();
@@ -312,22 +318,41 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           })}
                         </View>
 
-                        {/* ═══ 3 PILLOLE FREQUENZA DETRAZIONE: GIORNALIERA | SETTIMANALE | MENSILE (no icons, monocolore) ═══ */}
+                        {/* ═══ 2 PILLOLE FREQUENZA: GIORNALIERA | PERSONALIZZA ═══
+                            Richiesta utente: niente più WEEKLY/MONTHLY fissi.
+                            "Personalizza" lascia scegliere il NUMERO DI GIORNI
+                            su cui distribuire proporzionalmente la fattura. */}
                         <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginTop: 10, marginBottom: 4, letterSpacing: 0.5 }}>
                           FREQUENZA DI DETRAZIONE
                         </Text>
                         <View style={{ flexDirection: 'row', gap: 6 }}>
                           {([
                             { key: 'DAILY', label: 'Giornaliera' },
-                            { key: 'WEEKLY', label: 'Settimanale' },
-                            { key: 'MONTHLY', label: 'Mensile' },
+                            { key: 'CUSTOM', label: 'Personalizza' },
                           ] as const).map((opt) => {
-                            const cur = fornDeductionType[f.nome] || 'DAILY';
+                            // Backwards-compat: tratta WEEKLY/MONTHLY come CUSTOM
+                            const stored = fornDeductionType[f.nome] || 'DAILY';
+                            const cur: 'DAILY' | 'CUSTOM' =
+                              stored === 'DAILY' ? 'DAILY' : 'CUSTOM';
                             const on = cur === opt.key;
                             return (
                               <TouchableOpacity
                                 key={opt.key}
-                                onPress={() => setFornDeductionType({ ...fornDeductionType, [f.nome]: opt.key })}
+                                onPress={() => {
+                                  if (opt.key === 'DAILY') {
+                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'DAILY' });
+                                  } else {
+                                    // Switch a CUSTOM. Se non c'è ancora un valore di
+                                    // giorni, prendiamo 7 come default ragionevole
+                                    // (oppure 7/30 in caso di valore legacy WEEKLY/MONTHLY).
+                                    const oldType = fornDeductionType[f.nome];
+                                    const defDays =
+                                      fornDeductionDays[f.nome] ||
+                                      (oldType === 'MONTHLY' ? 30 : 7);
+                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'CUSTOM' });
+                                    setFornDeductionDays({ ...fornDeductionDays, [f.nome]: defDays });
+                                  }
+                                }}
                                 activeOpacity={0.7}
                                 style={{
                                   flex: 1,
@@ -340,19 +365,68 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                   justifyContent: 'center',
                                 }}
                               >
-                                <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
+                                <Text style={{ fontSize: 12, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
                                   {opt.label}
                                 </Text>
                               </TouchableOpacity>
                             );
                           })}
                         </View>
+
+                        {/* ═══ Campo "Periodo" visibile solo se CUSTOM è attivo ═══ */}
                         {(() => {
-                          const cur = fornDeductionType[f.nome] || 'DAILY';
-                          const hint =
-                            cur === 'DAILY' ? 'Detratta dal netto di OGGI' :
-                            cur === 'WEEKLY' ? 'NON detratta oggi · sottratta dal Totale Settimanale (Statistiche)' :
-                            'NON detratta oggi/settimana · sottratta dal Bilancio Mensile (Statistiche)';
+                          const stored = fornDeductionType[f.nome] || 'DAILY';
+                          const isCustom = stored !== 'DAILY';
+                          if (!isCustom) return null;
+                          const days = fornDeductionDays[f.nome] || 7;
+                          return (
+                            <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040', flex: 1 }}>
+                                Periodo
+                              </Text>
+                              <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: '#FFF',
+                                borderRadius: 10,
+                                borderWidth: 2,
+                                borderColor: '#1E7F85',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                minWidth: 80,
+                              }}>
+                                <TextInput
+                                  style={{ flex: 1, fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', paddingVertical: 4 }}
+                                  value={String(days)}
+                                  onChangeText={(v) => {
+                                    const n = parseInt(v.replace(/[^0-9]/g, ''), 10);
+                                    if (!isNaN(n) && n > 0 && n <= 365) {
+                                      setFornDeductionDays({ ...fornDeductionDays, [f.nome]: n });
+                                    } else if (v === '') {
+                                      // Permetti la cancellazione temporanea
+                                      setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 0 });
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    if (!fornDeductionDays[f.nome] || fornDeductionDays[f.nome] < 1) {
+                                      setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 7 });
+                                    }
+                                  }}
+                                  keyboardType="numeric"
+                                  maxLength={3}
+                                />
+                                <Text style={{ fontSize: 12, fontWeight: '800', color: '#1E7F85', marginLeft: 4 }}>gg</Text>
+                              </View>
+                            </View>
+                          );
+                        })()}
+                        {(() => {
+                          const stored = fornDeductionType[f.nome] || 'DAILY';
+                          const isDaily = stored === 'DAILY';
+                          const days = fornDeductionDays[f.nome] || 7;
+                          const hint = isDaily
+                            ? 'Detratta dal netto di OGGI'
+                            : `NON detratta oggi · distribuita proporzionalmente al lordo sui prossimi ${days} giorni`;
                           return (
                             <Text style={{ fontSize: 10, color: '#5A7575', marginTop: 5, fontStyle: 'italic', fontWeight: '600' }}>
                               {hint}
