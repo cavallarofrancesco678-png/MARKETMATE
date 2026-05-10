@@ -31,6 +31,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useTeamSyncStore, roleBackendToUi } from '../../src/store/teamSyncStore';
 import * as Clipboard from 'expo-clipboard';
 import { useTutorialStore } from '../../src/store/tutorialStore';
+import { FornitoreEditor } from '../../src/components/FornitoreEditor';
 import { useTutorialAnchor, useTutorialScrollHelper } from '../../src/store/tutorialLayoutStore';
 import { router } from 'expo-router';
 import { RoleGuard } from '../../src/components/RoleGuard';
@@ -1527,114 +1528,72 @@ function SettingsPageInner() {
         );
       })}
 
-      <Text style={s.secTitle} testID="sett-fornitori-card" ref={anchorFornitori as any}>{t('settings.suppliersTitle') || t('settings.marketsTitle') || 'FORNITORI'}</Text>
+      <Text style={s.secTitle} testID="sett-fornitori-card" ref={anchorFornitori as any}>
+        {t('settings.supplierSettingsTitle') || 'CONFIGURA RICARICHI E PREZZI'}
+      </Text>
 
-      {/* CTA dedicata per la configurazione avanzata fornitori (ricarico % +
-          costo/prezzo prodotti). Apre la schermata SupplierSettings dedicata. */}
-      <TouchableOpacity
-        style={s.supplierSettingsCta}
-        activeOpacity={0.85}
-        onPress={() => router.push('/home/supplier-settings')}
-      >
-        <View style={s.supplierSettingsIcon}>
-          <Ionicons name="pricetags" size={22} color="#1E7F85" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.supplierSettingsTitle}>{t('settings.supplierSettingsTitle') || 'CONFIGURA RICARICHI E PREZZI'}</Text>
-          <Text style={s.supplierSettingsHint}>{t('settings.supplierSettingsHint') || 'Imposta ricarico % e prezzi prodotto per prodotto'}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={22} color="#1E7F85" />
-      </TouchableOpacity>
-
+      {/*  ─────────────────────────────────────────────────────────────
+          FORNITORI con editor inline (richiesta utente: niente seconda
+          schermata, tutto in un unico punto). Ogni card del fornitore
+          mostra: nome + ricarico% + lista prodotti con costo/prezzo/%
+          bidirezionali. Il componente è in /app/frontend/src/components/
+          FornitoreEditor.tsx e gestisce internamente la logica di
+          aggiornamento bidirezionale dei tre campi.
+          ───────────────────────────────────────────────────────────── */}
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (
-          <View key={fi} style={s.card}>
-            <TouchableOpacity style={s.agendaHeader} activeOpacity={0.6} onPress={() => setExpandedForn(isOpen ? null : fi)}>
-              <Ionicons name="cube-outline" size={20} color="#1E7F85" />
-              <Text style={[s.agendaDay, { flex: 1 }]}>{f.nome}</Text>
-              {/* Modifica nome fornitore */}
-              <TouchableOpacity onPress={() =>
-                openModal(t('settings.editName') || 'Modifica nome', [t('settings.name')], (vals) => {
+          <FornitoreEditor
+            key={`${f.nome}-${fi}`}
+            fornitore={f}
+            isExpanded={isOpen}
+            onToggleExpand={() => setExpandedForn(isOpen ? null : fi)}
+            onUpdate={(patch) => {
+              const updF = [...store.fornitori];
+              updF[fi] = { ...updF[fi], ...patch };
+              store.setConfig({ fornitori: updF });
+            }}
+            onDelete={() => {
+              if (Platform.OS === 'web') {
+                if (window.confirm(`Eliminare il fornitore "${f.nome}" e tutti i suoi prodotti?`)) {
+                  store.removeFornitore(f.nome);
+                }
+              } else {
+                Alert.alert(
+                  t('supplier.confirmDeleteTitle') || 'Elimina fornitore',
+                  (t('supplier.confirmDeleteDesc', { nome: f.nome }) as string) || `Eliminare "${f.nome}" e tutti i suoi prodotti?`,
+                  [
+                    { text: t('common.cancel') || 'Annulla', style: 'cancel' },
+                    { text: t('common.delete') || 'Elimina', style: 'destructive', onPress: () => store.removeFornitore(f.nome) },
+                  ]
+                );
+              }
+            }}
+            onRename={() =>
+              openModal(
+                t('settings.editName') || 'Modifica nome',
+                [t('settings.name') || 'Nome'],
+                (vals) => {
                   if (vals[0] && vals[0].trim()) {
                     const updF = [...store.fornitori];
                     updF[fi] = { ...updF[fi], nome: vals[0].trim() };
                     store.setConfig({ fornitori: updF });
                   }
-                }, ['default'], undefined, undefined, [f.nome])
-              }>
-                <Ionicons name="pencil-outline" size={16} color="#1E7F85" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => store.removeFornitore(f.nome)} style={{ marginLeft: 6 }}>
-                <Ionicons name="trash-outline" size={18} color="#D46A6A" />
-              </TouchableOpacity>
-              <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" style={{ marginLeft: 8 }} />
-            </TouchableOpacity>
-            {isOpen && store.isAlimentare && (
-              <View style={s.agendaBody}>
-                <View style={s.divider} />
-                {f.prodotti.map((p, pi) => (
-                  <View key={pi} style={s.prodRow}>
-                    {/* Tap sul nome/prezzo per modificare */}
-                    <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }} onPress={() =>
-                      openModal(t('settings.editProduct') || 'Modifica prodotto', [t('settings.productName'), `${t('settings.pricePerKg')} €`], (vals) => {
-                        const updF = [...store.fornitori];
-                        updF[fi] = {
-                          ...updF[fi],
-                          prodotti: updF[fi].prodotti.map((prod, idx) =>
-                            idx === pi ? { nome: vals[0] || prod.nome, prezzo: parseFloat(vals[1].replace(',', '.')) || prod.prezzo } : prod
-                          ),
-                        };
-                        store.setConfig({ fornitori: updF });
-                      }, ['default', 'numeric'], undefined, undefined, [p.nome, p.prezzo.toString()])
-                    }>
-                      <Text style={s.itemVal}>{p.nome}</Text>
-                      <Text style={[s.itemLabel, { color: '#1E7F85' }]}>€{p.prezzo}/kg</Text>
-                      <Ionicons name="pencil-outline" size={12} color="#B0B0A0" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {
-                      const updF = [...store.fornitori];
-                      updF[fi] = { ...updF[fi], prodotti: updF[fi].prodotti.filter((_, idx) => idx !== pi) };
-                      store.setConfig({ fornitori: updF });
-                    }}>
-                      <Ionicons name="trash-outline" size={16} color="#D46A6A" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                <TouchableOpacity
-                  style={s.addBtnSmall}
-                  onPress={() =>
-                    openModal(t('settings.newProduct'), [t('settings.productName'), `${t('settings.pricePerKg')} €`], (vals) => {
-                      const updF = [...store.fornitori];
-                      updF[fi] = {
-                        ...updF[fi],
-                        prodotti: [...updF[fi].prodotti, { nome: vals[0], prezzo: parseFloat(vals[1].replace(',', '.')) || 0 }],
-                      };
-                      store.setConfig({ fornitori: updF });
-                    }, ['default', 'numeric'])
-                  }
-                >
-                  <Ionicons name="add" size={16} color="#1E7F85" />
-                  <Text style={s.addBtnSmallTxt}>{t('settings.addProduct')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            {isOpen && !store.isAlimentare && (
-              <View style={s.agendaBody}>
-                <View style={s.divider} />
-                <Text style={[s.itemLabel, { paddingVertical: 8, color: '#7A9090', fontStyle: 'italic' }]}>
-                  Fornitore registrato. Le perdite si inseriscono dalla Home.
-                </Text>
-              </View>
-            )}
-          </View>
+                },
+                ['default'],
+                undefined,
+                undefined,
+                [f.nome]
+              )
+            }
+          />
         );
       })}
       <TouchableOpacity
         style={s.addBtn}
         onPress={() =>
           openModal(t('settings.addSupplier'), [t('settings.name')], (vals) =>
-            store.addFornitore({ nome: vals[0], prodotti: [] }))
+            store.addFornitore({ nome: vals[0], prodotti: [], ricaricoMedio: 70 }))
         }
       >
         <Ionicons name="cube-outline" size={18} color="#1E7F85" />
