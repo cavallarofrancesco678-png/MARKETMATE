@@ -95,6 +95,21 @@ export interface Fornitore {
    * SupplierSettings prodotto-per-prodotto.
    */
   ricaricoMedio?: number;
+  /**
+   * Modalità di detrazione GLOBALE per questo fornitore:
+   *  - 'DAILY' (default): detratta interamente dal netto del giorno corrente
+   *  - 'CUSTOM': distribuita proporzionalmente al lordo sui `deductionDays`
+   *    giorni successivi alla data di registrazione della fattura.
+   *
+   * Storage CENTRALIZZATO al livello del fornitore (non della singola
+   * giornata): se l'utente cambia il periodo da 7 a 3 giorni, TUTTE le
+   * giornate passate e future vengono ricalcolate automaticamente —
+   * stats.tsx legge sempre il valore attuale qui dentro, non lo
+   * snapshot della singola giornata.
+   */
+  deductionMode?: 'DAILY' | 'CUSTOM';
+  /** Numero di giorni del periodo personalizzato (solo se deductionMode='CUSTOM'). Default 7. */
+  deductionDays?: number;
 }
 
 export interface MercatoAgenda {

@@ -112,6 +112,43 @@ export default function HomeScreen() {
   const [fornInfo, setFornInfo] = useState<Record<string, { numeroFattura: string; scadenza: string }>>({});
   const [ripartizione, setRipartizione] = useState<Record<string, { modo: 'oggi' | 'custom'; from: string; to: string }>>({});
   const [pagamentoMode, setPagamentoMode] = useState<Record<string, 'contanti' | 'fattura' | 'misto'>>({});
+  // ─── Wrap setters per propagare le modifiche al livello del FORNITORE
+  //     (single source of truth). Quando l'utente cambia da DAILY a CUSTOM
+  //     o modifica il numero di giorni, NON solo aggiorniamo lo state locale
+  //     ma anche `store.fornitori[i].deductionMode` / `deductionDays`. Così
+  //     la modifica è permanente e si applica retroattivamente a TUTTE le
+  //     giornate (passate e future): l'algoritmo proporzionale legge sempre
+  //     il valore attuale dal fornitore, non lo snapshot della giornata. ───
+  const setFornDeductionTypeWrapped = (v: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'>) => {
+    setFornDeductionType(v);
+    // Diff con lo state precedente per individuare quale fornitore è cambiato
+    const cur = useAppStore.getState();
+    const updated = (cur.fornitori || []).map((f: any) => {
+      const newMode = v[f.nome];
+      if (!newMode) return f;
+      const normalized: 'DAILY' | 'CUSTOM' = newMode === 'DAILY' ? 'DAILY' : 'CUSTOM';
+      if (f.deductionMode === normalized) return f;
+      return { ...f, deductionMode: normalized };
+    });
+    useAppStore.setState({ fornitori: updated } as any);
+    // Persisti immediatamente in AsyncStorage/localStorage così il valore
+    // sopravvive al reload anche prima del prossimo salvaGiornata.
+    try { (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+  };
+
+  const setFornDeductionDaysWrapped = (v: Record<string, number>) => {
+    setFornDeductionDays(v);
+    const cur = useAppStore.getState();
+    const updated = (cur.fornitori || []).map((f: any) => {
+      const newDays = v[f.nome];
+      if (!newDays || newDays < 1) return f;
+      if (f.deductionDays === newDays) return f;
+      return { ...f, deductionDays: newDays };
+    });
+    useAppStore.setState({ fornitori: updated } as any);
+    try { (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+  };
+
   // Tipo di detrazione per fornitore: DAILY (default) | CUSTOM
   // Backwards-compat: i valori legacy 'WEEKLY' e 'MONTHLY' vengono accettati
   // dal modello Giornata e mappati a CUSTOM (7g / 30g) all'apertura.
@@ -255,6 +292,36 @@ export default function HomeScreen() {
 
   // Persist changes (debounced)
   const speseExtraSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* ───────────────────────────────────────────────────────────────
+     Idratazione automatica del periodo CUSTOM dai FORNITORI.
+     Single source of truth: ogni volta che `store.fornitori` cambia
+     (es. l'utente modifica `deductionMode`/`deductionDays` da Settings
+     o dal modal Spese), risincronizziamo lo state locale. Garantisce
+     che la modifica si propaghi ANCHE alle giornate già salvate
+     (l'utente cambia da 7 a 3 giorni → tutte le giornate del periodo
+     si ricalcolano nelle stats con il nuovo valore).
+     ─────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    try {
+      const fList = (store.fornitori as any[]) || [];
+      const dedMap: Record<string, 'DAILY' | 'CUSTOM'> = {};
+      const daysMap: Record<string, number> = {};
+      fList.forEach((f) => {
+        if (!f || !f.nome) return;
+        if (f.deductionMode) dedMap[f.nome] = f.deductionMode;
+        if (f.deductionDays && f.deductionDays > 0) daysMap[f.nome] = f.deductionDays;
+      });
+      if (Object.keys(dedMap).length > 0) {
+        setFornDeductionType((prev) => ({ ...prev, ...dedMap } as any));
+      }
+      if (Object.keys(daysMap).length > 0) {
+        setFornDeductionDays((prev) => ({ ...prev, ...daysMap }));
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.fornitori]);
+
   useEffect(() => {
     if (!speseExtraMountedRef.current) return;
     if (speseExtraSaveTimerRef.current) clearTimeout(speseExtraSaveTimerRef.current);
@@ -391,6 +458,30 @@ export default function HomeScreen() {
       });
       setFornDeductionType(migratedDed);
       setFornDeductionDays(migratedDays);
+
+      // ─── PRIORITÀ MASSIMA: il livello del fornitore (single source of truth)
+      // Se l'utente ha modificato `deductionMode`/`deductionDays` nel
+      // FornitoreEditor (Settings) o nel modal SPESE (con propagazione al
+      // fornitore), quei valori vincono sui valori salvati nella vecchia
+      // giornata. Garantisce: se cambio Andrea Pane da 7 a 3 giorni TUTTE
+      // le giornate (anche già salvate) vengono ricalcolate con 3 giorni.
+      try {
+        const fList = (useAppStore.getState() as any).fornitori || [];
+        const fornDedFromSupplier: Record<string, 'DAILY' | 'CUSTOM'> = {};
+        const fornDaysFromSupplier: Record<string, number> = {};
+        fList.forEach((f: any) => {
+          if (!f || !f.nome) return;
+          if (f.deductionMode) fornDedFromSupplier[f.nome] = f.deductionMode;
+          if (f.deductionDays && f.deductionDays > 0) fornDaysFromSupplier[f.nome] = f.deductionDays;
+        });
+        // Merge: il livello fornitore vince
+        if (Object.keys(fornDedFromSupplier).length > 0) {
+          setFornDeductionType((prev) => ({ ...prev, ...fornDedFromSupplier } as any));
+        }
+        if (Object.keys(fornDaysFromSupplier).length > 0) {
+          setFornDeductionDays((prev) => ({ ...prev, ...fornDaysFromSupplier }));
+        }
+      } catch {}
       // Ripristina le voci generiche (spese extra dettagliate)
       if ((saved as any).dettaglio_spese_extra && Object.keys((saved as any).dettaglio_spese_extra).length > 0) {
         const voci = Object.entries((saved as any).dettaglio_spese_extra).map(([nome, val]) => ({
@@ -417,7 +508,11 @@ export default function HomeScreen() {
       setFornInfo({});
       setRipartizione({});
       setPagamentoMode({});
-      setFornDeductionType({});
+      // NON resettare `fornDeductionType` e `fornDeductionDays`: questi sono
+      // GLOBALI per fornitore (non legati alla singola giornata) e vengono
+      // idratati dal useEffect su [store.fornitori]. Resettarli qui
+      // cancellerebbe la configurazione "Personalizza N giorni" appena
+      // dopo un reload della pagina.
       setVociGeneriche([]);
       setCostiOverride({});
       // Reset al default 'sono andato a lavoro' per giornate non ancora salvate
@@ -2100,9 +2195,9 @@ export default function HomeScreen() {
         pagamentoMode={pagamentoMode}
         setPagamentoMode={setPagamentoMode}
         fornDeductionType={fornDeductionType}
-        setFornDeductionType={setFornDeductionType}
+        setFornDeductionType={setFornDeductionTypeWrapped}
         fornDeductionDays={fornDeductionDays}
-        setFornDeductionDays={setFornDeductionDays}
+        setFornDeductionDays={setFornDeductionDaysWrapped}
         weeklyTotalsByForn={weeklyTotalsByForn}
       />
 
