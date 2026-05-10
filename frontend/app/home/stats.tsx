@@ -28,6 +28,7 @@ import * as Sharing from 'expo-sharing';
 import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 import { RoleGuard } from '../../src/components/RoleGuard';
+import { calcolaCostoMerceProporzionale } from '../../src/utils/proporzionaleFornitori';
 
 const { width: screenW } = Dimensions.get('window');
 
@@ -418,8 +419,92 @@ function StatsScreenInner() {
     return filteredByTime.filter((g) => new Date(g.data).getDay() === targetDay);
   }, [filteredByTime, filtroTipo, store.fiere]);
 
+  /* ═══════════════════════════════════════════════════════════════════
+     ALGORITMO PONDERATO COSTI FORNITORI CUSTOM (Round 37)
+     ─────────────────────────────────────────────────────────────────
+     Specifica utente: "L'app ripartisce il totale dei costi
+     settimanali/mensili sui giorni di lavoro in modo proporzionale al
+     volume d'affari giornaliero, mantenendo il bilancio perfetto a
+     fine periodo."
+
+     Formula:  CG_d = (LG_d / W_rt) * C_ct
+       CG_d   = costo giornaliero ponderato per il giorno d
+       LG_d   = lordo del giorno d
+       W_rt   = somma dei lordi nel periodo
+       C_ct   = totale fatture fornitori CUSTOM nel periodo
+
+     Garantisce:
+       Σ CG_d = C_ct   → totale esatto delle fatture caricate
+       Giorni alto incasso → più costo merce (più realistico)
+       Single source of truth: usa `Fornitore.deductionMode/Days` come
+       riferimento, così cambi retroattivi si propagano automaticamente.
+
+     Implementazione: `calcolaCostoMerceProporzionale` accetta TUTTE le
+     giornate e ritorna mappa 'YYYY-MM-DD' → costoQuota. Noi qui
+     filtriamo solo le giornate del periodo selezionato.
+     ───────────────────────────────────────────────────────────────── */
+  const costoMerceProporzionaleMap = useMemo(() => {
+    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }> = {};
+    (fornitori || []).forEach((f: any) => {
+      if (!f || !f.nome) return;
+      fornCfg[f.nome] = { mode: f.deductionMode, days: f.deductionDays };
+    });
+    const fullMap = calcolaCostoMerceProporzionale(
+      (storicoGiornate || []) as any,
+      fornCfg
+    );
+    // ─── FILTRO ANTI-DOUBLE-COUNT ───────────────────────────────────────
+    // `g.netto` (calcolato in home/index.tsx al momento della Salva Giornata)
+    // ha già sottratto le spese DAILY. Se li includessimo qui li conteremmo
+    // due volte. Quindi sottraiamo i DAILY dalla mappa (ricalcolando solo
+    // la parte CUSTOM, ovvero la quota proporzionale dei fornitori non-DAILY).
+    const dailyMap: Record<string, number> = {};
+    (storicoGiornate || []).forEach((g: any) => {
+      const det = g.dettaglio_fornitori || {};
+      const ded = g.dettaglio_fornitori_deduction || {};
+      Object.entries(det).forEach(([k, v]) => {
+        if (k.includes('__libera') && !k.endsWith('__libera')) return;
+        const nomeBase = k.endsWith('__libera') ? k.slice(0, -'__libera'.length) : k;
+        // Risolvi mode: priorità a config fornitore (single source of truth)
+        const cfg = fornCfg[nomeBase];
+        const rawMode = (cfg?.mode as any) || ded[k] || ded[nomeBase] || 'DAILY';
+        const mode = rawMode === 'DAILY' ? 'DAILY' : 'CUSTOM';
+        if (mode !== 'DAILY') return;
+        const imp = parseFloat(String(v)) || 0;
+        if (imp <= 0) return;
+        try {
+          const day = new Date(g.data).toISOString().slice(0, 10);
+          dailyMap[day] = (dailyMap[day] || 0) + imp;
+        } catch {}
+      });
+    });
+    const customOnly: Record<string, number> = {};
+    Object.entries(fullMap).forEach(([k, v]) => {
+      const remaining = v - (dailyMap[k] || 0);
+      if (remaining > 0.01) customOnly[k] = remaining;
+    });
+    return customOnly;
+  }, [storicoGiornate, fornitori]);
+
+  /* ── Costo merce proporzionale TOTALE nel periodo filtrato ──
+     Σ delle quote giornaliere per i soli giorni di `filteredData`. */
+  const totCostoMerceProp = useMemo(() => {
+    return filteredData.reduce((acc, g) => {
+      try {
+        const k = new Date(g.data).toISOString().slice(0, 10);
+        return acc + (costoMerceProporzionaleMap[k] || 0);
+      } catch {
+        return acc;
+      }
+    }, 0);
+  }, [filteredData, costoMerceProporzionaleMap]);
+
   const totLordo = arrSum(filteredData.map((g) => g.lordo || 0));
-  const totNetto = arrSum(filteredData.map((g) => g.netto || 0));
+  /* Netto: prima usavamo `g.netto` calcolato in home con solo DAILY costs.
+     Ora dobbiamo SOTTRARRE anche la quota proporzionale CUSTOM per
+     ciascun giorno. */
+  const totNettoBaseline = arrSum(filteredData.map((g) => g.netto || 0));
+  const totNetto = totNettoBaseline - totCostoMerceProp;
   const totCash = arrSum(filteredData.map((g) => g.contanti || 0));
   const totPos = arrSum(filteredData.map((g) => g.pos || 0));
   const giorniLav = filteredData.length;
@@ -1974,7 +2059,7 @@ function StatsScreenInner() {
                 <Text style={st.checkboxValue}>€{arrSum(filteredData.map(g => g.spese_extra || 0))}</Text>
               </TouchableOpacity>
 
-              {/* FORNITORI (solo DAILY — WEEKLY/MONTHLY già sommati nel periodo) */}
+              {/* FORNITORI: somma DAILY puramente del giorno + ponderato CUSTOM */}
               <TouchableOpacity
                 style={st.checkboxRow}
                 onPress={() => setExcludeFornitori(!excludeFornitori)}
@@ -1982,9 +2067,25 @@ function StatsScreenInner() {
                 <View style={[st.checkbox, excludeFornitori && st.checkboxChecked]}>
                   {excludeFornitori && <Ionicons name="checkmark" size={14} color="#FFF" />}
                 </View>
-                <Text style={st.checkboxLabel}>Fornitori</Text>
+                <Text style={st.checkboxLabel}>Fornitori (DAILY)</Text>
                 <Text style={st.checkboxValue}>€{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totExtraInPeriod).toFixed(0)}</Text>
               </TouchableOpacity>
+
+              {/* ═══ COSTO MERCE PONDERATO (algoritmo proporzionale Round 37)
+                  Mostra la quota di costi CUSTOM dei fornitori distribuita
+                  proporzionalmente al lordo giornaliero. Σ daily quote =
+                  totale fatture fornitori CUSTOM nel periodo. ═══ */}
+              {totCostoMerceProp > 0.5 && (
+                <View style={[st.checkboxRow, { paddingLeft: 32 }]}>
+                  <Ionicons name="trending-up" size={14} color="#1E7F85" style={{ marginRight: 6 }} />
+                  <Text style={[st.checkboxLabel, { fontStyle: 'italic', color: '#1E7F85' }]}>
+                    Costo Merce Ponderato
+                  </Text>
+                  <Text style={[st.checkboxValue, { color: '#1E7F85' }]}>
+                    €{totCostoMerceProp.toFixed(0)}
+                  </Text>
+                </View>
+              )}
               
               <TouchableOpacity 
                 style={st.checkboxRow} 
