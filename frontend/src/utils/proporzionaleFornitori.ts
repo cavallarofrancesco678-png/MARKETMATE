@@ -153,23 +153,33 @@ export function calcolaCostoMerceProporzionalePerFornitore(
     Object.entries(det).forEach(([nomeForn, importo]) => {
       const imp = Number(importo) || 0;
       if (imp <= 0) return;
-      if (nomeForn.includes('__libera')) return;
+      // Salta le sotto-chiavi tecniche tipo "__fattn", "__liberaLabel" che
+      // non contengono importi reali ma solo metadati di UI.
+      if (nomeForn.endsWith('__fattn') || nomeForn.endsWith('__liberaLabel')) return;
 
-      const supplierCfg = fornitoriConfig?.[nomeForn];
-      const rawMode = supplierCfg?.mode || (ded[nomeForn] as DeductionMode) || 'DAILY';
+      // Normalizza il nome base: il modal salva CONTANTI come "Nome__libera"
+      // e FATTURA come "Nome". La config (fornitoriConfig, ded, dedDays) usa
+      // sempre il nome BASE senza suffisso. Round 39: estraiamo `nomeBase`
+      // per la lookup, ma manteniamo `nomeForn` per la chiave del bucket
+      // (così CONTANTI e FATTURA dello stesso fornitore generano due bucket
+      // separati e i loro importi si SOMMANO correttamente sul fornitore).
+      const nomeBase = nomeForn.replace(/__libera$/, '');
+
+      const supplierCfg = fornitoriConfig?.[nomeBase];
+      const rawMode = supplierCfg?.mode || (ded[nomeBase] as DeductionMode) || (ded[nomeForn] as DeductionMode) || 'DAILY';
       let mode: DeductionMode;
       let customDays: number | undefined;
       if (rawMode === 'DAILY') {
         mode = 'DAILY';
       } else if (rawMode === 'CUSTOM') {
         mode = 'CUSTOM';
-        customDays = supplierCfg?.days || dedDays[nomeForn] || 7;
+        customDays = supplierCfg?.days || dedDays[nomeBase] || dedDays[nomeForn] || 7;
       } else if (rawMode === 'WEEKLY') {
         mode = 'CUSTOM';
-        customDays = supplierCfg?.days || dedDays[nomeForn] || 7;
+        customDays = supplierCfg?.days || dedDays[nomeBase] || dedDays[nomeForn] || 7;
       } else {
         mode = 'CUSTOM';
-        customDays = supplierCfg?.days || dedDays[nomeForn] || 30;
+        customDays = supplierCfg?.days || dedDays[nomeBase] || dedDays[nomeForn] || 30;
       }
 
       let periodKey: string;
@@ -183,13 +193,13 @@ export function calcolaCostoMerceProporzionalePerFornitore(
       const existing = buckets.get(periodKey);
       if (!existing || new Date(g.data).getTime() >= existing.data.getTime()) {
         buckets.set(periodKey, {
-          fornitore: nomeForn,
+          fornitore: nomeBase,                 // ← Round 40: usiamo SEMPRE nomeBase (no suffisso) per aggregare contanti+fattura
           mode,
           periodKey,
           importo: imp,
           data: new Date(g.data),
           days: customDays,
-          startDate: supplierCfg?.startDate, // override Round 39: data inizio dal config
+          startDate: supplierCfg?.startDate,   // override Round 39: data inizio dal config
         });
       }
     });
