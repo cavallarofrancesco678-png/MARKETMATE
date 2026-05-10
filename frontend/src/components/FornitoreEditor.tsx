@@ -166,45 +166,47 @@ const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoFornitore, on
 
   return (
     <View style={ps.row}>
-      {/* Riga 1: nome + cestino */}
-      <View style={ps.nameRow}>
-        <TextInput
-          style={ps.nameInput}
-          value={prodotto.nome}
-          onChangeText={(v) => onChange({ nome: v })}
-          placeholder={t('supplier.productName') || 'Nome prodotto'}
-          placeholderTextColor="#A6A095"
-        />
-        <TouchableOpacity onPress={onDelete} style={ps.delBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="close-circle" size={22} color="#D46A6A" />
-        </TouchableOpacity>
+      {/*  Layout HORIZONTALE su una sola riga, tutto centrato verticalmente.
+          Mobile: Nome (flex 1.2) | Costo | → | Prezzo | % (in verde a fianco) | 🗑
+          Su schermi stretti (<360px) i campi rimangono leggibili grazie a
+          minWidth controllati. */}
+      <TextInput
+        style={ps.nameInput}
+        value={prodotto.nome}
+        onChangeText={(v) => onChange({ nome: v })}
+        placeholder={t('supplier.productName') || 'Nome'}
+        placeholderTextColor="#A6A095"
+      />
+
+      {/* COSTO */}
+      <View style={ps.priceField}>
+        <Text style={ps.priceLabel}>{t('supplier.cost') || 'Costo'}</Text>
+        <View style={ps.priceInputBox}>
+          <Text style={ps.eur}>€</Text>
+          <TextInput
+            style={ps.priceInput}
+            value={costoText}
+            onChangeText={onCostoChange}
+            onBlur={commitCost}
+            onEndEditing={commitCost}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor="#B8B0A0"
+            testID="supplier-cost-input"
+          />
+        </View>
       </View>
 
-      {/* Riga 2: COSTO / PREZZO / % — tutti editabili e bidirezionali */}
-      <View style={ps.priceRow}>
-        {/* COSTO */}
-        <View style={ps.priceField}>
-          <Text style={ps.priceLabel}>{t('supplier.cost') || 'COSTO'}</Text>
-          <View style={ps.priceInputBox}>
-            <Text style={ps.eur}>€</Text>
-            <TextInput
-              style={ps.priceInput}
-              value={costoText}
-              onChangeText={onCostoChange}
-              onBlur={commitCost}
-              onEndEditing={commitCost}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor="#B8B0A0"
-              testID="supplier-cost-input"
-            />
-          </View>
-        </View>
+      {/* Freccia separatore — verticalmente centrata */}
+      <View style={ps.arrowWrap}>
+        <Ionicons name="arrow-forward" size={16} color="#1E7F85" />
+      </View>
 
-        {/* PREZZO */}
-        <View style={ps.priceField}>
-          <Text style={ps.priceLabel}>{t('supplier.price') || 'PREZZO'}</Text>
-          <View style={[ps.priceInputBox, prodotto.prezzoOverwrite && ps.priceInputBoxOverride]}>
+      {/* PREZZO + % al suo fianco (richiesta utente: non più sotto) */}
+      <View style={ps.priceField}>
+        <Text style={ps.priceLabel}>{t('supplier.price') || 'Prezzo'}</Text>
+        <View style={ps.priceWithPctRow}>
+          <View style={[ps.priceInputBox, ps.priceInputBoxWithPct, prodotto.prezzoOverwrite && ps.priceInputBoxOverride]}>
             <Text style={ps.eur}>€</Text>
             <TextInput
               style={ps.priceInput}
@@ -218,14 +220,11 @@ const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoFornitore, on
               testID="supplier-price-input"
             />
           </View>
-        </View>
-
-        {/* % RICARICO */}
-        <View style={[ps.priceField, ps.pctField]}>
-          <Text style={ps.priceLabel}>%</Text>
-          <View style={[ps.priceInputBox, prodotto.prezzoOverwrite && ps.priceInputBoxOverride]}>
+          {/* % accanto al prezzo: editabile, in verde teal grande e leggibile */}
+          <View style={[ps.pctInputBox, prodotto.prezzoOverwrite && ps.pctInputBoxOverride]}>
+            <Text style={ps.pctSign}>+</Text>
             <TextInput
-              style={[ps.priceInput, { textAlign: 'center' }]}
+              style={ps.pctInput}
               value={pctText}
               onChangeText={onPctChange}
               onBlur={commitPct}
@@ -235,9 +234,14 @@ const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoFornitore, on
               placeholderTextColor="#B8B0A0"
               testID="supplier-markup-input"
             />
+            <Text style={ps.pctSign}>%</Text>
           </View>
         </View>
       </View>
+
+      <TouchableOpacity onPress={onDelete} style={ps.delBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name="close-circle" size={22} color="#D46A6A" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -373,6 +377,34 @@ export const FornitoreEditor: React.FC<FornitoreEditorProps> = ({
             <Ionicons name="add-circle-outline" size={18} color="#1E7F85" />
             <Text style={fs.addBtnTxt}>{t('supplier.addProduct') || 'AGGIUNGI PRODOTTO'}</Text>
           </TouchableOpacity>
+
+          {/* ═══ Pulsante SALVA neomorfico (richiesta utente Round 35).
+              In realtà i dati vengono già salvati automaticamente ad ogni
+              onBlur/onEndEditing dei campi (autosave), ma l'utente ha chiesto
+              feedback visivo esplicito. Cliccando questo pulsante mostriamo
+              un toast/Alert "Salvato ✓" che rassicura l'utente. ═══ */}
+          <TouchableOpacity
+            style={fs.saveBtn}
+            activeOpacity={0.85}
+            onPress={() => {
+              // Trigger opzionale di un re-save esplicito (forza commit
+              // di qualsiasi input ancora in editing): facciamo un no-op
+              // setUpdate per forzare il flow di Zustand → AsyncStorage.
+              try { onUpdate({ ricaricoMedio: ric }); } catch {}
+              if (Platform.OS === 'web') {
+                // Su web mostriamo un alert nativo veloce
+                try { window.alert('✓ Salvato'); } catch {}
+              } else {
+                Alert.alert(
+                  t('common.saved') || 'Salvato',
+                  t('supplier.saveOk') || 'Modifiche salvate correttamente.',
+                );
+              }
+            }}
+          >
+            <Ionicons name="checkmark-circle" size={18} color="#FFF" />
+            <Text style={fs.saveBtnTxt}>{t('common.save') || 'SALVA'}</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -450,39 +482,124 @@ const fs = StyleSheet.create({
     borderRadius: 12, borderWidth: 1.5, borderColor: '#1E7F85', borderStyle: 'dashed',
   },
   addBtnTxt: { color: '#1E7F85', fontWeight: '900', fontSize: 11, letterSpacing: 1 },
+
+  // Pulsante SALVA neomorfico (Round 35) - in fondo alla card del fornitore
+  // Stile gold/teal coerente con il resto della UI dell'app.
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 13, marginTop: 12,
+    borderRadius: 14,
+    backgroundColor: '#1E7F85',
+    // Ombra neomorfica
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  saveBtnTxt: { color: '#FFF', fontWeight: '900', fontSize: 13, letterSpacing: 1.2 },
 });
 
 const ps = StyleSheet.create({
-  row: { backgroundColor: '#FFFAEC', padding: 12, borderRadius: 12, marginBottom: 8, gap: 10, borderWidth: 1, borderColor: '#E5DECF' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nameInput: {
-    flex: 1, fontSize: 14, fontWeight: '800', color: '#1A4040',
-    paddingVertical: 8, paddingHorizontal: 12,
-    backgroundColor: '#FFF', borderRadius: 10, minHeight: 42,
-    borderWidth: 1, borderColor: '#E5DECF',
+  // Layout HORIZONTALE su una sola riga: tutti gli elementi centrati verticalmente.
+  // I box di Costo/Prezzo sono leggermente più piccoli del campo principale
+  // RICARICO MEDIO FORNITORE (font 17 vs 18, padding 8 vs 12) come richiesto.
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',     // ✓ allineamento verticale center come richiesto
+    backgroundColor: '#FFFAEC',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#E5DECF',
   },
-  delBtn: { padding: 4 },
+  nameInput: {
+    flex: 1.1,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A4040',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    minHeight: 42,
+    borderWidth: 1,
+    borderColor: '#E5DECF',
+  },
 
-  // 3 campi affiancati: COSTO / PREZZO / %
-  priceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
-  priceField: { flex: 1, minWidth: 0 },
-  pctField: { flex: 0.55 },  // % box leggermente più stretto
-  priceLabel: { fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.6, marginBottom: 4 },
-
+  // Campo COSTO / PREZZO — leggermente più piccoli del Ricarico ma comunque
+  // grandi e leggibili. Label sopra il box (piccolo), box con bordo teal.
+  priceField: { alignItems: 'center', minWidth: 0 },
+  priceLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#7A9090',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
   priceInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderWidth: 2,
+    borderRadius: 9,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderWidth: 1.5,
     borderColor: '#E5DECF',
-    minHeight: 46,
+    minHeight: 40,
+    minWidth: 70,
   },
   priceInputBoxOverride: { borderColor: '#D4AF37', backgroundColor: '#FFF8E6' },
-  eur: { fontSize: 13, color: '#7A9090', fontWeight: '800', marginRight: 2 },
-  priceInput: { flex: 1, fontSize: 16, fontWeight: '900', color: '#1A4040', paddingVertical: 0, paddingHorizontal: 0 },
+  // Box prezzo quando ha la % di fianco (un po' più stretto per fare spazio)
+  priceInputBoxWithPct: { minWidth: 64 },
+  eur: { fontSize: 12, color: '#7A9090', fontWeight: '800', marginRight: 1 },
+  priceInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#1A4040',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    minWidth: 36,
+  },
+
+  // Freccia → fra Costo e Prezzo, allineata verticalmente al centro dei box
+  arrowWrap: { paddingHorizontal: 1, paddingTop: 14 /* per centrarsi sui box (sotto label) */ },
+
+  // PREZZO + % affiancata: la richiesta esplicita dell'utente è
+  // "spostato di fianco al campo input del Prezzo (non sotto)".
+  priceWithPctRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+
+  // % box: piccolo ma leggibile, con segno + e segno %, in TEAL.
+  pctInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: '#1E7F85',
+    minHeight: 40,
+    minWidth: 56,
+  },
+  pctInputBoxOverride: { borderColor: '#D4AF37', backgroundColor: '#FFF8E6' },
+  pctSign: { fontSize: 13, fontWeight: '900', color: '#1E7F85' },
+  pctInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#1E7F85',     // % in verde teal come richiesto, ma più LEGGIBILE
+    paddingVertical: 0,
+    paddingHorizontal: 1,
+    textAlign: 'center',
+    minWidth: 24,
+  },
+
+  delBtn: { padding: 4, alignSelf: 'center' },
 });
 
 const ms = StyleSheet.create({
