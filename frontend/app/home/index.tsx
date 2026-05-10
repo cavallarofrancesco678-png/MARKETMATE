@@ -1177,7 +1177,7 @@ export default function HomeScreen() {
         addOrdine({ data: scadenzaDate, testo });
       } catch { /* skip */ }
     });
-  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType, perms.canEditHistory, store.storicoGiornate, isInPiazza]);
+  }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType, fornDeductionDays, fornDeductionStartDate, perms.canEditHistory, store.storicoGiornate, isInPiazza]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */
   // Use a REF to always call the latest handleSalva (avoids stale-closure bug

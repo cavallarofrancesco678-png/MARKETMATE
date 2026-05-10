@@ -54,7 +54,7 @@ interface Props {
   vociGeneriche: VoceGenerica[];
   setVociGeneriche: (v: VoceGenerica[]) => void;
   fornInfo: Record<string, FornInfoEntry>;
-  setFornInfo: (v: Record<string, FornInfoEntry>) => void;
+  setFornInfo: React.Dispatch<React.SetStateAction<Record<string, FornInfoEntry>>>;
   pagamentoMode: Record<string, 'contanti' | 'fattura' | 'misto'>;
   setPagamentoMode: (v: Record<string, 'contanti' | 'fattura' | 'misto'>) => void;
   // Frequenza di detrazione per fornitore: DAILY (default) | CUSTOM
@@ -524,8 +524,11 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                   placeholderTextColor="#C0C0B0"
                                   value={(fornInfo[f.nome]?.numeroFattura) || ''}
                                   onChangeText={(v) => {
-                                    const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
-                                    setFornInfo({ ...fornInfo, [f.nome]: { ...current, numeroFattura: v } });
+                                    // Round 42: functional updater per evitare stale closure su typing veloce
+                                    setFornInfo((prev: any) => {
+                                      const current = prev[f.nome] || { numeroFattura: '', scadenza: '' };
+                                      return { ...prev, [f.nome]: { ...current, numeroFattura: v } };
+                                    });
                                   }}
                                   returnKeyType="done"
                                 />
@@ -552,9 +555,12 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                 <MiniMonthCalendar
                                   selectedDates={fornInfo[f.nome]?.scadenza ? [fornInfo[f.nome].scadenza] : []}
                                   onToggleDate={(iso) => {
-                                    const current = fornInfo[f.nome] || { numeroFattura: '', scadenza: '' };
-                                    const newScadenza = current.scadenza === iso ? '' : iso;
-                                    setFornInfo({ ...fornInfo, [f.nome]: { ...current, scadenza: newScadenza } });
+                                    // Round 42: functional updater per evitare stale closure
+                                    setFornInfo((prev: any) => {
+                                      const current = prev[f.nome] || { numeroFattura: '', scadenza: '' };
+                                      const newScadenza = current.scadenza === iso ? '' : iso;
+                                      return { ...prev, [f.nome]: { ...current, scadenza: newScadenza } };
+                                    });
                                     setScadenzaPickerFor(null);
                                   }}
                                   themeColor="#B08050"

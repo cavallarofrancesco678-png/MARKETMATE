@@ -1556,7 +1556,11 @@ function SettingsPageInner() {
             isExpanded={isOpen}
             onToggleExpand={() => setExpandedForn(isOpen ? null : fi)}
             onUpdate={(patch) => {
-              const updF = [...store.fornitori];
+              // Round 42: usa getState() invece di store.fornitori catturato
+              // al render → evita stale closure quando l'utente digita
+              // rapidamente nei campi prodotto (nome, costo, prezzo, %).
+              const latest = (useAppStore.getState() as any).fornitori || [];
+              const updF = [...latest];
               updF[fi] = { ...updF[fi], ...patch };
               store.setConfig({ fornitori: updF });
             }}
