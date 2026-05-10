@@ -364,7 +364,13 @@ export const FornitoreEditor: React.FC<FornitoreEditorProps> = ({
           ) : (
             fornitore.prodotti.map((p, pIdx) => (
               <ProductRow
-                key={`${p.nome}-${pIdx}`}
+                /* CHIAVE STABILE: prima usavamo `${p.nome}-${pIdx}` ma `p.nome`
+                   cambia ad OGNI keystroke nel TextInput del nome → React
+                   smonta e rimonta la riga ad ogni carattere → la TextInput
+                   perde il focus e l'utente vede il nome "non salvato".
+                   Usando solo l'indice di posizione, il componente rimane
+                   montato durante l'editing del nome. */
+                key={`prod-${pIdx}`}
                 prodotto={p}
                 ricaricoFornitore={ric}
                 onChange={(patch) => updateProdotto(pIdx, patch)}

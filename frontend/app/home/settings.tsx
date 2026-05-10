@@ -1532,6 +1532,13 @@ function SettingsPageInner() {
         {t('settings.supplierSettingsTitle') || 'CONFIGURA RICARICHI E PREZZI'}
       </Text>
 
+      {/* Sub-header "FORNITORI" prima della lista (richiesta utente Round 36) */}
+      <View style={s.fornHeaderRow}>
+        <Ionicons name="cube" size={16} color="#1E7F85" />
+        <Text style={s.fornHeaderTxt}>{t('settings.suppliersTitle') || 'FORNITORI'}</Text>
+        <View style={s.fornHeaderLine} />
+      </View>
+
       {/*  ─────────────────────────────────────────────────────────────
           FORNITORI con editor inline (richiesta utente: niente seconda
           schermata, tutto in un unico punto). Ogni card del fornitore
@@ -2422,6 +2429,27 @@ const s = StyleSheet.create({
   },
   supplierSettingsTitle: { fontSize: 12, fontWeight: '900', color: '#1A4040', letterSpacing: 0.8 },
   supplierSettingsHint: { fontSize: 10, color: '#7A9090', marginTop: 2 },
+  // Sub-header "FORNITORI" prima della lista (Round 36)
+  fornHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  fornHeaderTxt: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#1E7F85',
+    letterSpacing: 1.2,
+  },
+  fornHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#1E7F8540',
+    marginLeft: 4,
+  },
 });
 
 /* ─── MODAL STYLES ─── */

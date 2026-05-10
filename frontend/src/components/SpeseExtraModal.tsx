@@ -379,43 +379,104 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           const isCustom = stored !== 'DAILY';
                           if (!isCustom) return null;
                           const days = fornDeductionDays[f.nome] || 7;
+                          // Helpers per le frecce e il preview range
+                          const decDays = () => {
+                            const next = Math.max(1, days - 1);
+                            setFornDeductionDays({ ...fornDeductionDays, [f.nome]: next });
+                          };
+                          const incDays = () => {
+                            const next = Math.min(365, days + 1);
+                            setFornDeductionDays({ ...fornDeductionDays, [f.nome]: next });
+                          };
+                          // Calendario "preview": data inizio = oggi, data fine = oggi + (days-1)
+                          const oggi = new Date();
+                          const fine = new Date(oggi.getTime() + (days - 1) * 24 * 60 * 60 * 1000);
+                          const fmtDate = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
                           return (
-                            <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040', flex: 1 }}>
+                            <View style={{ marginTop: 10 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040', marginBottom: 6 }}>
                                 Periodo
                               </Text>
+                              {/* Frecce ± e numero giorni — touch target ≥ 44px (iOS guidelines) */}
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
+                                <TouchableOpacity
+                                  onPress={decDays}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  style={{
+                                    width: 44, height: 44, borderRadius: 22,
+                                    backgroundColor: days > 1 ? '#1E7F85' : '#C0D0C8',
+                                    alignItems: 'center', justifyContent: 'center',
+                                  }}
+                                >
+                                  <Ionicons name="remove" size={24} color="#FFF" />
+                                </TouchableOpacity>
+                                <View style={{
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  backgroundColor: '#FFF',
+                                  borderRadius: 12,
+                                  borderWidth: 2,
+                                  borderColor: '#1E7F85',
+                                  paddingHorizontal: 14,
+                                  paddingVertical: 8,
+                                  minWidth: 92,
+                                  minHeight: 44,
+                                  justifyContent: 'center',
+                                  gap: 4,
+                                }}>
+                                  <TextInput
+                                    style={{ fontSize: 22, fontWeight: '900', color: '#1A4040', textAlign: 'center', minWidth: 32, paddingVertical: 0 }}
+                                    value={String(days)}
+                                    onChangeText={(v) => {
+                                      const n = parseInt(v.replace(/[^0-9]/g, ''), 10);
+                                      if (!isNaN(n) && n > 0 && n <= 365) {
+                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: n });
+                                      } else if (v === '') {
+                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 0 });
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      if (!fornDeductionDays[f.nome] || fornDeductionDays[f.nome] < 1) {
+                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 7 });
+                                      }
+                                    }}
+                                    keyboardType="numeric"
+                                    maxLength={3}
+                                  />
+                                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E7F85' }}>gg</Text>
+                                </View>
+                                <TouchableOpacity
+                                  onPress={incDays}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  style={{
+                                    width: 44, height: 44, borderRadius: 22,
+                                    backgroundColor: days < 365 ? '#1E7F85' : '#C0D0C8',
+                                    alignItems: 'center', justifyContent: 'center',
+                                  }}
+                                >
+                                  <Ionicons name="add" size={24} color="#FFF" />
+                                </TouchableOpacity>
+                              </View>
+                              {/* Preview range "calendario" — visualizza dal/al */}
                               <View style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                                backgroundColor: '#FFF',
+                                justifyContent: 'center',
+                                marginTop: 10,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                backgroundColor: '#F5EFDC',
                                 borderRadius: 10,
-                                borderWidth: 2,
-                                borderColor: '#1E7F85',
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                minWidth: 80,
+                                gap: 8,
                               }}>
-                                <TextInput
-                                  style={{ flex: 1, fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', paddingVertical: 4 }}
-                                  value={String(days)}
-                                  onChangeText={(v) => {
-                                    const n = parseInt(v.replace(/[^0-9]/g, ''), 10);
-                                    if (!isNaN(n) && n > 0 && n <= 365) {
-                                      setFornDeductionDays({ ...fornDeductionDays, [f.nome]: n });
-                                    } else if (v === '') {
-                                      // Permetti la cancellazione temporanea
-                                      setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 0 });
-                                    }
-                                  }}
-                                  onBlur={() => {
-                                    if (!fornDeductionDays[f.nome] || fornDeductionDays[f.nome] < 1) {
-                                      setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 7 });
-                                    }
-                                  }}
-                                  keyboardType="numeric"
-                                  maxLength={3}
-                                />
-                                <Text style={{ fontSize: 12, fontWeight: '800', color: '#1E7F85', marginLeft: 4 }}>gg</Text>
+                                <Ionicons name="calendar-outline" size={14} color="#1E7F85" />
+                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
+                                  Dal <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtDate(oggi)}</Text>
+                                </Text>
+                                <Text style={{ fontSize: 11, color: '#7A9090' }}>→</Text>
+                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
+                                  al <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtDate(fine)}</Text>
+                                </Text>
                               </View>
                             </View>
                           );

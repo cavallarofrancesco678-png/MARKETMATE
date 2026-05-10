@@ -373,6 +373,36 @@ function StatsScreenInner() {
     });
   }, [storicoGiornate, filtroTempo, persDateFrom, persDateTo]);
 
+  /* ── Carburante filtrato per il PERIODO selezionato ───────────────────
+     Bug fix: nel modal "Calcolo Netto" mostravamo `arrSum(storicoCarburante)`
+     che è il TOTALE storico (intera vita app), invece del solo periodo
+     filtrato. Ora calcoliamo separatamente la spesa carburante nel periodo
+     applicando lo STESSO criterio di `filteredByTime` ai dati carburante.
+     Tipologia (FIERE/TUTTO) non si applica al carburante (è agnostico). */
+  const carburantePeriodoTotale = useMemo(() => {
+    const list = (storicoCarburante || []) as Array<{ data: Date | string; euro: number }>;
+    return list.filter((c) => {
+      try {
+        const d = new Date(c.data);
+        if (filtroTempo === 'Oggi') return isSameDay(d, now);
+        if (filtroTempo === 'Ieri') {
+          const ieri = new Date(now); ieri.setDate(ieri.getDate() - 1);
+          return isSameDay(d, ieri);
+        }
+        if (filtroTempo === 'Sett.') return isSameWeek(d, now);
+        if (filtroTempo === 'Mese') return isSameMonth(d, now);
+        if (filtroTempo === 'Anno') return isSameYear(d, now);
+        if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
+          const from = new Date(persDateFrom); from.setHours(0, 0, 0, 0);
+          const to = new Date(persDateTo); to.setHours(23, 59, 59, 999);
+          return d >= from && d <= to;
+        }
+        return true;
+      } catch { return false; }
+    }).reduce((acc, c) => acc + (Number(c.euro) || 0), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storicoCarburante, filtroTempo, persDateFrom, persDateTo]);
+
   const filteredData = useMemo(() => {
     if (filtroTipo === 'TUTTO') return filteredByTime;
     if (filtroTipo === 'FIERE') {
@@ -1975,7 +2005,7 @@ function StatsScreenInner() {
                   {excludeCarburante && <Ionicons name="checkmark" size={14} color="#FFF" />}
                 </View>
                 <Text style={st.checkboxLabel}>Gestione Carburante</Text>
-                <Text style={st.checkboxValue}>€{arrSum(store.storicoCarburante.map(c => c.euro))}</Text>
+                <Text style={st.checkboxValue}>€{Math.round(carburantePeriodoTotale)}</Text>
               </TouchableOpacity>
             </View>
             
