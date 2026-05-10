@@ -212,6 +212,8 @@
     "fuelType": "Tipo Carburante",
     "collaboratorsTitle": "COLLABORATORI",
     "suppliersTitle": "FORNITORI",
+    "supplierSettingsTitle": "CONFIGURA RICARICHI E PREZZI",
+    "supplierSettingsHint": "Imposta ricarico % e prezzi prodotto per prodotto",
     "securityTitle": "SICUREZZA",
     "phoneNumber": "Numero di telefono",
     "otpLogin": "Login con OTP",
@@ -663,5 +665,28 @@
     "weather": "Meteo: ",
     "bestFuel": "Miglior rifornim.: ",
     "open": "(apri)"
+  },
+  "supplier": {
+    "title": "FORNITORI / RICARICHI",
+    "infoBox": "Imposta il ricarico medio % e i prodotti del fornitore. La ripartizione del costo merce sui giorni avviene automaticamente in base agli incassi (Lordo).",
+    "empty": "Nessun fornitore configurato",
+    "addFirst": "AGGIUNGI IL PRIMO",
+    "avgMarkup": "RICARICO MEDIO FORNITORE",
+    "avgMarkupHint": "Usato come default per calcolare i prezzi suggeriti dei prodotti.",
+    "products": "PRODOTTI",
+    "noProducts": "Nessun prodotto. Aggiungine uno qui sotto.",
+    "addProduct": "AGGIUNGI PRODOTTO",
+    "newFornitore": "Nuovo fornitore",
+    "renameFornitore": "Rinomina fornitore",
+    "newProduct": "Nuovo prodotto",
+    "fornitoreNamePlaceholder": "Nome fornitore (es. Andrea Pane)",
+    "productNamePlaceholder": "Nome prodotto (es. Pane Toscano)",
+    "productName": "Nome",
+    "costPlaceholder": "Costo unitario € (es. 2.50)",
+    "cost": "Costo",
+    "price": "Prezzo",
+    "priceOverride": "Manuale",
+    "confirmDeleteTitle": "Elimina fornitore",
+    "confirmDeleteDesc": "Eliminare \"{{nome}}\" e tutti i suoi prodotti?"
   }
 }

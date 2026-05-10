@@ -123,6 +123,12 @@ export default function TabLayout() {
         name="collaborators"
         options={{ href: null }}
       />
+      {/* Pagina supplier-settings — schermata dedicata per ricarico/prezzi
+          fornitori, accessibile dalla Settings via push(). */}
+      <Tabs.Screen
+        name="supplier-settings"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

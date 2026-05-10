@@ -68,11 +68,33 @@ export interface Collaboratore {
 export interface Prodotto {
   nome: string;
   prezzo: number;
+  /**
+   * Costo unitario di acquisto dal fornitore (€). Quando impostato insieme
+   * al `ricaricoMedio` del Fornitore, il `prezzo` viene calcolato come:
+   *   prezzoSuggerito = costo × (1 + ricaricoMedio/100)
+   * a meno che `prezzoOverwrite=true` (l'utente ha sovrascritto manualmente).
+   * Optional per retrocompatibilità con prodotti già esistenti.
+   */
+  costo?: number;
+  /**
+   * Se true, il `prezzo` salvato è stato impostato manualmente dall'utente
+   * e NON va più ricalcolato dal `ricaricoMedio`. Default false.
+   */
+  prezzoOverwrite?: boolean;
 }
 
 export interface Fornitore {
   nome: string;
   prodotti: Prodotto[];
+  /**
+   * Ricarico medio percentuale applicato a tutti i prodotti del fornitore
+   * (default 70% se assente). NON entra direttamente nel calcolo del
+   * "costo merce giornaliero" che invece usa la distribuzione proporzionale
+   * sulla fattura reale (vedi /app/frontend/src/utils/proporzionaleFornitori.ts).
+   * Serve solo come driver per i prezzi di vendita suggeriti nel
+   * SupplierSettings prodotto-per-prodotto.
+   */
+  ricaricoMedio?: number;
 }
 
 export interface MercatoAgenda {

@@ -1528,6 +1528,24 @@ function SettingsPageInner() {
       })}
 
       <Text style={s.secTitle} testID="sett-fornitori-card" ref={anchorFornitori as any}>{t('settings.suppliersTitle') || t('settings.marketsTitle') || 'FORNITORI'}</Text>
+
+      {/* CTA dedicata per la configurazione avanzata fornitori (ricarico % +
+          costo/prezzo prodotti). Apre la schermata SupplierSettings dedicata. */}
+      <TouchableOpacity
+        style={s.supplierSettingsCta}
+        activeOpacity={0.85}
+        onPress={() => router.push('/home/supplier-settings')}
+      >
+        <View style={s.supplierSettingsIcon}>
+          <Ionicons name="pricetags" size={22} color="#1E7F85" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.supplierSettingsTitle}>{t('settings.supplierSettingsTitle') || 'CONFIGURA RICARICHI E PREZZI'}</Text>
+          <Text style={s.supplierSettingsHint}>{t('settings.supplierSettingsHint') || 'Imposta ricarico % e prezzi prodotto per prodotto'}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color="#1E7F85" />
+      </TouchableOpacity>
+
       {store.fornitori.map((f, fi) => {
         const isOpen = expandedForn === fi;
         return (
@@ -2426,6 +2444,25 @@ const s = StyleSheet.create({
     color: '#FFF',
     letterSpacing: 0.5,
   },
+  // ─── CTA SupplierSettings (apre la schermata dedicata ricarico/prezzi) ───
+  supplierSettingsCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFAEC',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#1E7F85',
+  },
+  supplierSettingsIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#D6E8E5',
+  },
+  supplierSettingsTitle: { fontSize: 12, fontWeight: '900', color: '#1A4040', letterSpacing: 0.8 },
+  supplierSettingsHint: { fontSize: 10, color: '#7A9090', marginTop: 2 },
 });
 
 /* ─── MODAL STYLES ─── */
