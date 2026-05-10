@@ -166,18 +166,31 @@ const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoFornitore, on
 
   return (
     <View style={ps.row}>
-      {/*  Layout HORIZONTALE su una sola riga, tutto centrato verticalmente.
-          Mobile: Nome (flex 1.2) | Costo | → | Prezzo | % (in verde a fianco) | 🗑
-          Su schermi stretti (<360px) i campi rimangono leggibili grazie a
-          minWidth controllati. */}
-      <TextInput
-        style={ps.nameInput}
-        value={prodotto.nome}
-        onChangeText={(v) => onChange({ nome: v })}
-        placeholder={t('supplier.productName') || 'Nome'}
-        placeholderTextColor="#A6A095"
-      />
+      {/*  Layout a 2 RIGHE per garantire che il nome del prodotto sia
+          sempre PIENAMENTE VISIBILE su qualsiasi larghezza schermo.
+          - Riga 1: NOME PRODOTTO (full width) + bottone elimina
+          - Riga 2: COSTO | → | PREZZO | %
+          Risolve il bug "i nomi dei prodotti non si vedono nella sezione
+          Settings → Fornitori": prima il flex layout schiacciava il nome a
+          80-100px e su nomi lunghi tagliava il testo. */}
+      {/* RIGA 1 — NOME + delete */}
+      <View style={ps.nameRow}>
+        <Ionicons name="cube-outline" size={16} color="#1E7F85" style={{ marginRight: 6 }} />
+        <TextInput
+          style={ps.nameInput}
+          value={prodotto.nome || ''}
+          onChangeText={(v) => onChange({ nome: v })}
+          placeholder={t('supplier.productName') || 'Nome prodotto'}
+          placeholderTextColor="#A6A095"
+          testID="supplier-product-name-input"
+        />
+        <TouchableOpacity onPress={onDelete} style={ps.delBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="close-circle" size={22} color="#D46A6A" />
+        </TouchableOpacity>
+      </View>
 
+      {/* RIGA 2 — COSTO | → | PREZZO | % */}
+      <View style={ps.priceRow}>
       {/* COSTO */}
       <View style={ps.priceField}>
         <Text style={ps.priceLabel}>{t('supplier.cost') || 'Costo'}</Text>
@@ -238,10 +251,7 @@ const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoFornitore, on
           </View>
         </View>
       </View>
-
-      <TouchableOpacity onPress={onDelete} style={ps.delBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Ionicons name="close-circle" size={22} color="#D46A6A" />
-      </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -507,38 +517,47 @@ const fs = StyleSheet.create({
 });
 
 const ps = StyleSheet.create({
-  // Layout HORIZONTALE su una sola riga: tutti gli elementi centrati verticalmente.
-  // I box di Costo/Prezzo sono leggermente più piccoli del campo principale
-  // RICARICO MEDIO FORNITORE (font 17 vs 18, padding 8 vs 12) come richiesto.
+  // Layout VERTICALE a 2 RIGHE: nome sopra, costi sotto. Il nome del prodotto
+  // ha tutto lo spazio orizzontale che gli serve (no flex squeezing) — risolve
+  // il bug "non vedo i nomi prodotti" segnalato dall'utente.
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',     // ✓ allineamento verticale center come richiesto
     backgroundColor: '#FFFAEC',
     paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderRadius: 12,
     marginBottom: 8,
-    gap: 6,
     borderWidth: 1,
     borderColor: '#E5DECF',
   },
+  // RIGA 1 — Nome prodotto + delete
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   nameInput: {
-    flex: 1.1,
-    fontSize: 14,
+    flex: 1,
+    fontSize: 15,
     fontWeight: '800',
     color: '#1A4040',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     backgroundColor: '#FFF',
     borderRadius: 10,
-    minHeight: 42,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: '#E5DECF',
+  },
+  // RIGA 2 — Costo | → | Prezzo + %
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 
   // Campo COSTO / PREZZO — leggermente più piccoli del Ricarico ma comunque
   // grandi e leggibili. Label sopra il box (piccolo), box con bordo teal.
-  priceField: { alignItems: 'center', minWidth: 0 },
+  priceField: { alignItems: 'center', minWidth: 0, flex: 1 },
   priceLabel: {
     fontSize: 9,
     fontWeight: '900',
@@ -605,7 +624,7 @@ const ps = StyleSheet.create({
     minWidth: 24,
   },
 
-  delBtn: { padding: 4, alignSelf: 'center' },
+  delBtn: { padding: 4, marginLeft: 6 },
 });
 
 const ms = StyleSheet.create({

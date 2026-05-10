@@ -444,10 +444,10 @@ function StatsScreenInner() {
      filtriamo solo le giornate del periodo selezionato.
      ───────────────────────────────────────────────────────────────── */
   const costoMerceProporzionaleMap = useMemo(() => {
-    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }> = {};
+    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number; startDate?: string }> = {};
     (fornitori || []).forEach((f: any) => {
       if (!f || !f.nome) return;
-      fornCfg[f.nome] = { mode: f.deductionMode, days: f.deductionDays };
+      fornCfg[f.nome] = { mode: f.deductionMode, days: f.deductionDays, startDate: f.deductionStartDate };
     });
     const fullMap = calcolaCostoMerceProporzionale(
       (storicoGiornate || []) as any,
@@ -514,10 +514,14 @@ function StatsScreenInner() {
          la distribuzione giornaliera dentro l'espansione di ogni fornitore.
      ───────────────────────────────────────────────────────────────── */
   const costoMerceProporzionalePerFornMap = useMemo(() => {
-    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }> = {};
+    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number; startDate?: string }> = {};
     (fornitori || []).forEach((f: any) => {
       if (!f || !f.nome) return;
-      fornCfg[f.nome] = { mode: f.deductionMode, days: f.deductionDays };
+      fornCfg[f.nome] = {
+        mode: f.deductionMode,
+        days: f.deductionDays,
+        startDate: f.deductionStartDate, // Round 39: data inizio configurabile
+      };
     });
     const full = calcolaCostoMerceProporzionalePerFornitore(
       (storicoGiornate || []) as any,

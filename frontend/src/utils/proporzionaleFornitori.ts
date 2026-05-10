@@ -132,13 +132,13 @@ export function distribuisciFatturaProporzionalmente(
  */
 export function calcolaCostoMerceProporzionalePerFornitore(
   tutteLeGiornate: Giornata[],
-  fornitoriConfig?: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }>
+  fornitoriConfig?: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number; startDate?: string }>
 ): Record<string, Record<string, number>> {
   const out: Record<string, Record<string, number>> = {};
   if (!Array.isArray(tutteLeGiornate)) return out;
 
   // Bucket per evitare di distribuire DUE volte la stessa fattura
-  type Bucket = { fornitore: string; mode: DeductionMode; periodKey: string; importo: number; data: Date; days?: number };
+  type Bucket = { fornitore: string; mode: DeductionMode; periodKey: string; importo: number; data: Date; days?: number; startDate?: string };
   const buckets = new Map<string, Bucket>();
 
   // Pre-ordina le giornate per data (servirà per CUSTOM)
@@ -182,7 +182,15 @@ export function calcolaCostoMerceProporzionalePerFornitore(
 
       const existing = buckets.get(periodKey);
       if (!existing || new Date(g.data).getTime() >= existing.data.getTime()) {
-        buckets.set(periodKey, { fornitore: nomeForn, mode, periodKey, importo: imp, data: new Date(g.data), days: customDays });
+        buckets.set(periodKey, {
+          fornitore: nomeForn,
+          mode,
+          periodKey,
+          importo: imp,
+          data: new Date(g.data),
+          days: customDays,
+          startDate: supplierCfg?.startDate, // override Round 39: data inizio dal config
+        });
       }
     });
   });
@@ -201,7 +209,11 @@ export function calcolaCostoMerceProporzionalePerFornitore(
     }
     if (b.mode === 'CUSTOM') {
       const N = Math.max(1, Math.min(365, b.days || 7));
-      const startTs = new Date(b.data).getTime();
+      // Round 39: usa la data di inizio configurata (se presente) altrimenti
+      // fallback alla data di registrazione della fattura.
+      const startTs = b.startDate
+        ? new Date(b.startDate + 'T00:00:00').getTime()
+        : new Date(b.data).getTime();
       const endTs = startTs + (N - 1) * 24 * 60 * 60 * 1000;
       const periodGiornate = sortedGiornate.filter((g) => {
         const t = new Date(g.data).getTime();
@@ -249,7 +261,7 @@ export function calcolaCostoMerceProporzionalePerFornitore(
  */
 export function calcolaCostoMerceProporzionale(
   tutteLeGiornate: Giornata[],
-  fornitoriConfig?: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number }>
+  fornitoriConfig?: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number; startDate?: string }>
 ): Record<string, number> {
   const out: Record<string, number> = {};
   // Delega alla primitiva per-fornitore e somma per giornata.

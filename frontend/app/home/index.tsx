@@ -149,12 +149,29 @@ export default function HomeScreen() {
     try { (useAppStore.getState() as any).saveToStorage?.(); } catch {}
   };
 
+  // Single source of truth per la START DATE del periodo CUSTOM:
+  // ogni cambio modifica IL FORNITORE in store → tutte le statistiche
+  // si ricalcolano retroattivamente.
+  const setFornDeductionStartDateWrapped = (v: Record<string, string>) => {
+    setFornDeductionStartDate(v);
+    const cur = useAppStore.getState();
+    const updated = (cur.fornitori || []).map((f: any) => {
+      const newDate = v[f.nome];
+      if (!newDate) return f;
+      if (f.deductionStartDate === newDate) return f;
+      return { ...f, deductionStartDate: newDate };
+    });
+    useAppStore.setState({ fornitori: updated } as any);
+    try { (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+  };
+
   // Tipo di detrazione per fornitore: DAILY (default) | CUSTOM
   // Backwards-compat: i valori legacy 'WEEKLY' e 'MONTHLY' vengono accettati
   // dal modello Giornata e mappati a CUSTOM (7g / 30g) all'apertura.
   const [fornDeductionType, setFornDeductionType] = useState<Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'>>({});
-  // Numero di giorni del periodo personalizzato (CUSTOM). Default 7 quando assente.
   const [fornDeductionDays, setFornDeductionDays] = useState<Record<string, number>>({});
+  // Data di inizio del periodo CUSTOM ('YYYY-MM-DD'). Se assente parte da oggi/registrazione.
+  const [fornDeductionStartDate, setFornDeductionStartDate] = useState<Record<string, string>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
   const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
   
@@ -276,6 +293,7 @@ export default function HomeScreen() {
         setRipartizione(stored.ripartizione || {});
         setFornDeductionType(stored.fornDeductionType || {});
         setFornDeductionDays((stored as any).fornDeductionDays || {});
+        setFornDeductionStartDate((stored as any).fornDeductionStartDate || {});
       } else {
         (store as any).clearSpeseExtraSession?.();
       }
@@ -307,16 +325,21 @@ export default function HomeScreen() {
       const fList = (store.fornitori as any[]) || [];
       const dedMap: Record<string, 'DAILY' | 'CUSTOM'> = {};
       const daysMap: Record<string, number> = {};
+      const startDateMap: Record<string, string> = {};
       fList.forEach((f) => {
         if (!f || !f.nome) return;
         if (f.deductionMode) dedMap[f.nome] = f.deductionMode;
         if (f.deductionDays && f.deductionDays > 0) daysMap[f.nome] = f.deductionDays;
+        if (f.deductionStartDate) startDateMap[f.nome] = f.deductionStartDate;
       });
       if (Object.keys(dedMap).length > 0) {
         setFornDeductionType((prev) => ({ ...prev, ...dedMap } as any));
       }
       if (Object.keys(daysMap).length > 0) {
         setFornDeductionDays((prev) => ({ ...prev, ...daysMap }));
+      }
+      if (Object.keys(startDateMap).length > 0) {
+        setFornDeductionStartDate((prev) => ({ ...prev, ...startDateMap }));
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,7 +361,8 @@ export default function HomeScreen() {
       const hasMode = Object.keys(pagamentoMode || {}).length > 0;
       const hasDed = Object.keys(fornDeductionType || {}).length > 0;
       const hasDays = Object.keys(fornDeductionDays || {}).length > 0;
-      if (!hasSupplierData && !hasVoci && !hasFornInfo && !hasRipart && !hasMode && !hasDed && !hasDays) {
+      const hasStartDate = Object.keys(fornDeductionStartDate || {}).length > 0;
+      if (!hasSupplierData && !hasVoci && !hasFornInfo && !hasRipart && !hasMode && !hasDed && !hasDays && !hasStartDate) {
         if ((store as any).speseExtraSession) (store as any).clearSpeseExtraSession?.();
         return;
       }
@@ -354,12 +378,15 @@ export default function HomeScreen() {
         ripartizione,
         fornDeductionType,
         fornDeductionDays,
+        fornDeductionStartDate,
         createdAt,
       });
-    }, 600);
+      // Forza commit immediato in AsyncStorage (evita perdita dati su chiusura modal)
+      try { (useAppStore.getState() as any).saveToStorage?.(); } catch {}
+    }, 200); // ▼ Round 39: debounce ridotto da 600ms a 200ms per persistenza più reattiva
     return () => { if (speseExtraSaveTimerRef.current) clearTimeout(speseExtraSaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speseExtraFornitore, vociGeneriche, fornInfo, pagamentoMode, ripartizione, fornDeductionType, fornDeductionDays]);
+  }, [speseExtraFornitore, vociGeneriche, fornInfo, pagamentoMode, ripartizione, fornDeductionType, fornDeductionDays, fornDeductionStartDate]);
 
   /* ── Funzione per caricare i dati salvati di una data ── */
   const loadSavedData = useCallback((targetDate: Date) => {
@@ -2198,6 +2225,8 @@ export default function HomeScreen() {
         setFornDeductionType={setFornDeductionTypeWrapped}
         fornDeductionDays={fornDeductionDays}
         setFornDeductionDays={setFornDeductionDaysWrapped}
+        fornDeductionStartDate={fornDeductionStartDate}
+        setFornDeductionStartDate={setFornDeductionStartDateWrapped}
         weeklyTotalsByForn={weeklyTotalsByForn}
       />
 

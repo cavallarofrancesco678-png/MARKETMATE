@@ -65,6 +65,9 @@ interface Props {
   // Numero di giorni del periodo personalizzato per ciascun fornitore (solo se CUSTOM)
   fornDeductionDays: Record<string, number>;
   setFornDeductionDays: (v: Record<string, number>) => void;
+  // Data di inizio del periodo CUSTOM ('YYYY-MM-DD'). Se assente parte da oggi.
+  fornDeductionStartDate: Record<string, string>;
+  setFornDeductionStartDate: (v: Record<string, string>) => void;
   // Totali settimanali per fornitore (Lun-Dom): contanti / fattura
   weeklyTotalsByForn: Record<string, { contanti: number; fattura: number }>;
 }
@@ -81,6 +84,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
   pagamentoMode, setPagamentoMode,
   fornDeductionType, setFornDeductionType,
   fornDeductionDays, setFornDeductionDays,
+  fornDeductionStartDate, setFornDeductionStartDate,
   weeklyTotalsByForn,
 }) => {
   const { t } = useTranslation();
@@ -90,6 +94,12 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
   // Stato locale: quale fornitore sta aprendo il datepicker scadenza
   const [scadenzaPickerFor, setScadenzaPickerFor] = useState<string | null>(null);
+
+  // Stato locale: quale fornitore sta aprendo il calendario "Dal — Al"
+  // per il periodo CUSTOM. Quando è attivo, mostriamo il MiniMonthCalendar
+  // in modalità range. Salviamo `from`/`to` direttamente in
+  // fornDeductionStartDate + fornDeductionDays (delta in giorni).
+  const [periodoPickerFor, setPeriodoPickerFor] = useState<string | null>(null);
 
   // Expansion states (fornitori + voci generiche - a pacchetto)
   const [expandedForn, setExpandedForn] = useState<Record<string, boolean>>({});
@@ -285,6 +295,135 @@ export const SpeseExtraModal: React.FC<Props> = ({
                     const setMode = (m: 'contanti' | 'fattura' | 'misto') => setPagamentoMode({ ...pagamentoMode, [f.nome]: m });
                     const wkTot = weeklyTotalsByForn[f.nome] || { contanti: 0, fattura: 0 };
 
+                    /* ─── FREQUENZA + PERIODO block (renderizzato DOPO l'importo)
+                           per garantire che il campo importo non si sposti in
+                           basso quando l'utente passa da Giornaliera a
+                           Personalizza. Richiesta utente: layout stabile. ─── */
+                    const FrequenzaBlock = (
+                      <>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginTop: 12, marginBottom: 4, letterSpacing: 0.5 }}>
+                          FREQUENZA DI DETRAZIONE
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          {([
+                            { key: 'DAILY', label: 'Giornaliera' },
+                            { key: 'CUSTOM', label: 'Personalizza' },
+                          ] as const).map((opt) => {
+                            const stored = fornDeductionType[f.nome] || 'DAILY';
+                            const cur: 'DAILY' | 'CUSTOM' = stored === 'DAILY' ? 'DAILY' : 'CUSTOM';
+                            const on = cur === opt.key;
+                            return (
+                              <TouchableOpacity
+                                key={opt.key}
+                                onPress={() => {
+                                  if (opt.key === 'DAILY') {
+                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'DAILY' });
+                                  } else {
+                                    const oldType = fornDeductionType[f.nome];
+                                    const defDays = fornDeductionDays[f.nome] || (oldType === 'MONTHLY' ? 30 : 7);
+                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'CUSTOM' });
+                                    setFornDeductionDays({ ...fornDeductionDays, [f.nome]: defDays });
+                                  }
+                                }}
+                                activeOpacity={0.7}
+                                style={{
+                                  flex: 1,
+                                  paddingVertical: 9,
+                                  borderRadius: 999,
+                                  backgroundColor: on ? '#1E7F85' : '#F5EFDC',
+                                  borderWidth: 1.5,
+                                  borderColor: on ? '#1E7F85' : '#E0D8C0',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Text style={{ fontSize: 12, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
+                                  {opt.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        {(() => {
+                          const stored = fornDeductionType[f.nome] || 'DAILY';
+                          const isCustom = stored !== 'DAILY';
+                          if (!isCustom) return null;
+                          const days = fornDeductionDays[f.nome] || 7;
+                          const decDays = () => setFornDeductionDays({ ...fornDeductionDays, [f.nome]: Math.max(1, days - 1) });
+                          const incDays = () => setFornDeductionDays({ ...fornDeductionDays, [f.nome]: Math.min(365, days + 1) });
+                          const todayIso = (() => {
+                            const t = new Date();
+                            return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+                          })();
+                          const startIso = fornDeductionStartDate[f.nome] || todayIso;
+                          const startD = new Date(startIso + 'T00:00:00');
+                          const endD = new Date(startD.getTime() + (days - 1) * 24 * 60 * 60 * 1000);
+                          const endIso = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+                          const GIORNI_LONG = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+                          const fmtFull = (d: Date) => `${GIORNI_LONG[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+                          const isPickerOpen = periodoPickerFor === f.nome;
+                          return (
+                            <View style={{ marginTop: 10 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
+                                <TouchableOpacity onPress={decDays} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: days > 1 ? '#1E7F85' : '#C0D0C8', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Ionicons name="remove" size={24} color="#FFF" />
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={0.7}
+                                  onPress={() => setPeriodoPickerFor(isPickerOpen ? null : f.nome)}
+                                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isPickerOpen ? '#FFF8E6' : '#FFF', borderRadius: 12, borderWidth: 2, borderColor: isPickerOpen ? '#D4AF37' : '#1E7F85', paddingHorizontal: 14, paddingVertical: 8, minWidth: 92, minHeight: 44, justifyContent: 'center', gap: 4 }}>
+                                  <Ionicons name="calendar" size={16} color={isPickerOpen ? '#D4AF37' : '#1E7F85'} />
+                                  <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A4040', minWidth: 32, textAlign: 'center' }}>{days}</Text>
+                                  <Text style={{ fontSize: 13, fontWeight: '800', color: isPickerOpen ? '#D4AF37' : '#1E7F85' }}>gg</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={incDays} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: days < 365 ? '#1E7F85' : '#C0D0C8', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Ionicons name="add" size={24} color="#FFF" />
+                                </TouchableOpacity>
+                              </View>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F5EFDC', borderRadius: 10, gap: 6, flexWrap: 'wrap' }}>
+                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
+                                  Da <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtFull(startD)}</Text>
+                                </Text>
+                                <Text style={{ fontSize: 11, color: '#7A9090' }}>→</Text>
+                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
+                                  Al <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtFull(endD)}</Text>
+                                </Text>
+                              </View>
+                              {isPickerOpen && (
+                                <View style={{ marginTop: 10, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
+                                  <Text style={{ fontSize: 9, color: '#7A9090', textAlign: 'center', marginBottom: 4, fontStyle: 'italic' }}>
+                                    Tocca due date per impostare l'intervallo "Dal — Al"
+                                  </Text>
+                                  <MiniMonthCalendar
+                                    selectedDates={[]}
+                                    onToggleDate={() => {}}
+                                    rangeMode={true}
+                                    rangeFrom={startIso}
+                                    rangeTo={endIso}
+                                    onRangeChange={(from, to) => {
+                                      if (from && !to) {
+                                        setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: from });
+                                      } else if (from && to) {
+                                        const dF = new Date(from + 'T00:00:00').getTime();
+                                        const dT = new Date(to + 'T00:00:00').getTime();
+                                        const diff = Math.round((dT - dF) / (24 * 60 * 60 * 1000)) + 1;
+                                        const nDays = Math.max(1, Math.min(365, diff));
+                                        setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: from });
+                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: nDays });
+                                        setPeriodoPickerFor(null);
+                                      }
+                                    }}
+                                    themeColor="#1E7F85"
+                                  />
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })()}
+                      </>
+                    );
+
                     return (
                       <>
                         {/* ═══ 3 PULSANTI: CONTANTI | FATTURA | MISTO (monocolore: verde se attivo) ═══ */}
@@ -318,182 +457,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           })}
                         </View>
 
-                        {/* ═══ 2 PILLOLE FREQUENZA: GIORNALIERA | PERSONALIZZA ═══
-                            Richiesta utente: niente più WEEKLY/MONTHLY fissi.
-                            "Personalizza" lascia scegliere il NUMERO DI GIORNI
-                            su cui distribuire proporzionalmente la fattura. */}
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginTop: 10, marginBottom: 4, letterSpacing: 0.5 }}>
-                          FREQUENZA DI DETRAZIONE
-                        </Text>
-                        <View style={{ flexDirection: 'row', gap: 6 }}>
-                          {([
-                            { key: 'DAILY', label: 'Giornaliera' },
-                            { key: 'CUSTOM', label: 'Personalizza' },
-                          ] as const).map((opt) => {
-                            // Backwards-compat: tratta WEEKLY/MONTHLY come CUSTOM
-                            const stored = fornDeductionType[f.nome] || 'DAILY';
-                            const cur: 'DAILY' | 'CUSTOM' =
-                              stored === 'DAILY' ? 'DAILY' : 'CUSTOM';
-                            const on = cur === opt.key;
-                            return (
-                              <TouchableOpacity
-                                key={opt.key}
-                                onPress={() => {
-                                  if (opt.key === 'DAILY') {
-                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'DAILY' });
-                                  } else {
-                                    // Switch a CUSTOM. Se non c'è ancora un valore di
-                                    // giorni, prendiamo 7 come default ragionevole
-                                    // (oppure 7/30 in caso di valore legacy WEEKLY/MONTHLY).
-                                    const oldType = fornDeductionType[f.nome];
-                                    const defDays =
-                                      fornDeductionDays[f.nome] ||
-                                      (oldType === 'MONTHLY' ? 30 : 7);
-                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'CUSTOM' });
-                                    setFornDeductionDays({ ...fornDeductionDays, [f.nome]: defDays });
-                                  }
-                                }}
-                                activeOpacity={0.7}
-                                style={{
-                                  flex: 1,
-                                  paddingVertical: 9,
-                                  borderRadius: 999,
-                                  backgroundColor: on ? '#1E7F85' : '#F5EFDC',
-                                  borderWidth: 1.5,
-                                  borderColor: on ? '#1E7F85' : '#E0D8C0',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <Text style={{ fontSize: 12, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
-                                  {opt.label}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-
-                        {/* ═══ Campo "Periodo" visibile solo se CUSTOM è attivo ═══ */}
-                        {(() => {
-                          const stored = fornDeductionType[f.nome] || 'DAILY';
-                          const isCustom = stored !== 'DAILY';
-                          if (!isCustom) return null;
-                          const days = fornDeductionDays[f.nome] || 7;
-                          // Helpers per le frecce e il preview range
-                          const decDays = () => {
-                            const next = Math.max(1, days - 1);
-                            setFornDeductionDays({ ...fornDeductionDays, [f.nome]: next });
-                          };
-                          const incDays = () => {
-                            const next = Math.min(365, days + 1);
-                            setFornDeductionDays({ ...fornDeductionDays, [f.nome]: next });
-                          };
-                          // Calendario "preview": data inizio = oggi, data fine = oggi + (days-1)
-                          const oggi = new Date();
-                          const fine = new Date(oggi.getTime() + (days - 1) * 24 * 60 * 60 * 1000);
-                          const fmtDate = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-                          return (
-                            <View style={{ marginTop: 10 }}>
-                              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040', marginBottom: 6 }}>
-                                Periodo
-                              </Text>
-                              {/* Frecce ± e numero giorni — touch target ≥ 44px (iOS guidelines) */}
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-                                <TouchableOpacity
-                                  onPress={decDays}
-                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                  style={{
-                                    width: 44, height: 44, borderRadius: 22,
-                                    backgroundColor: days > 1 ? '#1E7F85' : '#C0D0C8',
-                                    alignItems: 'center', justifyContent: 'center',
-                                  }}
-                                >
-                                  <Ionicons name="remove" size={24} color="#FFF" />
-                                </TouchableOpacity>
-                                <View style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  backgroundColor: '#FFF',
-                                  borderRadius: 12,
-                                  borderWidth: 2,
-                                  borderColor: '#1E7F85',
-                                  paddingHorizontal: 14,
-                                  paddingVertical: 8,
-                                  minWidth: 92,
-                                  minHeight: 44,
-                                  justifyContent: 'center',
-                                  gap: 4,
-                                }}>
-                                  <TextInput
-                                    style={{ fontSize: 22, fontWeight: '900', color: '#1A4040', textAlign: 'center', minWidth: 32, paddingVertical: 0 }}
-                                    value={String(days)}
-                                    onChangeText={(v) => {
-                                      const n = parseInt(v.replace(/[^0-9]/g, ''), 10);
-                                      if (!isNaN(n) && n > 0 && n <= 365) {
-                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: n });
-                                      } else if (v === '') {
-                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 0 });
-                                      }
-                                    }}
-                                    onBlur={() => {
-                                      if (!fornDeductionDays[f.nome] || fornDeductionDays[f.nome] < 1) {
-                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 7 });
-                                      }
-                                    }}
-                                    keyboardType="numeric"
-                                    maxLength={3}
-                                  />
-                                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E7F85' }}>gg</Text>
-                                </View>
-                                <TouchableOpacity
-                                  onPress={incDays}
-                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                  style={{
-                                    width: 44, height: 44, borderRadius: 22,
-                                    backgroundColor: days < 365 ? '#1E7F85' : '#C0D0C8',
-                                    alignItems: 'center', justifyContent: 'center',
-                                  }}
-                                >
-                                  <Ionicons name="add" size={24} color="#FFF" />
-                                </TouchableOpacity>
-                              </View>
-                              {/* Preview range "calendario" — visualizza dal/al */}
-                              <View style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                marginTop: 10,
-                                paddingHorizontal: 12,
-                                paddingVertical: 8,
-                                backgroundColor: '#F5EFDC',
-                                borderRadius: 10,
-                                gap: 8,
-                              }}>
-                                <Ionicons name="calendar-outline" size={14} color="#1E7F85" />
-                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
-                                  Dal <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtDate(oggi)}</Text>
-                                </Text>
-                                <Text style={{ fontSize: 11, color: '#7A9090' }}>→</Text>
-                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
-                                  al <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtDate(fine)}</Text>
-                                </Text>
-                              </View>
-                            </View>
-                          );
-                        })()}
-                        {(() => {
-                          const stored = fornDeductionType[f.nome] || 'DAILY';
-                          const isDaily = stored === 'DAILY';
-                          const days = fornDeductionDays[f.nome] || 7;
-                          const hint = isDaily
-                            ? 'Detratta dal netto di OGGI'
-                            : `NON detratta oggi · distribuita proporzionalmente al lordo sui prossimi ${days} giorni`;
-                          return (
-                            <Text style={{ fontSize: 10, color: '#5A7575', marginTop: 5, fontStyle: 'italic', fontWeight: '600' }}>
-                              {hint}
-                            </Text>
-                          );
-                        })()}
+                        {/* FREQUENZA+PERIODO bloccati renderizzati DOPO i campi importo (vedi sotto) */}
 
                         {/* ═══ CONTANTI: solo importo + totale settimanale ═══ */}
                         {mode === 'contanti' && (
@@ -513,14 +477,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                               />
                               <Text style={st.euro}>{'\u20AC'}</Text>
                             </View>
-                            <View style={st.weeklyBox}>
-                              <Text style={st.weeklyLine}>
-                                Settimana: <Text style={[st.weeklyAmt, { color: '#1E7F85' }]}>€{wkTot.contanti.toFixed(0)}</Text> in contanti a {f.nome}
-                              </Text>
-                              <Text style={st.weeklyHint}>
-                                Vedi tutte le statistiche in Statistiche
-                              </Text>
-                            </View>
+                            {/* Box "Settimana: €X in contanti..." rimosso (richiesta utente: pulizia interfaccia). */}
                           </View>
                         )}
 
@@ -593,17 +550,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                               </View>
                             </View>
 
-                            {/* Totale fatture settimana (solo per fattura pura) */}
-                            {mode === 'fattura' && (
-                              <View style={st.weeklyBox}>
-                                <Text style={st.weeklyLine}>
-                                  Settimana: <Text style={[st.weeklyAmt, { color: '#B08050' }]}>€{wkTot.fattura.toFixed(0)}</Text> di fatture per {f.nome}
-                                </Text>
-                                <Text style={st.weeklyHint}>
-                                  Vedi tutte le statistiche in Statistiche
-                                </Text>
-                              </View>
-                            )}
+                            {/* Box "Settimana: €X di fatture..." rimosso (richiesta utente: pulizia interfaccia). */}
                           </View>
                         )}
 
@@ -625,21 +572,14 @@ export const SpeseExtraModal: React.FC<Props> = ({
                               />
                               <Text style={st.euro}>{'\u20AC'}</Text>
                             </View>
-                            <View style={st.weeklyBox}>
-                              <Text style={st.weeklyLine}>
-                                Settimana: <Text style={[st.weeklyAmt, { color: '#7A5E9B' }]}>€{(wkTot.contanti + wkTot.fattura).toFixed(0)}</Text> totali a {f.nome}
-                                {(wkTot.contanti > 0 || wkTot.fattura > 0) ? (
-                                  <Text style={{ color: '#7A8585', fontWeight: '600' }}>
-                                    {' '}(€{wkTot.contanti.toFixed(0)} cont. + €{wkTot.fattura.toFixed(0)} fatt.)
-                                  </Text>
-                                ) : null}
-                              </Text>
-                              <Text style={st.weeklyHint}>
-                                Vedi tutte le statistiche in Statistiche
-                              </Text>
-                            </View>
+                            {/* Box "Settimana: €X totali..." rimosso (richiesta utente: pulizia interfaccia). */}
                           </View>
                         )}
+
+                        {/* ═══ FREQUENZA + PERIODO renderizzati QUI per mantenere
+                            il campo importo nella stessa posizione tra
+                            Giornaliera/Personalizza (richiesta utente Round 39). */}
+                        {FrequenzaBlock}
                       </>
                     );
                   })()}

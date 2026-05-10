@@ -110,6 +110,15 @@ export interface Fornitore {
   deductionMode?: 'DAILY' | 'CUSTOM';
   /** Numero di giorni del periodo personalizzato (solo se deductionMode='CUSTOM'). Default 7. */
   deductionDays?: number;
+  /**
+   * Data di inizio del periodo CUSTOM ('YYYY-MM-DD').
+   * Se NON specificata, la distribuzione parte dalla data di registrazione
+   * della fattura (default storico). Se specificata, la fattura viene
+   * distribuita su [deductionStartDate, deductionStartDate + deductionDays - 1].
+   * Permette all'utente di pianificare un periodo che inizia in data diversa
+   * da oggi (es. una fattura ricevuta oggi ma valida da Lunedì prossimo).
+   */
+  deductionStartDate?: string;
 }
 
 export interface MercatoAgenda {
