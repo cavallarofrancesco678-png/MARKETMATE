@@ -70,6 +70,11 @@ interface Props {
   setFornDeductionStartDate: (v: Record<string, string>) => void;
   // Totali settimanali per fornitore (Lun-Dom): contanti / fattura
   weeklyTotalsByForn: Record<string, { contanti: number; fattura: number }>;
+  /**
+   * Round 43: Lordo del giorno corrente. Usato per mostrare un indicatore
+   * visuale "Su €X di costo oggi hai venduto €Y" sotto ogni card fornitore.
+   */
+  lordoOggi?: number;
 }
 
 const PERIODI_LABELS: Record<string, string> = {
@@ -86,6 +91,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
   fornDeductionDays, setFornDeductionDays,
   fornDeductionStartDate, setFornDeductionStartDate,
   weeklyTotalsByForn,
+  lordoOggi = 0,
 }) => {
   const { t } = useTranslation();
   const [nuovaVoce, setNuovaVoce] = useState('');
@@ -610,6 +616,45 @@ export const SpeseExtraModal: React.FC<Props> = ({
                               <Text style={st.euro}>{'\u20AC'}</Text>
                             </View>
                             {/* Box "Settimana: €X totali..." rimosso (richiesta utente: pulizia interfaccia). */}
+                          </View>
+                        )}
+
+                        {/* ═══ Round 43 — INDICATORE COSTO vs VENDUTO OGGI ═══
+                            Sotto i campi importo, prima della FREQUENZA,
+                            mostra una barra di progresso visiva con la
+                            relazione tra il costo del fornitore e il lordo
+                            del giorno. Aiuta l'utente a capire se sta
+                            recuperando il costo. */}
+                        {totFornitore > 0 && (
+                          <View style={{ marginTop: 12, padding: 10, borderRadius: 10, backgroundColor: '#F9F3E0' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.5 }}>
+                                COSTO vs INCASSATO OGGI
+                              </Text>
+                              <Text style={{ fontSize: 10, fontWeight: '800', color: lordoOggi >= totFornitore ? '#1E7F85' : '#D46A6A' }}>
+                                {lordoOggi >= totFornitore ? '✓ RECUPERATO' : `${Math.round((lordoOggi / totFornitore) * 100)}%`}
+                              </Text>
+                            </View>
+                            <Text style={{ fontSize: 12, color: '#1A4040', marginBottom: 8, lineHeight: 18 }}>
+                              {lordoOggi >= totFornitore
+                                ? `Su €${totFornitore.toFixed(0)} di costo hai già venduto €${lordoOggi.toFixed(0)} oggi.`
+                                : `Su €${totFornitore.toFixed(0)} di costo oggi hai venduto €${lordoOggi.toFixed(0)}.`}
+                            </Text>
+                            {/* Progress bar */}
+                            <View style={{ height: 10, backgroundColor: '#E5DECF', borderRadius: 5, overflow: 'hidden', flexDirection: 'row' }}>
+                              <View
+                                style={{
+                                  width: `${Math.min(100, lordoOggi > 0 ? (lordoOggi / totFornitore) * 100 : 0)}%`,
+                                  backgroundColor: lordoOggi >= totFornitore ? '#1E7F85' : (lordoOggi / totFornitore >= 0.5 ? '#E8A060' : '#D46A6A'),
+                                }}
+                              />
+                            </View>
+                            {/* Indicatore della soglia "pari" sul break-even */}
+                            {lordoOggi > 0 && lordoOggi < totFornitore && (
+                              <Text style={{ fontSize: 10, color: '#7A5E5E', fontStyle: 'italic', marginTop: 6 }}>
+                                Mancano €{(totFornitore - lordoOggi).toFixed(0)} per coprire il costo del fornitore.
+                              </Text>
+                            )}
                           </View>
                         )}
 

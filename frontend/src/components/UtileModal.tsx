@@ -37,6 +37,13 @@ interface Props {
    * subito che la spesa è stata registrata.
    */
   fornitoriCustom?: number;
+  /**
+   * Round 43: QUOTA PROPORZIONALE OGGI delle fatture CUSTOM (passate o
+   * appena inserite). Questa quota viene EFFETTIVAMENTE detratta
+   * dall'utile odierno (formula: lordo_oggi / lordo_periodo × fattura).
+   * Mostrata come riga indipendente "Costo Merce Ripartito Oggi".
+   */
+  fornitoriCustomTodayQuota?: number;
   invenduto: number;
   excludeInvenduto: boolean;
   toggleExcludeInvenduto: () => void;
@@ -87,7 +94,7 @@ export const UtileModal: React.FC<Props> = ({
   collabCosto, excludeCollaboratori, toggleExcludeCollaboratori,
   speseExtra, excludeSpeseExtra, toggleExcludeSpeseExtra,
   fornitoriDaily, excludeFornitori, toggleExcludeFornitori,
-  fornitoriWeekly = 0, fornitoriMonthly = 0, fornitoriCustom = 0,
+  fornitoriWeekly = 0, fornitoriMonthly = 0, fornitoriCustom = 0, fornitoriCustomTodayQuota = 0,
   invenduto, excludeInvenduto, toggleExcludeInvenduto,
   utile, lordo,
 }) => {
@@ -121,13 +128,18 @@ export const UtileModal: React.FC<Props> = ({
       label: 'FORNITORI',
       icon: 'storefront-outline',
       iconColor: '#7A5E9B',
-      value: fornitoriDaily,
+      // Round 43: somma DAILY + quota proporzionale CUSTOM odierna
+      value: fornitoriDaily + fornitoriCustomTodayQuota,
       excluded: excludeFornitori,
       onToggle: toggleExcludeFornitori,
       hint: (() => {
         const parts: string[] = [];
-        if (fornitoriCustom > 0) {
-          parts.push(`+ €${fornitoriCustom.toFixed(0)} accantonati (distribuiti su più giorni)`);
+        if (fornitoriCustomTodayQuota > 0) {
+          parts.push(`Include €${fornitoriCustomTodayQuota.toFixed(2)} quota proporzionale di oggi`);
+        }
+        if (fornitoriCustom > 0 && fornitoriCustom > fornitoriCustomTodayQuota) {
+          const accantonati = fornitoriCustom - fornitoriCustomTodayQuota;
+          parts.push(`+ €${accantonati.toFixed(0)} accantonati (distribuiti nei prossimi giorni)`);
         }
         const wm = fornitoriWeekly + fornitoriMonthly;
         if (wm > 0 && fornitoriCustom === 0) {

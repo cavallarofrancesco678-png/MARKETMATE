@@ -33,6 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { getDayNames, getMonthNames } from '../../src/i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
+import { calcolaCostoMerceProporzionalePerFornitore } from '../../src/utils/proporzionaleFornitori';
 import { usePermissions } from '../../src/utils/permissions';
 
 // Day/Month names now come from i18n via getDayNames/getMonthNames
@@ -892,6 +893,92 @@ export default function HomeScreen() {
   const speseExtraFornWeekly = speseExtraFornCustom;
   const speseExtraFornMonthly = 0;
 
+  /* ══════════════════════════════════════════════════════════════════
+     RIPARTIZIONE GIORNALIERA OGGI (Round 43 — richiesta utente):
+     "Non toglie nulla nei giorni successivi" → fix: calcola la quota
+     proporzionale CUSTOM da sottrarre OGGI dall'utile, considerando:
+       1. tutte le fatture CUSTOM già salvate in storico (fatture passate
+          ancora dentro la loro finestra di N giorni che oggi tocca);
+       2. eventuale NUOVA fattura CUSTOM appena inserita oggi nel modal
+          (ancora non salvata in storicoGiornate).
+     Algoritmo: applica `calcolaCostoMerceProporzionalePerFornitore` su
+     `[storico + giornata-virtuale-oggi]` e somma la quota di ogni
+     fornitore corrispondente alla data corrente.
+     ══════════════════════════════════════════════════════════════════ */
+  const costoMerceRipartitoOggi = useMemo(() => {
+    try {
+      const todayIso = (() => {
+        const d = new Date(dataCorrente);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })();
+      // Costruisci giornate "live": esclude oggi (se esiste già) e
+      // aggiunge una giornata virtuale con i valori attuali del form.
+      const tuttiNomi = new Set<string>();
+      Object.keys(speseExtraFornitore).forEach((k) => {
+        if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+        tuttiNomi.add(k.replace(/__libera$/, ''));
+      });
+      const dettOggi: Record<string, number> = {};
+      const dedOggi: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'> = {};
+      const daysOggi: Record<string, number> = {};
+      tuttiNomi.forEach((nomeBase) => {
+        const mode = fornDeductionType[nomeBase] || 'DAILY';
+        if (mode === 'DAILY') return; // DAILY già detratto in g.netto
+        const payMode = pagamentoMode[nomeBase] || 'contanti';
+        const impF = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
+        const impC = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
+        if (payMode === 'contanti' && impC > 0) dettOggi[`${nomeBase}__libera`] = impC;
+        else if (payMode === 'fattura' && impF > 0) dettOggi[nomeBase] = impF;
+        else if (payMode === 'misto') {
+          if (impF > 0) dettOggi[nomeBase] = impF;
+          if (impC > 0) dettOggi[`${nomeBase}__libera`] = impC;
+        }
+        if (Object.keys(dettOggi).some((k) => k.replace(/__libera$/, '') === nomeBase)) {
+          dedOggi[nomeBase] = 'CUSTOM';
+          daysOggi[nomeBase] = fornDeductionDays[nomeBase] || 7;
+        }
+      });
+      const giornataVirtuale: any = {
+        data: new Date(dataCorrente).toISOString(),
+        mercato: '', meteo: '', km: 0,
+        lordo: lordoNum, netto: 0, contanti: 0, pos: 0, spese_extra: 0,
+        dettaglio_staff: {}, dettaglio_invenduto: {},
+        dettaglio_fornitori: dettOggi,
+        dettaglio_fornitori_deduction: dedOggi,
+        dettaglio_fornitori_days: daysOggi,
+        inPiazza: true,
+      };
+      const altreGiornate = (store.storicoGiornate || []).filter((g: any) => {
+        try {
+          const gIso = new Date(g.data).toISOString().slice(0, 10);
+          return gIso !== todayIso;
+        } catch { return true; }
+      });
+      const tutte = [...altreGiornate, giornataVirtuale];
+      // Config dei fornitori dal store (single source of truth per mode/days/startDate)
+      const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number; startDate?: string }> = {};
+      (store.fornitori as any[] || []).forEach((f: any) => {
+        if (!f || !f.nome) return;
+        fornCfg[f.nome] = { mode: f.deductionMode, days: f.deductionDays, startDate: f.deductionStartDate };
+      });
+      const perForn = calcolaCostoMerceProporzionalePerFornitore(tutte, fornCfg);
+      let totaleQuotaOggi = 0;
+      Object.entries(perForn).forEach(([forn, daysMap]) => {
+        const cfg = fornCfg[forn];
+        const mode = cfg?.mode || (dedOggi[forn]) || 'DAILY';
+        if (mode === 'DAILY') return;
+        totaleQuotaOggi += (daysMap as any)[todayIso] || 0;
+      });
+      return Math.round(totaleQuotaOggi * 100) / 100;
+    } catch (e) {
+      return 0;
+    }
+  }, [
+    dataCorrente, lordoNum,
+    speseExtraFornitore, pagamentoMode, fornDeductionType, fornDeductionDays,
+    store.storicoGiornate, store.fornitori,
+  ]);
+
   /* ── Spese Extra generiche totale (importo del giorno, NO ripartizione) ── */
   const speseExtraGenTotale = useMemo(() => {
     let tot = 0;
@@ -979,10 +1066,13 @@ export default function HomeScreen() {
   const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
 
   // UTILE: calcolo con flag macro-categorie
+  // Round 43: include anche `costoMerceRipartitoOggi` (quota proporzionale
+  // CUSTOM di OGGI) per riflettere correttamente la sottrazione dall'utile
+  // anche nei giorni successivi alla fattura.
   const utile = lordoNum
     - (excludeSpeseFisse ? 0 : speseFisseTotali)
     - (excludeSpeseExtra ? 0 : speseExtraTotNum)
-    - (excludeFornitori ? 0 : speseExtraFornTotale)
+    - (excludeFornitori ? 0 : (speseExtraFornTotale + costoMerceRipartitoOggi))
     - (excludeInvenduto ? 0 : invendutoNum)
     - (excludeCollaboratori ? 0 : costoCollabAttivi);
   /* ── Storico mercato dati reali ── */
@@ -2202,6 +2292,7 @@ export default function HomeScreen() {
         fornitoriWeekly={speseExtraFornWeekly}
         fornitoriMonthly={speseExtraFornMonthly}
         fornitoriCustom={speseExtraFornCustom}
+        fornitoriCustomTodayQuota={costoMerceRipartitoOggi}
         invenduto={parseFloat(invenduto.replace(',', '.')) || 0}
         excludeInvenduto={excludeInvenduto}
         toggleExcludeInvenduto={() => setExcludeInvenduto(!excludeInvenduto)}
@@ -2224,11 +2315,12 @@ export default function HomeScreen() {
         setPagamentoMode={setPagamentoMode}
         fornDeductionType={fornDeductionType}
         setFornDeductionType={setFornDeductionTypeWrapped}
-        fornDeductionDays={fornDeductionDays}
-        setFornDeductionDays={setFornDeductionDaysWrapped}
         fornDeductionStartDate={fornDeductionStartDate}
         setFornDeductionStartDate={setFornDeductionStartDateWrapped}
+        fornDeductionDays={fornDeductionDays}
+        setFornDeductionDays={setFornDeductionDaysWrapped}
         weeklyTotalsByForn={weeklyTotalsByForn}
+        lordoOggi={lordoNum}
       />
 
       {/* Buongiorno AI Modal */}
