@@ -439,55 +439,38 @@ function StatsScreenInner() {
        Single source of truth: usa `Fornitore.deductionMode/Days` come
        riferimento, così cambi retroattivi si propagano automaticamente.
 
-     Implementazione: `calcolaCostoMerceProporzionale` accetta TUTTE le
-     giornate e ritorna mappa 'YYYY-MM-DD' → costoQuota. Noi qui
-     filtriamo solo le giornate del periodo selezionato.
+     Implementazione (Round 46): semplificata. Per ogni giornata,
+     somma TUTTI gli importi CUSTOM in dettaglio_fornitori → mappa 'YYYY-MM-DD' → totale.
      ───────────────────────────────────────────────────────────────── */
   const costoMerceProporzionaleMap = useMemo(() => {
-    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number; startDate?: string }> = {};
-    (fornitori || []).forEach((f: any) => {
-      if (!f || !f.nome) return;
-      fornCfg[f.nome] = { mode: f.deductionMode, days: f.deductionDays, startDate: f.deductionStartDate };
-    });
-    const fullMap = calcolaCostoMerceProporzionale(
-      (storicoGiornate || []) as any,
-      fornCfg
-    );
-    // ─── FILTRO ANTI-DOUBLE-COUNT ───────────────────────────────────────
-    // `g.netto` (calcolato in home/index.tsx al momento della Salva Giornata)
-    // ha già sottratto le spese DAILY. Se li includessimo qui li conteremmo
-    // due volte. Quindi sottraiamo i DAILY dalla mappa (ricalcolando solo
-    // la parte CUSTOM, ovvero la quota proporzionale dei fornitori non-DAILY).
-    const dailyMap: Record<string, number> = {};
+    // Round 46 NUOVA LOGICA: importo INTERO per giornata di registrazione,
+    // no distribuzione matematica.
+    const out: Record<string, number> = {};
     (storicoGiornate || []).forEach((g: any) => {
       const det = g.dettaglio_fornitori || {};
       const ded = g.dettaglio_fornitori_deduction || {};
-      Object.entries(det).forEach(([k, v]) => {
-        if (k.includes('__libera') && !k.endsWith('__libera')) return;
-        const nomeBase = k.endsWith('__libera') ? k.slice(0, -'__libera'.length) : k;
-        // Risolvi mode: priorità a config fornitore (single source of truth)
-        const cfg = fornCfg[nomeBase];
-        const rawMode = (cfg?.mode as any) || ded[k] || ded[nomeBase] || 'DAILY';
-        const mode = rawMode === 'DAILY' ? 'DAILY' : 'CUSTOM';
-        if (mode !== 'DAILY') return;
-        const imp = parseFloat(String(v)) || 0;
+      let dayTot = 0;
+      Object.entries(det).forEach(([nomeForn, importo]) => {
+        const imp = Number(importo) || 0;
         if (imp <= 0) return;
+        if (nomeForn.endsWith('__fattn') || nomeForn.endsWith('__liberaLabel')) return;
+        const nomeBase = nomeForn.replace(/__libera$/, '');
+        const mode = (ded[nomeBase] || 'DAILY') as string;
+        if (mode === 'DAILY') return; // già in g.netto
+        dayTot += imp;
+      });
+      if (dayTot > 0) {
         try {
           const day = new Date(g.data).toISOString().slice(0, 10);
-          dailyMap[day] = (dailyMap[day] || 0) + imp;
+          out[day] = (out[day] || 0) + dayTot;
         } catch {}
-      });
+      }
     });
-    const customOnly: Record<string, number> = {};
-    Object.entries(fullMap).forEach(([k, v]) => {
-      const remaining = v - (dailyMap[k] || 0);
-      if (remaining > 0.01) customOnly[k] = remaining;
-    });
-    return customOnly;
-  }, [storicoGiornate, fornitori]);
+    return out;
+  }, [storicoGiornate]);
 
-  /* ── Costo merce proporzionale TOTALE nel periodo filtrato ──
-     Σ delle quote giornaliere per i soli giorni di `filteredData`. */
+  /* ── Costo merce CUSTOM TOTALE nel periodo filtrato ──
+     Σ degli importi CUSTOM per i soli giorni in `filteredData`. */
   const totCostoMerceProp = useMemo(() => {
     return filteredData.reduce((acc, g) => {
       try {
@@ -500,60 +483,67 @@ function StatsScreenInner() {
   }, [filteredData, costoMerceProporzionaleMap]);
 
   /* ═══════════════════════════════════════════════════════════════════
-     RIPARTIZIONE PER FORNITORE (Round 38 — Spec utente):
-     "Il costo della merce ripartita va messo giornalmente nelle spese
-      extra del fornitore di riferimento, e quindi tolto dall'utile."
-     ─────────────────────────────────────────────────────────────────
-     Calcola:
-      1. `costoMerceProporzionalePerFornMap`: { forn → { 'YYYY-MM-DD' → quota } }
-         per TUTTI i giorni dello storico, escludendo fornitori DAILY
-         (già detratti in g.netto al momento del Salva Giornata).
-      2. `costoMerceProporzPerFornPeriodo`: { forn → totaleProporzionato }
-         filtrato al periodo correntemente visualizzato. Σ = `totCostoMerceProp`.
-      3. `costoMerceDailyPerFornFiltered`: lista giorni/€ per visualizzare
-         la distribuzione giornaliera dentro l'espansione di ogni fornitore.
-     ───────────────────────────────────────────────────────────────── */
-  const costoMerceProporzionalePerFornMap = useMemo(() => {
-    const fornCfg: Record<string, { mode?: 'DAILY' | 'CUSTOM'; days?: number; startDate?: string }> = {};
-    (fornitori || []).forEach((f: any) => {
-      if (!f || !f.nome) return;
-      fornCfg[f.nome] = {
-        mode: f.deductionMode,
-        days: f.deductionDays,
-        startDate: f.deductionStartDate, // Round 39: data inizio configurabile
-      };
-    });
-    const full = calcolaCostoMerceProporzionalePerFornitore(
-      (storicoGiornate || []) as any,
-      fornCfg
-    );
-    // Filtra fuori i fornitori DAILY (già in g.netto, evita double-counting)
-    const customOnly: Record<string, Record<string, number>> = {};
-    Object.entries(full).forEach(([forn, daysMap]) => {
-      const cfg = fornCfg[forn];
-      const mode = cfg?.mode || 'DAILY';
-      if (mode === 'DAILY') return;
-      customOnly[forn] = daysMap;
-    });
-    return customOnly;
-  }, [storicoGiornate, fornitori]);
+     ROUND 46 — NUOVA LOGICA "DETRAZIONE FISSA DI PERIODO":
+     L'utente ha cambiato la logica: la fattura CUSTOM non si distribuisce
+     più matematicamente sui giorni del periodo, ma viene trattata come
+     una DETRAZIONE FISSA sull'incasso lordo del periodo specificato.
+     L'algoritmo proporzionale è mantenuto come backup ma queste mappe
+     ora calcolano direttamente dalla giornata di registrazione.
 
-  /** Per ogni fornitore CUSTOM, somma € distribuiti nei giorni del periodo selezionato. */
-  const costoMerceProporzPerFornPeriodo = useMemo(() => {
-    const out: Record<string, number> = {};
-    const periodKeys = new Set<string>();
-    filteredData.forEach((g) => {
-      try { periodKeys.add(new Date(g.data).toISOString().slice(0, 10)); } catch {}
-    });
-    Object.entries(costoMerceProporzionalePerFornMap).forEach(([forn, daysMap]) => {
-      let tot = 0;
-      Object.entries(daysMap).forEach(([day, val]) => {
-        if (periodKeys.has(day)) tot += val;
+     Per ogni giornata in filteredData:
+       - Se ha entries CUSTOM in dettaglio_fornitori → conta INTERAMENTE
+         l'importo per quel fornitore (no distribuzione)
+       - Se DAILY → già in g.netto, skipped
+     ─────────────────────────────────────────────────────────────────── */
+  const costoMerceProporzionalePerFornMap = useMemo(() => {
+    // ⚠️ Compatibilità back: questa variabile viene ancora usata dal
+    // grafico di distribuzione giornaliera dentro l'espansione fornitore.
+    // Per la NUOVA LOGICA, popoliamo SOLO il giorno di registrazione di
+    // ogni fattura (no distribuzione). Visivamente si vedrà una singola
+    // barra alta nel giorno di registrazione.
+    const out: Record<string, Record<string, number>> = {};
+    (storicoGiornate || []).forEach((g: any) => {
+      const det = g.dettaglio_fornitori || {};
+      const ded = g.dettaglio_fornitori_deduction || {};
+      Object.entries(det).forEach(([nomeForn, importo]) => {
+        const imp = Number(importo) || 0;
+        if (imp <= 0) return;
+        if (nomeForn.endsWith('__fattn') || nomeForn.endsWith('__liberaLabel')) return;
+        const nomeBase = nomeForn.replace(/__libera$/, '');
+        const mode = (ded[nomeBase] || 'DAILY') as string;
+        if (mode === 'DAILY') return; // DAILY già detratto in g.netto
+        // Round 46: importo INTERO sul giorno di registrazione
+        try {
+          const iso = new Date(g.data).toISOString().slice(0, 10);
+          if (!out[nomeBase]) out[nomeBase] = {};
+          out[nomeBase][iso] = (out[nomeBase][iso] || 0) + imp;
+        } catch {}
       });
-      if (tot > 0.5) out[forn] = tot;
     });
     return out;
-  }, [costoMerceProporzionalePerFornMap, filteredData]);
+  }, [storicoGiornate]);
+
+  /** Round 46: per ogni fornitore CUSTOM, totale REALE delle fatture
+   *  registrate dentro il periodo selezionato (NO distribuzione). */
+  const costoMerceProporzPerFornPeriodo = useMemo(() => {
+    const out: Record<string, number> = {};
+    filteredData.forEach((g: any) => {
+      const det = g.dettaglio_fornitori || {};
+      const ded = g.dettaglio_fornitori_deduction || {};
+      Object.entries(det).forEach(([nomeForn, importo]) => {
+        const imp = Number(importo) || 0;
+        if (imp <= 0) return;
+        if (nomeForn.endsWith('__fattn') || nomeForn.endsWith('__liberaLabel')) return;
+        const nomeBase = nomeForn.replace(/__libera$/, '');
+        const mode = (ded[nomeBase] || 'DAILY') as string;
+        if (mode === 'DAILY') return;
+        out[nomeBase] = (out[nomeBase] || 0) + imp;
+      });
+    });
+    // Arrotonda
+    Object.keys(out).forEach((k) => { out[k] = Math.round(out[k] * 100) / 100; });
+    return out;
+  }, [filteredData]);
 
   const totLordo = arrSum(filteredData.map((g) => g.lordo || 0));
   /* Netto: prima usavamo `g.netto` calcolato in home con solo DAILY costs.
