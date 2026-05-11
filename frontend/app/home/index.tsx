@@ -486,6 +486,11 @@ export default function HomeScreen() {
       });
       setFornDeductionType(migratedDed);
       setFornDeductionDays(migratedDays);
+      // Round 45: carica anche lo snapshot startDate per ogni fornitore
+      const savedStartDate = (saved as any).dettaglio_fornitori_startDate || {};
+      if (Object.keys(savedStartDate).length > 0) {
+        setFornDeductionStartDate(savedStartDate);
+      }
 
       // ─── PRIORITÀ MASSIMA: il livello del fornitore (single source of truth)
       // Se l'utente ha modificato `deductionMode`/`deductionDays` nel
@@ -921,6 +926,7 @@ export default function HomeScreen() {
       const dettOggi: Record<string, number> = {};
       const dedOggi: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'> = {};
       const daysOggi: Record<string, number> = {};
+      const startDateOggi: Record<string, string> = {};
       tuttiNomi.forEach((nomeBase) => {
         const mode = fornDeductionType[nomeBase] || 'DAILY';
         if (mode === 'DAILY') return; // DAILY già detratto in g.netto
@@ -936,6 +942,8 @@ export default function HomeScreen() {
         if (Object.keys(dettOggi).some((k) => k.replace(/__libera$/, '') === nomeBase)) {
           dedOggi[nomeBase] = 'CUSTOM';
           daysOggi[nomeBase] = fornDeductionDays[nomeBase] || 7;
+          // Round 45: includi anche lo startDate snapshot
+          startDateOggi[nomeBase] = fornDeductionStartDate[nomeBase] || todayIso;
         }
       });
       const giornataVirtuale: any = {
@@ -946,6 +954,7 @@ export default function HomeScreen() {
         dettaglio_fornitori: dettOggi,
         dettaglio_fornitori_deduction: dedOggi,
         dettaglio_fornitori_days: daysOggi,
+        dettaglio_fornitori_startDate: startDateOggi,
         inPiazza: true,
       };
       const altreGiornate = (store.storicoGiornate || []).filter((g: any) => {
@@ -1159,6 +1168,10 @@ export default function HomeScreen() {
     const dettaglioForn: Record<string, number> = {};
     const dettaglioFornDed: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY' | 'MONTHLY'> = {};
     const dettaglioFornDays: Record<string, number> = {};
+    // Round 45: snapshot della DATA DI INIZIO del periodo CUSTOM. Garantisce
+    // che ogni fattura sia distribuita dalla SUA data di registrazione,
+    // anche se l'utente modifica in seguito il default del fornitore.
+    const dettaglioFornStartDate: Record<string, string> = {};
     const fornitoriNomi = new Set<string>();
     Object.keys(speseExtraFornitore).forEach((k) => {
       if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
@@ -1191,6 +1204,16 @@ export default function HomeScreen() {
         if (dedType !== 'DAILY') {
           const days = fornDeductionDays[nomeBase] || (dedType === 'MONTHLY' ? 30 : 7);
           dettaglioFornDays[nomeBase] = days;
+          // Round 45: salva startDate snapshot (priorità: scelta utente → data giornata)
+          const startDate = fornDeductionStartDate[nomeBase];
+          if (startDate) {
+            dettaglioFornStartDate[nomeBase] = startDate;
+          } else {
+            try {
+              const d = new Date(dataCorrente);
+              dettaglioFornStartDate[nomeBase] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            } catch {}
+          }
         }
       }
     });
@@ -1238,6 +1261,7 @@ export default function HomeScreen() {
       dettaglio_fornitori: dettaglioForn,
       dettaglio_fornitori_deduction: dettaglioFornDed,
       dettaglio_fornitori_days: dettaglioFornDays,
+      dettaglio_fornitori_startDate: dettaglioFornStartDate,
       dettaglio_spese_extra: dettaglioExtra,
       fornitoriInfo: fornInfo,
       // Stato del pulsante 'casa/storefront': true = sono andato a lavoro,

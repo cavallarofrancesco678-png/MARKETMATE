@@ -181,6 +181,15 @@ export interface Giornata {
   // Esempio: { "Andrea Pane": 14 } → la fattura viene distribuita sui 14
   // giorni a cavallo della data di registrazione, proporzionalmente al lordo.
   dettaglio_fornitori_days?: Record<string, number>;
+  /**
+   * Round 45: Snapshot della DATA DI INIZIO del periodo CUSTOM per ogni
+   * fornitore registrato in questa giornata. Permette al ricalcolo
+   * proporzionale di sapere ESATTAMENTE da quando partire la finestra,
+   * indipendentemente da modifiche successive al fornitore globale.
+   * Formato: 'YYYY-MM-DD'. Se assente, l'algoritmo userà la data della
+   * giornata stessa (data di registrazione della fattura) come fallback.
+   */
+  dettaglio_fornitori_startDate?: Record<string, string>;
   dettaglio_spese_extra?: Record<string, number>;
   fornitoriInfo?: Record<string, { numeroFattura: string; scadenza: string }>;
   // Indica se l'utente è andato a lavoro in quel giorno (toggle 'casa/storefront')

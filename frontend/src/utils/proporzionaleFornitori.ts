@@ -192,14 +192,25 @@ export function calcolaCostoMerceProporzionalePerFornitore(
 
       const existing = buckets.get(periodKey);
       if (!existing || new Date(g.data).getTime() >= existing.data.getTime()) {
+        // ⭐ Round 45 FIX architetturale: la PRIORITÀ dello startDate è:
+        //   1. snapshot per-giornata `g.dettaglio_fornitori_startDate[nomeBase]`
+        //      (settato al momento della registrazione della fattura — ogni
+        //      fattura ha la SUA data di partenza indipendente)
+        //   2. config per-supplier `supplierCfg.startDate` (default UI per
+        //      nuove fatture — usato come fallback)
+        //   3. data della giornata `g.data` (registrazione)
+        // Prima vinceva sempre (2), il che faceva sì che cambiare la
+        // startDate in Settings DISTRUGGESSE tutte le ripartizioni passate.
+        const perGiornataStart = (g as any).dettaglio_fornitori_startDate?.[nomeBase];
+        const effectiveStartDate = perGiornataStart || supplierCfg?.startDate;
         buckets.set(periodKey, {
-          fornitore: nomeBase,                 // ← Round 40: usiamo SEMPRE nomeBase (no suffisso) per aggregare contanti+fattura
+          fornitore: nomeBase,
           mode,
           periodKey,
           importo: imp,
           data: new Date(g.data),
           days: customDays,
-          startDate: supplierCfg?.startDate,   // override Round 39: data inizio dal config
+          startDate: effectiveStartDate,
         });
       }
     });
