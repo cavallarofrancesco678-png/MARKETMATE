@@ -89,21 +89,34 @@ const ProductRow: React.FC<ProductRowProps> = ({ prodotto, ricaricoFornitore, on
   useEffect(() => {
     setPrezzoText(prodotto.prezzo ? String(prodotto.prezzo) : '');
   }, [prodotto.prezzo]);
+  /* ═══ Round 44: SINGLE SOURCE OF TRUTH per pctText ═══
+     Prima c'erano DUE useEffect concorrenti che potevano sovrascrivere
+     pctText in ordine non deterministico:
+       (a) [ricaricoFornitore, prezzoOverwrite] → setPctText(ricaricoFornitore)
+       (b) [costo, prezzo] → setPctText((p/c-1)*100)
+     Risultato: per prodotti legacy con prezzoOverwrite=undefined, (a)
+     sovrascriveva pctText con `ricaricoFornitore` (es. 18) anche se la
+     ratio reale era 41.67%. UTENTE VEDEVA 18% INVECE DI 41.67%. ❌
+     
+     FIX: un solo effect unificato con priorità chiara:
+       1. Se c'è un costo E un prezzo entrambi > 0 → calcola % dalla ratio reale
+       2. Altrimenti se prezzoOverwrite è false (o undefined) → usa
+          ricaricoFornitore come default
+       3. Altrimenti (prezzoOverwrite=true ma cost/price non disponibili)
+          mantieni il pctText corrente (utente l'ha settato manualmente). */
   useEffect(() => {
-    // Se il prodotto NON è in overwrite, segui il ricarico del fornitore
-    if (!prodotto.prezzoOverwrite) {
+    const c = Number(prodotto.costo) || 0;
+    const p = Number(prodotto.prezzo) || 0;
+    if (c > 0 && p > 0) {
+      // Caso 1: cost e price entrambi presenti → % dalla ratio reale
+      const pct = (p / c - 1) * 100;
+      setPctText(String(Math.round(pct * 10) / 10));
+    } else if (!prodotto.prezzoOverwrite) {
+      // Caso 2: niente prezzo + non sovrascritto → default del fornitore
       setPctText(String(ricaricoFornitore));
     }
-  }, [ricaricoFornitore, prodotto.prezzoOverwrite]);
-  // Quando costo/prezzo arrivano da fuori, ricalcola pctText (per allineamento)
-  useEffect(() => {
-    const c = prodotto.costo || 0;
-    const p = prodotto.prezzo || 0;
-    if (c > 0 && p > 0) {
-      const pct = ((p / c - 1) * 100);
-      setPctText(String(Math.round(pct * 10) / 10));
-    }
-  }, [prodotto.costo, prodotto.prezzo]);
+    // Caso 3: niente prezzo + sovrascritto → mantieni il valore corrente
+  }, [prodotto.costo, prodotto.prezzo, ricaricoFornitore, prodotto.prezzoOverwrite]);
 
   // ─── Helpers ────────────────────────────────────────────────────────
   const parseN = (s: string): number => {
