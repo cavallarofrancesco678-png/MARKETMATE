@@ -50,6 +50,11 @@ interface Props {
   toggleExcludeInvenduto: () => void;
   utile: number;
   lordo: number;
+  /**
+   * Round 46: storico completo per visualizzare il bar chart fornitori
+   * (giorno/settimana/periodo). Sostituisce il vecchio "Riepilogo Deduzioni".
+   */
+  storicoGiornate?: Array<any>;
 }
 
 interface CategoryRowProps {
@@ -97,7 +102,7 @@ export const UtileModal: React.FC<Props> = ({
   fornitoriDaily, excludeFornitori, toggleExcludeFornitori,
   fornitoriWeekly = 0, fornitoriMonthly = 0, fornitoriCustom = 0, fornitoriCustomTodayQuota = 0,
   invenduto, excludeInvenduto, toggleExcludeInvenduto,
-  utile, lordo,
+  utile, lordo, storicoGiornate = [],
 }) => {
   const { t } = useTranslation();
 
@@ -211,6 +216,18 @@ export const UtileModal: React.FC<Props> = ({
                 hint={cat.hint}
               />
             ))}
+
+            {/* ═══ ROUND 46: GRAFICO A BARRE NEOMORFICO SPESE FORNITORI ═══
+                Visualizza le spese fornitori (DAILY + CUSTOM) raggruppate
+                per Giorno, Settimana o Periodo personalizzato.
+                Sostituisce il vecchio "Riepilogo Deduzioni". */}
+            <View style={{ marginTop: 16 }}>
+              <Text style={st.sectionTitle}>ANDAMENTO SPESE FORNITORI</Text>
+              <Text style={st.sectionSub}>
+                Visualizza le spese fornitori per giorno, settimana o periodo
+              </Text>
+              <FornitoriBarChart giornate={storicoGiornate as any} themeColor="#7A5E9B" />
+            </View>
 
             {/* Riepilogo Deduzioni RIMOSSO (Round 46 — richiesta utente) */}
 

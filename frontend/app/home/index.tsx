@@ -909,7 +909,11 @@ export default function HomeScreen() {
      Algoritmo: applica `calcolaCostoMerceProporzionalePerFornitore` su
      `[storico + giornata-virtuale-oggi]` e somma la quota di ogni
      fornitore corrispondente alla data corrente.
+     ⚠️ FIX TDZ: `lordoNum` dichiarato PRIMA del useMemo per evitare
+     "Cannot access 'lordoNum' before initialization" (era a riga ~1063,
+     mentre il useMemo lo usa ora — TDZ JS).
      ══════════════════════════════════════════════════════════════════ */
+  const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
   const costoMerceRipartitoOggi = useMemo(() => {
     try {
       const todayIso = (() => {
@@ -1060,7 +1064,8 @@ export default function HomeScreen() {
   /* ── Plateatico Fiera → aggiungere a spese fisse ── */
   const fieraPlatNum = parseFloat((fieraPlat || '0').replace(',', '.')) || 0;
 
-  const lordoNum = parseFloat(lordo.replace(',', '.')) || 0;
+  // (lordoNum è stato spostato sopra, prima di `costoMerceRipartitoOggi`,
+  // per evitare la temporal dead zone JS che causava errore di rendering)
   // speseExtraTotNum = SOLO spese extra generiche (le fornitori DAILY sono separate e flaggabili)
   const speseExtraTotNum = excludeSpeseExtra ? 0 : speseExtraGenTotale;
   const fornitoriDailyNum = excludeFornitori ? 0 : speseExtraFornTotale;
@@ -2326,6 +2331,7 @@ export default function HomeScreen() {
         toggleExcludeInvenduto={() => setExcludeInvenduto(!excludeInvenduto)}
         utile={utile}
         lordo={lordoNum}
+        storicoGiornate={store.storicoGiornate || []}
       />
 
       {/* Spese Extra Fornitori Modal */}
@@ -2361,6 +2367,27 @@ export default function HomeScreen() {
           meteoOggi: meteo,
           mercatoOggi: mercatoNome,
           selectedDate: `${dataCorrente.getFullYear()}-${String(dataCorrente.getMonth() + 1).padStart(2, '0')}-${String(dataCorrente.getDate()).padStart(2, '0')}`,
+          // ═══ ROUND 46: BILANCIO REALISTICO GLOBALE DEL GIORNO ═══
+          // Numeri pronti per l'AI: lordo - tutte le spese del giorno = utile reale
+          // L'AI userà questi dati per dare un riepilogo finanziario chiaro
+          // all'utente nel saluto iniziale ("hai incassato X, speso Y, utile Z").
+          bilancioOggi: {
+            lordo: Math.round(lordoNum),
+            speseFisseProrata: Math.round(speseFisseTotali),
+            costoCollaboratoriOggi: Math.round(costoCollabAttivi),
+            speseExtraOggi: Math.round(speseExtraGenTotale),
+            fornitoriDailyOggi: Math.round(speseExtraFornTotale),
+            fornitoriCustomOggi: Math.round(speseExtraFornCustom),
+            invendutoOggi: Math.round(parseFloat(invenduto.replace(',', '.')) || 0),
+            totSpeseOggi: Math.round(
+              speseFisseTotali + costoCollabAttivi + speseExtraGenTotale +
+              speseExtraFornTotale + speseExtraFornCustom + (parseFloat(invenduto.replace(',', '.')) || 0)
+            ),
+            utileRealisticoOggi: Math.round(
+              lordoNum - speseFisseTotali - costoCollabAttivi - speseExtraGenTotale
+              - speseExtraFornTotale - speseExtraFornCustom - (parseFloat(invenduto.replace(',', '.')) || 0)
+            ),
+          },
           // ═══ INVENDUTO ULTIMA OCCORRENZA STESSO MERCATO/GIORNO ═══
           invendutoMedesimoMercato: (() => {
             const now = new Date(dataCorrente);

@@ -28,7 +28,9 @@ import * as Sharing from 'expo-sharing';
 import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 import { RoleGuard } from '../../src/components/RoleGuard';
-import { calcolaCostoMerceProporzionale, calcolaCostoMerceProporzionalePerFornitore } from '../../src/utils/proporzionaleFornitori';
+// Round 46: import rimosso — `proporzionaleFornitori` ora deprecato. La
+// logica è "deduzione fissa di periodo" calcolata in linea (vedi
+// `costoMerceProporzionaleMap` e `costoMerceProporzionalePerFornMap`).
 
 const { width: screenW } = Dimensions.get('window');
 

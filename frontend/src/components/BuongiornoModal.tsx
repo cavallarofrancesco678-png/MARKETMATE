@@ -54,6 +54,21 @@ interface StoreData {
   selectedDate?: string;
   // Invenduto ultima occorrenza dello stesso mercato/giorno (per warning AI)
   invendutoMedesimoMercato?: { data: string; giornoSett: string; mercato: string; invenduto: number; giorniFa: number } | null;
+  // ═══ ROUND 46: Bilancio realistico del giorno selezionato ═══
+  // Numeri pronti per dare un riepilogo finanziario chiaro nel saluto AI:
+  // lordo del giorno - tutte le spese (fisse prorata + collaboratori + extra +
+  // fornitori DAILY + fornitori CUSTOM + invenduto) = utile reale stimato.
+  bilancioOggi?: {
+    lordo: number;
+    speseFisseProrata: number;
+    costoCollaboratoriOggi: number;
+    speseExtraOggi: number;
+    fornitoriDailyOggi: number;
+    fornitoriCustomOggi: number;
+    invendutoOggi: number;
+    totSpeseOggi: number;
+    utileRealisticoOggi: number;
+  };
   // ═══ DUMP COMPLETO DI TUTTI I DATI APP per risposte AI a domande libere ═══
   // Include: storico_giornate, ordini_agenda, appunti_agenda, storico_diario,
   // spese_annue, fiere, storico_carburante, fornitori, collaboratori, ecc.
@@ -233,6 +248,16 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
     const collabLst = (s.collaboratori && s.collaboratori.length > 0) ? s.collaboratori.join(', ') : 'nessuno';
     const fornLst = (s.fornitori && s.fornitori.length > 0) ? s.fornitori.join(', ') : 'nessuno';
 
+    // ═══ ROUND 46: BILANCIO REALISTICO DEL GIORNO ═══
+    // Quando l'utente ha già inserito dati nella Home (lordo + spese), gli
+    // diamo il riepilogo finanziario PRONTO: utile reale stimato includendo
+    // TUTTE le voci (fisse prorata, collaboratori, extra, fornitori, invenduto).
+    const bil = s.bilancioOggi;
+    const bilancioStr = bil && bil.lordo > 0
+      ? `Lordo €${bil.lordo} | Spese tot. €${bil.totSpeseOggi} = UTILE REALE €${bil.utileRealisticoOggi}
+   Dettaglio spese: Fisse €${bil.speseFisseProrata} · Collaboratori €${bil.costoCollaboratoriOggi} · Spese extra €${bil.speseExtraOggi} · Fornitori giornalieri €${bil.fornitoriDailyOggi} · Fornitori periodo €${bil.fornitoriCustomOggi} · Invenduto €${bil.invendutoOggi}`
+      : 'Nessun dato di incasso ancora inserito per il giorno selezionato';
+
     return `═══ DATA DI RIFERIMENTO ═══
 GIORNO SELEZIONATO DALL'UTENTE: ${dateNarrative}
 ${isFuture ? '⚠️ L\'utente sta consultando un giorno FUTURO. RIFORMULA TUTTE le frasi al FUTURO. NON dire "oggi" — usa il nome del giorno (es: "Lunedì pioverà a Roma, attento al mercato!"). Il meteo qui sotto è la PREVISIONE per quel giorno.' : ''}
@@ -257,6 +282,14 @@ Top 3 mercati ultimo mese: ${topMk}
 Top 3 fornitori ultimo mese: ${topForn}
 Ultimo mese totale: ${ultMese}
 Media scontrino: ${mediaSc}
+
+═══ 📊 BILANCIO REALISTICO DEL GIORNO SELEZIONATO ═══
+${bilancioStr}
+⚠️ ISTRUZIONI AI: Se l'utente ha già inserito un lordo > 0 per il giorno selezionato,
+INCLUDI sempre un mini-riepilogo "📊 Bilancio di oggi: incassati €X, spese totali €Y, utile reale €Z" nel saluto iniziale.
+Sii ONESTO: se utile <= 0 avvisa con preoccupazione ("attento, oggi sei in perdita!").
+Se utile è molto basso (< 20% del lordo) suggerisci di rivedere le spese.
+Non inventare numeri: usa SOLO quelli qui sopra.
 
 ═══ ORGANIZZAZIONE ═══
 Collaboratori: ${collabLst}
