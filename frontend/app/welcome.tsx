@@ -591,19 +591,64 @@ export default function WelcomeScreen() {
           contentContainerStyle={s.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEnabled={page !== 0}
+          /* Round 46: page 0 (lingua) NON scrolla — layout statico.
+             Le altre pagine (3, 4 con input) usano scroll per evitare
+             che la tastiera copra i campi. */
         >
           {/* ══════ STEP 0: LINGUA ══════ */}
           {page === 0 && (
             <View style={s.stepWrap}>
+              {/* Round 46: Esci se già registrato. Controllo presenza di
+                  storicoGiornate o un nomeAttivita pre-esistente in store. */}
+              {(() => {
+                const st = useAppStore.getState() as any;
+                const hasExistingData =
+                  (st.storicoGiornate && st.storicoGiornate.length > 0) ||
+                  (st.nomeAttivita && st.nomeAttivita.trim().length > 0 && st.nomeAttivita !== 'Team');
+                if (!hasExistingData) return null;
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      // Forza isConfigured true e vai alla home
+                      try {
+                        useAppStore.setState({ isConfigured: true } as any);
+                        (useAppStore.getState() as any).saveToStorage?.();
+                      } catch {}
+                      router.replace('/home');
+                    }}
+                    activeOpacity={0.7}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      paddingVertical: 6,
+                      paddingHorizontal: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: 'rgba(30,127,133,0.08)',
+                      borderRadius: 16,
+                      zIndex: 10,
+                    }}
+                  >
+                    <Ionicons name="log-in-outline" size={14} color={Colors.primary} />
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: Colors.primary }}>
+                      Sono già registrato → Accedi
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
+
               <Image
                 source={{ uri: 'https://customer-assets.emergentagent.com/job_fato-status-1/artifacts/mccpqau2_logo%20marketmate.svg' }}
-                style={s.logoSm}
+                style={[s.logoSm, { width: 120, height: 120, marginBottom: 0 }]}
                 contentFit="contain"
               />
-              <Text style={s.stepTitle}>{t('welcome.chooseLanguage')}</Text>
-              <Text style={s.stepHint}>{t('welcome.chooseLanguageHint')}</Text>
+              <Text style={[s.stepTitle, { marginBottom: 4 }]}>{t('welcome.chooseLanguage')}</Text>
+              <Text style={[s.stepHint, { marginBottom: 14 }]}>{t('welcome.chooseLanguageHint')}</Text>
 
-              <View style={s.flagsGrid}>
+              <View style={[s.flagsGrid, { gap: 10, marginBottom: 16 }]}>
                 {LANGUAGES.map((l) => {
                   const active = langSelected === l.label;
                   return (
@@ -611,10 +656,10 @@ export default function WelcomeScreen() {
                       key={l.label}
                       onPress={() => pickLang(l.label)}
                       activeOpacity={0.75}
-                      style={[s.flagCircle, active && s.flagCircleActive]}
+                      style={[s.flagCircle, { width: 78, paddingVertical: 10 }, active && s.flagCircleActive]}
                     >
-                      <Text style={s.flagEmoji}>{l.flag}</Text>
-                      <Text style={[s.flagLabel, active && { color: Colors.primary, fontWeight: '900' }]}>
+                      <Text style={[s.flagEmoji, { fontSize: 30 }]}>{l.flag}</Text>
+                      <Text style={[s.flagLabel, { fontSize: 11 }, active && { color: Colors.primary, fontWeight: '900' }]}>
                         {l.label}
                       </Text>
                     </TouchableOpacity>

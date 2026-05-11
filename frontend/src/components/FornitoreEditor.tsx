@@ -31,7 +31,7 @@
  * (string) e parsano solo onBlur/onEndEditing — vedi NUM_INPUT_RE.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -295,14 +295,51 @@ export const FornitoreEditor: React.FC<FornitoreEditorProps> = ({
   const [showAddProd, setShowAddProd] = useState(false);
   const [newProdName, setNewProdName] = useState('');
   const [newProdCost, setNewProdCost] = useState('');
+  const isUserEditingRicRef = React.useRef(false);
 
   useEffect(() => { setRicText(String(ric)); }, [ric]);
 
-  const onRicChange = (v: string) => { if (v === '' || NUM_INPUT_RE.test(v)) setRicText(v); };
+  /* ═══ Round 46 (richiesta utente): RICARICO MEDIO PONDERATO REALE ═══
+     Calcola la media ponderata effettiva dai prodotti del fornitore,
+     pesata sul costo di ogni prodotto. Quando l'utente modifica costo
+     o prezzo di un prodotto, il campo "Ricarico Medio" si auto-aggiorna
+     per riflettere la media reale invece di restare un valore statico.
+     Formula: Σ(costo_i × markup_i) / Σ(costo_i) */
+  const weightedAvgMarkup = useMemo(() => {
+    const valid = fornitore.prodotti.filter((p) => (p.costo || 0) > 0 && (p.prezzo || 0) > 0);
+    if (valid.length === 0) return null;
+    const totalCost = valid.reduce((s, p) => s + (p.costo || 0), 0);
+    if (totalCost <= 0) return null;
+    const sumWeighted = valid.reduce(
+      (s, p) => s + (p.costo || 0) * (((p.prezzo || 0) / (p.costo || 1) - 1) * 100),
+      0
+    );
+    return Math.round((sumWeighted / totalCost) * 10) / 10;
+  }, [fornitore.prodotti]);
+
+  // Auto-applica la media ponderata al campo "Ricarico Medio" quando i
+  // prodotti cambiano (ma NON mentre l'utente sta digitando manualmente
+  // il campo: se ha appena messo le mani sull'input, rispettiamo il suo valore).
+  useEffect(() => {
+    if (isUserEditingRicRef.current) return;
+    if (weightedAvgMarkup === null) return;
+    if (Math.abs(weightedAvgMarkup - ric) < 0.05) return;
+    // Aggiorna solo il valore di ricaricoMedio (non i prodotti, già a posto).
+    try { onUpdate({ ricaricoMedio: weightedAvgMarkup }); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weightedAvgMarkup]);
+
+  const onRicChange = (v: string) => {
+    if (v === '' || NUM_INPUT_RE.test(v)) {
+      isUserEditingRicRef.current = true;
+      setRicText(v);
+    }
+  };
   const commitRic = () => {
     const n = parseFloat((ricText || '').replace(',', '.'));
     if (isNaN(n) || n < 0 || n > 999) {
       setRicText(String(ric));
+      isUserEditingRicRef.current = false;
       return;
     }
     // Quando il ricarico fornitore cambia, riapplichiamo il nuovo prezzo a tutti
@@ -312,6 +349,8 @@ export const FornitoreEditor: React.FC<FornitoreEditorProps> = ({
       return { ...p, prezzo: calcolaPrezzoSuggerito(p.costo, n) };
     });
     onUpdate({ ricaricoMedio: n, prodotti: nextProdotti });
+    // Reset flag after a short delay so auto-update can resume
+    setTimeout(() => { isUserEditingRicRef.current = false; }, 800);
   };
 
   const updateProdotto = (pIdx: number, patch: Partial<Prodotto>) => {
@@ -368,6 +407,7 @@ export const FornitoreEditor: React.FC<FornitoreEditorProps> = ({
                 style={fs.ricInput}
                 value={ricText}
                 onChangeText={onRicChange}
+                onFocus={() => { isUserEditingRicRef.current = true; }}
                 onBlur={commitRic}
                 onEndEditing={commitRic}
                 keyboardType="decimal-pad"

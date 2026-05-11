@@ -1075,13 +1075,17 @@ export default function HomeScreen() {
   const speseFisseTotali = speseFisse + (isFiera ? fieraPlatNum : 0);
 
   // UTILE: calcolo con flag macro-categorie
-  // Round 43: include anche `costoMerceRipartitoOggi` (quota proporzionale
-  // CUSTOM di OGGI) per riflettere correttamente la sottrazione dall'utile
-  // anche nei giorni successivi alla fattura.
+  // ⭐ Round 46 (NUOVA LOGICA SEMPLIFICATA): la quota proporzionale CUSTOM
+  // di OGGI NON viene più detratta dall'utile giornaliero. La logica è:
+  //   - DAILY → detratta interamente dall'utile del giorno (come prima)
+  //   - CUSTOM → detrazione FISSA sul lordo del PERIODO specificato
+  //     (Dal/Al), visualizzata in Statistiche, NON nell'utile giornaliero.
+  // Per il giorno: mostriamo solo il DAILY. La quota CUSTOM è informativa
+  // (visibile in Spese Extra modal sotto "Totale del giorno").
   const utile = lordoNum
     - (excludeSpeseFisse ? 0 : speseFisseTotali)
     - (excludeSpeseExtra ? 0 : speseExtraTotNum)
-    - (excludeFornitori ? 0 : (speseExtraFornTotale + costoMerceRipartitoOggi))
+    - (excludeFornitori ? 0 : speseExtraFornTotale)
     - (excludeInvenduto ? 0 : invendutoNum)
     - (excludeCollaboratori ? 0 : costoCollabAttivi);
   /* ── Storico mercato dati reali ── */

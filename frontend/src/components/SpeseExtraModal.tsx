@@ -284,6 +284,65 @@ export const SpeseExtraModal: React.FC<Props> = ({
             <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(0)}</Text>
           </View>
 
+          {/* ═══ Round 46 — NUOVA LOGICA PERSONALIZZA ═══
+              Riepilogo dei costi CUSTOM (periodo personalizzato): mostriamo
+              come "detrazione fissa dal lordo nel periodo Dal X Al Y".
+              NON viene inclusa nel "totale del giorno" perché non è una
+              spesa giornaliera, ma una detrazione di periodo. */}
+          {(() => {
+            const customRows: { nome: string; importo: number; startIso: string; endIso: string }[] = [];
+            Object.keys(speseExtraFornitore).forEach((k) => {
+              if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+              const nomeBase = k.replace(/__libera$/, '');
+              if (customRows.some((r) => r.nome === nomeBase)) return;
+              const mode = fornDeductionType[nomeBase] || 'DAILY';
+              if (mode === 'DAILY') return;
+              const impF = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
+              const impC = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
+              const total = impF + impC;
+              if (total <= 0) return;
+              const days = fornDeductionDays[nomeBase] || 7;
+              const todayIso = (() => {
+                const t = new Date();
+                return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+              })();
+              const startIso = fornDeductionStartDate[nomeBase] || todayIso;
+              const startD = new Date(startIso + 'T00:00:00');
+              const endD = new Date(startD.getTime() + (days - 1) * 86400000);
+              const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+              customRows.push({ nome: nomeBase, importo: total, startIso: fmt(startD), endIso: fmt(endD) });
+            });
+            if (customRows.length === 0) return null;
+            const sumCustom = customRows.reduce((s, r) => s + r.importo, 0);
+            return (
+              <View style={{
+                marginHorizontal: 16,
+                marginTop: -4,
+                marginBottom: 10,
+                padding: 12,
+                backgroundColor: '#FFF8E6',
+                borderRadius: 12,
+                borderLeftWidth: 3,
+                borderLeftColor: '#D4AF37',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Ionicons name="calendar-outline" size={14} color="#B08050" />
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#8A6A1F', letterSpacing: 0.5 }}>
+                    DA DEDURRE DAL LORDO (PERIODO)
+                  </Text>
+                  <Text style={{ flex: 1, textAlign: 'right', fontSize: 14, fontWeight: '900', color: '#B08050' }}>
+                    €{sumCustom.toFixed(0)}
+                  </Text>
+                </View>
+                {customRows.map((r) => (
+                  <Text key={r.nome} style={{ fontSize: 11, color: '#5A4A2A', lineHeight: 16 }}>
+                    <Text style={{ fontWeight: '900' }}>{r.nome}</Text>: €{r.importo.toFixed(0)} — Dal <Text style={{ fontWeight: '700' }}>{r.startIso}</Text> al <Text style={{ fontWeight: '700' }}>{r.endIso}</Text>
+                  </Text>
+                ))}
+              </View>
+            );
+          })()}
+
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
             {/* ═══ FORNITORI ═══ */}
             {fornitori.length > 0 && (
@@ -619,44 +678,9 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           </View>
                         )}
 
-                        {/* ═══ Round 43 — INDICATORE COSTO vs VENDUTO OGGI ═══
-                            Sotto i campi importo, prima della FREQUENZA,
-                            mostra una barra di progresso visiva con la
-                            relazione tra il costo del fornitore e il lordo
-                            del giorno. Aiuta l'utente a capire se sta
-                            recuperando il costo. */}
-                        {totFornitore > 0 && (
-                          <View style={{ marginTop: 12, padding: 10, borderRadius: 10, backgroundColor: '#F9F3E0' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                              <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.5 }}>
-                                COSTO vs INCASSATO OGGI
-                              </Text>
-                              <Text style={{ fontSize: 10, fontWeight: '800', color: lordoOggi >= totFornitore ? '#1E7F85' : '#D46A6A' }}>
-                                {lordoOggi >= totFornitore ? '✓ RECUPERATO' : `${Math.round((lordoOggi / totFornitore) * 100)}%`}
-                              </Text>
-                            </View>
-                            <Text style={{ fontSize: 12, color: '#1A4040', marginBottom: 8, lineHeight: 18 }}>
-                              {lordoOggi >= totFornitore
-                                ? `Su €${totFornitore.toFixed(0)} di costo hai già venduto €${lordoOggi.toFixed(0)} oggi.`
-                                : `Su €${totFornitore.toFixed(0)} di costo oggi hai venduto €${lordoOggi.toFixed(0)}.`}
-                            </Text>
-                            {/* Progress bar */}
-                            <View style={{ height: 10, backgroundColor: '#E5DECF', borderRadius: 5, overflow: 'hidden', flexDirection: 'row' }}>
-                              <View
-                                style={{
-                                  width: `${Math.min(100, lordoOggi > 0 ? (lordoOggi / totFornitore) * 100 : 0)}%`,
-                                  backgroundColor: lordoOggi >= totFornitore ? '#1E7F85' : (lordoOggi / totFornitore >= 0.5 ? '#E8A060' : '#D46A6A'),
-                                }}
-                              />
-                            </View>
-                            {/* Indicatore della soglia "pari" sul break-even */}
-                            {lordoOggi > 0 && lordoOggi < totFornitore && (
-                              <Text style={{ fontSize: 10, color: '#7A5E5E', fontStyle: 'italic', marginTop: 6 }}>
-                                Mancano €{(totFornitore - lordoOggi).toFixed(0)} per coprire il costo del fornitore.
-                              </Text>
-                            )}
-                          </View>
-                        )}
+                        {/* "COSTO vs INCASSATO OGGI" RIMOSSO (Round 46 — richiesta utente).
+                            La nuova logica Personalizza è una detrazione fissa di periodo
+                            visualizzata in Statistiche / Buongiorno IA, non per fornitore. */}
 
                         {/* ═══ FREQUENZA + PERIODO renderizzati QUI per mantenere
                             il campo importo nella stessa posizione tra

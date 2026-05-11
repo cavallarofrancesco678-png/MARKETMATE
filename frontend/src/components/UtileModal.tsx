@@ -128,22 +128,16 @@ export const UtileModal: React.FC<Props> = ({
       label: 'FORNITORI',
       icon: 'storefront-outline',
       iconColor: '#7A5E9B',
-      // Round 43: somma DAILY + quota proporzionale CUSTOM odierna
-      value: fornitoriDaily + fornitoriCustomTodayQuota,
+      // ⭐ Round 46 (richiesta utente): CUSTOM NON viene più sottratto da
+      // utile giornaliero. La detrazione del periodo è visibile in
+      // Statistiche e nel Buongiorno IA. Qui mostriamo solo il DAILY.
+      value: fornitoriDaily,
       excluded: excludeFornitori,
       onToggle: toggleExcludeFornitori,
       hint: (() => {
         const parts: string[] = [];
-        if (fornitoriCustomTodayQuota > 0) {
-          parts.push(`Include €${fornitoriCustomTodayQuota.toFixed(2)} quota proporzionale di oggi`);
-        }
-        if (fornitoriCustom > 0 && fornitoriCustom > fornitoriCustomTodayQuota) {
-          const accantonati = fornitoriCustom - fornitoriCustomTodayQuota;
-          parts.push(`+ €${accantonati.toFixed(0)} accantonati (distribuiti nei prossimi giorni)`);
-        }
-        const wm = fornitoriWeekly + fornitoriMonthly;
-        if (wm > 0 && fornitoriCustom === 0) {
-          parts.push(`+ €${fornitoriWeekly} settim. + €${fornitoriMonthly} mens. scalati in Statistiche`);
+        if (fornitoriCustom > 0) {
+          parts.push(`Forn. €${fornitoriCustom.toFixed(0)} da dedurre dall'incasso lordo nel periodo (vedi Statistiche)`);
         }
         return parts.length > 0 ? parts.join(' · ') : undefined;
       })(),
@@ -217,28 +211,7 @@ export const UtileModal: React.FC<Props> = ({
               />
             ))}
 
-            {/* Riepilogo Deduzioni */}
-            <View style={st.riepilogo}>
-              <Text style={st.riepilogoTitle}>RIEPILOGO DEDUZIONI</Text>
-              {categories.map((cat) => (
-                <View key={cat.label} style={st.riepilogoRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                    <View style={[st.riepilogoDot, { backgroundColor: cat.excluded ? '#D0D0C8' : cat.iconColor }]} />
-                    <Text style={[st.riepilogoLabel, cat.excluded && st.rowDisabled]}>
-                      {cat.label}
-                    </Text>
-                  </View>
-                  <Text style={[st.riepilogoVal, cat.excluded && st.rowDisabled]}>
-                    {cat.excluded ? '€0.00' : `€${cat.value.toFixed(0)}`}
-                  </Text>
-                </View>
-              ))}
-              <View style={st.riepilogoDivider} />
-              <View style={st.riepilogoRow}>
-                <Text style={st.riepilogoTotalLabel}>TOTALE DEDUZIONI</Text>
-                <Text style={st.riepilogoTotalVal}>{'\u20AC'}{totDeduzioni.toFixed(0)}</Text>
-              </View>
-            </View>
+            {/* Riepilogo Deduzioni RIMOSSO (Round 46 — richiesta utente) */}
 
             <View style={{ height: 30 }} />
           </ScrollView>
