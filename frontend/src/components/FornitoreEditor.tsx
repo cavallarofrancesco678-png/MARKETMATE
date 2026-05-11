@@ -612,29 +612,31 @@ const ps = StyleSheet.create({
   priceWithPctRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
   // % box: piccolo ma leggibile, con segno + e segno %, in TEAL.
+  // Round 45: ingrandito (minWidth 56→72, padding 5→7, input minWidth 24→38)
+  // perché le cifre tipo "41.7" venivano tagliate.
   pctInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
     borderRadius: 9,
-    paddingHorizontal: 5,
+    paddingHorizontal: 7,
     paddingVertical: 6,
     borderWidth: 1.5,
     borderColor: '#1E7F85',
     minHeight: 40,
-    minWidth: 56,
+    minWidth: 72,
   },
   pctInputBoxOverride: { borderColor: '#D4AF37', backgroundColor: '#FFF8E6' },
   pctSign: { fontSize: 13, fontWeight: '900', color: '#1E7F85' },
   pctInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,         // Lievemente più piccolo per fare spazio
     fontWeight: '900',
-    color: '#1E7F85',     // % in verde teal come richiesto, ma più LEGGIBILE
+    color: '#1E7F85',
     paddingVertical: 0,
-    paddingHorizontal: 1,
+    paddingHorizontal: 2,
     textAlign: 'center',
-    minWidth: 24,
+    minWidth: 38,         // Era 24 — adesso entra "41.7" senza tagli
   },
 
   delBtn: { padding: 4, marginLeft: 6 },
