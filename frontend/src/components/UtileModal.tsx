@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { FornitoriBarChart } from './FornitoriBarChart';
+import { FornitoriPieChartSettimanale } from './FornitoriPieChartSettimanale';
 
 interface Props {
   visible: boolean;
@@ -70,15 +70,15 @@ interface CategoryRowProps {
 const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value, excluded, onToggle, hint }) => (
   <View style={st.row}>
     <View style={st.rowIcon}>
-      <Ionicons name={icon as any} size={20} color={excluded ? '#B0B0A0' : iconColor} />
+      <Ionicons name={icon as any} size={16} color={excluded ? '#B0B0A0' : iconColor} />
     </View>
     <View style={{ flex: 1 }}>
       <Text style={[st.rowLabel, excluded && st.rowDisabled]}>{label}</Text>
       <Text style={[st.rowVal, excluded && st.rowDisabled]}>
-        {excluded ? 'Escluso dal calcolo' : `€${value.toFixed(0)}`}
+        {excluded ? 'Escluso' : `€${value.toFixed(0)}`}
       </Text>
       {hint ? (
-        <Text style={{ fontSize: 10, color: '#8A9595', fontStyle: 'italic', marginTop: 2 }}>{hint}</Text>
+        <Text style={{ fontSize: 9, color: '#8A9595', fontStyle: 'italic', marginTop: 1 }}>{hint}</Text>
       ) : null}
     </View>
     <View style={st.rowRight}>
@@ -137,16 +137,10 @@ export const UtileModal: React.FC<Props> = ({
       // ⭐ Round 46 (richiesta utente): CUSTOM NON viene più sottratto da
       // utile giornaliero. La detrazione del periodo è visibile in
       // Statistiche e nel Buongiorno IA. Qui mostriamo solo il DAILY.
+      // Round 47: hint rimosso (richiesta utente).
       value: fornitoriDaily,
       excluded: excludeFornitori,
       onToggle: toggleExcludeFornitori,
-      hint: (() => {
-        const parts: string[] = [];
-        if (fornitoriCustom > 0) {
-          parts.push(`Forn. €${fornitoriCustom.toFixed(0)} da dedurre dall'incasso lordo nel periodo (vedi Statistiche)`);
-        }
-        return parts.length > 0 ? parts.join(' · ') : undefined;
-      })(),
     },
     {
       label: 'SPESE EXTRA',
@@ -199,11 +193,6 @@ export const UtileModal: React.FC<Props> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            <Text style={st.sectionTitle}>CATEGORIE DI SPESA</Text>
-            <Text style={st.sectionSub}>
-              Attiva/disattiva intere categorie dal calcolo dell'utile
-            </Text>
-
             {categories.map((cat: any) => (
               <CategoryRow
                 key={cat.label}
@@ -217,21 +206,14 @@ export const UtileModal: React.FC<Props> = ({
               />
             ))}
 
-            {/* ═══ ROUND 46: GRAFICO A BARRE NEOMORFICO SPESE FORNITORI ═══
-                Visualizza le spese fornitori (DAILY + CUSTOM) raggruppate
-                per Giorno, Settimana o Periodo personalizzato.
-                Sostituisce il vecchio "Riepilogo Deduzioni". */}
-            <View style={{ marginTop: 16 }}>
-              <Text style={st.sectionTitle}>ANDAMENTO SPESE FORNITORI</Text>
-              <Text style={st.sectionSub}>
-                Visualizza le spese fornitori per giorno, settimana o periodo
-              </Text>
-              <FornitoriBarChart giornate={storicoGiornate as any} themeColor="#7A5E9B" />
+            {/* ═══ ROUND 47: PIE CHART SETTIMANALE SPESE FORNITORI ═══
+                Sostituisce il bar chart. Mostra incasso netto vs spese
+                fornitori della settimana corrente (Lun→Dom). */}
+            <View style={{ marginTop: 10 }}>
+              <FornitoriPieChartSettimanale giornate={storicoGiornate as any} />
             </View>
 
-            {/* Riepilogo Deduzioni RIMOSSO (Round 46 — richiesta utente) */}
-
-            <View style={{ height: 30 }} />
+            <View style={{ height: 20 }} />
           </ScrollView>
         </View>
       </View>
@@ -244,56 +226,56 @@ const st = StyleSheet.create({
   container: {
     flex: 1, backgroundColor: '#D8EDE5', marginTop: 80,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 20, paddingTop: 16,
+    paddingHorizontal: 16, paddingTop: 12,
   },
   handle: {
     width: 40, height: 4, backgroundColor: '#B0C4BC',
-    borderRadius: 2, alignSelf: 'center', marginBottom: 12,
+    borderRadius: 2, alignSelf: 'center', marginBottom: 8,
   },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 16,
+    alignItems: 'center', marginBottom: 10,
   },
-  title: { fontSize: 16, fontWeight: '900', color: '#1A4040', letterSpacing: 1.5 },
+  title: { fontSize: 15, fontWeight: '900', color: '#1A4040', letterSpacing: 1.2 },
 
   summaryRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 14, marginBottom: 16,
+    backgroundColor: '#EDE8DA', borderRadius: 12, padding: 10, marginBottom: 10,
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
   },
   summaryItem: { alignItems: 'center', flex: 1 },
-  summaryLabel: { fontSize: 8, fontWeight: '700', color: '#7A9090', marginBottom: 2 },
-  summaryGreen: { fontSize: 14, fontWeight: '900', color: '#1D8348' },
-  summaryRed: { fontSize: 14, fontWeight: '900', color: '#D46A6A' },
-  summaryResult: { fontSize: 16, fontWeight: '900' },
-  summaryMinus: { fontSize: 20, fontWeight: '900', color: '#D46A6A', marginHorizontal: 6 },
-  summaryEquals: { fontSize: 20, fontWeight: '900', color: '#5A7575', marginHorizontal: 6 },
+  summaryLabel: { fontSize: 8, fontWeight: '700', color: '#7A9090', marginBottom: 1 },
+  summaryGreen: { fontSize: 13, fontWeight: '900', color: '#1D8348' },
+  summaryRed: { fontSize: 13, fontWeight: '900', color: '#D46A6A' },
+  summaryResult: { fontSize: 15, fontWeight: '900' },
+  summaryMinus: { fontSize: 18, fontWeight: '900', color: '#D46A6A', marginHorizontal: 4 },
+  summaryEquals: { fontSize: 18, fontWeight: '900', color: '#5A7575', marginHorizontal: 4 },
 
   sectionTitle: {
-    fontSize: 10, fontWeight: '800', color: '#5A7575',
-    letterSpacing: 1.5, marginTop: 8, marginBottom: 2,
+    fontSize: 9, fontWeight: '800', color: '#5A7575',
+    letterSpacing: 1.3, marginTop: 4, marginBottom: 1,
   },
   sectionSub: {
-    fontSize: 10, color: '#7A9090', marginBottom: 12,
+    fontSize: 9, color: '#7A9090', marginBottom: 6,
   },
   row: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 14,
-    marginBottom: 10,
+    backgroundColor: '#EDE8DA', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 10,
+    marginBottom: 5,
     // @ts-ignore
-    boxShadow: '4px 4px 10px rgba(160,150,130,0.4), -3px -3px 8px rgba(255,255,250,0.9)',
+    boxShadow: '3px 3px 7px rgba(160,150,130,0.35), -2px -2px 6px rgba(255,255,250,0.85)',
   },
   rowIcon: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 26, height: 26, borderRadius: 13,
     backgroundColor: '#D8EDE5', justifyContent: 'center', alignItems: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
-  rowLabel: { fontSize: 12, fontWeight: '800', color: '#1A3535', letterSpacing: 0.8 },
-  rowVal: { fontSize: 10, fontWeight: '600', color: '#5A7575', marginTop: 2 },
+  rowLabel: { fontSize: 11, fontWeight: '800', color: '#1A3535', letterSpacing: 0.6 },
+  rowVal: { fontSize: 9, fontWeight: '600', color: '#5A7575', marginTop: 1 },
   rowDisabled: { color: '#B0B0A0', textDecorationLine: 'line-through' },
-  rowRight: { alignItems: 'flex-end', gap: 4 },
-  rowAmount: { fontSize: 13, fontWeight: '900' },
+  rowRight: { alignItems: 'flex-end', gap: 2 },
+  rowAmount: { fontSize: 12, fontWeight: '900' },
 
   riepilogo: {
     backgroundColor: '#EDE8DA', borderRadius: 14, padding: 16, marginTop: 12,

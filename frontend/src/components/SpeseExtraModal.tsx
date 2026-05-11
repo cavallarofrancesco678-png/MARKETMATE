@@ -284,36 +284,33 @@ export const SpeseExtraModal: React.FC<Props> = ({
             <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(0)}</Text>
           </View>
 
-          {/* ═══ Round 46 — NUOVA LOGICA PERSONALIZZA ═══
-              Riepilogo dei costi CUSTOM (periodo personalizzato): mostriamo
-              come "detrazione fissa dal lordo nel periodo Dal X Al Y".
-              NON viene inclusa nel "totale del giorno" perché non è una
-              spesa giornaliera, ma una detrazione di periodo. */}
+          {/* ═══ Round 47 — RIEPILOGO SETTIMANALE FORNITORI ═══
+              Mini-riepilogo dei fornitori settimanali (WEEKLY) registrati
+              oggi. NON viene incluso nel "totale del giorno" perché è una
+              detrazione settimanale (Lun→Dom). La scritta "DA DEDURRE DAL
+              LORDO" è stata rimossa su richiesta utente. */}
           {(() => {
-            const customRows: { nome: string; importo: number; startIso: string; endIso: string }[] = [];
+            const weeklyRows: { nome: string; importo: number }[] = [];
             Object.keys(speseExtraFornitore).forEach((k) => {
               if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
               const nomeBase = k.replace(/__libera$/, '');
-              if (customRows.some((r) => r.nome === nomeBase)) return;
+              if (weeklyRows.some((r) => r.nome === nomeBase)) return;
               const mode = fornDeductionType[nomeBase] || 'DAILY';
               if (mode === 'DAILY') return;
               const impF = parseFloat((speseExtraFornitore[nomeBase]?.importo || '0').replace(',', '.')) || 0;
               const impC = parseFloat((speseExtraFornitore[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
               const total = impF + impC;
               if (total <= 0) return;
-              const days = fornDeductionDays[nomeBase] || 7;
-              const todayIso = (() => {
-                const t = new Date();
-                return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-              })();
-              const startIso = fornDeductionStartDate[nomeBase] || todayIso;
-              const startD = new Date(startIso + 'T00:00:00');
-              const endD = new Date(startD.getTime() + (days - 1) * 86400000);
-              const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-              customRows.push({ nome: nomeBase, importo: total, startIso: fmt(startD), endIso: fmt(endD) });
+              weeklyRows.push({ nome: nomeBase, importo: total });
             });
-            if (customRows.length === 0) return null;
-            const sumCustom = customRows.reduce((s, r) => s + r.importo, 0);
+            if (weeklyRows.length === 0) return null;
+            const sumWeekly = weeklyRows.reduce((s, r) => s + r.importo, 0);
+            // Calcolo settimana Lun→Dom corrente
+            const today = new Date();
+            const dow = (today.getDay() + 6) % 7;
+            const lun = new Date(today); lun.setDate(today.getDate() - dow);
+            const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+            const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
             return (
               <View style={{
                 marginHorizontal: 16,
@@ -328,15 +325,15 @@ export const SpeseExtraModal: React.FC<Props> = ({
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <Ionicons name="calendar-outline" size={14} color="#B08050" />
                   <Text style={{ fontSize: 10, fontWeight: '900', color: '#8A6A1F', letterSpacing: 0.5 }}>
-                    DA DEDURRE DAL LORDO (PERIODO)
+                    SETTIMANALE ({fmt(lun)} → {fmt(dom)})
                   </Text>
                   <Text style={{ flex: 1, textAlign: 'right', fontSize: 14, fontWeight: '900', color: '#B08050' }}>
-                    €{sumCustom.toFixed(0)}
+                    €{sumWeekly.toFixed(0)}
                   </Text>
                 </View>
-                {customRows.map((r) => (
+                {weeklyRows.map((r) => (
                   <Text key={r.nome} style={{ fontSize: 11, color: '#5A4A2A', lineHeight: 16 }}>
-                    <Text style={{ fontWeight: '900' }}>{r.nome}</Text>: €{r.importo.toFixed(0)} — Dal <Text style={{ fontWeight: '700' }}>{r.startIso}</Text> al <Text style={{ fontWeight: '700' }}>{r.endIso}</Text>
+                    <Text style={{ fontWeight: '900' }}>{r.nome}</Text>: €{r.importo.toFixed(0)}
                   </Text>
                 ))}
               </View>
@@ -403,22 +400,22 @@ export const SpeseExtraModal: React.FC<Props> = ({
                         <View style={{ flexDirection: 'row', gap: 6 }}>
                           {([
                             { key: 'DAILY', label: 'Giornaliera' },
-                            { key: 'CUSTOM', label: 'Personalizza' },
+                            { key: 'WEEKLY', label: 'Settimanale' },
                           ] as const).map((opt) => {
+                            // Round 47: solo DAILY o WEEKLY. Legacy CUSTOM/MONTHLY → mappati a WEEKLY
                             const stored = fornDeductionType[f.nome] || 'DAILY';
-                            const cur: 'DAILY' | 'CUSTOM' = stored === 'DAILY' ? 'DAILY' : 'CUSTOM';
+                            const cur: 'DAILY' | 'WEEKLY' = stored === 'DAILY' ? 'DAILY' : 'WEEKLY';
                             const on = cur === opt.key;
                             return (
                               <TouchableOpacity
                                 key={opt.key}
                                 onPress={() => {
-                                  if (opt.key === 'DAILY') {
-                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'DAILY' });
-                                  } else {
-                                    const oldType = fornDeductionType[f.nome];
-                                    const defDays = fornDeductionDays[f.nome] || (oldType === 'MONTHLY' ? 30 : 7);
-                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'CUSTOM' });
-                                    setFornDeductionDays({ ...fornDeductionDays, [f.nome]: defDays });
+                                  // Aggiornamento type. WEEKLY = sempre Lun→Dom della
+                                  // settimana corrente (no più date custom). Settiamo
+                                  // days=7 per retrocompat con codice esistente.
+                                  setFornDeductionType({ ...fornDeductionType, [f.nome]: opt.key });
+                                  if (opt.key === 'WEEKLY') {
+                                    setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 7 });
                                   }
                                 }}
                                 activeOpacity={0.7}
@@ -442,78 +439,24 @@ export const SpeseExtraModal: React.FC<Props> = ({
                         </View>
                         {(() => {
                           const stored = fornDeductionType[f.nome] || 'DAILY';
-                          const isCustom = stored !== 'DAILY';
-                          if (!isCustom) return null;
-                          const days = fornDeductionDays[f.nome] || 7;
-                          const decDays = () => setFornDeductionDays({ ...fornDeductionDays, [f.nome]: Math.max(1, days - 1) });
-                          const incDays = () => setFornDeductionDays({ ...fornDeductionDays, [f.nome]: Math.min(365, days + 1) });
-                          const todayIso = (() => {
-                            const t = new Date();
-                            return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-                          })();
-                          const startIso = fornDeductionStartDate[f.nome] || todayIso;
-                          const startD = new Date(startIso + 'T00:00:00');
-                          const endD = new Date(startD.getTime() + (days - 1) * 24 * 60 * 60 * 1000);
-                          const endIso = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+                          const isWeekly = stored !== 'DAILY';
+                          if (!isWeekly) return null;
+                          // Calcolo Lun→Dom della settimana corrente per info utente
+                          const today = new Date();
+                          const dow = (today.getDay() + 6) % 7; // 0=Lun, 6=Dom
+                          const lun = new Date(today); lun.setDate(today.getDate() - dow);
+                          const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
                           const GIORNI_LONG = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
                           const fmtFull = (d: Date) => `${GIORNI_LONG[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-                          const isPickerOpen = periodoPickerFor === f.nome;
                           return (
                             <View style={{ marginTop: 10 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-                                <TouchableOpacity onPress={decDays} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                  style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: days > 1 ? '#1E7F85' : '#C0D0C8', alignItems: 'center', justifyContent: 'center' }}>
-                                  <Ionicons name="remove" size={24} color="#FFF" />
-                                </TouchableOpacity>
-                                <TouchableOpacity activeOpacity={0.7}
-                                  onPress={() => setPeriodoPickerFor(isPickerOpen ? null : f.nome)}
-                                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isPickerOpen ? '#FFF8E6' : '#FFF', borderRadius: 12, borderWidth: 2, borderColor: isPickerOpen ? '#D4AF37' : '#1E7F85', paddingHorizontal: 14, paddingVertical: 8, minWidth: 92, minHeight: 44, justifyContent: 'center', gap: 4 }}>
-                                  <Ionicons name="calendar" size={16} color={isPickerOpen ? '#D4AF37' : '#1E7F85'} />
-                                  <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A4040', minWidth: 32, textAlign: 'center' }}>{days}</Text>
-                                  <Text style={{ fontSize: 13, fontWeight: '800', color: isPickerOpen ? '#D4AF37' : '#1E7F85' }}>gg</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={incDays} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                  style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: days < 365 ? '#1E7F85' : '#C0D0C8', alignItems: 'center', justifyContent: 'center' }}>
-                                  <Ionicons name="add" size={24} color="#FFF" />
-                                </TouchableOpacity>
-                              </View>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F5EFDC', borderRadius: 10, gap: 6, flexWrap: 'wrap' }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F5EFDC', borderRadius: 10, gap: 6, flexWrap: 'wrap' }}>
                                 <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
-                                  Da <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtFull(startD)}</Text>
+                                  Settimana <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtFull(lun)}</Text>
                                 </Text>
                                 <Text style={{ fontSize: 11, color: '#7A9090' }}>→</Text>
-                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
-                                  Al <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtFull(endD)}</Text>
-                                </Text>
+                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>{fmtFull(dom)}</Text>
                               </View>
-                              {isPickerOpen && (
-                                <View style={{ marginTop: 10, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
-                                  <Text style={{ fontSize: 9, color: '#7A9090', textAlign: 'center', marginBottom: 4, fontStyle: 'italic' }}>
-                                    Tocca due date per impostare l'intervallo "Dal — Al"
-                                  </Text>
-                                  <MiniMonthCalendar
-                                    selectedDates={[]}
-                                    onToggleDate={() => {}}
-                                    rangeMode={true}
-                                    rangeFrom={startIso}
-                                    rangeTo={endIso}
-                                    onRangeChange={(from, to) => {
-                                      if (from && !to) {
-                                        setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: from });
-                                      } else if (from && to) {
-                                        const dF = new Date(from + 'T00:00:00').getTime();
-                                        const dT = new Date(to + 'T00:00:00').getTime();
-                                        const diff = Math.round((dT - dF) / (24 * 60 * 60 * 1000)) + 1;
-                                        const nDays = Math.max(1, Math.min(365, diff));
-                                        setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: from });
-                                        setFornDeductionDays({ ...fornDeductionDays, [f.nome]: nDays });
-                                        setPeriodoPickerFor(null);
-                                      }
-                                    }}
-                                    themeColor="#1E7F85"
-                                  />
-                                </View>
-                              )}
                             </View>
                           );
                         })()}
