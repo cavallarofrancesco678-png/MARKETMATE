@@ -16,6 +16,11 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+
+const REFERRAL_DISMISS_KEY = 'mm_referral_dismissed_at';
+const REFERRAL_COOLDOWN_DAYS = 10;
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -93,10 +98,47 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   const [fuelData, setFuelData] = useState<string>('');
   const [weatherData, setWeatherData] = useState<string>('');
   const [dataReady, setDataReady] = useState(false);
+  // Round 48: banner Referral con dismiss persistente (10gg cooldown)
+  const [showReferralBanner, setShowReferralBanner] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const recognitionRef = useRef<any>(null);
   const sessionId = useRef(`session_${Date.now()}`);
   const { t } = useTranslation();
+
+  // Round 48: controllo cooldown referral banner ad ogni apertura modale.
+  // Mostra solo se mai cliccato la X OR sono passati >= 10 giorni dall'ultima X.
+  useEffect(() => {
+    if (!visible) return;
+    (async () => {
+      try {
+        const dismissedAt = await AsyncStorage.getItem(REFERRAL_DISMISS_KEY);
+        if (!dismissedAt) {
+          setShowReferralBanner(true);
+          return;
+        }
+        const diffMs = Date.now() - Number(dismissedAt);
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+        setShowReferralBanner(diffDays >= REFERRAL_COOLDOWN_DAYS);
+      } catch {
+        setShowReferralBanner(true);
+      }
+    })();
+  }, [visible]);
+
+  const handleDismissReferral = async () => {
+    setShowReferralBanner(false);
+    try {
+      await AsyncStorage.setItem(REFERRAL_DISMISS_KEY, String(Date.now()));
+    } catch {}
+  };
+
+  const handleReferralPress = () => {
+    onClose();
+    // Naviga alla pagina Premi & Inviti (icona pacco)
+    setTimeout(() => {
+      try { router.push('/home/premi'); } catch {}
+    }, 300);
+  };
 
   // Fetch fuel prices and weather when modal opens
   useEffect(() => {
@@ -540,9 +582,48 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
                     )}
                   </>
                 )}
+
+                {/* ═══ ROUND 48: BILANCIO REALE DEL GIORNO ═══
+                    Sincronizzato con il bilancio passato all'AI. Stessa
+                    sorgente di verità = stessi numeri in widget e chat. */}
+                {storeData.bilancioOggi && storeData.bilancioOggi.lordo > 0 && (
+                  <View style={[st.wLine, { backgroundColor: '#FFF8E6', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 4, marginTop: 4 }]}>
+                    <Text style={st.wIcon}>📊</Text>
+                    <Text style={st.wTxt} numberOfLines={2}>
+                      <Text style={st.wLabel}>Bilancio oggi: </Text>
+                      Lordo €{storeData.bilancioOggi.lordo} − Spese €{storeData.bilancioOggi.totSpeseOggi} ={' '}
+                      <Text style={{ fontWeight: '900', color: storeData.bilancioOggi.utileRealisticoOggi >= 0 ? '#1D8348' : '#D44' }}>
+                        €{storeData.bilancioOggi.utileRealisticoOggi}
+                      </Text>
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })()}
+
+          {/* ═══ ROUND 48: BANNER REFERRAL — dismissable, ricompare ogni 10 giorni ═══ */}
+          {showReferralBanner && (
+            <View style={st.referralBanner}>
+              <TouchableOpacity
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+                onPress={handleReferralPress}
+                activeOpacity={0.7}
+              >
+                <View style={st.referralIcon}>
+                  <Ionicons name="gift" size={20} color="#FFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.referralTitle}>Invita un amico → Ricevi premi!</Text>
+                  <Text style={st.referralSub}>Più amici porti, più vantaggi sblocchi 🎁</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#D4AF37" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDismissReferral} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 6 }}>
+                <Ionicons name="close" size={18} color="#8A6A1F" />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Messages */}
           <ScrollView
@@ -640,6 +721,41 @@ const st = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8,
   },
   tipText: { fontSize: 11, color: '#7A7050', flex: 1, lineHeight: 15 },
+
+  // Round 48: banner Referral
+  referralBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FFF8E6',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#D4AF37',
+    // @ts-ignore
+    boxShadow: '0 2px 6px rgba(212,175,55,0.25)',
+  },
+  referralIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#D4AF37',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  referralTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#5A4A2A',
+    letterSpacing: 0.2,
+  },
+  referralSub: {
+    fontSize: 11,
+    color: '#8A6A1F',
+    marginTop: 1,
+  },
 
   widget: {
     backgroundColor: '#FFF8E7', borderRadius: 14, marginHorizontal: 12, marginTop: 10,

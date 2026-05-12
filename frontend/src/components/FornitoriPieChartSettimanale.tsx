@@ -25,9 +25,10 @@ interface Props {
   giornate: Giornata[];
 }
 
-// Palette MarketMate ─ coerente con le altre carte
-const MM_PALETTE = ['#E8A060', '#D46A6A', '#7A5E9B', '#1E7F85', '#D4AF37', '#8B5CF6', '#EC4899'];
-const NETTO_COLOR = '#1D8348';
+// Palette MarketMate ─ allineata a stats.tsx ('Statistiche > Fornitori')
+const MM_PALETTE = ['#1A5276', '#1D8348', '#BA4A00', '#922B21', '#7D3C98', '#117A65', '#2E4053', '#D4AC0D'];
+const NETTO_COLOR = '#1E7F85'; // teal MarketMate per Incasso Netto (coerente con Fatturata in stats)
+const STROKE_COLOR = '#D8EDE5'; // verde menta — identico ai pie chart di stats.tsx
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -167,21 +168,17 @@ export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate }) => {
             const d = arcPath(cx, cy, radius, startAngle, endAngle);
             const pct = Math.round((sl.value / totalPie) * 100);
             // Label position (centro dell'arco)
-            const labelR = radius * 0.62;
+            const labelR = radius * 0.6;
             const lx = cx + labelR * Math.cos(midAngle);
             const ly = cy + labelR * Math.sin(midAngle);
             const out = (
               <G key={i}>
-                <Path d={d} fill={sl.color} stroke="#FFFFFF" strokeWidth={2} />
-                {pct >= 7 && (
-                  <>
-                    <SvgText x={lx} y={ly - 2} fill="#FFFFFF" stroke="#000000" strokeWidth={0.4} fontSize={10} fontWeight="900" textAnchor="middle">
-                      €{sl.value}
-                    </SvgText>
-                    <SvgText x={lx} y={ly + 10} fill="#FFFFFF" fontSize={9} fontWeight="800" textAnchor="middle">
-                      {pct}%
-                    </SvgText>
-                  </>
+                {/* Stile uniforme stats.tsx: stroke verde menta D8EDE5, strokeWidth 1.5 (un filo più spesso per leggibilità) */}
+                <Path d={d} fill={sl.color} stroke={STROKE_COLOR} strokeWidth={1.5} />
+                {pct >= 5 && (
+                  <SvgText x={lx} y={ly + 5} fill="#FFFFFF" fontSize={15} fontWeight="900" textAnchor="middle">
+                    {pct}%
+                  </SvgText>
                 )}
               </G>
             );
@@ -190,7 +187,7 @@ export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate }) => {
           })}
         </Svg>
 
-        {/* Legenda */}
+        {/* Legenda — font aumentato per leggibilità (Round 48) */}
         <View style={s.legend}>
           {slices.map((sl, i) => (
             <View key={i} style={s.legendRow}>
@@ -226,7 +223,7 @@ const s = StyleSheet.create({
   container: {
     backgroundColor: '#FFFDD0', // crema chiarissimo come da specifica utente
     borderRadius: 16,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
     shadowColor: '#1A4040',
     shadowOffset: { width: 0, height: 2 },
@@ -238,54 +235,54 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     color: '#5A4A2A',
     letterSpacing: 0.8,
   },
   weekTxt: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#7A5E9B',
   },
   pieRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    gap: 12,
+    marginBottom: 10,
   },
   legend: {
     flex: 1,
-    gap: 4,
+    gap: 6,
     paddingLeft: 4,
   },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   legendDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   legendLabel: {
     flex: 1,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: '#1A4040',
   },
   legendVal: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '900',
   },
   summaryBox: {
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
-    padding: 10,
+    padding: 11,
     borderWidth: 1,
     borderColor: '#E8E0C8',
   },
@@ -293,24 +290,24 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#5A7575',
   },
   summaryVal: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '900',
   },
   divider: {
     height: 1,
     backgroundColor: '#E8E0C8',
-    marginVertical: 4,
+    marginVertical: 5,
   },
   emptyTxt: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#7A9090',
     fontStyle: 'italic',
     textAlign: 'center',

@@ -1600,6 +1600,11 @@ export default function HomeScreen() {
           <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={handleLordo} selectTextOnFocus />
         </View>
         <TouchableOpacity style={[s.card, { height: lordoRowH }]} activeOpacity={0.7} onPress={() => setShowUtileModal(true)}>
+          {/* Round 48: chip "espandi" in alto a destra per segnalare la card cliccabile */}
+          <View style={{ position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(30,127,133,0.12)', borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, gap: 2 }}>
+            <Text style={{ fontSize: 8, fontWeight: '900', color: '#1E7F85', letterSpacing: 0.5 }}>DETTAGLI</Text>
+            <Ionicons name="chevron-forward" size={11} color="#1E7F85" />
+          </View>
           <Text style={s.cardBold}>{t('home.profit')}</Text>
           <Text style={[s.cardValBold, { color: utile >= 0 ? '#2A7A5A' : '#D44' }]}>{'\u20AC'}{Math.round(utile)}</Text>
         </TouchableOpacity>

@@ -65,35 +65,68 @@ interface CategoryRowProps {
   excluded: boolean;
   onToggle: () => void;
   hint?: string;
+  /**
+   * Round 48: se true, la riga rappresenta una spesa PENDENTE (es. fornitori
+   * settimanali) che NON viene sottratta dal netto attuale ma sarà stornata
+   * a fine periodo. Mostra icona orologio, no switch, label sui fondi gialli.
+   */
+  pending?: boolean;
 }
 
-const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value, excluded, onToggle, hint }) => (
-  <View style={st.row}>
-    <View style={st.rowIcon}>
-      <Ionicons name={icon as any} size={16} color={excluded ? '#B0B0A0' : iconColor} />
+const CategoryRow: React.FC<CategoryRowProps> = ({ label, icon, iconColor, value, excluded, onToggle, hint, pending }) => {
+  if (pending) {
+    // Riga "pending" — settimanali: visibile ma NON sottratta dal netto
+    return (
+      <View style={[st.row, { backgroundColor: '#FFF8E6', borderLeftWidth: 3, borderLeftColor: '#D4AF37' }]}>
+        <View style={[st.rowIcon, { backgroundColor: '#FFF0CC' }]}>
+          <Ionicons name={icon as any} size={16} color={iconColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[st.rowLabel, { color: '#8A6A1F' }]}>{label}</Text>
+          <Text style={[st.rowVal, { color: '#8A6A1F' }]}>€{value.toFixed(0)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 }}>
+            <Ionicons name="time-outline" size={9} color="#B08050" />
+            <Text style={{ fontSize: 9, color: '#B08050', fontStyle: 'italic' }} numberOfLines={2}>
+              Stornato a fine settimana
+            </Text>
+          </View>
+        </View>
+        <View style={st.rowRight}>
+          <Text style={[st.rowAmount, { color: '#B08050', fontSize: 10, fontWeight: '800' }]}>
+            in attesa
+          </Text>
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={st.row}>
+      <View style={st.rowIcon}>
+        <Ionicons name={icon as any} size={16} color={excluded ? '#B0B0A0' : iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[st.rowLabel, excluded && st.rowDisabled]}>{label}</Text>
+        <Text style={[st.rowVal, excluded && st.rowDisabled]}>
+          {excluded ? 'Escluso' : `€${value.toFixed(0)}`}
+        </Text>
+        {hint ? (
+          <Text style={{ fontSize: 9, color: '#8A9595', fontStyle: 'italic', marginTop: 1 }}>{hint}</Text>
+        ) : null}
+      </View>
+      <View style={st.rowRight}>
+        <Text style={[st.rowAmount, { color: excluded ? '#B0B0A0' : '#D46A6A' }]}>
+          {excluded ? '—' : `-€${value.toFixed(0)}`}
+        </Text>
+        <Switch
+          value={!excluded}
+          onValueChange={onToggle}
+          trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
+          thumbColor={!excluded ? '#1E7F85' : '#999'}
+        />
+      </View>
     </View>
-    <View style={{ flex: 1 }}>
-      <Text style={[st.rowLabel, excluded && st.rowDisabled]}>{label}</Text>
-      <Text style={[st.rowVal, excluded && st.rowDisabled]}>
-        {excluded ? 'Escluso' : `€${value.toFixed(0)}`}
-      </Text>
-      {hint ? (
-        <Text style={{ fontSize: 9, color: '#8A9595', fontStyle: 'italic', marginTop: 1 }}>{hint}</Text>
-      ) : null}
-    </View>
-    <View style={st.rowRight}>
-      <Text style={[st.rowAmount, { color: excluded ? '#B0B0A0' : '#D46A6A' }]}>
-        {excluded ? '—' : `-€${value.toFixed(0)}`}
-      </Text>
-      <Switch
-        value={!excluded}
-        onValueChange={onToggle}
-        trackColor={{ false: '#D0D0C8', true: '#A5D8D0' }}
-        thumbColor={!excluded ? '#1E7F85' : '#999'}
-      />
-    </View>
-  </View>
-);
+  );
+};
 
 export const UtileModal: React.FC<Props> = ({
   visible, onClose, speseFisse, excludeSpeseFisse, toggleExcludeSpeseFisse,
@@ -131,17 +164,27 @@ export const UtileModal: React.FC<Props> = ({
       onToggle: toggleExcludeCollaboratori,
     },
     {
-      label: 'FORNITORI',
+      label: 'FORNITORI GIORN.',
       icon: 'storefront-outline',
       iconColor: '#7A5E9B',
-      // ⭐ Round 46 (richiesta utente): CUSTOM NON viene più sottratto da
-      // utile giornaliero. La detrazione del periodo è visibile in
-      // Statistiche e nel Buongiorno IA. Qui mostriamo solo il DAILY.
-      // Round 47: hint rimosso (richiesta utente).
+      // Round 48: SOLO costi DAILY del giorno (sottratti dal netto attuale)
       value: fornitoriDaily,
       excluded: excludeFornitori,
       onToggle: toggleExcludeFornitori,
     },
+    // ═══ Round 48: nuova riga FORNITORI SETTIMANALI ═══
+    // Mostrata SOLO se ci sono fornitori WEEKLY. NON sottratta dal netto
+    // attuale (verrà stornata a fine settimana), pertanto è renderizzata
+    // come "pending" con stile distinto (bordo giallo + icona orologio).
+    ...(fornitoriCustom > 0 ? [{
+      label: 'FORNITORI SETT.',
+      icon: 'calendar-outline',
+      iconColor: '#B08050',
+      value: fornitoriCustom,
+      excluded: false,
+      onToggle: () => {},
+      pending: true,
+    }] : []),
     {
       label: 'SPESE EXTRA',
       icon: 'receipt-outline',
@@ -203,6 +246,7 @@ export const UtileModal: React.FC<Props> = ({
                 excluded={cat.excluded}
                 onToggle={cat.onToggle}
                 hint={cat.hint}
+                pending={cat.pending}
               />
             ))}
 
