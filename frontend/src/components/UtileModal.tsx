@@ -56,6 +56,12 @@ interface Props {
    * (giorno/settimana/periodo). Sostituisce il vecchio "Riepilogo Deduzioni".
    */
   storicoGiornate?: Array<any>;
+  /**
+   * Round 50: data di riferimento (settimana mostrata da home). Permette
+   * al pie chart di mostrare la settimana che l'utente sta consultando
+   * (anche passata), non solo quella corrente.
+   */
+  dataCorrente?: Date;
 }
 
 interface CategoryRowProps {
@@ -136,7 +142,7 @@ export const UtileModal: React.FC<Props> = ({
   fornitoriDaily, excludeFornitori, toggleExcludeFornitori,
   fornitoriWeekly = 0, fornitoriMonthly = 0, fornitoriCustom = 0, fornitoriCustomTodayQuota = 0,
   invenduto, excludeInvenduto, toggleExcludeInvenduto,
-  utile, lordo, storicoGiornate = [],
+  utile, lordo, storicoGiornate = [], dataCorrente,
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -264,7 +270,7 @@ export const UtileModal: React.FC<Props> = ({
                 Sostituisce il bar chart. Mostra incasso netto vs spese
                 fornitori della settimana corrente (Lun→Dom). */}
             <View style={{ marginTop: 10 }}>
-              <FornitoriPieChartSettimanale giornate={storicoGiornate as any} />
+              <FornitoriPieChartSettimanale giornate={storicoGiornate as any} dataRiferimento={dataCorrente} />
             </View>
 
             <View style={{ height: 20 }} />

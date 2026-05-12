@@ -758,19 +758,31 @@ const st = StyleSheet.create({
   },
 
   widget: {
-    backgroundColor: '#FFF8E7', borderRadius: 14, marginHorizontal: 12, marginTop: 10,
-    padding: 12, borderWidth: 2, borderColor: '#1E7F85',
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    // Round 50: stile più omogeneo — neutro crema chiaro, no più verdone acceso.
+    // Coerente con il resto delle card dell'app (UtileModal, FornitoriPie).
+    backgroundColor: '#FFFDF5',
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginTop: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E8E0C8',
+    shadowColor: '#1A4040',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  widgetHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#E0D8C0' },
-  widgetTitle: { fontSize: 12, fontWeight: '900', color: '#1A4040', letterSpacing: 1.2 },
+  widgetHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E8E0C8' },
+  widgetTitle: { fontSize: 11, fontWeight: '900', color: '#5A7575', letterSpacing: 1.5 },
   widgetSection: { marginTop: 6 },
   widgetSubtitle: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5, marginBottom: 2 },
   widgetLine: { fontSize: 11, color: '#3A5050', lineHeight: 15 },
-  wLine: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 4, gap: 8 },
-  wIcon: { fontSize: 15, lineHeight: 18 },
-  wTxt: { flex: 1, fontSize: 12.5, color: '#1A4040', lineHeight: 17 },
-  wLabel: { fontWeight: '900', color: '#1E7F85', fontSize: 12.5 },
+  // Round 50: linea più ariosa, font più grande, icona più allineata
+  wLine: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 5, gap: 10 },
+  wIcon: { fontSize: 16, lineHeight: 19, width: 18, textAlign: 'center' },
+  wTxt: { flex: 1, fontSize: 13, color: '#1A4040', lineHeight: 18 },
+  wLabel: { fontWeight: '900', color: '#1E7F85', fontSize: 13 },
 
   chatArea: { flex: 1, padding: 16 },
 

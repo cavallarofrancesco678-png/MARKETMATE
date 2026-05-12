@@ -1,22 +1,26 @@
 /**
  * AppLockStore — gestisce il lock dell'app tramite PIN.
  *
- * Comportamento:
- *  - `isLocked=true` al cold start (primo avvio / ricarica app)
- *  - `isLocked=true` quando AppState passa da 'active' → 'background'/'inactive'
- *  - `isLocked=false` SOLO dopo un PIN corretto (unlock())
+ * Comportamento (Round 50, richiesta utente):
+ *  - Lo STATO LOCK è PERSISTITO in storage (key LOCK_STATE_KEY).
+ *  - Default (mai impostato) → `isLocked=false` (NO PIN al ritorno).
+ *  - L'app chiede il PIN SOLO se l'utente ha esplicitamente premuto il
+ *    pulsante POWER in Home → si setta `isLocked=true` + persist.
+ *  - Cambi pagina interni, AppState background→foreground, app killate
+ *    dal sistema operativo: NESSUN PIN richiesto se l'utente non ha
+ *    cliccato il power.
  *
  * Il PIN è salvato in expo-secure-store (Keychain iOS / Keystore Android),
  * equivalente hardware di flutter_secure_storage.
- *
- * La navigazione interna (cambio pagina dentro /home/*) NON triggera il lock.
- * Solo il passaggio dell'app in background lo richiede.
  */
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const PIN_KEY = 'marketmate_pin_v1';
+// Round 50: persistenza dello stato lock per evitare PIN forzato ad ogni
+// kill dell'app da parte del sistema operativo.
+const LOCK_STATE_KEY = 'marketmate_lock_state_v1';
 
 interface AppLockState {
   isLocked: boolean;       // true = serve PIN prima di entrare in home
@@ -28,7 +32,7 @@ interface AppLockState {
   clearPin: () => Promise<void>;
   verifyPin: (pin: string) => Promise<boolean>;
   unlock: () => void;       // chiamato dopo PIN corretto
-  lock: () => void;         // chiamato quando app va in background
+  lock: () => void;         // chiamato quando utente clicca POWER
 }
 
 // Fallback per web (no SecureStore): usa localStorage
@@ -63,13 +67,21 @@ const storage = {
 };
 
 export const useAppLockStore = create<AppLockState>((set, get) => ({
-  isLocked: true,     // parte bloccato al cold start
+  // Round 50: parte SBLOCCATO. L'hydrate leggerà eventuale flag persistito.
+  isLocked: false,
   hasPin: false,
   isHydrated: false,
 
   hydrate: async () => {
     const pin = await storage.get(PIN_KEY);
-    set({ hasPin: !!(pin && pin.length >= 4), isHydrated: true });
+    // Round 50: leggi stato lock persistito. Se mai impostato → false (sbloccato).
+    const lockFlag = await storage.get(LOCK_STATE_KEY);
+    const isLocked = lockFlag === '1';
+    set({
+      hasPin: !!(pin && pin.length >= 4),
+      isLocked,
+      isHydrated: true,
+    });
   },
 
   setPin: async (pin: string) => {
@@ -88,6 +100,17 @@ export const useAppLockStore = create<AppLockState>((set, get) => ({
     return !!saved && saved === pin;
   },
 
-  unlock: () => set({ isLocked: false }),
-  lock: () => set({ isLocked: true }),
+  unlock: () => {
+    // Round 50: rimuovi anche il flag persistito così al prossimo cold start
+    // l'app si apre direttamente senza PIN.
+    storage.del(LOCK_STATE_KEY).catch(() => {});
+    set({ isLocked: false });
+  },
+
+  lock: () => {
+    // Round 50: persisti il flag lock così che al riavvio dell'app venga
+    // richiesto il PIN. Chiamato SOLO dal pulsante power esplicito.
+    storage.set(LOCK_STATE_KEY, '1').catch(() => {});
+    set({ isLocked: true });
+  },
 }));

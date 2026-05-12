@@ -23,6 +23,12 @@ interface Giornata {
 
 interface Props {
   giornate: Giornata[];
+  /**
+   * Round 50: data di riferimento per il calcolo della settimana. Se assente,
+   * usa "oggi". Permette di mostrare il pie chart relativo a una settimana
+   * passata quando l'utente naviga indietro nello storico.
+   */
+  dataRiferimento?: Date;
 }
 
 // Palette MarketMate ─ allineata a stats.tsx ('Statistiche > Fornitori')
@@ -36,12 +42,13 @@ function isoOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate }) => {
+export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate, dataRiferimento }) => {
   const { lordoSett, fornitoriSett, totaleSpese, netto } = useMemo(() => {
-    const today = new Date();
+    // Round 50: usa data di riferimento se fornita, altrimenti oggi.
+    const ref = dataRiferimento ? new Date(dataRiferimento) : new Date();
     // Lun = 0 ... Dom = 6
-    const dow = (today.getDay() + 6) % 7;
-    const lun = new Date(today); lun.setDate(today.getDate() - dow); lun.setHours(0, 0, 0, 0);
+    const dow = (ref.getDay() + 6) % 7;
+    const lun = new Date(ref); lun.setDate(ref.getDate() - dow); lun.setHours(0, 0, 0, 0);
     const dom = new Date(lun); dom.setDate(lun.getDate() + 6); dom.setHours(23, 59, 59, 999);
 
     let lordo = 0;
@@ -76,12 +83,12 @@ export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate }) => {
       totaleSpese: tot,
       netto: nettoCalc,
     };
-  }, [giornate]);
+  }, [giornate, dataRiferimento]);
 
-  // Settimana corrente label
-  const today = new Date();
-  const dow = (today.getDay() + 6) % 7;
-  const lun = new Date(today); lun.setDate(today.getDate() - dow);
+  // Settimana di riferimento label
+  const ref = dataRiferimento ? new Date(dataRiferimento) : new Date();
+  const dow = (ref.getDay() + 6) % 7;
+  const lun = new Date(ref); lun.setDate(ref.getDate() - dow);
   const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
   const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
   const weekLabel = `${fmtShort(lun)} → ${fmtShort(dom)}`;

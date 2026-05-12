@@ -354,13 +354,13 @@ export const SpeseExtraModal: React.FC<Props> = ({
               const totFornitore = fatturato + libera;
               const isOpen = !!expandedForn[f.nome];
               return (
-                <View key={f.nome} style={st.card}>
+                <View key={f.nome} style={[st.card, isOpen && st.cardOpen]}>
                   <TouchableOpacity onPress={() => toggleForn(f.nome)} activeOpacity={0.7}>
                     <View style={st.fornHeader}>
-                      <Ionicons name="storefront" size={16} color="#1E7F85" />
-                      <Text style={st.cardTitle}>{f.nome}</Text>
+                      <Ionicons name="storefront" size={16} color={isOpen ? '#FFF' : '#1E7F85'} />
+                      <Text style={[st.cardTitle, isOpen && { color: '#FFF' }]}>{f.nome}</Text>
                       {totFornitore > 0 ? (
-                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: '#1E7F85' }}>TOT €{totFornitore.toFixed(0)}</Text>
+                        <Text style={{ marginLeft: 'auto', fontSize: 12, fontWeight: '900', color: isOpen ? '#FFD86F' : '#1E7F85' }}>TOT €{totFornitore.toFixed(0)}</Text>
                       ) : (
                         <View style={{ marginLeft: 'auto' }} />
                       )}
@@ -375,10 +375,10 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           });
                           setLocalImporti(prev => { const n = { ...prev }; delete n[f.nome]; delete n[libKey]; return n; });
                         }} style={{ marginLeft: 6 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Ionicons name="close-circle" size={20} color="#D46A6A" />
+                          <Ionicons name="close-circle" size={20} color={isOpen ? '#FFD86F' : '#D46A6A'} />
                         </TouchableOpacity>
                       ) : null}
-                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#5A7575" style={{ marginLeft: 6 }} />
+                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={isOpen ? '#FFF' : '#5A7575'} style={{ marginLeft: 6 }} />
                     </View>
                   </TouchableOpacity>
                   {isOpen && (() => {
@@ -629,6 +629,36 @@ export const SpeseExtraModal: React.FC<Props> = ({
                             il campo importo nella stessa posizione tra
                             Giornaliera/Personalizza (richiesta utente Round 39). */}
                         {FrequenzaBlock}
+
+                        {/* ═══ Round 50: bottone SALVA — chiude SOLO questo
+                            accordion (NON il modal). L'utente resta nelle
+                            Spese Extra per aggiungere altri fornitori.
+                            Esce dal modal solo cliccando CONFERMA in basso. */}
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            // Flush importi locali → state globale prima di chiudere
+                            flushImporto(f.nome);
+                            flushImporto(libKey);
+                            // Chiudi solo questo accordion
+                            setExpandedForn(prev => ({ ...prev, [f.nome]: false }));
+                          }}
+                          style={{
+                            marginTop: 14,
+                            backgroundColor: '#FFD86F',
+                            borderRadius: 12,
+                            paddingVertical: 11,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexDirection: 'row',
+                            gap: 6,
+                          }}
+                        >
+                          <Ionicons name="checkmark-circle" size={18} color="#1A4040" />
+                          <Text style={{ fontSize: 13, fontWeight: '900', color: '#1A4040', letterSpacing: 0.6 }}>
+                            SALVA FORNITORE
+                          </Text>
+                        </TouchableOpacity>
                       </>
                     );
                   })()}
@@ -754,6 +784,12 @@ const st = StyleSheet.create({
     backgroundColor: '#EDE8DA', borderRadius: 14, padding: 14, marginBottom: 10,
     // @ts-ignore
     boxShadow: '5px 5px 12px rgba(160,150,130,0.45), -4px -4px 10px rgba(255,255,250,0.9)',
+  },
+  // Round 50: card aperta — sfondo teal scuro (come bottone home cliccato)
+  cardOpen: {
+    backgroundColor: '#1A4040',
+    // @ts-ignore
+    boxShadow: '0 4px 14px rgba(30,127,133,0.45), inset 0 1px 2px rgba(255,255,255,0.15)',
   },
   fornHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#1A3535' },

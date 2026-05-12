@@ -19,6 +19,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle, Rect } from 'react-native-svg';
 import { useAppStore } from '../../src/store/appStore';
+import { useAppLockStore } from '../../src/store/appLockStore';
 import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
 import { useTeamSyncStore } from '../../src/store/teamSyncStore';
@@ -1339,8 +1340,17 @@ export default function HomeScreen() {
     };
   }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride, speseExtraFornTotale, speseExtraGenTotale, dataCorrente, fornInfo, speseExtraTotNum]);
 
+  /* ─── Round 50: SALVA SINGOLO TOCCO ───
+     Il vecchio handleSalvaManuale chiamava direttamente `handleSalva()`
+     (useCallback con ~20 dipendenze). Quando il componente faceva re-render
+     poco prima del tap, il `handleSalva` riferito dall'`onPress` poteva
+     puntare a una versione stale e fallire silenziosamente → l'utente
+     doveva premere DUE volte.
+     Fix: chiamiamo `handleSalvaRef.current()` (sempre aggiornata via useEffect
+     subito sotto) così la prima pressione esegue immediatamente la versione
+     più recente. */
   const handleSalvaManuale = () => {
-    handleSalva();
+    if (handleSalvaRef.current) handleSalvaRef.current();
     playSuccess();
   };
 
@@ -1419,6 +1429,9 @@ export default function HomeScreen() {
           <TouchableOpacity
             onPress={() => {
               if (Platform.OS === 'web') {
+                // Round 50: lock prima di chiudere la finestra (così al
+                // prossimo accesso verrà richiesto il PIN come richiesto utente)
+                try { useAppLockStore.getState().lock(); } catch {}
                 window.close();
               } else {
                 Alert.alert(
@@ -1426,7 +1439,17 @@ export default function HomeScreen() {
                   t('settings.exitAppConfirm') || 'Vuoi chiudere MarketMate?',
                   [
                     { text: t('common.cancel') || 'Annulla', style: 'cancel' },
-                    { text: t('settings.exitApp') || 'ESCI', onPress: () => BackHandler.exitApp() },
+                    {
+                      text: t('settings.exitApp') || 'ESCI',
+                      onPress: () => {
+                        // Round 50: lock app PRIMA di uscire — al prossimo
+                        // avvio verrà richiesto il PIN. Senza questa
+                        // chiamata, i normali rilanci dell'app NON
+                        // chiedono più il PIN (richiesta utente).
+                        try { useAppLockStore.getState().lock(); } catch {}
+                        BackHandler.exitApp();
+                      },
+                    },
                   ]
                 );
               }
@@ -2336,6 +2359,7 @@ export default function HomeScreen() {
         utile={utile}
         lordo={lordoNum}
         storicoGiornate={store.storicoGiornate || []}
+        dataCorrente={dataCorrente}
       />
 
       {/* Spese Extra Fornitori Modal */}
