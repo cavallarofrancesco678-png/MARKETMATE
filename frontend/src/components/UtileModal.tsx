@@ -8,6 +8,7 @@ import {
   ScrollView,
   Switch,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { FornitoriPieChartSettimanale } from './FornitoriPieChartSettimanale';
@@ -138,6 +139,9 @@ export const UtileModal: React.FC<Props> = ({
   utile, lordo, storicoGiornate = [],
 }) => {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  // Round 49: padding dinamico per evitare overlap con bottom nav del telefono
+  const safeBottom = Math.max(insets.bottom + 20, 36);
 
   const totDeduzioni =
     (excludeSpeseFisse ? 0 : speseFisse) +
@@ -235,7 +239,13 @@ export const UtileModal: React.FC<Props> = ({
             </View>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+            // Round 49: paddingBottom dinamico = safe area bottom inset + 20
+            // per evitare che il pie chart finisca sotto la barra di navigazione del telefono
+            contentContainerStyle={{ paddingBottom: safeBottom + 40 }}
+          >
             {categories.map((cat: any) => (
               <CategoryRow
                 key={cat.label}

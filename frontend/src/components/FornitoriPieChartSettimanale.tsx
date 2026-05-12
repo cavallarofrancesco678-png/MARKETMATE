@@ -87,7 +87,7 @@ export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate }) => {
   const weekLabel = `${fmtShort(lun)} → ${fmtShort(dom)}`;
 
   // Costruisci dati per il pie chart
-  // Spicchi: Incasso Netto (explode) + ogni fornitore
+  // Spicchi: Incasso Settimana (explode) + ogni fornitore
   const slices: { label: string; value: number; color: string; explode: boolean }[] = [];
   // Aggiungiamo prima i fornitori (per colore stabile)
   fornitoriSett.forEach((f, i) => {
@@ -98,10 +98,11 @@ export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate }) => {
       explode: false,
     });
   });
-  // Aggiungiamo l'Incasso Netto come ultimo spicchio (con explode)
+  // Spicchio "INCASSO SETT." (incasso netto residuo dopo spese fornitori) — explode
+  // Round 49: rinominato da "Incasso Netto" a "Incasso Settimana" (richiesta utente)
   if (netto > 0) {
     slices.push({
-      label: 'Incasso Netto',
+      label: 'Incasso Settimana',
       value: netto,
       color: NETTO_COLOR,
       explode: true,
@@ -175,11 +176,24 @@ export const FornitoriPieChartSettimanale: React.FC<Props> = ({ giornate }) => {
               <G key={i}>
                 {/* Stile uniforme stats.tsx: stroke verde menta D8EDE5, strokeWidth 1.5 (un filo più spesso per leggibilità) */}
                 <Path d={d} fill={sl.color} stroke={STROKE_COLOR} strokeWidth={1.5} />
-                {pct >= 5 && (
-                  <SvgText x={lx} y={ly + 5} fill="#FFFFFF" fontSize={15} fontWeight="900" textAnchor="middle">
+                {/* Round 49: nomi visibili sui spicchi grandi (>= 12%) per leggibilità + % */}
+                {pct >= 12 ? (
+                  <>
+                    {/* Nome fornitore (più corto) sopra */}
+                    <SvgText x={lx} y={ly - 4} fill="#FFFFFF" fontSize={11} fontWeight="900" textAnchor="middle">
+                      {sl.label.length > 11 ? sl.label.slice(0, 10) + '…' : sl.label}
+                    </SvgText>
+                    {/* % sotto */}
+                    <SvgText x={lx} y={ly + 10} fill="#FFFFFF" fontSize={13} fontWeight="900" textAnchor="middle">
+                      {pct}%
+                    </SvgText>
+                  </>
+                ) : pct >= 5 ? (
+                  /* Spicchi medi: solo % */
+                  <SvgText x={lx} y={ly + 5} fill="#FFFFFF" fontSize={14} fontWeight="900" textAnchor="middle">
                     {pct}%
                   </SvgText>
-                )}
+                ) : null}
               </G>
             );
             startAngle = endAngle;
