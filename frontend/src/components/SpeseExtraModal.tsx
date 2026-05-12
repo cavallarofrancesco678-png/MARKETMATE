@@ -509,26 +509,39 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                 </TouchableOpacity>
                               </View>
                               {/* Mini calendar picker: clic singolo su un giorno qualsiasi
-                                  → l'app deduce il lunedì della settimana e lo salva */}
-                              {isPickerOpen && (
-                                <View style={{ marginTop: 10, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
-                                  <Text style={{ fontSize: 9, color: '#7A9090', textAlign: 'center', marginBottom: 4, fontStyle: 'italic' }}>
-                                    Tocca un giorno qualsiasi: l'app userà la settimana (Lun→Dom) corrispondente
-                                  </Text>
-                                  <MiniMonthCalendar
-                                    selectedDates={[isoOf(lun), isoOf(dom)]}
-                                    onToggleDate={(dateIso) => {
-                                      const chosenLun = lunOfWeek(dateIso);
-                                      setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: isoOf(chosenLun) });
-                                      setPeriodoPickerFor(null);
-                                    }}
-                                    rangeMode={true}
-                                    rangeFrom={isoOf(lun)}
-                                    rangeTo={isoOf(dom)}
-                                    themeColor="#1E7F85"
-                                  />
-                                </View>
-                              )}
+                                  → l'app deduce il lunedì della settimana e lo salva.
+                                  Round 51bis (richiesta utente): rangeMode=false + highlight
+                                  manuale dei 7 giorni della settimana corrente, così il
+                                  calendario e il box RANGE risultano sempre allineati. */}
+                              {isPickerOpen && (() => {
+                                // Pre-calcola i 7 ISO della settimana attualmente in box (Lun→Dom)
+                                const settIso: string[] = [];
+                                for (let i = 0; i < 7; i++) {
+                                  const d = new Date(lun); d.setDate(lun.getDate() + i);
+                                  settIso.push(isoOf(d));
+                                }
+                                return (
+                                  <View style={{ marginTop: 10, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
+                                    <Text style={{ fontSize: 9, color: '#7A9090', textAlign: 'center', marginBottom: 4, fontStyle: 'italic' }}>
+                                      Tocca un giorno qualsiasi: l'app userà la settimana (Lun→Dom) corrispondente
+                                    </Text>
+                                    <MiniMonthCalendar
+                                      selectedDates={[]}
+                                      onToggleDate={(dateIso) => {
+                                        const chosenLun = lunOfWeek(dateIso);
+                                        setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: isoOf(chosenLun) });
+                                        setPeriodoPickerFor(null);
+                                      }}
+                                      // rangeMode=false → onToggleDate viene chiamato (in rangeMode il
+                                      // calendario usa handleRangeTap che NON aggiorna il box). I 7
+                                      // giorni della settimana corrente sono evidenziati via highlightedDates.
+                                      rangeMode={false}
+                                      highlightedDates={settIso}
+                                      themeColor="#1E7F85"
+                                    />
+                                  </View>
+                                );
+                              })()}
                             </View>
                           );
                         })()}
