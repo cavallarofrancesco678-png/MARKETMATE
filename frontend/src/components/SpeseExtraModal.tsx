@@ -441,22 +441,94 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           const stored = fornDeductionType[f.nome] || 'DAILY';
                           const isWeekly = stored !== 'DAILY';
                           if (!isWeekly) return null;
-                          // Calcolo Lun→Dom della settimana corrente per info utente
-                          const today = new Date();
-                          const dow = (today.getDay() + 6) % 7; // 0=Lun, 6=Dom
-                          const lun = new Date(today); lun.setDate(today.getDate() - dow);
+                          // Round 51: la settimana di riferimento è SCELTA DALL'UTENTE.
+                          // - Default: settimana CORRENTE (lun→dom della settimana di oggi).
+                          // - Persistita in fornDeductionStartDate[f.nome] (ISO del lunedì).
+                          // - Tap sul box → apre MiniMonthCalendar; l'utente sceglie UN
+                          //   giorno qualsiasi → l'app calcola la settimana Lun→Dom
+                          //   corrispondente e salva il lunedì come start date.
+                          const isoNow = (() => {
+                            const t = new Date();
+                            return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+                          })();
+                          // Ricava il lunedì della settimana che contiene `iso`
+                          const lunOfWeek = (iso: string): Date => {
+                            const d = new Date(iso + 'T00:00:00');
+                            const dow = (d.getDay() + 6) % 7;
+                            const lun = new Date(d); lun.setDate(d.getDate() - dow);
+                            return lun;
+                          };
+                          const startIso = fornDeductionStartDate[f.nome] || isoNow;
+                          const lun = lunOfWeek(startIso);
                           const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+                          const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                           const GIORNI_LONG = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
                           const fmtFull = (d: Date) => `${GIORNI_LONG[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+                          const isPickerOpen = periodoPickerFor === f.nome;
+                          // Navigatori settimana ± 1
+                          const shiftWeek = (deltaDays: number) => {
+                            const newLun = new Date(lun); newLun.setDate(lun.getDate() + deltaDays);
+                            setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: isoOf(newLun) });
+                          };
+
                           return (
                             <View style={{ marginTop: 10 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F5EFDC', borderRadius: 10, gap: 6, flexWrap: 'wrap' }}>
-                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
-                                  Settimana <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtFull(lun)}</Text>
-                                </Text>
-                                <Text style={{ fontSize: 11, color: '#7A9090' }}>→</Text>
-                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>{fmtFull(dom)}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <TouchableOpacity
+                                  onPress={() => shiftWeek(-7)}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#1E7F85', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Ionicons name="chevron-back" size={20} color="#FFF" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  onPress={() => setPeriodoPickerFor(isPickerOpen ? null : f.nome)}
+                                  style={{
+                                    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                                    paddingHorizontal: 10, paddingVertical: 9,
+                                    backgroundColor: isPickerOpen ? '#FFF8E6' : '#F5EFDC',
+                                    borderRadius: 10, gap: 6, flexWrap: 'wrap',
+                                    borderWidth: 1.5, borderColor: isPickerOpen ? '#D4AF37' : '#E0D8C0',
+                                  }}
+                                >
+                                  <Ionicons name="calendar" size={14} color={isPickerOpen ? '#D4AF37' : '#1E7F85'} />
+                                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>
+                                    <Text style={{ fontWeight: '900', color: '#1E7F85' }}>{fmtFull(lun)}</Text>
+                                  </Text>
+                                  <Text style={{ fontSize: 11, color: '#7A9090' }}>→</Text>
+                                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#1A4040' }}>{fmtFull(dom)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => shiftWeek(7)}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#1E7F85', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Ionicons name="chevron-forward" size={20} color="#FFF" />
+                                </TouchableOpacity>
                               </View>
+                              {/* Mini calendar picker: clic singolo su un giorno qualsiasi
+                                  → l'app deduce il lunedì della settimana e lo salva */}
+                              {isPickerOpen && (
+                                <View style={{ marginTop: 10, backgroundColor: '#F9F3E0', padding: 8, borderRadius: 10 }}>
+                                  <Text style={{ fontSize: 9, color: '#7A9090', textAlign: 'center', marginBottom: 4, fontStyle: 'italic' }}>
+                                    Tocca un giorno qualsiasi: l'app userà la settimana (Lun→Dom) corrispondente
+                                  </Text>
+                                  <MiniMonthCalendar
+                                    selectedDates={[isoOf(lun), isoOf(dom)]}
+                                    onToggleDate={(dateIso) => {
+                                      const chosenLun = lunOfWeek(dateIso);
+                                      setFornDeductionStartDate({ ...fornDeductionStartDate, [f.nome]: isoOf(chosenLun) });
+                                      setPeriodoPickerFor(null);
+                                    }}
+                                    rangeMode={true}
+                                    rangeFrom={isoOf(lun)}
+                                    rangeTo={isoOf(dom)}
+                                    themeColor="#1E7F85"
+                                  />
+                                </View>
+                              )}
                             </View>
                           );
                         })()}
