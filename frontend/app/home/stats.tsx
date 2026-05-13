@@ -302,6 +302,17 @@ function StatsScreenInner() {
   const [showPersCalendar, setShowPersCalendar] = useState(false);
   const [persPickingFrom, setPersPickingFrom] = useState(true); // true = picking FROM, false = picking TO
   const [showPersDayCal, setShowPersDayCal] = useState(false); // calendario vero e proprio
+  // Round 52: data di riferimento per filtri Sett./Mese/Anno.
+  // Permette all'utente di navigare avanti/indietro nel tempo cliccando le
+  // frecce sul box periodo (o tappando il box per aprire un calendar picker).
+  // Default: oggi. Quando si cambia filtroTempo viene resettata via useEffect.
+  const [dataRiferimento, setDataRiferimento] = useState<Date>(new Date());
+  const [showPeriodPicker, setShowPeriodPicker] = useState(false);
+  // Reset dataRiferimento ad oggi quando l'utente cambia filtro tempo
+  useEffect(() => {
+    setDataRiferimento(new Date());
+    setShowPeriodPicker(false);
+  }, [filtroTempo]);
   const [pdfMonth, setPdfMonth] = useState(new Date().getMonth());
   const [pdfYear, setPdfYear] = useState(new Date().getFullYear());
   const [showPdfPicker, setShowPdfPicker] = useState(false);
@@ -364,9 +375,10 @@ function StatsScreenInner() {
         const ieri = new Date(now); ieri.setDate(ieri.getDate() - 1);
         return isSameDay(d, ieri);
       }
-      if (filtroTempo === 'Sett.') return isSameWeek(d, now);
-      if (filtroTempo === 'Mese') return isSameMonth(d, now);
-      if (filtroTempo === 'Anno') return isSameYear(d, now);
+      // Round 52: settimana/mese/anno relativi alla dataRiferimento navigabile
+      if (filtroTempo === 'Sett.') return isSameWeek(d, dataRiferimento);
+      if (filtroTempo === 'Mese') return isSameMonth(d, dataRiferimento);
+      if (filtroTempo === 'Anno') return isSameYear(d, dataRiferimento);
       if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
         const from = new Date(persDateFrom); from.setHours(0,0,0,0);
         const to = new Date(persDateTo); to.setHours(23,59,59,999);
@@ -374,7 +386,7 @@ function StatsScreenInner() {
       }
       return true;
     });
-  }, [storicoGiornate, filtroTempo, persDateFrom, persDateTo]);
+  }, [storicoGiornate, filtroTempo, persDateFrom, persDateTo, dataRiferimento]);
 
   /* ── Carburante filtrato per il PERIODO selezionato ───────────────────
      Bug fix: nel modal "Calcolo Netto" mostravamo `arrSum(storicoCarburante)`
@@ -392,9 +404,10 @@ function StatsScreenInner() {
           const ieri = new Date(now); ieri.setDate(ieri.getDate() - 1);
           return isSameDay(d, ieri);
         }
-        if (filtroTempo === 'Sett.') return isSameWeek(d, now);
-        if (filtroTempo === 'Mese') return isSameMonth(d, now);
-        if (filtroTempo === 'Anno') return isSameYear(d, now);
+        // Round 52: stesso criterio del filteredByTime — dataRiferimento navigabile
+        if (filtroTempo === 'Sett.') return isSameWeek(d, dataRiferimento);
+        if (filtroTempo === 'Mese') return isSameMonth(d, dataRiferimento);
+        if (filtroTempo === 'Anno') return isSameYear(d, dataRiferimento);
         if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
           const from = new Date(persDateFrom); from.setHours(0, 0, 0, 0);
           const to = new Date(persDateTo); to.setHours(23, 59, 59, 999);
@@ -404,7 +417,7 @@ function StatsScreenInner() {
       } catch { return false; }
     }).reduce((acc, c) => acc + (Number(c.euro) || 0), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storicoCarburante, filtroTempo, persDateFrom, persDateTo]);
+  }, [storicoCarburante, filtroTempo, persDateFrom, persDateTo, dataRiferimento]);
 
   const filteredData = useMemo(() => {
     if (filtroTipo === 'TUTTO') return filteredByTime;
@@ -1232,28 +1245,33 @@ function StatsScreenInner() {
           if (v === 'Pers.') setShowPersCalendar(true);
         }, false, tempoLabel)}
         {renderFilterBar(['TUTTO', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM', 'FIERE'], filtroTipo, setFiltroTipo, true, tipoLabel)}
-        {/* ═══ BARRA PERIODO FISSA — mostra il range di date attualmente in vista ═══ */}
+        {/* ═══ BARRA PERIODO INTERATTIVA — frecce + tap-to-pick (Round 52) ═══
+            Mostra range del periodo selezionato. Per Sett./Mese/Anno l'utente
+            può navigare avanti/indietro con le frecce o tappare il box centrale
+            per aprire un MiniMonthCalendar (Sett.) / MonthYearPicker (Mese/Anno). */}
         {(() => {
           const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
           const fmtFull = (d: Date) => `${d.getDate()} ${MESI_IT[d.getMonth()]} ${d.getFullYear()}`;
           const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
           const today = new Date();
           let periodLabel = '';
+          // Round 52: navigabili = Sett./Mese/Anno (no Oggi/Ieri/Pers.)
+          const isNavigable = filtroTempo === 'Sett.' || filtroTempo === 'Mese' || filtroTempo === 'Anno';
+
           if (filtroTempo === 'Oggi') {
             periodLabel = fmtFull(today);
           } else if (filtroTempo === 'Ieri') {
             const y = new Date(today); y.setDate(y.getDate() - 1);
             periodLabel = fmtFull(y);
           } else if (filtroTempo === 'Sett.') {
-            // Lunedì → Domenica
-            const dow = (today.getDay() + 6) % 7;
-            const lun = new Date(today); lun.setDate(today.getDate() - dow);
+            const dow = (dataRiferimento.getDay() + 6) % 7;
+            const lun = new Date(dataRiferimento); lun.setDate(dataRiferimento.getDate() - dow);
             const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
             periodLabel = `${fmtShort(lun)} → ${fmtShort(dom)}`;
           } else if (filtroTempo === 'Mese') {
-            periodLabel = `${MESI_IT[today.getMonth()].toUpperCase()} ${today.getFullYear()}`;
+            periodLabel = `${MESI_IT[dataRiferimento.getMonth()].toUpperCase()} ${dataRiferimento.getFullYear()}`;
           } else if (filtroTempo === 'Anno') {
-            periodLabel = String(today.getFullYear());
+            periodLabel = String(dataRiferimento.getFullYear());
           } else if (filtroTempo === 'Pers.') {
             if (persDateFrom && persDateTo) {
               periodLabel = `${fmtShort(persDateFrom)} → ${fmtShort(persDateTo)}`;
@@ -1261,10 +1279,57 @@ function StatsScreenInner() {
               periodLabel = 'Seleziona un range personalizzato';
             }
           }
+
+          // Funzione di shift per i 3 filtri navigabili
+          const shiftPeriod = (delta: number) => {
+            const newDate = new Date(dataRiferimento);
+            if (filtroTempo === 'Sett.') newDate.setDate(newDate.getDate() + 7 * delta);
+            else if (filtroTempo === 'Mese') newDate.setMonth(newDate.getMonth() + delta);
+            else if (filtroTempo === 'Anno') newDate.setFullYear(newDate.getFullYear() + delta);
+            setDataRiferimento(newDate);
+          };
+
+          if (!isNavigable) {
+            // Oggi/Ieri/Pers.: solo info (non navigabile)
+            return (
+              <View style={st.periodBar}>
+                <Ionicons name="calendar" size={14} color="#1E7F85" style={{ marginRight: 6 }} />
+                <Text style={st.periodTxt} numberOfLines={1}>{periodLabel}</Text>
+              </View>
+            );
+          }
+
           return (
-            <View style={st.periodBar}>
-              <Ionicons name="calendar" size={14} color="#1E7F85" style={{ marginRight: 6 }} />
-              <Text style={st.periodTxt} numberOfLines={1}>{periodLabel}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, marginTop: 6 }}>
+              <TouchableOpacity
+                onPress={() => shiftPeriod(-1)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#1E7F85', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Ionicons name="chevron-back" size={18} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowPeriodPicker(true)}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  paddingHorizontal: 12, paddingVertical: 9,
+                  backgroundColor: '#FFF', borderRadius: 12, gap: 6,
+                  borderWidth: 1.5, borderColor: '#1E7F85',
+                }}
+              >
+                <Ionicons name="calendar" size={14} color="#1E7F85" />
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#1A4040' }} numberOfLines={1}>
+                  {periodLabel}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => shiftPeriod(+1)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#1E7F85', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Ionicons name="chevron-forward" size={18} color="#FFF" />
+              </TouchableOpacity>
             </View>
           );
         })()}
@@ -2120,6 +2185,141 @@ function StatsScreenInner() {
               <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14, letterSpacing: 1 }}>INVIO</Text>
             </TouchableOpacity>
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ═══ ROUND 52: PICKER PERIODO per Sett./Mese/Anno ═══
+          - Sett.: MiniMonthCalendar — tap su qualsiasi giorno → settimana Lun→Dom
+          - Mese: grid di 12 mesi cliccabili + navigatori anno ← →
+          - Anno: lista di anni navigabile */}
+      <Modal visible={showPeriodPicker} transparent animationType="fade" onRequestClose={() => setShowPeriodPicker(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowPeriodPicker(false)}>
+          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#F5F0E6', borderRadius: 20, padding: 18, width: '88%', maxWidth: 380 }} onPress={() => {}}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 14 }}>
+              {filtroTempo === 'Sett.' && '📅 Scegli la settimana'}
+              {filtroTempo === 'Mese' && '📅 Scegli il mese'}
+              {filtroTempo === 'Anno' && '📅 Scegli l\'anno'}
+            </Text>
+
+            {filtroTempo === 'Sett.' && (() => {
+              // Pre-calcola i 7 ISO della settimana corrente per evidenziarli
+              const dow = (dataRiferimento.getDay() + 6) % 7;
+              const lun = new Date(dataRiferimento); lun.setDate(dataRiferimento.getDate() - dow);
+              const settIso: string[] = [];
+              for (let i = 0; i < 7; i++) {
+                const d = new Date(lun); d.setDate(lun.getDate() + i);
+                settIso.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+              }
+              return (
+                <View>
+                  <Text style={{ fontSize: 11, color: '#7A9090', textAlign: 'center', marginBottom: 8, fontStyle: 'italic' }}>
+                    Tocca un giorno qualsiasi: useremo la settimana Lun→Dom corrispondente
+                  </Text>
+                  <MiniMonthCalendar
+                    selectedDates={[]}
+                    onToggleDate={(iso) => {
+                      const d = new Date(iso + 'T00:00:00');
+                      setDataRiferimento(d);
+                      setShowPeriodPicker(false);
+                    }}
+                    highlightedDates={settIso}
+                    themeColor="#1E7F85"
+                  />
+                </View>
+              );
+            })()}
+
+            {filtroTempo === 'Mese' && (() => {
+              const MESI_BREVI = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+              const year = dataRiferimento.getFullYear();
+              const curMonth = dataRiferimento.getMonth();
+              return (
+                <View>
+                  {/* Navigatore anno */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 12 }}>
+                    <TouchableOpacity
+                      onPress={() => { const d = new Date(dataRiferimento); d.setFullYear(year - 1); setDataRiferimento(d); }}
+                      style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#1E7F85', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Ionicons name="chevron-back" size={20} color="#FFF" />
+                    </TouchableOpacity>
+                    <Text style={{ fontSize: 20, fontWeight: '900', color: '#1A4040', minWidth: 80, textAlign: 'center' }}>{year}</Text>
+                    <TouchableOpacity
+                      onPress={() => { const d = new Date(dataRiferimento); d.setFullYear(year + 1); setDataRiferimento(d); }}
+                      style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#1E7F85', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Ionicons name="chevron-forward" size={20} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                  {/* Grid 4x3 mesi */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {MESI_BREVI.map((m, i) => {
+                      const sel = i === curMonth;
+                      return (
+                        <TouchableOpacity
+                          key={i}
+                          onPress={() => {
+                            const d = new Date(dataRiferimento); d.setMonth(i);
+                            setDataRiferimento(d);
+                            setShowPeriodPicker(false);
+                          }}
+                          style={{
+                            width: '23%', paddingVertical: 12, borderRadius: 10,
+                            backgroundColor: sel ? '#1E7F85' : '#FFF',
+                            borderWidth: 1.5, borderColor: sel ? '#1E7F85' : '#E0D8C0',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: '900', color: sel ? '#FFF' : '#1A4040' }}>{m}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
+
+            {filtroTempo === 'Anno' && (() => {
+              const curYear = dataRiferimento.getFullYear();
+              const thisYear = new Date().getFullYear();
+              // Lista anni da -10 a +1 rispetto a quest'anno
+              const years: number[] = [];
+              for (let y = thisYear + 1; y >= thisYear - 10; y--) years.push(y);
+              return (
+                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                  {years.map((y) => {
+                    const sel = y === curYear;
+                    return (
+                      <TouchableOpacity
+                        key={y}
+                        onPress={() => {
+                          const d = new Date(dataRiferimento); d.setFullYear(y);
+                          setDataRiferimento(d);
+                          setShowPeriodPicker(false);
+                        }}
+                        style={{
+                          paddingVertical: 14, marginBottom: 6, borderRadius: 10,
+                          backgroundColor: sel ? '#1E7F85' : '#FFF',
+                          borderWidth: 1.5, borderColor: sel ? '#1E7F85' : '#E0D8C0',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: sel ? '#FFF' : '#1A4040' }}>{y}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              );
+            })()}
+
+            <TouchableOpacity
+              onPress={() => setShowPeriodPicker(false)}
+              style={{ marginTop: 14, backgroundColor: '#1A4040', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 13, letterSpacing: 1 }}>CHIUDI</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
