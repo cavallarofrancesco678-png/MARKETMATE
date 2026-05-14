@@ -1752,7 +1752,16 @@ export default function HomeScreen() {
               });
               giorniCount = yearData.length;
               totale = chartData.reduce((s, v) => s + v, 0);
-              media = totale / 12;
+              // ─── Round 54 (fix richiesta utente): la media annua era
+              // sempre `totale / 12` (mesi fissi), errata in 2 casi:
+              //   1. Anno in corso: divide per 12 ma sono trascorsi solo N mesi
+              //   2. Mesi totalmente fermi (es. stagionalità) abbassavano la media
+              // Adesso dividiamo per il numero di mesi EFFETTIVAMENTE LAVORATI
+              // (mesi con almeno una giornata di incasso > 0). Cosi la "media
+              // mensile" rappresenta davvero la media tra i mesi in cui si è
+              // lavorato → cifra realistica e utile per il forecast.
+              const mesiLavorati = chartGiorniPerMese.filter((g) => g > 0).length;
+              media = mesiLavorati > 0 ? totale / mesiLavorati : 0;
             } else {
               // ANNO PREC - confronto 2 barre
               chartLabels = [String(prevYear), String(currentYear)];
@@ -2185,16 +2194,20 @@ export default function HomeScreen() {
                   />
                 </View>
               ) : isAlimentare ? (
-                /* ── ALIMENTARE: qty × prezzo/kg ── */
+                /* ── ALIMENTARE: qty × COSTO/kg (Round 53bis: usa il costo
+                    di acquisto del prodotto, non il prezzo di vendita.
+                    Fallback al prezzo per retro-compat con prodotti vecchi
+                    privi di costo.) ── */
                 tuttiProdotti.map((p, i) => {
                   const key = `${p.fornitore}_${p.nome}`;
                   const qty = parseFloat((invendutoQty[key] || '0').replace(',', '.')) || 0;
-                  const subtot = qty * p.prezzo;
+                  const costoUnit = (typeof p.costo === 'number' && p.costo > 0) ? p.costo : p.prezzo;
+                  const subtot = qty * costoUnit;
                   return (
                     <View key={i} style={s.invProdRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={s.invProdName}>{p.nome}</Text>
-                        <Text style={s.invProdInfo}>{p.fornitore} · €{p.prezzo}/kg</Text>
+                        <Text style={s.invProdInfo}>{p.fornitore} · costo €{costoUnit}/kg</Text>
                       </View>
                       <TextInput
                         style={s.invQtyInput}
