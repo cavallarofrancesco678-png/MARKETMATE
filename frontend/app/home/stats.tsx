@@ -2379,15 +2379,28 @@ function StatsScreenInner() {
         }}
       />
 
-      {/* ═══ MODAL NETTO - Selezione voci da escludere ═══ */}
+      {/* ═══ MODAL NETTO - Selezione voci da escludere ═══
+          Round 57 FIX: il nesting Pressable → Pressable (con
+          stopPropagation) → TouchableOpacity faceva sì che il responder
+          touch venisse "rubato" dal Pressable intermedio: il
+          TouchableOpacity interno NON riceveva mai l'onPress, e quindi
+          checkbox + netto NON si aggiornavano.
+          Pattern fix: backdrop TouchableOpacity assoluto + contenuto in
+          View normale → i TouchableOpacity figli ricevono correttamente
+          il press. */}
       <Modal
         visible={showNettoModal}
         transparent
         animationType="fade"
         onRequestClose={() => setShowNettoModal(false)}
       >
-        <Pressable style={st.modalOverlay} onPress={() => setShowNettoModal(false)}>
-          <Pressable style={st.modalContent} onPress={(e) => e.stopPropagation()}>
+        <View style={st.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowNettoModal(false)}
+          />
+          <View style={st.modalContent}>
             <View style={st.modalHeader}>
               <Text style={st.modalTitle}>CALCOLO NETTO</Text>
               <TouchableOpacity onPress={() => setShowNettoModal(false)}>
@@ -2497,8 +2510,8 @@ function StatsScreenInner() {
             >
               <Text style={st.modalCloseBtnTxt}>CHIUDI</Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );

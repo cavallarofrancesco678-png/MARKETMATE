@@ -49,16 +49,8 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
 
-class ReceiptAnalyzeRequest(BaseModel):
-    image_base64: str
-    mercato: str = ""
-
-class ReceiptAnalyzeResponse(BaseModel):
-    success: bool
-    totale: float = 0
-    num_scontrini: int = 0
-    media_scontrino: float = 0
-    message: str = ""
+# Round 57: rimossi i model ReceiptAnalyzeRequest/ReceiptAnalyzeResponse
+# (la funzionalità OCR scontrino è stata eliminata)
 
 class FuelStation(BaseModel):
     nome: str = ""
@@ -307,71 +299,8 @@ Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare perc
         logger.error(f"AI Chat error: {e}")
         return ChatResponse(response=f"Errore: {str(e)}", session_id=req.session_id)
 
-@api_router.post("/receipt/analyze", response_model=ReceiptAnalyzeResponse)
-async def analyze_receipt(req: ReceiptAnalyzeRequest):
-    llm_key = os.environ.get('EMERGENT_LLM_KEY', '')
-    if not llm_key:
-        return ReceiptAnalyzeResponse(success=False, message="Chiave AI non configurata.")
-
-    try:
-        # Clean base64 string (remove data URI prefix if present)
-        image_b64 = req.image_base64
-        if ',' in image_b64:
-            image_b64 = image_b64.split(',', 1)[1]
-
-        ocr_chat = LlmChat(
-            api_key=llm_key,
-            session_id=f"receipt_{uuid.uuid4()}",
-            system_message="""Sei un esperto OCR specializzato nell'analisi di scontrini e chiusure fiscali italiane di registratori di cassa.
-Analizza l'immagine dello scontrino/chiusura fiscale e estrai i seguenti dati:
-
-1. TOTALE GIORNALIERO (il totale delle vendite della giornata, cercalo come "TOTALE", "TOT. GIORNALIERO", "GRAN TOTALE", "VENDITE", "CORRISPETTIVI" o simili)
-2. NUMERO SCONTRINI (il numero di scontrini/transazioni emessi, cercalo come "N. SCONTRINI", "NR DOCUMENTI", "NUM DOC", "TRANSAZIONI" o simili)
-
-RISPONDI ESCLUSIVAMENTE in formato JSON valido, senza altri testi prima o dopo:
-{"totale": 1234.56, "num_scontrini": 45, "media_scontrino": 27.43}
-
-Se non riesci a leggere uno dei valori, usa 0.
-La media_scontrino deve essere calcolata come totale / num_scontrini (se num_scontrini > 0).
-Se riesci a leggere solo il totale, metti num_scontrini a 0 e media_scontrino a 0.
-Se non riesci a leggere nulla, rispondi: {"totale": 0, "num_scontrini": 0, "media_scontrino": 0}"""
-        ).with_model("openai", "gpt-4.1-mini")
-
-        file_content = FileContent(content_type="image", file_content_base64=image_b64)
-        user_msg = UserMessage(
-            text="Analizza questa chiusura fiscale / scontrino e estrai i dati richiesti. Rispondi SOLO con il JSON.",
-            file_contents=[file_content]
-        )
-
-        response_text = await ocr_chat.send_message(user_msg)
-        logger.info(f"OCR response: {response_text}")
-
-        # Parse JSON from response
-        # Try to extract JSON from the response even if there's extra text
-        json_match = re.search(r'\{[^}]+\}', response_text)
-        if json_match:
-            data = json.loads(json_match.group())
-            totale = float(data.get('totale', 0))
-            num_sc = int(data.get('num_scontrini', 0))
-            media = float(data.get('media_scontrino', 0))
-            if totale > 0 and num_sc > 0 and media == 0:
-                media = round(totale / num_sc, 2)
-            return ReceiptAnalyzeResponse(
-                success=True,
-                totale=totale,
-                num_scontrini=num_sc,
-                media_scontrino=media,
-                message=f"Analisi completata: Totale €{totale}, {num_sc} scontrini, Media €{media}"
-            )
-        else:
-            return ReceiptAnalyzeResponse(
-                success=False,
-                message=f"Non sono riuscito ad estrarre i dati dallo scontrino. Risposta AI: {response_text[:200]}"
-            )
-
-    except Exception as e:
-        logger.error(f"Receipt OCR error: {e}")
-        return ReceiptAnalyzeResponse(success=False, message=f"Errore analisi: {str(e)}")
+# Round 57: rimosso endpoint POST /api/receipt/analyze
+# (la funzionalità OCR scontrino è stata eliminata su richiesta utente)
 
 # ── Fuel Price Helpers ──
 
