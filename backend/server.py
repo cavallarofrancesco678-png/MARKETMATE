@@ -171,12 +171,17 @@ Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia
 8. ⚠️ NON mostrare FIERE, NOTE GENERICHE o promemoria di altro tipo nel saluto. Le 8 categorie ammesse sono SOLO: meteo / fuel / pagamenti / appuntamenti / ordini-scadenze / fornitori-giorno / offerta-percentuale / bilancio-realistico.
 
 9. MIGLIOR RIFORNIMENTO + ALTERNATIVE (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
-   Dai PREZZI CARBURANTE REALI nel contesto (già filtrati: solo distributori SULLA STRADA Bareggio→destinazione), elenca FINO A 3 stazioni in ordine di prezzo crescente.
+   ⚠️ ⚠️ ⚠️ REGOLA INVIOLABILE: USA ESCLUSIVAMENTE i distributori PRESENTI nel CONTESTO ricevuto.
+   Il backend ha GIÀ filtrato i distributori applicando 2 vincoli stretti:
+     (a) entro 0.8 km dalla polilinea reale OSRM Bareggio→destinazione (NO svincoli larghi, NO strade parallele, NO uscite secondarie)
+     (b) sull'ITINERARIO effettivo della giornata
+   NON aggiungere distributori che ricordi di altre giornate, NON inventare città, NON usare la tua conoscenza esterna. Se nel contesto NON ci sono distributori (lista vuota), scrivi: "⛽ Nessun distributore sul percorso oggi."
+   Elenca FINO A 3 stazioni in ordine di prezzo crescente, copiando ESATTAMENTE i dati che ti sono passati.
    FORMATO OBBLIGATORIO (esattamente con questi separatori " | " ammessi anche con virgole):
      "⛽ Miglior prezzo: {Comune}, {Brand}, Euro {prezzo}, {Via}"
      "  Alternative: {Comune}, {Brand}, Euro {prezzo}, {Via} · {Comune2}, {Brand2}, Euro {prezzo2}, {Via2}"
    Esempio: "⛽ Miglior prezzo: Magenta, Q8, Euro 1.750, Via Roma"
-   Se mancano dati, scrivi: "⛽ Aggiungi partenza/arrivo in Settings per i prezzi carburante."
+   Se mancano dati di partenza/arrivo, scrivi: "⛽ Aggiungi partenza/arrivo in Settings per i prezzi carburante."
 
 10. 📊 BILANCIO REALISTICO DEL GIORNO (CRITICO — sempre quando ci sono dati):
    Trova nel CONTESTO il blocco "═══ 📊 BILANCIO REALISTICO DEL GIORNO SELEZIONATO ═══".
@@ -617,7 +622,10 @@ async def find_cheapest_fuel(req: FuelRequest):
         # Per ogni stazione calcoliamo la distanza minima (in km) dal segmento
         # più vicino della polilinea OSRM. Se è > MAX_OFF_ROUTE_KM rifiutiamo:
         # significa che il distributore è fuori dalla strada di percorrenza.
-        MAX_OFF_ROUTE_KM = 1.5  # tolleranza laterale (svincoli, parallele)
+        # Round 53 (richiesta utente): tolleranza più stretta per precisione.
+        # Era 1.5km (svincoli larghi), ora 0.8km → SOLO distributori realmente
+        # sul percorso, non quelli su strade parallele o uscite secondarie.
+        MAX_OFF_ROUTE_KM = 0.8  # tolleranza laterale stretta (no svincoli larghi)
 
         def _haversine(lat1, lon1, lat2, lon2):
             R = 6371.0

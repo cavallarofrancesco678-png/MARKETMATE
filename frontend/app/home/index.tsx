@@ -737,27 +737,40 @@ export default function HomeScreen() {
 
   /* ── All products from all fornitori ── */
   const tuttiProdotti = useMemo(() => {
-    const prods: { fornitore: string; nome: string; prezzo: number }[] = [];
+    // Round 53: includiamo anche il `costo` di acquisto per calcolare
+    // l'invenduto come perdita reale (sul costo, non sul prezzo di vendita).
+    const prods: { fornitore: string; nome: string; prezzo: number; costo?: number }[] = [];
     (fornitori || []).forEach((f: any) => {
       (f?.prodotti || []).forEach((p: any) => {
         if (!p) return;
-        prods.push({ fornitore: f.nome || '', nome: p.nome || '', prezzo: Number(p.prezzo) || 0 });
+        prods.push({
+          fornitore: f.nome || '',
+          nome: p.nome || '',
+          prezzo: Number(p.prezzo) || 0,
+          costo: typeof p.costo === 'number' ? Number(p.costo) : undefined,
+        });
       });
     });
     return prods;
   }, [fornitori]);
 
-  /* ── Invenduto/Perdita calculated from product quantities ── */
+  /* ── Invenduto/Perdita calculated from product COSTS (not selling prices) ──
+     Round 53 (richiesta utente): l'invenduto è una PERDITA economica reale,
+     quindi va calcolato sul COSTO di acquisto del prodotto (non sul prezzo
+     di vendita, che include anche il margine non incassato).
+     Fallback: se `costo` non è impostato (prodotti vecchi), usa `prezzo` per
+     retrocompatibilità. */
   const invendutoCalcolato = useMemo(() => {
     let tot = 0;
     tuttiProdotti.forEach((p) => {
       const key = `${p.fornitore}_${p.nome}`;
+      const costoUnit = (typeof p.costo === 'number' && p.costo > 0) ? p.costo : p.prezzo;
       if (isAlimentare) {
-        // Alimentare: qty × prezzo/kg
+        // Alimentare: qty × costo/kg
         const qty = parseFloat((invendutoQty[key] || '0').replace(',', '.')) || 0;
-        tot += qty * p.prezzo;
+        tot += qty * costoUnit;
       } else {
-        // Non-alimentare: direttamente il prezzo perdita
+        // Non-alimentare: l'utente inserisce direttamente il valore (€) della perdita
         const price = parseFloat((invendutoQty[key] || '0').replace(',', '.')) || 0;
         tot += price;
       }
