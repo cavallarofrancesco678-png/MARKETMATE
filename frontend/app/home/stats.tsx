@@ -561,11 +561,11 @@ function StatsScreenInner() {
   }, [filteredData]);
 
   const totLordo = arrSum(filteredData.map((g) => g.lordo || 0));
-  /* Netto: prima usavamo `g.netto` calcolato in home con solo DAILY costs.
-     Ora dobbiamo SOTTRARRE anche la quota proporzionale CUSTOM per
-     ciascun giorno. */
+  /* Netto baseline: prima `g.netto` (in home con solo DAILY). Il vero `totNetto`
+     usato in UI è ora un useMemo più sotto (Round 56) che applica i flag
+     exclude* del modal "Calcolo Netto" — vedi sotto la dichiarazione di
+     `vociExtraPeriod`. */
   const totNettoBaseline = arrSum(filteredData.map((g) => g.netto || 0));
-  const totNetto = totNettoBaseline - totCostoMerceProp;
   const totCash = arrSum(filteredData.map((g) => g.contanti || 0));
   const totPos = arrSum(filteredData.map((g) => g.pos || 0));
   const giorniLav = filteredData.length;
@@ -944,6 +944,38 @@ function StatsScreenInner() {
       .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
   }, [filteredByTime]);
   const totFiere = arrSum(fiereDays.map((g) => g.lordo || 0));
+
+  /* ═══ ROUND 56 — TOT NETTO RICALCOLATO IN BASE AI FLAG ═══
+     L'utente segnalava: nel modal "Calcolo Netto" le voci si flaggano
+     visualmente ma il NETTO non si aggiorna. Era perché il vecchio
+     `totNetto` era una costante fissa (totNettoBaseline − totCostoMerceProp)
+     che non considerava i flag exclude*.
+     Ora `totNetto` è un useMemo che parte dal lordo e sottrae SOLO le
+     categorie NON escluse, esattamente come UtileModal in Home. */
+  const totNetto = useMemo(() => {
+    const totSpeseFisse = arrSum(speseFisseItems.map((i) => i.value));
+    const totCollab = arrSum(collabLines.map((l) => arrSum(l.data)));
+    const totSpeseExtra = arrSum(filteredData.map((g) => g.spese_extra || 0));
+    const totFornitori = vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totExtraInPeriod;
+    const totInvenduto = arrSum(invendutoLines.map((l) => arrSum(l.data)));
+    const totCarb = carburantePeriodoTotale;
+
+    let netto = totLordo;
+    if (!excludeSpeseFisse) netto -= totSpeseFisse;
+    if (!excludeCollaboratori) netto -= totCollab;
+    if (!excludeSpeseExtra) netto -= totSpeseExtra;
+    if (!excludeFornitori) netto -= totFornitori;
+    if (!excludeInvenduto) netto -= totInvenduto;
+    if (!excludeCarburante) netto -= totCarb;
+    // Costo merce ponderato CUSTOM è SEMPRE sottratto se i fornitori non sono esclusi
+    if (!excludeFornitori) netto -= totCostoMerceProp;
+    return netto;
+  }, [
+    totLordo, speseFisseItems, collabLines, filteredData, vociExtraPeriod,
+    invendutoLines, carburantePeriodoTotale, totCostoMerceProp,
+    excludeSpeseFisse, excludeCollaboratori, excludeSpeseExtra,
+    excludeFornitori, excludeInvenduto, excludeCarburante,
+  ]);
 
   /* ── Giorni lavorati vs non lavorati (per grafico) ──
      IMPORTANTE: 'lavorati' conta SOLO le giornate con inPiazza !== false.

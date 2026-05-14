@@ -463,7 +463,11 @@ function SettingsPageInner() {
 
   const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
-  const handleReceiptCapture = async (idx: number) => {
+  // Round 56 (richiesta utente): rimossa completamente la funzionalità foto
+  // scontrino e tutte le chiamate camera/gallery. La media scontrino si
+  // inserisce manualmente cliccando sulla riga "Media Scontrino" nell'agenda.
+
+  const lingue = ['Italiano', 'Français', 'English', 'Español', 'Deutsch', 'Português'];
     try {
       // Ask user to choose camera or gallery
       const choiceResult = await new Promise<'camera' | 'gallery' | null>((resolve) => {
@@ -1476,26 +1480,8 @@ function SettingsPageInner() {
                   <Text style={s.itemLabel}>{t('settings.avgReceipt')}</Text>
                   <Text style={s.agendaVal}>{m.mediaScontrino ? `€${m.mediaScontrino}` : '---'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.cameraBtn}
-                  onPress={() => handleReceiptCapture(idx)}
-                  disabled={ocrLoading}
-                >
-                  {ocrLoading ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Ionicons name="camera-outline" size={18} color="#FFF" />
-                  )}
-                  <Text style={s.cameraBtnTxt}>
-                    {ocrLoading ? (t('settings.analyzing') || 'Analisi in corso...') : (t('settings.receiptPhotoBtn') || 'Foto chiusura fiscale → calcola media scontrino')}
-                  </Text>
-                </TouchableOpacity>
-                {/* Show storico scontrini count if available */}
-                {store.storicoScontrini && store.storicoScontrini.filter(sc => sc.mercato === m.mercato).length > 0 && (
-                  <Text style={s.agendaHint}>
-                    {store.storicoScontrini.filter(sc => sc.mercato === m.mercato).length} {t('settings.receiptsAnalyzed') || 'scontrini analizzati'}
-                  </Text>
-                )}
+                {/* Round 56 (richiesta utente): rimossa funzionalità foto scontrino + camera.
+                    L'utente inserisce la media scontrino solo manualmente cliccando la riga sopra. */}
                 <View style={s.switchRow}>
                   <Text style={s.itemLabel}>{t('settings.standFeeType')}</Text>
                   <Switch
