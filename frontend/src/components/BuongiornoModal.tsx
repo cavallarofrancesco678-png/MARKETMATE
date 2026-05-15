@@ -302,16 +302,16 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
 
     return `═══ DATA DI RIFERIMENTO ═══
 GIORNO SELEZIONATO DALL'UTENTE: ${dateNarrative}
-${isFuture ? '⚠️ L\'utente sta consultando un giorno FUTURO. RIFORMULA TUTTE le frasi al FUTURO. NON dire "oggi" — usa il nome del giorno (es: "Lunedì pioverà a Roma, attento al mercato!"). Il meteo qui sotto è la PREVISIONE per quel giorno.' : ''}
-${isPast ? '⚠️ L\'utente sta consultando un giorno PASSATO. Rispondi al passato (es: "Lunedì scorso era nuvoloso"). Il meteo qui sotto è il dato di archivio.' : ''}
+${isFuture ? '⚠️ L\'utente sta consultando un giorno FUTURO. RIFORMULA TUTTE le frasi al FUTURO. NON dire "oggi" — usa il nome del giorno (es: "{giornoSettimana} pioverà a {mercato}, attento!"). Il meteo qui sotto è la PREVISIONE per quel giorno.' : ''}
+${isPast ? '⚠️ L\'utente sta consultando un giorno PASSATO. Rispondi al passato (es: "{giornoSettimana} scorso era {descrizioneMeteo} a {mercato}"). Il meteo qui sotto è il dato di archivio.' : ''}
 
 ═══ ATTIVITA ═══
-Attivita: ${s.nomeAttivita}
-Titolare: ${s.nomeTitolare}
-Mercato del ${dateLabel}: ${s.mercatoOggi}
-Meteo (codice scelto in app): ${s.meteoOggi}
+Attivita: ${s.nomeAttivita || '—'}
+Titolare: ${s.nomeTitolare || '—'}
+Mercato del ${dateLabel}: ${s.mercatoOggi || '⚠️ NON SPECIFICATO (lascia vuoto nel saluto, NON inventare città)'}
+Meteo (codice scelto in app): ${s.meteoOggi || '—'}
 Km: ${s.kmOggi}
-Partenza da: ${s.partenzaDa || 'Non specificata'}
+Partenza da: ${s.partenzaDa || '⚠️ Non specificata (non inventare partenza)'}
 Tipo carburante: ${s.tipoCarburante || 'benzina'}
 Costo/km: €${s.costoKm.toFixed(3)}
 
