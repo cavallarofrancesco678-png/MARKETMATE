@@ -12,6 +12,7 @@ import {
   Modal,
   Platform,
   StatusBar,
+  Switch,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -327,6 +328,13 @@ function StatsScreenInner() {
   const [excludeFornitori, setExcludeFornitori] = useState(false);
   const [excludeInvenduto, setExcludeInvenduto] = useState(false);
   const [excludeCarburante, setExcludeCarburante] = useState(false);
+
+  /* ═══ Round 60 — FLAG PER-FORNITORE (CUSTOM/WEEKLY/MONTHLY) ═══
+     Mappa: chiave `${nome}__${ISOacquisto}__${ISOstorno}` ⇒ true=escluso.
+     Se la chiave manca, si usa il default: ESCLUSO se dataStorno è fuori
+     dal periodo visualizzato (così la statistica giornaliera/settimanale/
+     mensile non sottrae per default fornitori che hanno scadenza altrove). */
+  const [excludeFornitoreScad, setExcludeFornitoreScad] = useState<Record<string, boolean>>({});
 
   const handleLineTap = (chartKey: string, lineIdx: number) => {
     setActiveChartLine((prev) => ({
@@ -945,6 +953,93 @@ function StatsScreenInner() {
   }, [filteredByTime]);
   const totFiere = arrSum(fiereDays.map((g) => g.lordo || 0));
 
+  /* ═══ ROUND 60 — FORNITORI A SCADENZA INDIVIDUALI ═══
+     Estrae da filteredData ogni fornitore CUSTOM/WEEKLY/MONTHLY con la sua
+     data di acquisto e calcola la data di storno effettiva. Per ogni voce
+     l'utente potrà flaggare individualmente l'esclusione dal netto.
+
+     Output:
+       items: { key, nome, importo, dataAcquisto, dataStorno, type, inPeriod }
+       totSelezionato: somma degli importi NON esclusi (rispetta excludeFornitoreScad)
+
+     Calcolo dataStorno:
+       • DAILY → coincide con dataAcquisto (non rilevante qui)
+       • WEEKLY → domenica della settimana di dataAcquisto (Lun→Dom)
+       • CUSTOM / MONTHLY → dataAcquisto + (days - 1)
+
+     `inPeriod` = true se dataStorno ∈ [filtroFrom..filtroTo].
+     Default flag: voce ESCLUSA se !inPeriod (l'utente la vede ma non
+     viene sottratta dal netto del periodo visualizzato). */
+  const fornitoriScadenze = useMemo(() => {
+    type Item = {
+      key: string; nome: string; importo: number;
+      dataAcquisto: string; dataStorno: string;
+      type: 'WEEKLY' | 'CUSTOM' | 'MONTHLY'; inPeriod: boolean;
+    };
+    const items: Item[] = [];
+
+    const isoFromDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const periodFrom = filtroTempo === 'Pers.' && persDateFrom
+      ? isoFromDate(persDateFrom)
+      : (filteredByTime[0] ? isoFromDate(new Date(filteredByTime[0].data)) : '');
+    const periodTo = filtroTempo === 'Pers.' && persDateTo
+      ? isoFromDate(persDateTo)
+      : (filteredByTime[filteredByTime.length - 1] ? isoFromDate(new Date(filteredByTime[filteredByTime.length - 1].data)) : '');
+
+    filteredData.forEach((g: any) => {
+      const ded = g.dettaglio_fornitori_deduction || {};
+      const det = g.dettaglio_fornitori || {};
+      const days = g.dettaglio_fornitori_days || {};
+      const startDates = g.dettaglio_fornitori_startDate || {};
+
+      const sumByBase: Record<string, number> = {};
+      Object.entries(det).forEach(([k, v]) => {
+        const val = parseFloat(String(v)) || 0;
+        if (val <= 0) return;
+        if (k.includes('__fattn') || k.includes('__liberaLabel')) return;
+        const nomeBase = k.endsWith('__libera') ? k.slice(0, -'__libera'.length) : k;
+        sumByBase[nomeBase] = (sumByBase[nomeBase] || 0) + val;
+      });
+
+      Object.entries(sumByBase).forEach(([nomeBase, importo]) => {
+        const dt = ded[nomeBase] || 'DAILY';
+        if (dt === 'DAILY') return;
+        const dAcq = new Date(g.data);
+        const isoAcq = isoFromDate(dAcq);
+        let isoStorno = isoAcq;
+        if (dt === 'WEEKLY') {
+          const dow = (dAcq.getDay() + 6) % 7;
+          const dom = new Date(dAcq); dom.setDate(dAcq.getDate() - dow + 6);
+          isoStorno = isoFromDate(dom);
+        } else {
+          const periodDays = (days[nomeBase] || (dt === 'MONTHLY' ? 30 : 7)) as number;
+          const startIso = (startDates[nomeBase] || isoAcq) as string;
+          const startD = new Date(startIso + 'T00:00:00');
+          const endD = new Date(startD); endD.setDate(startD.getDate() + periodDays - 1);
+          isoStorno = isoFromDate(endD);
+        }
+        const inPeriod = periodFrom && periodTo ? (isoStorno >= periodFrom && isoStorno <= periodTo) : true;
+        items.push({
+          key: `${nomeBase}__${isoAcq}__${isoStorno}`,
+          nome: nomeBase, importo,
+          dataAcquisto: isoAcq, dataStorno: isoStorno,
+          type: dt as 'WEEKLY' | 'CUSTOM' | 'MONTHLY', inPeriod,
+        });
+      });
+    });
+
+    const totSelezionato = items.reduce((s, it) => {
+      const userExcluded = excludeFornitoreScad[it.key];
+      const isExcluded = userExcluded !== undefined ? userExcluded : !it.inPeriod;
+      return s + (isExcluded ? 0 : it.importo);
+    }, 0);
+
+    return {
+      items: items.sort((a, b) => b.dataStorno.localeCompare(a.dataStorno)),
+      totSelezionato: Math.round(totSelezionato),
+    };
+  }, [filteredData, filteredByTime, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad]);
+
   /* ═══ ROUND 56 — TOT NETTO RICALCOLATO IN BASE AI FLAG ═══
      L'utente segnalava: nel modal "Calcolo Netto" le voci si flaggano
      visualmente ma il NETTO non si aggiorna. Era perché il vecchio
@@ -956,7 +1051,10 @@ function StatsScreenInner() {
     const totSpeseFisse = arrSum(speseFisseItems.map((i) => i.value));
     const totCollab = arrSum(collabLines.map((l) => arrSum(l.data)));
     const totSpeseExtra = arrSum(filteredData.map((g) => g.spese_extra || 0));
-    const totFornitori = vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totExtraInPeriod;
+    // Round 60: separiamo i DAILY fornitori dai CUSTOM/WEEKLY (gestiti individualmente).
+    // `totFornitoriDaily` = solo i fornitori DAILY del periodo (always subtracted if !excludeFornitori).
+    // `fornitoriScadenze.totSelezionato` = solo le voci CUSTOM/WEEKLY non escluse dall'utente.
+    const totFornitoriDaily = vociExtraPeriod.totDailyDeducted;
     const totInvenduto = arrSum(invendutoLines.map((l) => arrSum(l.data)));
     const totCarb = carburantePeriodoTotale;
 
@@ -964,17 +1062,18 @@ function StatsScreenInner() {
     if (!excludeSpeseFisse) netto -= totSpeseFisse;
     if (!excludeCollaboratori) netto -= totCollab;
     if (!excludeSpeseExtra) netto -= totSpeseExtra;
-    if (!excludeFornitori) netto -= totFornitori;
+    if (!excludeFornitori) netto -= totFornitoriDaily;
     if (!excludeInvenduto) netto -= totInvenduto;
     if (!excludeCarburante) netto -= totCarb;
     // Costo merce ponderato CUSTOM è SEMPRE sottratto se i fornitori non sono esclusi
     if (!excludeFornitori) netto -= totCostoMerceProp;
+    // Fornitori a SCADENZA individuali (CUSTOM/WEEKLY/MONTHLY) — flag per-voce
+    netto -= fornitoriScadenze.totSelezionato;
     return netto;
   }, [
-    totLordo, speseFisseItems, collabLines, filteredData, vociExtraPeriod,
-    invendutoLines, carburantePeriodoTotale, totCostoMerceProp,
-    excludeSpeseFisse, excludeCollaboratori, excludeSpeseExtra,
-    excludeFornitori, excludeInvenduto, excludeCarburante,
+    totLordo, speseFisseItems, collabLines, filteredData, vociExtraPeriod, invendutoLines, carburantePeriodoTotale, totCostoMerceProp,
+    excludeSpeseFisse, excludeCollaboratori, excludeSpeseExtra, excludeFornitori, excludeInvenduto, excludeCarburante,
+    fornitoriScadenze,
   ]);
 
   /* ── Giorni lavorati vs non lavorati (per grafico) ──
@@ -2407,93 +2506,149 @@ function StatsScreenInner() {
                 <Ionicons name="close" size={24} color="#5A7575" />
               </TouchableOpacity>
             </View>
-            
-            <Text style={st.modalSubtitle}>Seleziona le voci da escludere dal calcolo:</Text>
-            
-            <View style={st.checkboxList}>
-              <TouchableOpacity 
-                style={st.checkboxRow} 
-                onPress={() => setExcludeSpeseFisse(!excludeSpeseFisse)}
-              >
-                <View style={[st.checkbox, excludeSpeseFisse && st.checkboxChecked]}>
-                  {excludeSpeseFisse && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                </View>
-                <Text style={st.checkboxLabel}>Spese Fisse</Text>
-                <Text style={st.checkboxValue}>€{arrSum(speseFisseItems.map(i => i.value))}</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={st.checkboxRow} 
-                onPress={() => setExcludeCollaboratori(!excludeCollaboratori)}
-              >
-                <View style={[st.checkbox, excludeCollaboratori && st.checkboxChecked]}>
-                  {excludeCollaboratori && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                </View>
-                <Text style={st.checkboxLabel}>Collaboratori</Text>
-                <Text style={st.checkboxValue}>€{arrSum(collabLines.map(l => arrSum(l.data)))}</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={st.checkboxRow} 
-                onPress={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
-              >
-                <View style={[st.checkbox, excludeSpeseExtra && st.checkboxChecked]}>
-                  {excludeSpeseExtra && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                </View>
-                <Text style={st.checkboxLabel}>Spese Straordinarie</Text>
-                <Text style={st.checkboxValue}>€{arrSum(filteredData.map(g => g.spese_extra || 0))}</Text>
-              </TouchableOpacity>
+            <Text style={st.modalSubtitle}>Tocca per escludere una voce dal calcolo del netto</Text>
 
-              {/* FORNITORI: somma DAILY puramente del giorno + ponderato CUSTOM */}
-              <TouchableOpacity
-                style={st.checkboxRow}
-                onPress={() => setExcludeFornitori(!excludeFornitori)}
-              >
-                <View style={[st.checkbox, excludeFornitori && st.checkboxChecked]}>
-                  {excludeFornitori && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                </View>
-                <Text style={st.checkboxLabel}>Fornitori (DAILY)</Text>
-                <Text style={st.checkboxValue}>€{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totExtraInPeriod).toFixed(0)}</Text>
-              </TouchableOpacity>
+            <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+              {/* ═══ Round 60 — STILE CONSISTENTE CON UTILEMODAL ═══
+                  Switch iOS + label + valore. Default: tutte le voci sono
+                  INCLUSE nel netto (excluded=false). L'utente fa swipe ON
+                  per escludere la voce → il netto aumenta. */}
+              {(() => {
+                const NettoRow = (props: {
+                  label: string;
+                  value: number;
+                  excluded: boolean;
+                  onToggle: () => void;
+                  icon: keyof typeof Ionicons.glyphMap;
+                  iconColor: string;
+                  hint?: string;
+                }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={props.onToggle}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 12,
+                      paddingVertical: 11, paddingHorizontal: 10,
+                      borderBottomWidth: 1, borderBottomColor: '#EDE7D4',
+                    }}
+                  >
+                    <View style={{
+                      width: 32, height: 32, borderRadius: 16,
+                      backgroundColor: props.iconColor + '22',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Ionicons name={props.icon} size={18} color={props.iconColor} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{
+                        fontSize: 13, fontWeight: '800',
+                        color: props.excluded ? '#9A9A8A' : '#1A4040',
+                        textDecorationLine: props.excluded ? 'line-through' : 'none',
+                      }}>{props.label}</Text>
+                      {!!props.hint && (
+                        <Text style={{ fontSize: 10, color: '#7A9090', marginTop: 2, fontStyle: 'italic' }}>
+                          {props.hint}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={{
+                      fontSize: 14, fontWeight: '900',
+                      color: props.excluded ? '#B0B0A0' : '#1E7F85',
+                      marginRight: 6,
+                    }}>
+                      €{props.value.toFixed(0)}
+                    </Text>
+                    <Switch
+                      value={!props.excluded}
+                      onValueChange={props.onToggle}
+                      trackColor={{ false: '#D8D2C0', true: '#1E7F85' }}
+                      thumbColor="#FFF"
+                      ios_backgroundColor="#D8D2C0"
+                    />
+                  </TouchableOpacity>
+                );
 
-              {/* ═══ COSTO MERCE PONDERATO (algoritmo proporzionale Round 37)
-                  Mostra la quota di costi CUSTOM dei fornitori distribuita
-                  proporzionalmente al lordo giornaliero. Σ daily quote =
-                  totale fatture fornitori CUSTOM nel periodo. ═══ */}
-              {totCostoMerceProp > 0.5 && (
-                <View style={[st.checkboxRow, { paddingLeft: 32 }]}>
-                  <Ionicons name="trending-up" size={14} color="#1E7F85" style={{ marginRight: 6 }} />
-                  <Text style={[st.checkboxLabel, { fontStyle: 'italic', color: '#1E7F85' }]}>
-                    Costo Merce Ponderato
-                  </Text>
-                  <Text style={[st.checkboxValue, { color: '#1E7F85' }]}>
-                    €{totCostoMerceProp.toFixed(0)}
-                  </Text>
-                </View>
-              )}
-              
-              <TouchableOpacity 
-                style={st.checkboxRow} 
-                onPress={() => setExcludeInvenduto(!excludeInvenduto)}
-              >
-                <View style={[st.checkbox, excludeInvenduto && st.checkboxChecked]}>
-                  {excludeInvenduto && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                </View>
-                <Text style={st.checkboxLabel}>Invenduto</Text>
-                <Text style={st.checkboxValue}>€{arrSum(invendutoLines.map(l => arrSum(l.data)))}</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={st.checkboxRow} 
-                onPress={() => setExcludeCarburante(!excludeCarburante)}
-              >
-                <View style={[st.checkbox, excludeCarburante && st.checkboxChecked]}>
-                  {excludeCarburante && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                </View>
-                <Text style={st.checkboxLabel}>Gestione Carburante</Text>
-                <Text style={st.checkboxValue}>€{Math.round(carburantePeriodoTotale)}</Text>
-              </TouchableOpacity>
-            </View>
+                const speseFisseSum = arrSum(speseFisseItems.map(i => i.value));
+                const collabSum = arrSum(collabLines.map(l => arrSum(l.data)));
+                const speseExtraSum = arrSum(filteredData.map(g => g.spese_extra || 0));
+                const invendutoSum = arrSum(invendutoLines.map(l => arrSum(l.data)));
+
+                return (
+                  <>
+                    <NettoRow
+                      label="Spese Fisse" value={speseFisseSum}
+                      excluded={excludeSpeseFisse} onToggle={() => setExcludeSpeseFisse(!excludeSpeseFisse)}
+                      icon="home-outline" iconColor="#8B6914"
+                    />
+                    <NettoRow
+                      label="Collaboratori" value={collabSum}
+                      excluded={excludeCollaboratori} onToggle={() => setExcludeCollaboratori(!excludeCollaboratori)}
+                      icon="people-outline" iconColor="#1E7F85"
+                    />
+                    <NettoRow
+                      label="Spese Straordinarie" value={speseExtraSum}
+                      excluded={excludeSpeseExtra} onToggle={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
+                      icon="receipt-outline" iconColor="#E8A060"
+                    />
+                    {/* Round 60: rimossa label "(DAILY)" → solo "Fornitori" */}
+                    <NettoRow
+                      label="Fornitori" value={vociExtraPeriod.totDailyDeducted + totCostoMerceProp}
+                      excluded={excludeFornitori} onToggle={() => setExcludeFornitori(!excludeFornitori)}
+                      icon="storefront-outline" iconColor="#1A4040"
+                      hint={totCostoMerceProp > 0.5 ? `Include costo merce ponderato €${totCostoMerceProp.toFixed(0)}` : undefined}
+                    />
+                    <NettoRow
+                      label="Invenduto" value={invendutoSum}
+                      excluded={excludeInvenduto} onToggle={() => setExcludeInvenduto(!excludeInvenduto)}
+                      icon="trash-outline" iconColor="#D46A6A"
+                    />
+                    <NettoRow
+                      label="Gestione Carburante" value={Math.round(carburantePeriodoTotale)}
+                      excluded={excludeCarburante} onToggle={() => setExcludeCarburante(!excludeCarburante)}
+                      icon="car-outline" iconColor="#5A7575"
+                    />
+
+                    {/* ═══ Round 60 — FORNITORI A SCADENZA (CUSTOM/WEEKLY/MONTHLY) ═══
+                        Mostrati come voci INDIVIDUALI con info data acquisto +
+                        data storno. Default escluso se la dataStorno cade FUORI
+                        dal periodo visualizzato. L'utente può flaggare manualmente. */}
+                    {fornitoriScadenze.items.length > 0 && (
+                      <>
+                        <View style={{ marginTop: 14, marginBottom: 6 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.6 }}>
+                            FORNITORI A SCADENZA
+                          </Text>
+                        </View>
+                        {fornitoriScadenze.items.map((it) => {
+                          const userExcluded = excludeFornitoreScad[it.key];
+                          const isExcluded = userExcluded !== undefined ? userExcluded : !it.inPeriod;
+                          const fmt = (iso: string) => {
+                            if (!iso) return '—';
+                            const [, m, d] = iso.split('-');
+                            return `${d}/${m}`;
+                          };
+                          return (
+                            <NettoRow
+                              key={it.key}
+                              label={it.nome}
+                              value={Math.round(it.importo)}
+                              excluded={isExcluded}
+                              onToggle={() => setExcludeFornitoreScad({
+                                ...excludeFornitoreScad,
+                                [it.key]: !isExcluded,
+                              })}
+                              icon="calendar-outline"
+                              iconColor={it.type === 'WEEKLY' ? '#1E7F85' : '#8B6914'}
+                              hint={`📅 Comprata il ${fmt(it.dataAcquisto)} — scalata il ${fmt(it.dataStorno)}${!it.inPeriod ? ' (fuori periodo)' : ''}`}
+                            />
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+            </ScrollView>
             
             <View style={st.modalDivider} />
             
