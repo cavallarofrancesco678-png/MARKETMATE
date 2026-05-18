@@ -17,12 +17,27 @@ import { useAppStore } from '../../src/store/appStore';
 import { useTranslation } from 'react-i18next';
 import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CalendarModal } from '../../src/components/CalendarModal';
 import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
+import { RangePickerModal, type RangeResult, type RangeMode } from '../../src/components/RangePickerModal';
 
-type Filtro = 'SETT.' | 'MESE' | 'ANNO' | 'PERS.';
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const MESI_SHORT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
+/* Util: parse data difensivo. Round 59 — fix crash da dati legacy con date
+   corrotte o stringhe non valide. Ritorna null se la data non è parsabile. */
+const safeParseDate = (raw: any): Date | null => {
+  if (!raw) return null;
+  if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+  try {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+};
+
+const isoOf = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export default function GasScreen() {
   const store = useAppStore();
@@ -34,11 +49,31 @@ export default function GasScreen() {
   // Tutorial anchor
   const anchorGasInput = useTutorialAnchor('gas-input-block');
 
-  const [filtro, setFiltro] = useState<Filtro>('MESE');
-  const [persDateFrom, setPersDateFrom] = useState<Date | null>(null);
-  const [persDateTo, setPersDateTo] = useState<Date | null>(null);
-  const [showPersCal, setShowPersCal] = useState(false);
-  const [pickingFrom, setPickingFrom] = useState(true);
+  /* ═══ Round 59 — REFACTOR FILTRO PERIODO ═══
+     Sostituiamo il vecchio sistema Filtro = 'SETT.'/'MESE'/'ANNO'/'PERS.' con il
+     nuovo RangePickerModal condiviso. Manteniamo solo lo stato `period`
+     (RangeResult) che il modal restituisce. Le bug precedenti:
+       • SETT. faceva "ultimi 7 giorni rolling" → ora SETT. = settimana
+         calendario (Lun→Dom) della data di riferimento.
+       • MESE faceva "ultimi 30 giorni rolling" → ora MESE = mese calendario
+         (1→fine del mese) della data di riferimento. Questo elimina il
+         bug "ho speso €80 ma me ne mostra €168" (sommava dati di mesi
+         diversi).
+       • PERS. ora condivide lo stesso componente di Statistiche per
+         coerenza UX. */
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [period, setPeriod] = useState<RangeResult>(() => {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      mode: 'mese',
+      from: isoOf(first),
+      to: isoOf(last),
+      label: `${MESI_SHORT[now.getMonth()]} ${now.getFullYear()}`,
+    };
+  });
+
   const [euroText, setEuroText] = useState('');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
@@ -62,125 +97,102 @@ export default function GasScreen() {
     playSuccess(); // Conferma sonora + aptica, nessun popup
   };
 
-  /* ═══ STATISTICHE FILTRATE ═══ */
+  /* ═══ STATISTICHE FILTRATE per il `period` selezionato ═══
+     Filtra storicoCarburante e storicoGiornate per data ∈ [from..to] usando
+     ISO comparisons (no timezone hell). Round 59: anti-crash via safeParseDate. */
   const stats = useMemo(() => {
-    const now = new Date();
-    let filtered = [...storicoCarburante];
-    let filteredGiornate = [...storicoGiornate];
+    const fromIso = period.from;
+    const toIso = period.to;
 
-    if (filtro === 'SETT.') {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filtered = storicoCarburante.filter(c => new Date(c.data).getTime() >= weekAgo.getTime());
-      filteredGiornate = storicoGiornate.filter(g => new Date(g.data).getTime() >= weekAgo.getTime());
-    } else if (filtro === 'MESE') {
-      const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      filtered = storicoCarburante.filter(c => new Date(c.data).getTime() >= monthAgo.getTime());
-      filteredGiornate = storicoGiornate.filter(g => new Date(g.data).getTime() >= monthAgo.getTime());
-    } else if (filtro === 'ANNO') {
-      const yearStart = new Date(now.getFullYear(), 0, 1);
-      filtered = storicoCarburante.filter(c => new Date(c.data).getTime() >= yearStart.getTime());
-      filteredGiornate = storicoGiornate.filter(g => new Date(g.data).getTime() >= yearStart.getTime());
-    } else if (filtro === 'PERS.' && persDateFrom && persDateTo) {
-      const fromT = new Date(persDateFrom.getFullYear(), persDateFrom.getMonth(), persDateFrom.getDate()).getTime();
-      const toT = new Date(persDateTo.getFullYear(), persDateTo.getMonth(), persDateTo.getDate(), 23, 59, 59).getTime();
-      filtered = storicoCarburante.filter(c => {
-        const dt = new Date(c.data).getTime();
-        return dt >= fromT && dt <= toT;
-      });
-      filteredGiornate = storicoGiornate.filter(g => {
-        const dt = new Date(g.data).getTime();
-        return dt >= fromT && dt <= toT;
-      });
-    }
+    const filtered = storicoCarburante.filter((c) => {
+      const d = safeParseDate(c?.data);
+      if (!d) return false;
+      const iso = isoOf(d);
+      return iso >= fromIso && iso <= toIso;
+    });
+    const filteredGiornate = storicoGiornate.filter((g) => {
+      const d = safeParseDate(g?.data);
+      if (!d) return false;
+      const iso = isoOf(d);
+      return iso >= fromIso && iso <= toIso;
+    });
 
-    const totale = filtered.reduce((s, c) => s + (c.euro || 0), 0);
-    const km = filteredGiornate.reduce((s, g) => s + (g.km || 0), 0);
+    const totale = filtered.reduce((s, c) => s + (Number(c?.euro) || 0), 0);
+    const km = filteredGiornate.reduce((s, g) => s + (Number(g?.km) || 0), 0);
     const euroKm = km > 0 ? totale / km : 0;
 
     return { totale, km, euroKm, filtered };
-  }, [storicoCarburante, storicoGiornate, filtro, persDateFrom, persDateTo]);
+  }, [storicoCarburante, storicoGiornate, period]);
 
-  /* ═══ DATI GRAFICO ═══ */
+  /* ═══ DATI GRAFICO ═══
+     Sempre coerente con il `period` selezionato.
+     Heuristic per il raggruppamento:
+       • Range ≤ 14 giorni → barre per giorno
+       • Range ≤ 60 giorni → barre per settimana
+       • Range > 60 giorni → barre per mese */
   const chartData = useMemo(() => {
-    const now = new Date();
-    if (filtro === 'ANNO') {
-      const months = Array(12).fill(0);
-      storicoCarburante.forEach(c => {
-        const d = new Date(c.data);
-        if (d.getFullYear() === now.getFullYear()) {
-          months[d.getMonth()] += c.euro || 0;
-        }
-      });
-      const translatedShort = t('gas.monthsShort', { returnObjects: true }) as string[];
-      return { values: months, labels: Array.isArray(translatedShort) ? translatedShort : MESI_SHORT };
-    } else if (filtro === 'MESE') {
-      // 4 settimane del mese corrente
-      const weeks = [0, 0, 0, 0];
-      storicoCarburante.forEach(c => {
-        const d = new Date(c.data);
-        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
-          const weekIdx = Math.min(3, Math.floor((d.getDate() - 1) / 7));
-          weeks[weekIdx] += c.euro || 0;
-        }
-      });
-      return { values: weeks, labels: ['S1', 'S2', 'S3', 'S4'] };
-    } else if (filtro === 'PERS.' && persDateFrom && persDateTo) {
-      // Range personalizzato: raggruppa per giorno se <=14 giorni, per settimana se <=60, per mese altrimenti
-      const msDay = 24 * 60 * 60 * 1000;
-      const fromT = new Date(persDateFrom.getFullYear(), persDateFrom.getMonth(), persDateFrom.getDate()).getTime();
-      const toT = new Date(persDateTo.getFullYear(), persDateTo.getMonth(), persDateTo.getDate(), 23, 59, 59).getTime();
-      const days = Math.ceil((toT - fromT) / msDay);
-      if (days <= 14) {
-        const values: number[] = Array(days).fill(0);
-        const labels: string[] = [];
-        for (let i = 0; i < days; i++) {
-          const d = new Date(fromT + i * msDay);
-          labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
-        }
-        storicoCarburante.forEach(c => {
-          const d = new Date(c.data);
-          const dt = d.getTime();
-          if (dt >= fromT && dt <= toT) {
-            const idx = Math.floor((dt - fromT) / msDay);
-            if (idx >= 0 && idx < days) values[idx] += c.euro || 0;
-          }
-        });
-        return { values, labels };
+    const fromIso = period.from;
+    const toIso = period.to;
+    const fromDate = new Date(fromIso + 'T00:00:00');
+    const toDate = new Date(toIso + 'T00:00:00');
+    const msDay = 24 * 60 * 60 * 1000;
+    const days = Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / msDay) + 1);
+
+    if (period.mode === 'anno' || days > 60) {
+      // Raggruppa per mese
+      const monthsInRange: { label: string; key: string; value: number }[] = [];
+      const cur = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+      while (cur <= toDate) {
+        const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`;
+        monthsInRange.push({ label: MESI_SHORT[cur.getMonth()], key, value: 0 });
+        cur.setMonth(cur.getMonth() + 1);
       }
-      // altrimenti raggruppa per settimana
-      const weeks = Math.ceil(days / 7);
-      const values: number[] = Array(weeks).fill(0);
+      storicoCarburante.forEach((c) => {
+        const d = safeParseDate(c?.data);
+        if (!d) return;
+        const iso = isoOf(d);
+        if (iso < fromIso || iso > toIso) return;
+        const key = iso.slice(0, 7);
+        const bucket = monthsInRange.find((b) => b.key === key);
+        if (bucket) bucket.value += Number(c?.euro) || 0;
+      });
+      return { values: monthsInRange.map((m) => m.value), labels: monthsInRange.map((m) => m.label) };
+    }
+
+    if (days <= 14) {
+      // Per giorno
+      const values: number[] = Array(days).fill(0);
       const labels: string[] = [];
-      for (let i = 0; i < weeks; i++) labels.push(`S${i + 1}`);
-      storicoCarburante.forEach(c => {
-        const d = new Date(c.data);
-        const dt = d.getTime();
-        if (dt >= fromT && dt <= toT) {
-          const idx = Math.floor((dt - fromT) / (7 * msDay));
-          if (idx >= 0 && idx < weeks) values[idx] += c.euro || 0;
-        }
+      for (let i = 0; i < days; i++) {
+        const d = new Date(fromDate); d.setDate(fromDate.getDate() + i);
+        labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
+      }
+      storicoCarburante.forEach((c) => {
+        const d = safeParseDate(c?.data);
+        if (!d) return;
+        const iso = isoOf(d);
+        if (iso < fromIso || iso > toIso) return;
+        const idx = Math.floor((d.getTime() - fromDate.getTime()) / msDay);
+        if (idx >= 0 && idx < days) values[idx] += Number(c?.euro) || 0;
       });
       return { values, labels };
-    } else {
-      // SETT. = settimana corrente (Lun-Dom), non ultimi 7 giorni
-      const days = [0, 0, 0, 0, 0, 0, 0];
-      const dayLabels = [t('gas.mon'), t('gas.tue'), t('gas.wed'), t('gas.thu'), t('gas.fri'), t('gas.sat'), t('gas.sun')];
-      // Trova il lunedì di questa settimana
-      const monday = new Date(now);
-      const dow = (now.getDay() + 6) % 7; // 0=Lun..6=Dom
-      monday.setDate(now.getDate() - dow);
-      monday.setHours(0, 0, 0, 0);
-      const nextMonday = new Date(monday); nextMonday.setDate(monday.getDate() + 7);
-      storicoCarburante.forEach(c => {
-        const d = new Date(c.data);
-        if (d.getTime() >= monday.getTime() && d.getTime() < nextMonday.getTime()) {
-          const dayOfWeek = (d.getDay() + 6) % 7;
-          days[dayOfWeek] += c.euro || 0;
-        }
-      });
-      return { values: days, labels: dayLabels };
     }
-  }, [storicoCarburante, filtro, persDateFrom, persDateTo, t]);
+
+    // Per settimana (15-60 gg)
+    const weeks = Math.ceil(days / 7);
+    const values: number[] = Array(weeks).fill(0);
+    const labels: string[] = [];
+    for (let i = 0; i < weeks; i++) labels.push(`S${i + 1}`);
+    storicoCarburante.forEach((c) => {
+      const d = safeParseDate(c?.data);
+      if (!d) return;
+      const iso = isoOf(d);
+      if (iso < fromIso || iso > toIso) return;
+      const idx = Math.floor((d.getTime() - fromDate.getTime()) / (7 * msDay));
+      if (idx >= 0 && idx < weeks) values[idx] += Number(c?.euro) || 0;
+    });
+    return { values, labels };
+  }, [storicoCarburante, period]);
 
   const maxChart = Math.max(...chartData.values, 1);
 
@@ -293,31 +305,24 @@ export default function GasScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ═══ FILTRI ═══ */}
+      {/* ═══ FILTRO PERIODO — bottone unico che apre RangePickerModal ═══ */}
       <View style={s.filterRow}>
-        {([
-          { key: 'SETT.' as Filtro, label: t('gas.weekFilter') },
-          { key: 'MESE' as Filtro, label: t('gas.monthFilter') },
-          { key: 'ANNO' as Filtro, label: t('gas.yearFilter') },
-          { key: 'PERS.' as Filtro, label: t('gas.customFilter') },
-        ]).map(f => (
-          <TouchableOpacity key={f.key} style={[s.filterBtn, filtro === f.key && s.filterOn]} onPress={() => {
-            setFiltro(f.key);
-            if (f.key === 'PERS.') {
-              setPickingFrom(true);
-              setShowPersCal(true);
-            }
-          }}>
-            <Text style={[s.filterTxt, filtro === f.key && { color: '#FFF' }]}>
-              {f.key === 'PERS.' && persDateFrom && persDateTo
-                ? `${persDateFrom.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}-${persDateTo.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}`
-                : f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          style={[s.filterBtn, s.filterOn, { flex: 1 }]}
+          onPress={() => { hapticTap(); setPeriodOpen(true); }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="calendar" size={14} color="#FFF" style={{ marginRight: 6 }} />
+          <Text style={[s.filterTxt, { color: '#FFF', textTransform: 'uppercase' }]}>
+            {period.label}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color="#FFF" style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
       </View>
 
-      {/* ═══ KPI ═══ */}
+      {/* ═══ KPI ═══
+          Round 59 — bug fix: €/KM mostrava sempre €0 perché usava toFixed(0).
+          Per valori tipici 0.18-0.25 €/km serve almeno toFixed(3). */}
       <View style={s.kpiRow}>
         <View style={s.kpiCard}>
           <Ionicons name="speedometer-outline" size={16} color="#1E7F85" />
@@ -332,7 +337,7 @@ export default function GasScreen() {
         <View style={s.kpiCard}>
           <Ionicons name="calculator-outline" size={16} color="#1E7F85" />
           <Text style={s.kpiLabel}>€/KM</Text>
-          <Text style={s.kpiValue}>€{stats.euroKm.toFixed(0)}</Text>
+          <Text style={s.kpiValue}>{stats.euroKm > 0 ? `€${stats.euroKm.toFixed(3)}` : '—'}</Text>
         </View>
       </View>
 
@@ -438,27 +443,16 @@ export default function GasScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* ═══ CALENDARIO PER PERIODO PERSONALIZZATO ═══ */}
-      <CalendarModal
-        visible={showPersCal}
-        onClose={() => setShowPersCal(false)}
-        initialDate={pickingFrom ? (persDateFrom || new Date()) : (persDateTo || new Date())}
-        themeColor={pickingFrom ? '#1E7F85' : '#E8A060'}
-        title={pickingFrom ? (t('gas.selectFrom') || 'Seleziona data INIZIO') : (t('gas.selectTo') || 'Seleziona data FINE')}
-        onSelect={(d) => {
-          if (pickingFrom) {
-            setPersDateFrom(d);
-            if (!persDateTo) {
-              setPickingFrom(false);
-              setShowPersCal(false);
-              setTimeout(() => setShowPersCal(true), 250);
-              return;
-            }
-          } else {
-            setPersDateTo(d);
-          }
-          setShowPersCal(false);
-        }}
+      {/* ═══ Round 59 — RANGEPICKER condiviso (sostituisce vecchio CalendarModal PERS.) ═══ */}
+      <RangePickerModal
+        visible={periodOpen}
+        onClose={() => setPeriodOpen(false)}
+        onConfirm={(r) => setPeriod(r)}
+        initialMode={period.mode}
+        initialFrom={period.mode === 'pers' ? period.from : undefined}
+        initialTo={period.mode === 'pers' ? period.to : undefined}
+        themeColor="#1E7F85"
+        title="Periodo Carburante"
       />
     </ScrollView>
   );
