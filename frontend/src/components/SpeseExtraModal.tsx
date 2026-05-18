@@ -17,6 +17,7 @@ import { useAppStore } from '../store/appStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MiniMonthCalendar } from './MiniMonthCalendar';
 import { useTranslation } from 'react-i18next';
+import { RangePickerModal, type RangeResult } from './RangePickerModal';
 
 interface Fornitore {
   nome: string;
@@ -106,6 +107,14 @@ export const SpeseExtraModal: React.FC<Props> = ({
   // in modalità range. Salviamo `from`/`to` direttamente in
   // fornDeductionStartDate + fornDeductionDays (delta in giorni).
   const [periodoPickerFor, setPeriodoPickerFor] = useState<string | null>(null);
+
+  /* ═══ Round 59 — RangePickerModal condiviso ═══
+     Stato che identifica QUALE target sta aprendo il RangePicker. Può essere:
+       • { type: 'forn', name: 'NomeFornitore' }      → ripartizione fornitore
+       • { type: 'voce', idx: 3 }                     → ripartizione voce generica
+     Quando NULL il RangePicker è chiuso. Usiamo un solo modal a livello root
+     per evitare nested-modal z-index issues. */
+  const [rangeTarget, setRangeTarget] = useState<{ type: 'forn'; name: string } | { type: 'voce'; idx: number } | null>(null);
 
   // Expansion states (fornitori + voci generiche - a pacchetto)
   const [expandedForn, setExpandedForn] = useState<Record<string, boolean>>({});
@@ -391,7 +400,8 @@ export const SpeseExtraModal: React.FC<Props> = ({
                     /* ─── FREQUENZA + PERIODO block (renderizzato DOPO l'importo)
                            per garantire che il campo importo non si sposti in
                            basso quando l'utente passa da Giornaliera a
-                           Personalizza. Richiesta utente: layout stabile. ─── */
+                           Personalizza. Round 59: 3 bottoni
+                           (Giornaliera / Settimanale / Personalizza). */
                     const FrequenzaBlock = (
                       <>
                         <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginTop: 12, marginBottom: 4, letterSpacing: 0.5 }}>
@@ -401,28 +411,35 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           {([
                             { key: 'DAILY', label: 'Giornaliera' },
                             { key: 'WEEKLY', label: 'Settimanale' },
+                            { key: 'CUSTOM', label: 'Personalizza' },
                           ] as const).map((opt) => {
-                            // Round 47: solo DAILY o WEEKLY. Legacy CUSTOM/MONTHLY → mappati a WEEKLY
+                            // Round 59: DAILY | WEEKLY | CUSTOM. Legacy MONTHLY → mappato a CUSTOM (30gg)
                             const stored = fornDeductionType[f.nome] || 'DAILY';
-                            const cur: 'DAILY' | 'WEEKLY' = stored === 'DAILY' ? 'DAILY' : 'WEEKLY';
+                            const cur: 'DAILY' | 'WEEKLY' | 'CUSTOM' =
+                              stored === 'DAILY' ? 'DAILY'
+                              : stored === 'WEEKLY' ? 'WEEKLY'
+                              : 'CUSTOM';
                             const on = cur === opt.key;
                             return (
                               <TouchableOpacity
                                 key={opt.key}
                                 onPress={() => {
-                                  // Aggiornamento type. WEEKLY = sempre Lun→Dom della
-                                  // settimana corrente (no più date custom). Settiamo
-                                  // days=7 per retrocompat con codice esistente.
-                                  setFornDeductionType({ ...fornDeductionType, [f.nome]: opt.key });
-                                  if (opt.key === 'WEEKLY') {
-                                    setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 7 });
+                                  if (opt.key === 'CUSTOM') {
+                                    // Apri RangePickerModal per scegliere il range
+                                    setRangeTarget({ type: 'forn', name: f.nome });
+                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: 'CUSTOM' });
+                                  } else {
+                                    setFornDeductionType({ ...fornDeductionType, [f.nome]: opt.key });
+                                    if (opt.key === 'WEEKLY') {
+                                      setFornDeductionDays({ ...fornDeductionDays, [f.nome]: 7 });
+                                    }
                                   }
                                 }}
                                 activeOpacity={0.7}
                                 style={{
                                   flex: 1,
                                   paddingVertical: 9,
-                                  borderRadius: 999,
+                                  borderRadius: 10,
                                   backgroundColor: on ? '#1E7F85' : '#F5EFDC',
                                   borderWidth: 1.5,
                                   borderColor: on ? '#1E7F85' : '#E0D8C0',
@@ -430,7 +447,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                                   justifyContent: 'center',
                                 }}
                               >
-                                <Text style={{ fontSize: 12, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
+                                <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
                                   {opt.label}
                                 </Text>
                               </TouchableOpacity>
@@ -439,8 +456,8 @@ export const SpeseExtraModal: React.FC<Props> = ({
                         </View>
                         {(() => {
                           const stored = fornDeductionType[f.nome] || 'DAILY';
-                          const isWeekly = stored !== 'DAILY';
-                          if (!isWeekly) return null;
+                          // ═══ WEEKLY: blocco settimana Lun→Dom (originale) ═══
+                          if (stored === 'WEEKLY') {
                           // Round 51: la settimana di riferimento è SCELTA DALL'UTENTE.
                           // - Default: settimana CORRENTE (lun→dom della settimana di oggi).
                           // - Persistita in fornDeductionStartDate[f.nome] (ISO del lunedì).
@@ -544,6 +561,60 @@ export const SpeseExtraModal: React.FC<Props> = ({
                               })()}
                             </View>
                           );
+                          } // end if WEEKLY
+
+                          // ═══ Round 59 — CUSTOM: range arbitrario scelto via RangePickerModal ═══
+                          if (stored === 'CUSTOM' || stored === 'MONTHLY') {
+                            const startIso = fornDeductionStartDate[f.nome] || '';
+                            const days = fornDeductionDays[f.nome] || 0;
+                            // Calcola data fine = start + (days-1)
+                            let endIso = '';
+                            if (startIso && days > 0) {
+                              const d = new Date(startIso + 'T00:00:00');
+                              d.setDate(d.getDate() + days - 1);
+                              endIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            }
+                            const fmtBreve = (iso: string) => {
+                              if (!iso) return '—';
+                              const [, m, d] = iso.split('-');
+                              return `${d}/${m}`;
+                            };
+                            const hasRange = !!startIso && !!endIso;
+                            return (
+                              <View style={{ marginTop: 10 }}>
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  onPress={() => setRangeTarget({ type: 'forn', name: f.nome })}
+                                  style={{
+                                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                    paddingHorizontal: 12, paddingVertical: 11,
+                                    backgroundColor: hasRange ? '#F5EFDC' : '#FFF8E6',
+                                    borderRadius: 10, borderWidth: 1.5,
+                                    borderColor: hasRange ? '#1E7F85' : '#D4AF37', borderStyle: hasRange ? 'solid' : 'dashed',
+                                  }}
+                                >
+                                  <Ionicons name="calendar" size={16} color="#1E7F85" />
+                                  {hasRange ? (
+                                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#1A4040' }}>
+                                      📅 Dal {fmtBreve(startIso)} al {fmtBreve(endIso)} ({days} gg)
+                                    </Text>
+                                  ) : (
+                                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#8A6A1F', fontStyle: 'italic' }}>
+                                      Tocca per scegliere il periodo
+                                    </Text>
+                                  )}
+                                  <Ionicons name="chevron-down" size={14} color="#5A7575" />
+                                </TouchableOpacity>
+                                {hasRange && (
+                                  <Text style={{ fontSize: 10, color: '#7A9090', marginTop: 6, textAlign: 'center', fontStyle: 'italic' }}>
+                                    💡 Costo scalato dall'incasso totale di questi giorni
+                                  </Text>
+                                )}
+                              </View>
+                            );
+                          }
+
+                          return null; // DAILY: nessun selettore aggiuntivo
                         })()}
                       </>
                     );
@@ -775,6 +846,40 @@ export const SpeseExtraModal: React.FC<Props> = ({
                     </View>
                   </TouchableOpacity>
                   {isOpen && (() => {
+                    /* ═══ Round 59 — RIPARTIZIONE SPESE GENERICHE ═══
+                       3 bottoni: OGGI / SETTIMANA / PERSONALIZZA, stessa logica
+                       dei fornitori ma applicata alla VoceGenerica `v`.
+                       Salviamo in v.ripMode + v.ripFrom + v.ripTo. */
+                    const ripMode = (v as any).ripMode || 'oggi';
+                    const ripFrom = (v as any).ripFrom || '';
+                    const ripTo = (v as any).ripTo || '';
+                    const fmtBreve = (iso: string) => {
+                      if (!iso) return '—';
+                      const [, m, d] = iso.split('-');
+                      return `${d}/${m}`;
+                    };
+                    const isoOfDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+                    const setMode = (m: 'oggi' | 'settimana' | 'custom') => {
+                      if (m === 'oggi') {
+                        updateVoce(idx, 'ripMode', 'oggi');
+                        updateVoce(idx, 'ripFrom', '');
+                        updateVoce(idx, 'ripTo', '');
+                      } else if (m === 'settimana') {
+                        const now = new Date();
+                        const dow = (now.getDay() + 6) % 7;
+                        const lun = new Date(now); lun.setDate(now.getDate() - dow);
+                        const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+                        updateVoce(idx, 'ripMode', 'settimana');
+                        updateVoce(idx, 'ripFrom', isoOfDay(lun));
+                        updateVoce(idx, 'ripTo', isoOfDay(dom));
+                      } else {
+                        // CUSTOM: apri RangePickerModal
+                        updateVoce(idx, 'ripMode', 'custom');
+                        setRangeTarget({ type: 'voce', idx });
+                      }
+                    };
+
                     return (
                       <>
                         <View style={st.inputRow}>
@@ -789,6 +894,62 @@ export const SpeseExtraModal: React.FC<Props> = ({
                           />
                           <Text style={st.euro}>{'\u20AC'}</Text>
                         </View>
+
+                        {/* 3 bottoni ripartizione */}
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#7A9090', marginTop: 12, marginBottom: 4, letterSpacing: 0.5 }}>
+                          RIPARTIZIONE COSTO
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          {([
+                            { key: 'oggi', label: 'Oggi' },
+                            { key: 'settimana', label: 'Settimana' },
+                            { key: 'custom', label: 'Personalizza' },
+                          ] as const).map((opt) => {
+                            const on = ripMode === opt.key;
+                            return (
+                              <TouchableOpacity
+                                key={opt.key}
+                                onPress={() => setMode(opt.key)}
+                                activeOpacity={0.7}
+                                style={{
+                                  flex: 1, paddingVertical: 9, borderRadius: 10,
+                                  backgroundColor: on ? '#1E7F85' : '#F5EFDC',
+                                  borderWidth: 1.5,
+                                  borderColor: on ? '#1E7F85' : '#E0D8C0',
+                                  alignItems: 'center', justifyContent: 'center',
+                                }}
+                              >
+                                <Text style={{ fontSize: 11, fontWeight: '900', color: on ? '#FFF' : '#5A7575', letterSpacing: 0.4 }}>
+                                  {opt.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+
+                        {/* Etichetta range corrente (per settimana/custom) */}
+                        {(ripMode === 'settimana' || ripMode === 'custom') && ripFrom && ripTo && (
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => ripMode === 'custom' ? setRangeTarget({ type: 'voce', idx }) : null}
+                            style={{
+                              marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                              backgroundColor: '#F5EFDC', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 10,
+                              borderWidth: 1.5, borderColor: '#E0D8C0',
+                            }}
+                          >
+                            <Ionicons name="calendar" size={14} color="#1E7F85" />
+                            <Text style={{ fontSize: 12, fontWeight: '900', color: '#1A4040' }}>
+                              📅 Dal {fmtBreve(ripFrom)} al {fmtBreve(ripTo)}
+                            </Text>
+                            {ripMode === 'custom' && <Ionicons name="chevron-down" size={14} color="#5A7575" />}
+                          </TouchableOpacity>
+                        )}
+                        {(ripMode === 'settimana' || ripMode === 'custom') && (
+                          <Text style={{ fontSize: 10, color: '#7A9090', marginTop: 6, textAlign: 'center', fontStyle: 'italic' }}>
+                            💡 Costo scalato dall'incasso totale di questi giorni
+                          </Text>
+                        )}
                       </>
                     );
                   })()}
@@ -842,6 +1003,35 @@ export const SpeseExtraModal: React.FC<Props> = ({
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* ═══ Round 59 — RangePickerModal CONDIVISO ═══
+          Si apre quando l'utente clicca "Personalizza" su un fornitore o
+          su una voce generica. `rangeTarget` indica chi sta usando il picker.
+          onConfirm: scrive il range nei relativi stati. */}
+      <RangePickerModal
+        visible={rangeTarget !== null}
+        onClose={() => setRangeTarget(null)}
+        onConfirm={(r: RangeResult) => {
+          if (!rangeTarget) return;
+          if (rangeTarget.type === 'forn') {
+            // Calcola giorni dal range
+            const f = new Date(r.from + 'T00:00:00');
+            const t = new Date(r.to + 'T00:00:00');
+            const days = Math.max(1, Math.round((t.getTime() - f.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+            setFornDeductionType({ ...fornDeductionType, [rangeTarget.name]: 'CUSTOM' });
+            setFornDeductionStartDate({ ...fornDeductionStartDate, [rangeTarget.name]: r.from });
+            setFornDeductionDays({ ...fornDeductionDays, [rangeTarget.name]: days });
+          } else if (rangeTarget.type === 'voce') {
+            updateVoce(rangeTarget.idx, 'ripMode', 'custom');
+            updateVoce(rangeTarget.idx, 'ripFrom', r.from);
+            updateVoce(rangeTarget.idx, 'ripTo', r.to);
+          }
+        }}
+        initialMode="pers"
+        themeColor="#1E7F85"
+        title="Periodo personalizzato"
+        enabledModes={['pers']}
+      />
     </Modal>
   );
 };

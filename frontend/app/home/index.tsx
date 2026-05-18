@@ -175,7 +175,7 @@ export default function HomeScreen() {
   // Data di inizio del periodo CUSTOM ('YYYY-MM-DD'). Se assente parte da oggi/registrazione.
   const [fornDeductionStartDate, setFornDeductionStartDate] = useState<Record<string, string>>({});
   const [showBuongiorno, setShowBuongiorno] = useState(false);
-  const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean}>>([]);
+  const [vociGeneriche, setVociGeneriche] = useState<Array<{nome: string; importo: string; attivo: boolean; ripMode?: 'oggi' | 'settimana' | 'custom'; ripFrom?: string; ripTo?: string}>>([]);
   
   // Tooltip elegante per il grafico
   const [chartTooltip, setChartTooltip] = useState<{visible: boolean; label: string; value: number; giorni?: number} | null>(null);
