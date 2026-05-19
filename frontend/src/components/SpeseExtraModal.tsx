@@ -76,6 +76,11 @@ interface Props {
    * visuale "Su €X di costo oggi hai venduto €Y" sotto ogni card fornitore.
    */
   lordoOggi?: number;
+  /**
+   * Round 61: Data corrente visualizzata (per filtrare spesePeriodiche
+   * attive in [from..to] e mostrarle come promemoria).
+   */
+  dataCorrente?: Date;
 }
 
 const PERIODI_LABELS: Record<string, string> = {
@@ -93,10 +98,11 @@ export const SpeseExtraModal: React.FC<Props> = ({
   fornDeductionStartDate, setFornDeductionStartDate,
   weeklyTotalsByForn,
   lordoOggi = 0,
+  dataCorrente,
 }) => {
   const { t } = useTranslation();
   const [nuovaVoce, setNuovaVoce] = useState('');
-  const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag } = useAppStore();
+  const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag, spesePeriodiche } = useAppStore();
   const insets = useSafeAreaInsets();
 
   // Stato locale: quale fornitore sta aprendo il datepicker scadenza
@@ -292,6 +298,48 @@ export const SpeseExtraModal: React.FC<Props> = ({
             <Text style={st.totalLabel}>Totale del giorno:</Text>
             <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(0)}</Text>
           </View>
+
+          {/* ═══ Round 61 — PROMEMORIA SPESE PERIODICHE ATTIVE ═══
+              Mostra TUTTE le spese in `spesePeriodiche` il cui range
+              [from..to] include `dataCorrente`. Queste NON intaccano il
+              totale del giorno: sono solo un promemoria visivo. */}
+          {(() => {
+            if (!dataCorrente || !Array.isArray(spesePeriodiche) || spesePeriodiche.length === 0) return null;
+            const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const todayIso = isoOf(dataCorrente);
+            const active = spesePeriodiche.filter((sp: any) => sp.from <= todayIso && todayIso <= sp.to);
+            if (active.length === 0) return null;
+            const totSum = active.reduce((s: number, sp: any) => s + (Number(sp.importo) || 0), 0);
+            const fmt = (iso: string) => {
+              if (!iso) return '—';
+              const [, m, d] = iso.split('-');
+              return `${d}/${m}`;
+            };
+            return (
+              <View style={{
+                marginHorizontal: 16, marginTop: -4, marginBottom: 10,
+                padding: 12, backgroundColor: '#EAF7F8',
+                borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#1E7F85',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Ionicons name="time-outline" size={14} color="#1E7F85" />
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#1A4040', letterSpacing: 0.5, flex: 1 }}>
+                    PROMEMORIA PERIODICHE ATTIVE
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#1E7F85' }}>€{totSum.toFixed(0)}</Text>
+                </View>
+                {active.map((sp: any) => (
+                  <Text key={sp.id} style={{ fontSize: 11, color: '#1A4040', lineHeight: 16 }}>
+                    <Text style={{ fontWeight: '900' }}>{sp.nome}</Text>{' '}
+                    €{Number(sp.importo).toFixed(0)} (dal {fmt(sp.from)} al {fmt(sp.to)})
+                  </Text>
+                ))}
+                <Text style={{ fontSize: 10, color: '#5A7575', fontStyle: 'italic', marginTop: 6 }}>
+                  ⚠️ Questa cifra andrà tolta dall'incasso complessivo del periodo stabilito, non dal singolo giorno.
+                </Text>
+              </View>
+            );
+          })()}
 
           {/* ═══ Round 47 — RIEPILOGO SETTIMANALE FORNITORI ═══
               Mini-riepilogo dei fornitori settimanali (WEEKLY) registrati

@@ -219,6 +219,28 @@ export interface DiarioEntry {
   testo: string;
 }
 
+/* ═══ Round 61 — SPESE PERIODICHE (Periodic Expenses) ═══
+   Collezione SEPARATA da storicoGiornate per gestire spese che vanno
+   ripartite su più giorni (settimanale, custom, mensile). Le spese qui
+   contenute NON intaccano il netto del singolo giorno, ma sono "trascinate"
+   visivamente come promemoria per tutti i giorni in [from..to] e
+   contribuiscono al netto SOLO nei filtri di periodo che contengono `to`. */
+export interface SpesaPeriodica {
+  id: string;                        // UUID univoco per la voce
+  nome: string;                      // fornitore o nome voce generica
+  importo: number;                   // €
+  categoria: 'fornitore' | 'voce';   // tipo di spesa
+  from: string;                      // ISO YYYY-MM-DD inizio periodo
+  to: string;                        // ISO YYYY-MM-DD fine periodo
+  type: 'WEEKLY' | 'CUSTOM' | 'MONTHLY';
+  createdAt: string;                 // ISO timestamp creazione
+  dayOfPurchase: string;             // ISO YYYY-MM-DD giorno acquisto
+  /* Round 61: campi opzionali per fatture / pagamento (ereditati da Fornitore) */
+  numeroFattura?: string;
+  pagamentoMode?: 'fattura' | 'contanti' | 'misto';
+  fatturaTotale?: number;            // se diverso da importo (parziale)
+}
+
 export interface ScontrinoRecord {
   data: string;
   mercato: string;
@@ -280,6 +302,8 @@ interface AppState {
   fiere: Fiera[];
   storicoGiornate: Giornata[];
   storicoCarburante: Carburante[];
+  /* Round 61 — collezione spese periodiche (vedi interface SpesaPeriodica) */
+  spesePeriodiche: SpesaPeriodica[];
   appuntiAgenda: Appunto[];
   ordiniAgenda: Ordine[];
   storicoDiario: DiarioEntry[];
@@ -313,6 +337,11 @@ interface AppState {
   salvaGiornata: (g: Giornata) => void;
   addCarburante: (c: Carburante) => void;
   removeCarburante: (index: number) => void;
+  /* Round 61 — actions per SpesaPeriodica */
+  addSpesaPeriodica: (s: Omit<SpesaPeriodica, 'id' | 'createdAt'>) => void;
+  updateSpesaPeriodica: (id: string, patch: Partial<SpesaPeriodica>) => void;
+  removeSpesaPeriodica: (id: string) => void;
+  clearSpesePeriodichePerData: (dayIso: string, nome?: string) => void;
   addAppunto: (a: Appunto) => void;
   removeAppunto: (data: Date, testo: string) => void;
   addOrdine: (o: Ordine) => void;
@@ -377,6 +406,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fiere: [],
   storicoGiornate: [],
   storicoCarburante: [],
+  spesePeriodiche: [],
   appuntiAgenda: [],
   ordiniAgenda: [],
   storicoDiario: [],
@@ -500,6 +530,44 @@ export const useAppStore = create<AppState>((set, get) => ({
       newArr.splice(index, 1);
       return { storicoCarburante: newArr };
     });
+    get().saveToStorage();
+  },
+
+  /* ═══ Round 61 — SPESE PERIODICHE: actions ═══ */
+  addSpesaPeriodica: (s) => {
+    set((state) => {
+      const id = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const item: SpesaPeriodica = { ...s, id, createdAt: new Date().toISOString() };
+      return { spesePeriodiche: [...state.spesePeriodiche, item] };
+    });
+    get().saveToStorage();
+  },
+
+  updateSpesaPeriodica: (id, patch) => {
+    set((state) => ({
+      spesePeriodiche: state.spesePeriodiche.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    }));
+    get().saveToStorage();
+  },
+
+  removeSpesaPeriodica: (id) => {
+    set((state) => ({ spesePeriodiche: state.spesePeriodiche.filter((x) => x.id !== id) }));
+    get().saveToStorage();
+  },
+
+  /* Rimuove tutte le SpesaPeriodica con dayOfPurchase==dayIso (ed eventualmente
+     filtrate per `nome`). Usata quando l'utente apre un giorno già salvato e
+     ri-conferma il modal: prima azzeriamo i periodici precedenti per quella
+     data, poi aggiungiamo quelli nuovi (sovrascrivi → soluzione "a" scelta
+     dall'utente). */
+  clearSpesePeriodichePerData: (dayIso, nome) => {
+    set((state) => ({
+      spesePeriodiche: state.spesePeriodiche.filter((x) => {
+        if (x.dayOfPurchase !== dayIso) return true;
+        if (nome && x.nome !== nome) return true;
+        return false;
+      }),
+    }));
     get().saveToStorage();
   },
   
@@ -719,12 +787,92 @@ export const useAppStore = create<AppState>((set, get) => ({
         parsed.storicoScontrini = fixArr(parsed.storicoScontrini);
         parsed.storicoGiornate = fixArr(parsed.storicoGiornate);
         parsed.storicoCarburante = fixArr(parsed.storicoCarburante);
+        parsed.spesePeriodiche = fixArr(parsed.spesePeriodiche);
         parsed.fiere = fixArr(parsed.fiere);
         parsed.appuntiAgenda = fixArr(parsed.appuntiAgenda);
         parsed.ordiniAgenda = fixArr(parsed.ordiniAgenda);
         parsed.fornitori = fixArr(parsed.fornitori);
         parsed.collaboratori = fixArr(parsed.collaboratori);
         parsed.codiciInvito = fixArr(parsed.codiciInvito);
+
+        // ═══ Round 61 — MIGRAZIONE LEGACY: fornitori CUSTOM/WEEKLY/MONTHLY → spesePeriodiche ═══
+        // Cerchiamo tutte le storicoGiornate con dettaglio_fornitori_deduction
+        // che contengono valori diversi da 'DAILY' e li trasferiamo nella nuova
+        // collezione spesePeriodiche. Marchiamo la giornata con
+        // migrated_periodic_v1=true così non viene riprocessata.
+        if (Array.isArray(parsed.storicoGiornate) && parsed.storicoGiornate.length > 0) {
+          const migrationsToAdd: any[] = [];
+          parsed.storicoGiornate = parsed.storicoGiornate.map((g: any) => {
+            if (g.migrated_periodic_v1) return g; // già migrata
+            const ded = g.dettaglio_fornitori_deduction || {};
+            const det = g.dettaglio_fornitori || {};
+            const days = g.dettaglio_fornitori_days || {};
+            const startDates = g.dettaglio_fornitori_startDate || {};
+            const periodicKeys = Object.keys(ded).filter((k) => ded[k] && ded[k] !== 'DAILY');
+            if (periodicKeys.length === 0) return { ...g, migrated_periodic_v1: true };
+
+            const dataIso = (() => {
+              try {
+                const d = new Date(g.data);
+                if (isNaN(d.getTime())) return '';
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              } catch { return ''; }
+            })();
+
+            const newDet = { ...det };
+            const newDed = { ...ded };
+            periodicKeys.forEach((nomeBase) => {
+              // Somma tutte le voci che iniziano per nomeBase (incluse __libera)
+              let importo = 0;
+              Object.keys(det).forEach((k) => {
+                if (k === nomeBase || k.startsWith(nomeBase + '__libera')) {
+                  importo += parseFloat(String(det[k])) || 0;
+                }
+              });
+              if (importo <= 0) return;
+              const type = ded[nomeBase] as 'WEEKLY' | 'CUSTOM' | 'MONTHLY';
+              const periodDays = days[nomeBase] || (type === 'WEEKLY' ? 7 : type === 'MONTHLY' ? 30 : 7);
+              const startIso = startDates[nomeBase] || dataIso;
+              if (!startIso) return;
+              const startD = new Date(startIso + 'T00:00:00');
+              const endD = new Date(startD); endD.setDate(startD.getDate() + periodDays - 1);
+              const endIso = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+
+              migrationsToAdd.push({
+                id: `sp_migrated_${dataIso}_${nomeBase}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                nome: nomeBase,
+                importo,
+                categoria: 'fornitore',
+                from: startIso,
+                to: endIso,
+                type,
+                createdAt: new Date().toISOString(),
+                dayOfPurchase: dataIso,
+              });
+
+              // Rimuoviamo i campi da det/ded per evitare doppio conteggio
+              Object.keys(det).forEach((k) => {
+                if (k === nomeBase || k.startsWith(nomeBase + '__libera') || k.startsWith(nomeBase + '__fattn')) {
+                  delete newDet[k];
+                }
+              });
+              delete newDed[nomeBase];
+            });
+
+            return {
+              ...g,
+              dettaglio_fornitori: newDet,
+              dettaglio_fornitori_deduction: newDed,
+              migrated_periodic_v1: true,
+            };
+          });
+
+          if (migrationsToAdd.length > 0) {
+            const existing = Array.isArray(parsed.spesePeriodiche) ? parsed.spesePeriodiche : [];
+            parsed.spesePeriodiche = [...existing, ...migrationsToAdd];
+            console.log(`[Round 61] Migrate ${migrationsToAdd.length} legacy periodic expenses to spesePeriodiche`);
+          }
+        }
 
         set(parsed);
 
@@ -770,6 +918,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         fiere: state.fiere || [],
         storicoGiornate: state.storicoGiornate,
         storicoCarburante: state.storicoCarburante,
+        spesePeriodiche: state.spesePeriodiche || [],
         appuntiAgenda: state.appuntiAgenda,
         ordiniAgenda: state.ordiniAgenda || [],
         storicoDiario: state.storicoDiario,
@@ -821,6 +970,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       fiere: [],
       storicoGiornate: [],
       storicoCarburante: [],
+      spesePeriodiche: [],
       appuntiAgenda: [],
       ordiniAgenda: [],
       storicoDiario: [],

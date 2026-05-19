@@ -1011,6 +1011,11 @@ export default function HomeScreen() {
     let tot = 0;
     vociGeneriche.forEach((v: any) => {
       if (!v.attivo) return;
+      // Round 61: SOLO le voci con ripMode='oggi' (o senza ripMode) impattano
+      // il netto del giorno corrente. Le voci settimanali/personalizzate
+      // sono spostate in spesePeriodiche e mostrate come promemoria.
+      const ripMode = v.ripMode || 'oggi';
+      if (ripMode !== 'oggi') return;
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (imp > 0) tot += imp;
     });
@@ -1248,6 +1253,95 @@ export default function HomeScreen() {
       const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
       if (imp > 0) dettaglioExtra[v.nome] = imp;
     });
+
+    // ═══ Round 61 — ROUTING SPESE PERIODICHE ═══
+    // Le spese con tipo NON-DAILY (Fornitori CUSTOM/WEEKLY/MONTHLY +
+    // VociGeneriche con ripMode != 'oggi') vengono spostate nella collezione
+    // `spesePeriodiche` invece di restare nei dettaglio_* della giornata.
+    // Effetti:
+    //   • Il calcolo del netto giornaliero NON sottrae più questi importi
+    //   • Le voci diventano "promemoria visivi" trascinati per tutto [from..to]
+    //   • Il netto dell'intero periodo le sottrae correttamente (vedi stats.tsx)
+    const dayIso = (() => {
+      try {
+        const d = new Date(dataCorrente);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      } catch { return ''; }
+    })();
+
+    // 1) Prima azzeriamo le periodiche di questa data (sovrascrivi scelta utente "a")
+    if (dayIso) {
+      try { (useAppStore.getState() as any).clearSpesePeriodichePerData?.(dayIso); } catch {}
+    }
+
+    // 2) Estraiamo fornitori periodici e li spostiamo
+    const fornitoriPeriodiciToSave: Array<any> = [];
+    Object.keys(dettaglioFornDed).forEach((nomeBase) => {
+      const dt = dettaglioFornDed[nomeBase];
+      if (!dt || dt === 'DAILY') return;
+      // Somma tutte le voci collegate (nomeBase + nomeBase__libera*)
+      let importo = 0;
+      const keysToRemove: string[] = [];
+      Object.keys(dettaglioForn).forEach((k) => {
+        if (k === nomeBase || k.startsWith(nomeBase + '__libera') || k.startsWith(nomeBase + '__fattn')) {
+          importo += parseFloat(String(dettaglioForn[k])) || 0;
+          keysToRemove.push(k);
+        }
+      });
+      if (importo <= 0) return;
+      const periodDays = dettaglioFornDays[nomeBase] || (dt === 'WEEKLY' ? 7 : dt === 'MONTHLY' ? 30 : 7);
+      const startIso = dettaglioFornStartDate[nomeBase] || dayIso;
+      if (!startIso) return;
+      const startD = new Date(startIso + 'T00:00:00');
+      const endD = new Date(startD); endD.setDate(startD.getDate() + periodDays - 1);
+      const endIso = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+
+      fornitoriPeriodiciToSave.push({
+        nome: nomeBase, importo, categoria: 'fornitore' as const,
+        from: startIso, to: endIso,
+        type: dt as 'WEEKLY' | 'CUSTOM' | 'MONTHLY',
+        dayOfPurchase: dayIso,
+        numeroFattura: fornInfo?.[nomeBase]?.numeroFattura,
+        pagamentoMode: fornInfo?.[nomeBase]?.pagamentoMode,
+      });
+
+      // Rimuoviamo dai dettaglio_* in modo che la giornata salvi solo i DAILY
+      keysToRemove.forEach((k) => { delete dettaglioForn[k]; });
+      delete dettaglioFornDed[nomeBase];
+      delete dettaglioFornDays[nomeBase];
+      delete dettaglioFornStartDate[nomeBase];
+    });
+
+    // 3) Estraiamo voci generiche periodiche
+    const vociPeriodicheToSave: Array<any> = [];
+    vociGeneriche.forEach((v: any) => {
+      if (!v.attivo) return;
+      const ripMode = v.ripMode || 'oggi';
+      if (ripMode === 'oggi') return;
+      const imp = parseFloat((v.importo || '0').replace(',', '.')) || 0;
+      if (imp <= 0) return;
+      const from = v.ripFrom || dayIso;
+      const to = v.ripTo || dayIso;
+      if (!from || !to) return;
+      vociPeriodicheToSave.push({
+        nome: v.nome, importo: imp, categoria: 'voce' as const,
+        from, to,
+        type: (ripMode === 'settimana' ? 'WEEKLY' : 'CUSTOM') as 'WEEKLY' | 'CUSTOM' | 'MONTHLY',
+        dayOfPurchase: dayIso,
+      });
+      // Rimuoviamo anche da dettaglioExtra così non viene contato come DAILY
+      delete dettaglioExtra[v.nome];
+    });
+
+    // 4) Salviamo nel store le periodiche
+    if (fornitoriPeriodiciToSave.length > 0 || vociPeriodicheToSave.length > 0) {
+      try {
+        const add = (useAppStore.getState() as any).addSpesaPeriodica;
+        [...fornitoriPeriodiciToSave, ...vociPeriodicheToSave].forEach((sp) => add?.(sp));
+      } catch (e) {
+        console.warn('Errore salvataggio spesePeriodiche:', e);
+      }
+    }
 
     // Build dettaglio_staff as NUMBERS (cost including override) so stats uses the correct amounts
     const dettaglioStaff: Record<string, number> = {};
@@ -2409,6 +2503,7 @@ export default function HomeScreen() {
         setFornDeductionDays={setFornDeductionDaysWrapped}
         weeklyTotalsByForn={weeklyTotalsByForn}
         lordoOggi={lordoNum}
+        dataCorrente={dataCorrente}
       />
 
       {/* Buongiorno AI Modal */}

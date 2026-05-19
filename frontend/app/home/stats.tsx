@@ -974,7 +974,9 @@ function StatsScreenInner() {
     type Item = {
       key: string; nome: string; importo: number;
       dataAcquisto: string; dataStorno: string;
-      type: 'WEEKLY' | 'CUSTOM' | 'MONTHLY'; inPeriod: boolean;
+      type: 'WEEKLY' | 'CUSTOM' | 'MONTHLY';
+      categoria: 'fornitore' | 'voce';
+      inPeriod: boolean;
     };
     const items: Item[] = [];
 
@@ -986,45 +988,33 @@ function StatsScreenInner() {
       ? isoFromDate(persDateTo)
       : (filteredByTime[filteredByTime.length - 1] ? isoFromDate(new Date(filteredByTime[filteredByTime.length - 1].data)) : '');
 
-    filteredData.forEach((g: any) => {
-      const ded = g.dettaglio_fornitori_deduction || {};
-      const det = g.dettaglio_fornitori || {};
-      const days = g.dettaglio_fornitori_days || {};
-      const startDates = g.dettaglio_fornitori_startDate || {};
+    /* ═══ Round 61 — sorgente UNICA: store.spesePeriodiche ═══
+       Mostriamo TUTTE le voci di spesePeriodiche il cui dayOfPurchase è
+       all'interno del periodo visualizzato (così l'utente le vede). Il
+       flag `inPeriod` indica se la dataStorno (=to) cade nel periodo;
+       solo in questo caso vengono sottratte dal netto (default).
 
-      const sumByBase: Record<string, number> = {};
-      Object.entries(det).forEach(([k, v]) => {
-        const val = parseFloat(String(v)) || 0;
-        if (val <= 0) return;
-        if (k.includes('__fattn') || k.includes('__liberaLabel')) return;
-        const nomeBase = k.endsWith('__libera') ? k.slice(0, -'__libera'.length) : k;
-        sumByBase[nomeBase] = (sumByBase[nomeBase] || 0) + val;
-      });
-
-      Object.entries(sumByBase).forEach(([nomeBase, importo]) => {
-        const dt = ded[nomeBase] || 'DAILY';
-        if (dt === 'DAILY') return;
-        const dAcq = new Date(g.data);
-        const isoAcq = isoFromDate(dAcq);
-        let isoStorno = isoAcq;
-        if (dt === 'WEEKLY') {
-          const dow = (dAcq.getDay() + 6) % 7;
-          const dom = new Date(dAcq); dom.setDate(dAcq.getDate() - dow + 6);
-          isoStorno = isoFromDate(dom);
-        } else {
-          const periodDays = (days[nomeBase] || (dt === 'MONTHLY' ? 30 : 7)) as number;
-          const startIso = (startDates[nomeBase] || isoAcq) as string;
-          const startD = new Date(startIso + 'T00:00:00');
-          const endD = new Date(startD); endD.setDate(startD.getDate() + periodDays - 1);
-          isoStorno = isoFromDate(endD);
-        }
-        const inPeriod = periodFrom && periodTo ? (isoStorno >= periodFrom && isoStorno <= periodTo) : true;
-        items.push({
-          key: `${nomeBase}__${isoAcq}__${isoStorno}`,
-          nome: nomeBase, importo,
-          dataAcquisto: isoAcq, dataStorno: isoStorno,
-          type: dt as 'WEEKLY' | 'CUSTOM' | 'MONTHLY', inPeriod,
-        });
+       Legacy: lasciamo anche la lettura dei vecchi dettaglio_fornitori_*
+       per i dati non migrati, ma in pratica la migrazione li sposta. */
+    const spList = Array.isArray(store.spesePeriodiche) ? store.spesePeriodiche : [];
+    spList.forEach((sp: any) => {
+      // Filtra solo le spesePeriodiche con dayOfPurchase ∈ [periodFrom..periodTo]
+      // oppure con il periodo intero che interseca il range visualizzato.
+      const visible = periodFrom && periodTo
+        ? (sp.dayOfPurchase >= periodFrom && sp.dayOfPurchase <= periodTo) ||
+          (sp.to >= periodFrom && sp.from <= periodTo)
+        : true;
+      if (!visible) return;
+      const inPeriod = periodFrom && periodTo ? (sp.to >= periodFrom && sp.to <= periodTo) : true;
+      items.push({
+        key: sp.id || `${sp.nome}__${sp.dayOfPurchase}__${sp.to}`,
+        nome: sp.nome,
+        importo: Number(sp.importo) || 0,
+        dataAcquisto: sp.dayOfPurchase,
+        dataStorno: sp.to,
+        type: (sp.type as 'WEEKLY' | 'CUSTOM' | 'MONTHLY') || 'CUSTOM',
+        categoria: (sp.categoria as 'fornitore' | 'voce') || 'fornitore',
+        inPeriod,
       });
     });
 
@@ -1034,11 +1024,17 @@ function StatsScreenInner() {
       return s + (isExcluded ? 0 : it.importo);
     }, 0);
 
+    // Calcolo del totale "promemoria" (le voci visibili ma NON ancora scalate)
+    const totPromemoria = items
+      .filter((it) => !it.inPeriod)
+      .reduce((s, it) => s + it.importo, 0);
+
     return {
       items: items.sort((a, b) => b.dataStorno.localeCompare(a.dataStorno)),
       totSelezionato: Math.round(totSelezionato),
+      totPromemoria: Math.round(totPromemoria),
     };
-  }, [filteredData, filteredByTime, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad]);
+  }, [store.spesePeriodiche, filteredByTime, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad]);
 
   /* ═══ ROUND 56 — TOT NETTO RICALCOLATO IN BASE AI FLAG ═══
      L'utente segnalava: nel modal "Calcolo Netto" le voci si flaggano
@@ -2608,7 +2604,7 @@ function StatsScreenInner() {
                       icon="car-outline" iconColor="#5A7575"
                     />
 
-                    {/* ═══ Round 60 — FORNITORI A SCADENZA (CUSTOM/WEEKLY/MONTHLY) ═══
+                    {/* ═══ Round 60+61 — FORNITORI A SCADENZA (CUSTOM/WEEKLY/MONTHLY) ═══
                         Mostrati come voci INDIVIDUALI con info data acquisto +
                         data storno. Default escluso se la dataStorno cade FUORI
                         dal periodo visualizzato. L'utente può flaggare manualmente. */}
@@ -2616,9 +2612,21 @@ function StatsScreenInner() {
                       <>
                         <View style={{ marginTop: 14, marginBottom: 6 }}>
                           <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.6 }}>
-                            FORNITORI A SCADENZA
+                            SPESE PERIODICHE
                           </Text>
                         </View>
+                        {/* ═══ Round 61 — ALERT VISIVO con totale promemoria ═══ */}
+                        {fornitoriScadenze.totPromemoria > 0 && (
+                          <View style={{
+                            backgroundColor: '#FFF8E6', borderRadius: 10,
+                            borderLeftWidth: 3, borderLeftColor: '#D4AF37',
+                            padding: 10, marginBottom: 8,
+                          }}>
+                            <Text style={{ fontSize: 11, color: '#5A4A1F', lineHeight: 16 }}>
+                              ⚠️ È presente una spesa di <Text style={{ fontWeight: '900' }}>€{fornitoriScadenze.totPromemoria}</Text> che verrà decurtata dall'incasso del periodo stabilito (settimanale o altro), non rimossa dall'incasso giornaliero.
+                            </Text>
+                          </View>
+                        )}
                         {fornitoriScadenze.items.map((it) => {
                           const userExcluded = excludeFornitoreScad[it.key];
                           const isExcluded = userExcluded !== undefined ? userExcluded : !it.inPeriod;
