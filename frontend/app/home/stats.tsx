@@ -1047,9 +1047,10 @@ function StatsScreenInner() {
     const totSpeseFisse = arrSum(speseFisseItems.map((i) => i.value));
     const totCollab = arrSum(collabLines.map((l) => arrSum(l.data)));
     const totSpeseExtra = arrSum(filteredData.map((g) => g.spese_extra || 0));
-    // Round 60: separiamo i DAILY fornitori dai CUSTOM/WEEKLY (gestiti individualmente).
-    // `totFornitoriDaily` = solo i fornitori DAILY del periodo (always subtracted if !excludeFornitori).
-    // `fornitoriScadenze.totSelezionato` = solo le voci CUSTOM/WEEKLY non escluse dall'utente.
+    // Round 62: separiamo strettamente DAILY (sottraibili dal netto giornaliero)
+    // dai periodici (gestiti da `fornitoriScadenze`, vedi sotto).
+    // `totCostoMerceProp` (LEGACY) NON viene più applicato qui per evitare
+    // doppio conteggio dopo la migrazione Round 61 in spesePeriodiche.
     const totFornitoriDaily = vociExtraPeriod.totDailyDeducted;
     const totInvenduto = arrSum(invendutoLines.map((l) => arrSum(l.data)));
     const totCarb = carburantePeriodoTotale;
@@ -1061,13 +1062,13 @@ function StatsScreenInner() {
     if (!excludeFornitori) netto -= totFornitoriDaily;
     if (!excludeInvenduto) netto -= totInvenduto;
     if (!excludeCarburante) netto -= totCarb;
-    // Costo merce ponderato CUSTOM è SEMPRE sottratto se i fornitori non sono esclusi
-    if (!excludeFornitori) netto -= totCostoMerceProp;
-    // Fornitori a SCADENZA individuali (CUSTOM/WEEKLY/MONTHLY) — flag per-voce
+    // Round 62: RIMOSSO `netto -= totCostoMerceProp;` — sostituito da
+    // fornitoriScadenze.totSelezionato che usa la collezione spesePeriodiche.
+    // Spese Ripartite (CUSTOM/WEEKLY/MONTHLY) — flag per-voce.
     netto -= fornitoriScadenze.totSelezionato;
     return netto;
   }, [
-    totLordo, speseFisseItems, collabLines, filteredData, vociExtraPeriod, invendutoLines, carburantePeriodoTotale, totCostoMerceProp,
+    totLordo, speseFisseItems, collabLines, filteredData, vociExtraPeriod, invendutoLines, carburantePeriodoTotale,
     excludeSpeseFisse, excludeCollaboratori, excludeSpeseExtra, excludeFornitori, excludeInvenduto, excludeCarburante,
     fornitoriScadenze,
   ]);
@@ -2586,12 +2587,13 @@ function StatsScreenInner() {
                       excluded={excludeSpeseExtra} onToggle={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
                       icon="receipt-outline" iconColor="#E8A060"
                     />
-                    {/* Round 60: rimossa label "(DAILY)" → solo "Fornitori" */}
+                    {/* Round 60+62: rimossa label "(DAILY)" → solo "Fornitori".
+                        Round 62: rimosso hint "Include costo merce ponderato"
+                        (era LEGACY, ora sostituito da Spese Ripartite). */}
                     <NettoRow
-                      label="Fornitori" value={vociExtraPeriod.totDailyDeducted + totCostoMerceProp}
+                      label="Fornitori" value={vociExtraPeriod.totDailyDeducted}
                       excluded={excludeFornitori} onToggle={() => setExcludeFornitori(!excludeFornitori)}
                       icon="storefront-outline" iconColor="#1A4040"
-                      hint={totCostoMerceProp > 0.5 ? `Include costo merce ponderato €${totCostoMerceProp.toFixed(0)}` : undefined}
                     />
                     <NettoRow
                       label="Invenduto" value={invendutoSum}
@@ -2612,7 +2614,7 @@ function StatsScreenInner() {
                       <>
                         <View style={{ marginTop: 14, marginBottom: 6 }}>
                           <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.6 }}>
-                            SPESE PERIODICHE
+                            SPESE RIPARTITE
                           </Text>
                         </View>
                         {/* ═══ Round 61 — ALERT VISIVO con totale promemoria ═══ */}

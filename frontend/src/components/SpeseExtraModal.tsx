@@ -324,7 +324,7 @@ export const SpeseExtraModal: React.FC<Props> = ({
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <Ionicons name="time-outline" size={14} color="#1E7F85" />
                   <Text style={{ fontSize: 10, fontWeight: '900', color: '#1A4040', letterSpacing: 0.5, flex: 1 }}>
-                    PROMEMORIA PERIODICHE ATTIVE
+                    SPESE RIPARTITE ATTIVE
                   </Text>
                   <Text style={{ fontSize: 14, fontWeight: '900', color: '#1E7F85' }}>€{totSum.toFixed(0)}</Text>
                 </View>

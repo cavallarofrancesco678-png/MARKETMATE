@@ -1618,7 +1618,8 @@ function SettingsPageInner() {
                 storicoCarburante: [],
                 storicoDiario: [],
                 storicoScontrini: [],
-              });
+                spesePeriodiche: [], // Round 62: pulisci anche le spese ripartite
+              } as any);
               // Pulisci anche la sessione spese in corso (fatture/ripartizioni
               // residue di sessioni precedenti che potevano restare in memoria)
               try { (store as any).clearSpeseExtraSession?.(); } catch {}
@@ -1646,7 +1647,49 @@ function SettingsPageInner() {
         <Text style={{ fontSize: 10, color: '#7A9090', marginVertical: 8, textAlign: 'center' }}>
           {t('settings.resetValuesDesc') || 'Azzera solo incassi, spese e carburante. Mantiene mercati, fornitori e impostazioni.'}
         </Text>
-        
+
+        {/* ═══ Round 62 — PULIZIA SPESE RIPARTITE ═══
+            Bottone dedicato che cancella SOLO la collezione spesePeriodiche
+            (vecchi dati di test, fatture rinominate, ecc.) senza toccare
+            incassi/giornate. Utile per liberare la "memoria fantasma" che
+            può comparire come €X in Spese Ripartite anche se nulla è stato
+            inserito di recente. */}
+        <TouchableOpacity
+          style={[s.resetBtn, { backgroundColor: '#8B6914' }]}
+          onPress={() => {
+            const doClean = () => {
+              const current = (store as any).spesePeriodiche || [];
+              const removed = current.length;
+              store.setConfig({ spesePeriodiche: [] } as any);
+              const msg = removed === 0
+                ? 'Nessuna spesa ripartita da pulire.'
+                : `Eliminate ${removed} spese ripartite residue.`;
+              if (Platform.OS === 'web') window.alert(msg);
+              else Alert.alert('Pulizia completata', msg);
+            };
+            const confirmMsg = 'Eliminare TUTTE le spese ripartite (settimanali/personalizzate)? I dati storici (incassi, spese giornaliere) NON saranno toccati.';
+            if (Platform.OS === 'web') {
+              if (window.confirm(confirmMsg)) doClean();
+            } else {
+              Alert.alert(
+                'Pulisci Spese Ripartite',
+                confirmMsg,
+                [
+                  { text: 'Annulla', style: 'cancel' },
+                  { text: 'Pulisci', style: 'destructive', onPress: doClean },
+                ]
+              );
+            }
+          }}
+        >
+          <Ionicons name="brush" size={18} color="#FFF" />
+          <Text style={s.resetBtnTxt}>PULISCI SPESE RIPARTITE</Text>
+        </TouchableOpacity>
+
+        <Text style={{ fontSize: 10, color: '#7A9090', marginVertical: 8, textAlign: 'center' }}>
+          Cancella solo le spese settimanali/personalizzate residue (es. vecchi test). NON tocca incassi né giornate salvate.
+        </Text>
+
         <TouchableOpacity
           style={[s.resetBtn, { backgroundColor: '#D46A6A' }]}
           onPress={() => {
