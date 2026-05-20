@@ -1209,23 +1209,29 @@ export default function HomeScreen() {
 
   const collabNames = collaboratori.length > 0 ? collaboratori.map((c) => c.nome) : [];
 
-  const handleLordo = (val: string) => {
-    setLordo(val);
-    const l = parseFloat(val.replace(',', '.')) || 0;
+  /* ═══ Round 63 — INPUT CURSOR FIX ═══
+     Bug precedente: handleLordo aggiornava SIA lordo SIA contanti ad ogni
+     keystroke. Il re-render contestuale faceva "saltare" il cursore alla
+     fine del testo, impedendo la cancellazione mid-position con backspace.
+     Fix: onChangeText aggiorna SOLO il campo digitato; l'auto-calc
+     contanti/pos viene fatto SOLO su onBlur (quando l'utente esce dal
+     campo). Cosi l'utente può inserire/cancellare in qualunque
+     posizione senza interferenze. */
+  const handleLordo = (val: string) => setLordo(val);
+  const handleContanti = (val: string) => setContanti(val);
+  const handlePos = (val: string) => setPos(val);
+
+  const handleLordoBlur = () => {
+    const l = parseFloat(lordo.replace(',', '.')) || 0;
     const p = parseFloat(pos.replace(',', '.')) || 0;
-    // Auto-calcolo Contanti = Lordo - POS quando si inserisce il Lordo
-    if (l > 0) {
-      setContanti(Math.max(0, Math.round(l - p)).toString());
-    }
+    if (l > 0) setContanti(Math.max(0, Math.round(l - p)).toString());
   };
-  const handleContanti = (val: string) => {
-    setContanti(val);
-    const c = parseFloat(val.replace(',', '.')) || 0;
+  const handleContantiBlur = () => {
+    const c = parseFloat(contanti.replace(',', '.')) || 0;
     if (lordoNum > 0) setPos(Math.max(0, Math.round(lordoNum - c)).toString());
   };
-  const handlePos = (val: string) => {
-    setPos(val);
-    const p = parseFloat(val.replace(',', '.')) || 0;
+  const handlePosBlur = () => {
+    const p = parseFloat(pos.replace(',', '.')) || 0;
     if (lordoNum > 0) setContanti(Math.max(0, Math.round(lordoNum - p)).toString());
   };
 
@@ -1792,7 +1798,7 @@ export default function HomeScreen() {
       <View style={[s.gridRow, { gap: GAP }]} testID="home-incasso-row" ref={anchorIncassoRow}>
         <View style={[s.card, { height: lordoRowH }]}>
           <Text style={s.cardBold}>{t('home.gross')}</Text>
-          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={handleLordo} selectTextOnFocus />
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={lordo} onChangeText={handleLordo} onBlur={handleLordoBlur} selectTextOnFocus />
         </View>
         <TouchableOpacity style={[s.card, { height: lordoRowH }]} activeOpacity={0.7} onPress={() => setShowUtileModal(true)}>
           {/* Round 49: solo freccia rivolta verso il basso (chevron) — niente testo */}
@@ -1810,11 +1816,11 @@ export default function HomeScreen() {
       <View style={[s.gridRow, { gap: GAP }]}>
         <View style={[s.card, { height: normalRowH }]}>
           <Text style={s.cardLbl}>{t('home.cash')}</Text>
-          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={contanti} onChangeText={handleContanti} selectTextOnFocus />
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={contanti} onChangeText={handleContanti} onBlur={handleContantiBlur} selectTextOnFocus />
         </View>
         <View style={[s.card, { height: normalRowH }]}>
           <Text style={s.cardLbl}>{t('home.pos')}</Text>
-          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={pos} onChangeText={handlePos} selectTextOnFocus />
+          <TextInput style={s.cardInp} placeholder="0" placeholderTextColor="#C0B5A5" keyboardType="numeric" value={pos} onChangeText={handlePos} onBlur={handlePosBlur} selectTextOnFocus />
         </View>
       </View>
 

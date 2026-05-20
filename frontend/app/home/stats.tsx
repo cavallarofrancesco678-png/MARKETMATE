@@ -2573,35 +2573,33 @@ function StatsScreenInner() {
                 return (
                   <>
                     <NettoRow
-                      label="Spese Fisse" value={speseFisseSum}
+                      label="SPESE FISSE" value={speseFisseSum}
                       excluded={excludeSpeseFisse} onToggle={() => setExcludeSpeseFisse(!excludeSpeseFisse)}
                       icon="home-outline" iconColor="#8B6914"
                     />
                     <NettoRow
-                      label="Collaboratori" value={collabSum}
+                      label="COLLABORATORI" value={collabSum}
                       excluded={excludeCollaboratori} onToggle={() => setExcludeCollaboratori(!excludeCollaboratori)}
                       icon="people-outline" iconColor="#1E7F85"
                     />
                     <NettoRow
-                      label="Spese Straordinarie" value={speseExtraSum}
+                      label="SPESE EXTRA" value={speseExtraSum}
                       excluded={excludeSpeseExtra} onToggle={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
-                      icon="receipt-outline" iconColor="#E8A060"
+                      icon="receipt-outline" iconColor="#D46A6A"
                     />
-                    {/* Round 60+62: rimossa label "(DAILY)" → solo "Fornitori".
-                        Round 62: rimosso hint "Include costo merce ponderato"
-                        (era LEGACY, ora sostituito da Spese Ripartite). */}
+                    {/* Round 60+62+63: label allineata a UtileModal "FORNITORI GIORN." */}
                     <NettoRow
-                      label="Fornitori" value={vociExtraPeriod.totDailyDeducted}
+                      label="FORNITORI GIORN." value={vociExtraPeriod.totDailyDeducted}
                       excluded={excludeFornitori} onToggle={() => setExcludeFornitori(!excludeFornitori)}
                       icon="storefront-outline" iconColor="#1A4040"
                     />
                     <NettoRow
-                      label="Invenduto" value={invendutoSum}
+                      label="INVENDUTO" value={invendutoSum}
                       excluded={excludeInvenduto} onToggle={() => setExcludeInvenduto(!excludeInvenduto)}
-                      icon="trash-outline" iconColor="#D46A6A"
+                      icon="cube-outline" iconColor="#8B5CF6"
                     />
                     <NettoRow
-                      label="Gestione Carburante" value={Math.round(carburantePeriodoTotale)}
+                      label="GESTIONE CARBURANTE" value={Math.round(carburantePeriodoTotale)}
                       excluded={excludeCarburante} onToggle={() => setExcludeCarburante(!excludeCarburante)}
                       icon="car-outline" iconColor="#5A7575"
                     />
