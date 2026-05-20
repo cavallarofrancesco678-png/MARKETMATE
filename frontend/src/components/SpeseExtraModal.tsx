@@ -277,7 +277,13 @@ export const SpeseExtraModal: React.FC<Props> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView style={st.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView
+        style={st.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        // Round 64: keyboardVerticalOffset = 0 perché il Modal è full-screen e
+        // non c'è nessuna header bar che riduce lo spazio disponibile.
+        keyboardVerticalOffset={0}
+      >
         <View style={st.container}>
           <View style={st.handle} />
           <View style={st.headerRow}>
@@ -442,7 +448,20 @@ export const SpeseExtraModal: React.FC<Props> = ({
             );
           })()}
 
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+            // Round 64 — UX tastiera Fornitori:
+            //  • keyboardShouldPersistTaps='handled' = tap su pulsanti (Frequenza,
+            //    Personalizza) NON chiudono la tastiera, evitando il flicker.
+            //  • contentContainerStyle paddingBottom = 280 → sufficiente perché
+            //    l'ultimo input visibile resta sempre sopra la tastiera quando
+            //    KeyboardAvoidingView (behavior='padding'/'height') riduce
+            //    l'altezza della view.
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{ paddingBottom: 280 }}
+          >
             {/* ═══ FORNITORI ═══ */}
             {fornitori.length > 0 && (
               <Text style={st.sectionTitle}>FORNITORI</Text>
