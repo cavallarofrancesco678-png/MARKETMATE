@@ -894,6 +894,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         // Rimuove duplicati creati dal bug pre-R63 (save multipli dello
         // stesso fornitore periodico). Chiave: (nome, categoria, from, to).
         // Tiene l'entry più recente (createdAt più alto).
+        let dedupRemovedCount = 0;
         if (Array.isArray(parsed.spesePeriodiche) && parsed.spesePeriodiche.length > 0) {
           const sorted = [...parsed.spesePeriodiche].sort((a: any, b: any) => {
             const ca = a.createdAt || ''; const cb = b.createdAt || '';
@@ -907,9 +908,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             seen.add(key);
             deduped.push(sp);
           });
-          const removed = parsed.spesePeriodiche.length - deduped.length;
-          if (removed > 0) {
-            console.log(`[Round 63] Rimossi ${removed} duplicati da spesePeriodiche`);
+          dedupRemovedCount = parsed.spesePeriodiche.length - deduped.length;
+          if (dedupRemovedCount > 0) {
+            console.log(`[Round 63] Rimossi ${dedupRemovedCount} duplicati da spesePeriodiche`);
           }
           parsed.spesePeriodiche = deduped;
         }
@@ -919,9 +920,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         // Se almeno un campo è stato sanitizzato (non era un array originariamente),
         // salviamo subito su disk il dato corretto così la corruzione viene
         // riparata definitivamente senza dover fare la migrazione ad ogni avvio.
+        // Round 64: includiamo anche dedupRemovedCount > 0 così la
+        // deduplica auto-pulisce il localStorage permanentemente.
         const wasMigrated = !originalShape.sd || !originalShape.ss || !originalShape.sg
           || !originalShape.sc || !originalShape.fi || !originalShape.aa
-          || !originalShape.oa || !originalShape.fr || !originalShape.co || !originalShape.ci;
+          || !originalShape.oa || !originalShape.fr || !originalShape.co || !originalShape.ci
+          || dedupRemovedCount > 0;
         if (wasMigrated) {
           try { await storage.setItem('marketmate_data', JSON.stringify(parsed)); } catch {}
         }

@@ -29,6 +29,12 @@ import * as Sharing from 'expo-sharing';
 import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 import { RoleGuard } from '../../src/components/RoleGuard';
+// Round 64 — utility condivisa per i calcoli finanziari (Home e Stats
+// devono usare LO STESSO algoritmo per evitare drift Utile vs Netto).
+import {
+  getWorkingDaysPerWeek,
+  getMercatoDelGiorno,
+} from '../../src/utils/calcoli';
 // Round 46: import rimosso — `proporzionaleFornitori` ora deprecato. La
 // logica è "deduzione fissa di periodo" calcolata in linea (vedi
 // `costoMerceProporzionaleMap` e `costoMerceProporzionalePerFornMap`).
@@ -743,64 +749,83 @@ function StatsScreenInner() {
   }, [filteredData, filtroTempo, fornitori]);
 
   const speseFisseItems = useMemo(() => {
-    // Calcola il numero di giorni del periodo selezionato per proration corretta
-    let daysInPeriod = 365;
-    if (filtroTempo === 'Oggi' || filtroTempo === 'Ieri') daysInPeriod = 1;
-    else if (filtroTempo === 'Sett.') daysInPeriod = 7;
-    else if (filtroTempo === 'Mese') daysInPeriod = 30;
-    else if (filtroTempo === 'Anno') daysInPeriod = 365;
-    else if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
-      const diff = Math.max(1, Math.ceil((persDateTo.getTime() - persDateFrom.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      daysInPeriod = diff;
-    }
-    const fattore = daysInPeriod / 365;
+    /* ═══ Round 64 — ALLINEAMENTO HOME/STATS ═══
+       L'utente segnalava drift fra Home Utile e Stats Netto sulle SPESE FISSE
+       (es. €21 vs €16). Causa: stats usava `daysInPeriod/365` mentre Home usa
+       `annual/(48 × workdaysPerWeek)` per giornata lavorata. Ora stats usa
+       LA STESSA formula di Home e somma per ogni giornata lavorata del
+       periodo. In questo modo: NETTO(periodo) == Σ UTILE(giornata) — sempre. */
+    const workdays = getWorkingDaysPerWeek(agenda);
+    // Giornate "in piazza" (lavorate) del periodo filtrato. inPiazza !== false
+    // include sia gli storici nuovi (con il flag) sia i legacy (senza flag, considerati true).
+    const giornateLavorate = filteredData.filter((g: any) => g.inPiazza !== false);
+    const nGiornateLav = giornateLavorate.length;
+
     const items: { label: string; value: number; color: string }[] = [];
-    // 1. Voci di spese annue (assicurazione, bollo, commercialista, ecc.)
+
+    // 1) Voci annue (assicurazione, bollo, commercialista, ecc.)
+    //    quotaGG = importo / (48 × workdays). Tot = quotaGG × nGiornateLav.
     (speseAnnue || []).forEach((sp) => {
-      items.push({
-        label: sp.voce,
-        value: Math.max(Math.round((sp.importo || 0) * fattore), 1),
-        color: PALETTE[items.length % PALETTE.length],
-      });
-    });
-    // 2. Plateatico annuo per ogni mercato (p_annuo)
-    // FILTRO: se filtroTipo è un giorno specifico (LUN..DOM), mostra solo quel mercato.
-    const targetDayIdx = (() => {
-      if (filtroTipo === 'TUTTO' || filtroTipo === 'FIERE') return -1;
-      // GIORNO_MAP ha valori per Date.getDay() (0=DOM..6=SAB).
-      // Agenda è indicizzata 0=LUN..6=DOM ⇒ converti.
-      const jsDay = GIORNO_MAP[filtroTipo];
-      if (jsDay === undefined || jsDay < 0) return -1;
-      return jsDay === 0 ? 6 : jsDay - 1; // LUN=0, DOM=6
-    })();
-    (agenda || []).forEach((m, idx) => {
-      if ((m as any).p_annuo && (m as any).p_annuo > 0) {
-        // Se filtraggio per giorno specifico, salta gli altri mercati
-        if (targetDayIdx >= 0 && idx !== targetDayIdx) return;
+      if (!sp || (Number(sp.importo) || 0) <= 0) return;
+      const quotaGG = (Number(sp.importo) || 0) / (48 * workdays);
+      const valore = Math.max(Math.round(quotaGG * nGiornateLav), nGiornateLav > 0 ? 1 : 0);
+      if (valore > 0) {
         items.push({
-          label: `Plat. ${m.mercato}`,
-          value: Math.max(Math.round((m as any).p_annuo * fattore), 1),
+          label: sp.voce,
+          value: valore,
           color: PALETTE[items.length % PALETTE.length],
         });
       }
     });
-    // 3. Carburante - calcolato come MEDIA €/km applicata ai km del periodo
-    // Media storica: totale € spesi in carburante / totale km percorsi
-    const totEuroCarbStorico = arrSum((storicoCarburante || []).map((c) => c.euro || 0));
-    const totKmStorico = arrSum((storicoGiornate || []).map((g) => g.km || 0));
-    const mediaEuroKm = totKmStorico > 0 ? totEuroCarbStorico / totKmStorico : 0;
-    // Km percorsi nel periodo filtrato
-    const kmPeriodo = arrSum(filteredData.map((g) => g.km || 0));
-    const carburantePeriodo = Math.round(kmPeriodo * mediaEuroKm);
-    if (carburantePeriodo > 0 || kmPeriodo > 0 || totEuroCarbStorico > 0) {
+
+    // 2) Plateatico per ogni mercato — sommato per ogni giornata effettivamente lavorata
+    //    su quel mercato (stessa logica di Home: p_giornaliero se >0, altrimenti
+    //    p_annuo/(48×workdays)).
+    const targetDayIdx = (() => {
+      if (filtroTipo === 'TUTTO' || filtroTipo === 'FIERE') return -1;
+      const jsDay = GIORNO_MAP[filtroTipo];
+      if (jsDay === undefined || jsDay < 0) return -1;
+      return jsDay === 0 ? 6 : jsDay - 1; // LUN=0..DOM=6
+    })();
+    const platByMercato: Record<string, number> = {};
+    giornateLavorate.forEach((g: any) => {
+      try {
+        const d = new Date(g.data);
+        const merc = getMercatoDelGiorno(d, agenda);
+        if (!merc) return;
+        if (targetDayIdx >= 0) {
+          const mercatoIdx = (d.getDay() + 6) % 7;
+          if (mercatoIdx !== targetDayIdx) return;
+        }
+        let plat = 0;
+        if ((merc as any).p_giornaliero && (merc as any).p_giornaliero > 0) {
+          plat = Number((merc as any).p_giornaliero) || 0;
+        } else if ((merc as any).p_annuo && (merc as any).p_annuo > 0) {
+          plat = (Number((merc as any).p_annuo) || 0) / (48 * workdays);
+        }
+        if (plat > 0) {
+          const label = `Plat. ${merc.mercato || merc.giorno}`;
+          platByMercato[label] = (platByMercato[label] || 0) + plat;
+        }
+      } catch { /* skip */ }
+    });
+    Object.entries(platByMercato).forEach(([label, totale]) => {
+      const valore = Math.max(Math.round(totale), 1);
       items.push({
-        label: `Carburante (€${mediaEuroKm.toFixed(3)}/km × ${kmPeriodo}km)`,
-        value: Math.max(carburantePeriodo, 1),
-        color: '#E8A060',
+        label,
+        value: valore,
+        color: PALETTE[items.length % PALETTE.length],
       });
-    }
+    });
+
+    // 3) Carburante: NON viene incluso qui per evitare double-count con
+    //    `carburantePeriodoTotale` (riga "GESTIONE CARBURANTE" del modal Netto,
+    //    che mostra il dato REALE dai distributori). La stima km × 0.20€
+    //    presente in Home/Utile è invece estimata; nelle Statistiche prevale
+    //    il dato reale. Se l'utente vuole un singolo importo allineato a Home,
+    //    può sempre escludere "GESTIONE CARBURANTE" dal calcolo Netto col flag.
     return items;
-  }, [speseAnnue, agenda, storicoCarburante, storicoGiornate, filteredData, filtroTempo, filtroTipo, persDateFrom, persDateTo]);
+  }, [speseAnnue, agenda, filteredData, filtroTipo]);
 
   const speseExtraItems = useMemo(() => {
     // Aggrega per nome voce dalle dettaglio_spese_extra di ogni giornata

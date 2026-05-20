@@ -1497,11 +1497,38 @@ export default function HomeScreen() {
     //  - spese extra > 0 (l'utente sta tracciando solo costi)
     //  - presenze collaboratori
     //  - una fattura inserita (numero o scadenza)
+    //  - Round 64: una voce generica PERIODICA con importo > 0 (Settimana/Personalizza).
+    //    Senza questo controllo le voci ripartite NON facevano scattare
+    //    l'autosave (perché speseExtraTotNum esclude le periodiche), quindi
+    //    venivano salvate solo manualmente cliccando SALVA GIORNATA.
+    //  - Round 64: un fornitore CUSTOM/WEEKLY con importo > 0.
     const hasInvoice = Object.values(fornInfo || {}).some((f: any) =>
       (f?.numeroFattura || '').trim() !== '' || (f?.scadenza || '').trim() !== ''
     );
     const hasPresenze = Object.values(presenze || {}).some(Boolean);
-    const shouldAutosave = lordoNum > 0 || speseExtraTotNum > 0 || hasInvoice || hasPresenze;
+    const hasVociPeriodiche = vociGeneriche.some((v: any) => {
+      const ripMode = v?.ripMode || 'oggi';
+      if (ripMode === 'oggi') return false;
+      const imp = parseFloat((v?.importo || '0').replace(',', '.')) || 0;
+      return imp > 0;
+    });
+    const hasFornitoriPeriodici = (() => {
+      const nomi = new Set<string>();
+      Object.keys(speseExtraFornitore || {}).forEach((k) => {
+        if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+        nomi.add(k.replace(/__libera$/, ''));
+      });
+      for (const nomeBase of nomi) {
+        const dt = (fornDeductionType as any)[nomeBase] || 'DAILY';
+        if (dt === 'DAILY') continue;
+        const impF = parseFloat(((speseExtraFornitore as any)[nomeBase]?.importo || '0').replace(',', '.')) || 0;
+        const impC = parseFloat(((speseExtraFornitore as any)[`${nomeBase}__libera`]?.importo || '0').replace(',', '.')) || 0;
+        if (impF + impC > 0) return true;
+      }
+      return false;
+    })();
+    const shouldAutosave = lordoNum > 0 || speseExtraTotNum > 0 || hasInvoice
+      || hasPresenze || hasVociPeriodiche || hasFornitoriPeriodici;
     if (shouldAutosave) {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       const dataKey = dataCorrente.toDateString();
@@ -1516,7 +1543,9 @@ export default function HomeScreen() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride, speseExtraFornTotale, speseExtraGenTotale, dataCorrente, fornInfo, speseExtraTotNum]);
+  }, [lordoNum, contanti, pos, meteo, invendutoNum, presenze, costiOverride,
+      speseExtraFornTotale, speseExtraGenTotale, dataCorrente, fornInfo,
+      speseExtraTotNum, vociGeneriche, speseExtraFornitore, fornDeductionType]);
 
   /* ─── Round 50: SALVA SINGOLO TOCCO ───
      Il vecchio handleSalvaManuale chiamava direttamente `handleSalva()`

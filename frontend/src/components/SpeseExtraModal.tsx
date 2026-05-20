@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -227,9 +227,31 @@ export const SpeseExtraModal: React.FC<Props> = ({
     }
   };
 
+  /* Round 64 — FIX stale closure: usiamo una ref che traccia sempre l'array
+     più recente, così chiamate multiple in rapida successione (es. dal
+     RangePicker.onConfirm che setta ripMode + ripFrom + ripTo) non si
+     sovrascrivono. Senza ref, ogni chiamata legge `vociGeneriche` dal
+     render PRECEDENTE → l'ultima chiamata vince → ripFrom/ripMode persi
+     → la voce "scompare" perché ripMode default 'oggi' la fa contare
+     come spesa giornaliera anziché come spesa ripartita. */
+  const vociRef = useRef(vociGeneriche);
+  useEffect(() => { vociRef.current = vociGeneriche; }, [vociGeneriche]);
+
   const updateVoce = (idx: number, field: string, value: any) => {
-    const updated = [...vociGeneriche];
-    (updated[idx] as any)[field] = value;
+    const updated = [...vociRef.current];
+    if (!updated[idx]) return;
+    (updated[idx] as any) = { ...(updated[idx] as any), [field]: value };
+    vociRef.current = updated;
+    setVociGeneriche(updated);
+  };
+
+  /* Patch multipla in un singolo aggiornamento atomico: utile per RangePicker
+     che deve impostare ripMode + ripFrom + ripTo nello stesso tick. */
+  const updateVocePatch = (idx: number, patch: Record<string, any>) => {
+    const updated = [...vociRef.current];
+    if (!updated[idx]) return;
+    (updated[idx] as any) = { ...(updated[idx] as any), ...patch };
+    vociRef.current = updated;
     setVociGeneriche(updated);
   };
 
@@ -932,21 +954,23 @@ export const SpeseExtraModal: React.FC<Props> = ({
                     const isoOfDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
                     const setMode = (m: 'oggi' | 'settimana' | 'custom') => {
+                      // Round 64: patch ATOMICO (no più 3 setState sequenziali)
                       if (m === 'oggi') {
-                        updateVoce(idx, 'ripMode', 'oggi');
-                        updateVoce(idx, 'ripFrom', '');
-                        updateVoce(idx, 'ripTo', '');
+                        updateVocePatch(idx, { ripMode: 'oggi', ripFrom: '', ripTo: '' });
                       } else if (m === 'settimana') {
                         const now = new Date();
                         const dow = (now.getDay() + 6) % 7;
                         const lun = new Date(now); lun.setDate(now.getDate() - dow);
                         const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
-                        updateVoce(idx, 'ripMode', 'settimana');
-                        updateVoce(idx, 'ripFrom', isoOfDay(lun));
-                        updateVoce(idx, 'ripTo', isoOfDay(dom));
+                        updateVocePatch(idx, {
+                          ripMode: 'settimana',
+                          ripFrom: isoOfDay(lun),
+                          ripTo: isoOfDay(dom),
+                        });
                       } else {
-                        // CUSTOM: apri RangePickerModal
-                        updateVoce(idx, 'ripMode', 'custom');
+                        // CUSTOM: apri RangePickerModal (i valori effettivi verranno
+                        // scritti tutti insieme da onConfirm con updateVocePatch).
+                        updateVocePatch(idx, { ripMode: 'custom' });
                         setRangeTarget({ type: 'voce', idx });
                       }
                     };
@@ -1093,9 +1117,14 @@ export const SpeseExtraModal: React.FC<Props> = ({
             setFornDeductionStartDate({ ...fornDeductionStartDate, [rangeTarget.name]: r.from });
             setFornDeductionDays({ ...fornDeductionDays, [rangeTarget.name]: days });
           } else if (rangeTarget.type === 'voce') {
-            updateVoce(rangeTarget.idx, 'ripMode', 'custom');
-            updateVoce(rangeTarget.idx, 'ripFrom', r.from);
-            updateVoce(rangeTarget.idx, 'ripTo', r.to);
+            // Round 64: patch ATOMICO per evitare stale closure (3 sequenziali
+            // setState perdevano ripMode + ripFrom: solo ripTo veniva salvato,
+            // facendo "scomparire" la voce dalla collezione spesePeriodiche).
+            updateVocePatch(rangeTarget.idx, {
+              ripMode: 'custom',
+              ripFrom: r.from,
+              ripTo: r.to,
+            });
           }
         }}
         initialMode="pers"

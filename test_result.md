@@ -256,6 +256,18 @@ frontend:
         -agent: "testing"
         -comment: "INCONCLUSIVE via automated testing — weather icons are rendered as Feather/SVG icons without text labels and with dynamically-applied color tokens, so programmatic innerText-based detection returned 0 matches. Backend logs confirm POST /api/weather 200 OK was called from the home page load (so the fetch-and-set flow is at least reaching the network). Recommend: main agent manually verify in the running web preview that one of the 5 weather icons is highlighted orange after /home load, OR add a data-testid='weather-icon-<key>' + data-active='true' attribute to make this testable. Not marking as failed."
 
+  - task: "Round 64 — Fix duplicazione spesePeriodiche + voci sparite + math Utile/Netto"
+    implemented: true
+    working: true
+    file: "frontend/src/store/appStore.ts, frontend/src/components/SpeseExtraModal.tsx, frontend/app/home/index.tsx, frontend/app/home/stats.tsx, frontend/src/utils/calcoli.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "ROUND 64 — FIX MULTIPLO CRITICO. (1) STALE CLOSURE updateVoce: il RangePicker onConfirm chiamava 3 setVociGeneriche sequenziali (ripMode + ripFrom + ripTo) che, leggendo vociGeneriche dal render precedente, perdevano i primi 2 → solo ripTo veniva salvato → ripMode default 'oggi' → voce contata come spesa giornaliera anziché ripartita → 'spariva' dalla collezione spesePeriodiche. FIX: aggiunto vociRef (useRef + useEffect sync) per leggere SEMPRE l'array aggiornato + nuovo `updateVocePatch(idx, patch)` che applica tutti i campi in un singolo set. onConfirm + setMode ora usano updateVocePatch. (2) AUTOSAVE non scattava per voci/fornitori SOLO periodici: speseExtraTotNum escludeva ripartite, quindi shouldAutosave=false. FIX: aggiunti `hasVociPeriodiche` + `hasFornitoriPeriodici` come trigger autosave. (3) DEDUP loadFromStorage non persisteva su disk: il flag wasMigrated non includeva dedupRemovedCount, quindi la corruzione persistente non veniva ripulita. FIX: ora `wasMigrated = ... || dedupRemovedCount > 0`. (4) MATEMATICA Utile vs Netto: Home usava `annuo/(48×workdays)` mentre Stats usava `annuo×(daysInPeriod/365)`. Drift es. €21 vs €16. FIX: creato `/app/frontend/src/utils/calcoli.ts` con utility condivise (getWorkingDaysPerWeek, getMercatoDelGiorno) + riscrittura speseFisseItems in stats.tsx che ora somma per ogni giornata lavorata del periodo la stessa quota giornaliera usata in Home. NETTO(periodo) ora coincide con Σ UTILE(giorno). (5) Carburante: in Stats resta separato come `carburantePeriodoTotale` (dato reale), in Home come stima km×0.20€ (entrambi rappresentano costi reali, no double-count). TEST E2E SUPERATI: a) seed 4 spesePeriodiche (3 dup + 1 distinct) → dopo loadFromStorage 2 entries (Carne Roma + Dolci Palermo). b) Aggiunta voce 'Dolci Palermo €210 Settimana' → 1 entry in spesePeriodiche, voce persiste dopo CONFERMA + riapertura modal. c) 5x SALVA GIORNATA → spesePeriodiche.length=1, storicoGiornate.length=1 (no duplication). d) Cursor backspace mid-string in LORDO: digitato '12345', arrowLeft×3, backspace → '1345' ✓. Utile correttamente €1309 (1345-36). e) Accordion 'SPESE RIPARTITE: €210 (1 voce)' header visibile in modal."
+
 
 
 backend:
