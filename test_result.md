@@ -271,6 +271,18 @@ frontend:
 
 
 backend:
+  - task: "Round 64 backend sanity check"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "ROUND 64 SANITY CHECK (post FE-only changes) — 7/7 endpoints behave correctly, NO 5xx. ✅ GET /api/ → 200. ✅ POST /api/weather → 200 (Open-Meteo upstream rate-limited today, payload contiene success:false ma il backend degrada correttamente). ✅ POST /api/ai/chat (Emergent LLM gpt-4.1-mini) → 200, risposta personalizzata. ✅ GET /api/team/status (no auth) → 401. ✅ POST /api/team/login_by_code (empty body) → 422 (4xx). ✅ POST /api/auth/invites/create (no auth) → 401. ✅ POST /api/receipt/analyze (rimosso in R57) → 404. Nessuna regressione."
+
   - task: "POST /api/distance/calculate - Roma to Milano"
     implemented: true
     working: true
