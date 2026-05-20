@@ -103,6 +103,8 @@ export const SpeseExtraModal: React.FC<Props> = ({
   const { t } = useTranslation();
   const [nuovaVoce, setNuovaVoce] = useState('');
   const { speseExtraTags, addSpeseExtraTag, removeSpeseExtraTag, spesePeriodiche } = useAppStore();
+  // Round 63: stato accordion "Spese Ripartite Attive" (default chiuso)
+  const [speseRipartiteOpen, setSpeseRipartiteOpen] = useState(false);
   const insets = useSafeAreaInsets();
 
   // Stato locale: quale fornitore sta aprendo il datepicker scadenza
@@ -299,10 +301,13 @@ export const SpeseExtraModal: React.FC<Props> = ({
             <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(0)}</Text>
           </View>
 
-          {/* ═══ Round 61 — PROMEMORIA SPESE PERIODICHE ATTIVE ═══
+          {/* ═══ Round 61 + 63 — PROMEMORIA SPESE RIPARTITE ATTIVE (ACCORDION) ═══
               Mostra TUTTE le spese in `spesePeriodiche` il cui range
-              [from..to] include `dataCorrente`. Queste NON intaccano il
-              totale del giorno: sono solo un promemoria visivo. */}
+              [from..to] include `dataCorrente`. Questo NON intacca il
+              totale del giorno: è solo un promemoria visivo.
+              Round 63: trasformato in ACCORDION compatto perché in app
+              con tanti fornitori periodici la lista copriva tutto lo
+              schermo. Header sempre visibile, dettaglio espandibile. */}
           {(() => {
             if (!dataCorrente || !Array.isArray(spesePeriodiche) || spesePeriodiche.length === 0) return null;
             const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -318,25 +323,43 @@ export const SpeseExtraModal: React.FC<Props> = ({
             return (
               <View style={{
                 marginHorizontal: 16, marginTop: -4, marginBottom: 10,
-                padding: 12, backgroundColor: '#EAF7F8',
+                backgroundColor: '#EAF7F8',
                 borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#1E7F85',
               }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                {/* Header sempre visibile */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setSpeseRipartiteOpen((p) => !p)}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 6,
+                    paddingHorizontal: 12, paddingVertical: 10,
+                  }}
+                >
                   <Ionicons name="time-outline" size={14} color="#1E7F85" />
                   <Text style={{ fontSize: 10, fontWeight: '900', color: '#1A4040', letterSpacing: 0.5, flex: 1 }}>
-                    SPESE RIPARTITE ATTIVE
+                    SPESE RIPARTITE: € {totSum.toFixed(0)} ({active.length} {active.length === 1 ? 'voce' : 'voci'})
                   </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#1E7F85' }}>€{totSum.toFixed(0)}</Text>
-                </View>
-                {active.map((sp: any) => (
-                  <Text key={sp.id} style={{ fontSize: 11, color: '#1A4040', lineHeight: 16 }}>
-                    <Text style={{ fontWeight: '900' }}>{sp.nome}</Text>{' '}
-                    €{Number(sp.importo).toFixed(0)} (dal {fmt(sp.from)} al {fmt(sp.to)})
-                  </Text>
-                ))}
-                <Text style={{ fontSize: 10, color: '#5A7575', fontStyle: 'italic', marginTop: 6 }}>
-                  ⚠️ Questa cifra andrà tolta dall'incasso complessivo del periodo stabilito, non dal singolo giorno.
-                </Text>
+                  <Ionicons
+                    name={speseRipartiteOpen ? 'chevron-up' : 'chevron-down'}
+                    size={16} color="#1E7F85"
+                  />
+                </TouchableOpacity>
+                {/* Dettaglio scrollable solo se espanso */}
+                {speseRipartiteOpen && (
+                  <View style={{ paddingHorizontal: 12, paddingBottom: 12, maxHeight: 160 }}>
+                    <ScrollView showsVerticalScrollIndicator={true} nestedScrollEnabled>
+                      {active.map((sp: any) => (
+                        <Text key={sp.id} style={{ fontSize: 11, color: '#1A4040', lineHeight: 16, paddingVertical: 2 }}>
+                          <Text style={{ fontWeight: '900' }}>{sp.nome}</Text>{' '}
+                          €{Number(sp.importo).toFixed(0)} (dal {fmt(sp.from)} al {fmt(sp.to)})
+                        </Text>
+                      ))}
+                    </ScrollView>
+                    <Text style={{ fontSize: 10, color: '#5A7575', fontStyle: 'italic', marginTop: 6 }}>
+                      ⚠️ Questa cifra andrà tolta dall'incasso complessivo del periodo stabilito, non dal singolo giorno.
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })()}

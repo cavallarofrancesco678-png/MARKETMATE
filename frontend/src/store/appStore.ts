@@ -533,11 +533,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
 
-  /* ═══ Round 61 — SPESE PERIODICHE: actions ═══ */
+  /* ═══ Round 61 — SPESE PERIODICHE: actions ═══
+     Round 63 — DEDUP CRITICO: addSpesaPeriodica adesso CHIAVE su
+     (nome, categoria, from, to). Se esiste già una voce con la stessa
+     chiave la SOVRASCRIVE (update importo + dayOfPurchase). Questo
+     elimina i duplicati causati da save multipli dello stesso fornitore
+     periodico su giorni diversi all'interno del proprio range. */
   addSpesaPeriodica: (s) => {
     set((state) => {
+      const matchKey = (x: SpesaPeriodica) =>
+        x.nome === s.nome && x.categoria === s.categoria && x.from === s.from && x.to === s.to;
+      const existingIdx = state.spesePeriodiche.findIndex(matchKey);
+      const now = new Date().toISOString();
+      if (existingIdx >= 0) {
+        // UPDATE
+        const next = [...state.spesePeriodiche];
+        next[existingIdx] = { ...next[existingIdx], ...s, importo: s.importo };
+        return { spesePeriodiche: next };
+      }
+      // INSERT
       const id = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const item: SpesaPeriodica = { ...s, id, createdAt: new Date().toISOString() };
+      const item: SpesaPeriodica = { ...s, id, createdAt: now };
       return { spesePeriodiche: [...state.spesePeriodiche, item] };
     });
     get().saveToStorage();
@@ -872,6 +888,30 @@ export const useAppStore = create<AppState>((set, get) => ({
             parsed.spesePeriodiche = [...existing, ...migrationsToAdd];
             console.log(`[Round 61] Migrate ${migrationsToAdd.length} legacy periodic expenses to spesePeriodiche`);
           }
+        }
+
+        // ═══ Round 63 — DEDUP automatico spesePeriodiche ═══
+        // Rimuove duplicati creati dal bug pre-R63 (save multipli dello
+        // stesso fornitore periodico). Chiave: (nome, categoria, from, to).
+        // Tiene l'entry più recente (createdAt più alto).
+        if (Array.isArray(parsed.spesePeriodiche) && parsed.spesePeriodiche.length > 0) {
+          const sorted = [...parsed.spesePeriodiche].sort((a: any, b: any) => {
+            const ca = a.createdAt || ''; const cb = b.createdAt || '';
+            return cb.localeCompare(ca);
+          });
+          const seen = new Set<string>();
+          const deduped: any[] = [];
+          sorted.forEach((sp: any) => {
+            const key = `${sp.nome}__${sp.categoria}__${sp.from}__${sp.to}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            deduped.push(sp);
+          });
+          const removed = parsed.spesePeriodiche.length - deduped.length;
+          if (removed > 0) {
+            console.log(`[Round 63] Rimossi ${removed} duplicati da spesePeriodiche`);
+          }
+          parsed.spesePeriodiche = deduped;
         }
 
         set(parsed);

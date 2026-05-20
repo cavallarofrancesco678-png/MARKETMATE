@@ -527,6 +527,71 @@ export default function HomeScreen() {
       } else {
         setVociGeneriche([]);
       }
+      // ═══ Round 63 — HIDRATAZIONE da spesePeriodiche ═══
+      // I fornitori/voci periodici NON sono più in `dettaglio_fornitori` o
+      // `dettaglio_spese_extra`; vivono in store.spesePeriodiche. Se la
+      // giornata che stiamo aprendo è la `dayOfPurchase` di una periodica,
+      // popoliamo gli stati locali con i valori salvati così l'utente può
+      // RIVEDERE e MODIFICARE (update → dedup chiave (nome,from,to)).
+      try {
+        const allPer = (useAppStore.getState() as any).spesePeriodiche || [];
+        const isoOf = (d: any) => {
+          try {
+            const dt = new Date(d);
+            return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+          } catch { return ''; }
+        };
+        const dayIsoLoad = isoOf(saved.data);
+        if (dayIsoLoad) {
+          // 1. Fornitori periodici acquistati questo giorno → ripristina importo
+          const fornPeriodiciOggi = allPer.filter((sp: any) => sp.categoria === 'fornitore' && sp.dayOfPurchase === dayIsoLoad);
+          if (fornPeriodiciOggi.length > 0) {
+            setSpeseExtraFornitore((prev) => {
+              const next = { ...prev };
+              fornPeriodiciOggi.forEach((sp: any) => {
+                next[sp.nome] = { importo: String(sp.importo), periodo: 'giornaliero' };
+              });
+              return next;
+            });
+            // Sincronizza type/days/startDate
+            const dedUpd: Record<string, 'DAILY' | 'CUSTOM'> = {};
+            const daysUpd: Record<string, number> = {};
+            const startUpd: Record<string, string> = {};
+            fornPeriodiciOggi.forEach((sp: any) => {
+              dedUpd[sp.nome] = 'CUSTOM';
+              const from = new Date(sp.from + 'T00:00:00');
+              const to = new Date(sp.to + 'T00:00:00');
+              const dd = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+              daysUpd[sp.nome] = dd;
+              startUpd[sp.nome] = sp.from;
+            });
+            setFornDeductionType((prev) => ({ ...prev, ...dedUpd } as any));
+            setFornDeductionDays((prev) => ({ ...prev, ...daysUpd }));
+            setFornDeductionStartDate((prev) => ({ ...prev, ...startUpd }));
+          }
+          // 2. Voci generiche periodiche acquistate questo giorno → aggiungi alle voci
+          const vociPeriodicheOggi = allPer.filter((sp: any) => sp.categoria === 'voce' && sp.dayOfPurchase === dayIsoLoad);
+          if (vociPeriodicheOggi.length > 0) {
+            setVociGeneriche((prev) => {
+              const existingNames = new Set(prev.map((v: any) => v.nome));
+              const newOnes = vociPeriodicheOggi
+                .filter((sp: any) => !existingNames.has(sp.nome))
+                .map((sp: any) => ({
+                  nome: sp.nome,
+                  importo: String(sp.importo),
+                  attivo: true,
+                  ripMode: (sp.type === 'WEEKLY' ? 'settimana' : 'custom') as any,
+                  ripFrom: sp.from,
+                  ripTo: sp.to,
+                }));
+              return [...prev, ...newOnes];
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[Round 63] Errore hidratazione spesePeriodiche:', e);
+      }
+
       if (saved.mercato?.toLowerCase() === 'fiera') {
         setIsFiera(true);
       }

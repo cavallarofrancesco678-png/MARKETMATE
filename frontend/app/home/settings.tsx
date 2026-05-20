@@ -1529,77 +1529,7 @@ function SettingsPageInner() {
       </TouchableOpacity>
 
       {/* ─── INFORMAZIONI E PRIVACY ───
-          Sezione obbligatoria per la conformità Google Play: link alla
-          privacy policy pubblica + versione app. Senza questo link Google
-          rifiuta gli AAB che dichiarano permessi sensibili (CAMERA). */}
-      <Text style={[s.secTitle, { marginTop: 28 }]}>{t('settings.infoAndPrivacy') || 'INFORMAZIONI E PRIVACY'}</Text>
-      <View style={s.card}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
-          onPress={async () => {
-            const url = `${process.env.EXPO_PUBLIC_BACKEND_URL || 'https://marketmate-hub-1.emergent.host'}/api/privacy-policy`;
-            try {
-              const Linking = await import('expo-linking');
-              await Linking.openURL(url);
-            } catch {
-              try { (window as any).open?.(url, '_blank'); } catch {}
-            }
-          }}
-        >
-          <Ionicons name="shield-checkmark-outline" size={22} color="#1E7F85" />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
-              {t('settings.privacyPolicy') || 'Privacy Policy'}
-            </Text>
-            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
-              {t('settings.privacyPolicyDesc') || 'Come trattiamo i tuoi dati personali'}
-            </Text>
-          </View>
-          <Ionicons name="open-outline" size={16} color="#7A9090" />
-        </TouchableOpacity>
-
-        <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
-          <Ionicons name="information-circle-outline" size={22} color="#1E7F85" />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
-              {t('settings.appVersion') || 'Versione App'}
-            </Text>
-            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
-              MarketMate v3.9.0 · {t('settings.appBy') || 'Sviluppata da T.V.S di Cavallaro Francesco'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />
-
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
-          onPress={async () => {
-            const email = 'tvscavallaro@gmail.com';
-            const subject = encodeURIComponent('MarketMate — Supporto');
-            const url = `mailto:${email}?subject=${subject}`;
-            try {
-              const Linking = await import('expo-linking');
-              await Linking.openURL(url);
-            } catch {
-              try { (window as any).open?.(url, '_blank'); } catch {}
-            }
-          }}
-        >
-          <Ionicons name="mail-outline" size={22} color="#1E7F85" />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
-              {t('settings.contactSupport') || 'Contatta il supporto'}
-            </Text>
-            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>tvscavallaro@gmail.com</Text>
-          </View>
-          <Ionicons name="open-outline" size={16} color="#7A9090" />
-        </TouchableOpacity>
-      </View>
+          Round 63: sezione spostata dopo il footer "MarketMate" (richiesta utente). */}
 
       {/* ─── RESET ─── */}
       <Text style={[s.secTitle, { marginTop: 24, color: '#D46A6A' }]}>{t('settings.dangerZone') || 'ZONA PERICOLOSA'}</Text>
@@ -1648,47 +1578,8 @@ function SettingsPageInner() {
           {t('settings.resetValuesDesc') || 'Azzera solo incassi, spese e carburante. Mantiene mercati, fornitori e impostazioni.'}
         </Text>
 
-        {/* ═══ Round 62 — PULIZIA SPESE RIPARTITE ═══
-            Bottone dedicato che cancella SOLO la collezione spesePeriodiche
-            (vecchi dati di test, fatture rinominate, ecc.) senza toccare
-            incassi/giornate. Utile per liberare la "memoria fantasma" che
-            può comparire come €X in Spese Ripartite anche se nulla è stato
-            inserito di recente. */}
-        <TouchableOpacity
-          style={[s.resetBtn, { backgroundColor: '#8B6914' }]}
-          onPress={() => {
-            const doClean = () => {
-              const current = (store as any).spesePeriodiche || [];
-              const removed = current.length;
-              store.setConfig({ spesePeriodiche: [] } as any);
-              const msg = removed === 0
-                ? 'Nessuna spesa ripartita da pulire.'
-                : `Eliminate ${removed} spese ripartite residue.`;
-              if (Platform.OS === 'web') window.alert(msg);
-              else Alert.alert('Pulizia completata', msg);
-            };
-            const confirmMsg = 'Eliminare TUTTE le spese ripartite (settimanali/personalizzate)? I dati storici (incassi, spese giornaliere) NON saranno toccati.';
-            if (Platform.OS === 'web') {
-              if (window.confirm(confirmMsg)) doClean();
-            } else {
-              Alert.alert(
-                'Pulisci Spese Ripartite',
-                confirmMsg,
-                [
-                  { text: 'Annulla', style: 'cancel' },
-                  { text: 'Pulisci', style: 'destructive', onPress: doClean },
-                ]
-              );
-            }
-          }}
-        >
-          <Ionicons name="brush" size={18} color="#FFF" />
-          <Text style={s.resetBtnTxt}>PULISCI SPESE RIPARTITE</Text>
-        </TouchableOpacity>
-
-        <Text style={{ fontSize: 10, color: '#7A9090', marginVertical: 8, textAlign: 'center' }}>
-          Cancella solo le spese settimanali/personalizzate residue (es. vecchi test). NON tocca incassi né giornate salvate.
-        </Text>
+        {/* Round 63: rimosso bottone "PULISCI SPESE RIPARTITE" su richiesta utente.
+            La pulizia avviene automaticamente con il dedup in loadFromStorage. */}
 
         <TouchableOpacity
           style={[s.resetBtn, { backgroundColor: '#D46A6A' }]}
@@ -1782,6 +1673,75 @@ function SettingsPageInner() {
           <Ionicons name="shield-checkmark" size={14} color="#1E7F85" />
           <Text style={{ fontSize: 10, fontWeight: '700', color: '#1E7F85' }}>{t('settings.dataProtected') || 'Dati protetti e crittografati sul dispositivo'}</Text>
         </View>
+      </View>
+
+      {/* ─── Round 63: INFORMAZIONI E PRIVACY (spostata in fondo, dopo MarketMate, su richiesta utente) ─── */}
+      <View style={[s.card, { marginTop: 16 }]}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
+          onPress={async () => {
+            const url = `${process.env.EXPO_PUBLIC_BACKEND_URL || 'https://marketmate-hub-1.emergent.host'}/api/privacy-policy`;
+            try {
+              const Linking = await import('expo-linking');
+              await Linking.openURL(url);
+            } catch {
+              try { (window as any).open?.(url, '_blank'); } catch {}
+            }
+          }}
+        >
+          <Ionicons name="shield-checkmark-outline" size={22} color="#1E7F85" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
+              {t('settings.privacyPolicy') || 'Privacy Policy'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
+              {t('settings.privacyPolicyDesc') || 'Come trattiamo i tuoi dati personali'}
+            </Text>
+          </View>
+          <Ionicons name="open-outline" size={16} color="#7A9090" />
+        </TouchableOpacity>
+
+        <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+          <Ionicons name="information-circle-outline" size={22} color="#1E7F85" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
+              {t('settings.appVersion') || 'Versione App'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
+              MarketMate v3.9.0 · {t('settings.appBy') || 'Sviluppata da T.V.S di Cavallaro Francesco'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
+          onPress={async () => {
+            const email = 'tvscavallaro@gmail.com';
+            const subject = encodeURIComponent('MarketMate — Supporto');
+            const url = `mailto:${email}?subject=${subject}`;
+            try {
+              const Linking = await import('expo-linking');
+              await Linking.openURL(url);
+            } catch {
+              try { (window as any).open?.(url, '_blank'); } catch {}
+            }
+          }}
+        >
+          <Ionicons name="mail-outline" size={22} color="#1E7F85" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
+              {t('settings.contactSupport') || 'Contatta il supporto'}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>tvscavallaro@gmail.com</Text>
+          </View>
+          <Ionicons name="open-outline" size={16} color="#7A9090" />
+        </TouchableOpacity>
       </View>
 
       {/* ─── Il pulsante "Esci dall'App" è stato rimosso: è già presente in Home ─── */}
