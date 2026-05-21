@@ -215,3 +215,89 @@ export function calcolaUtileGiornata(g: GiornataLike, ctx: CtxCalcolo): {
 export function calcolaUtilePeriodo(giornate: GiornataLike[], ctx: CtxCalcolo): number {
   return giornate.reduce((s, g) => s + calcolaUtileGiornata(g, ctx).utile, 0);
 }
+
+
+/* ════════════════════════════════════════════════════════════════
+   Round 66 — PERIOD BOUNDARIES (Single Source of Truth)
+   ════════════════════════════════════════════════════════════════
+   Restituisce [from..to] in formato ISO (YYYY-MM-DD) per il filtro
+   temporale selezionato. Usato sia dalla Home (Mon-Sun di oggi)
+   sia da Stats per filtrare le spese ripartite IN MODO COERENTE.
+*/
+export type FiltroTempo = 'Oggi' | 'Ieri' | 'Sett.' | 'Mese' | 'Anno' | 'Anno prec.' | 'Pers.';
+
+function pad2(n: number): string { return String(n).padStart(2, '0'); }
+function isoOfD(d: Date): string { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+
+/** Calcola il lun-dom della settimana che contiene `d`. */
+export function getWeekBoundaries(d: Date): { from: string; to: string } {
+  const dow = (d.getDay() + 6) % 7; // 0=Lun..6=Dom
+  const mon = new Date(d); mon.setHours(0, 0, 0, 0); mon.setDate(d.getDate() - dow);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  return { from: isoOfD(mon), to: isoOfD(sun) };
+}
+
+export function getPeriodBoundaries(
+  filtroTempo: FiltroTempo,
+  persDateFrom?: Date | null,
+  persDateTo?: Date | null,
+  ref: Date = new Date(),
+): { from: string; to: string } {
+  if (filtroTempo === 'Oggi') {
+    const iso = isoOfD(ref);
+    return { from: iso, to: iso };
+  }
+  if (filtroTempo === 'Ieri') {
+    const i = new Date(ref); i.setDate(ref.getDate() - 1);
+    const iso = isoOfD(i);
+    return { from: iso, to: iso };
+  }
+  if (filtroTempo === 'Sett.') return getWeekBoundaries(ref);
+  if (filtroTempo === 'Mese') {
+    const first = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    const last = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+    return { from: isoOfD(first), to: isoOfD(last) };
+  }
+  if (filtroTempo === 'Anno') {
+    return { from: `${ref.getFullYear()}-01-01`, to: `${ref.getFullYear()}-12-31` };
+  }
+  if (filtroTempo === 'Anno prec.') {
+    return { from: `${ref.getFullYear() - 1}-01-01`, to: `${ref.getFullYear() - 1}-12-31` };
+  }
+  if (filtroTempo === 'Pers.') {
+    return {
+      from: persDateFrom ? isoOfD(persDateFrom) : '',
+      to: persDateTo ? isoOfD(persDateTo) : '',
+    };
+  }
+  return { from: '', to: '' };
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Round 66 — FILTRO SPESE RIPARTITE (Regola B utente)
+   ════════════════════════════════════════════════════════════════
+   Una spesa ripartita è RILEVANTE per il periodo [pFrom..pTo] se:
+     • dayOfPurchase ∈ [pFrom..pTo]  (acquistata nel periodo)
+     • OPPURE to ∈ [pFrom..pTo]      (scalata nel periodo)
+   È SCARICABILE dal netto (default ON) solo se `to ∈ [pFrom..pTo]`.
+*/
+export interface SpesaPeriodicaLike {
+  id?: string; nome: string; importo: number;
+  categoria?: 'fornitore' | 'voce';
+  from: string; to: string;
+  type?: string;
+  dayOfPurchase?: string;
+}
+
+export function isSpesaInPeriodo(sp: SpesaPeriodicaLike, pFrom: string, pTo: string): boolean {
+  if (!pFrom || !pTo) return true;
+  const dp = sp.dayOfPurchase || sp.from;
+  const acquistataNelPeriodo = !!(dp && dp >= pFrom && dp <= pTo);
+  const scalataNelPeriodo = !!(sp.to && sp.to >= pFrom && sp.to <= pTo);
+  return acquistataNelPeriodo || scalataNelPeriodo;
+}
+
+export function isSpesaDeducibile(sp: SpesaPeriodicaLike, pFrom: string, pTo: string): boolean {
+  if (!pFrom || !pTo) return true;
+  return !!(sp.to && sp.to >= pFrom && sp.to <= pTo);
+}

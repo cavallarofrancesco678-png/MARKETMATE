@@ -29,11 +29,15 @@ import * as Sharing from 'expo-sharing';
 import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 import { RoleGuard } from '../../src/components/RoleGuard';
-// Round 64 — utility condivisa per i calcoli finanziari (Home e Stats
+// Round 64+66 — utility condivisa per i calcoli finanziari (Home e Stats
 // devono usare LO STESSO algoritmo per evitare drift Utile vs Netto).
 import {
   getWorkingDaysPerWeek,
   getMercatoDelGiorno,
+  getPeriodBoundaries,
+  isSpesaInPeriodo,
+  isSpesaDeducibile,
+  type FiltroTempo,
 } from '../../src/utils/calcoli';
 // Round 46: import rimosso — `proporzionaleFornitori` ora deprecato. La
 // logica è "deduzione fissa di periodo" calcolata in linea (vedi
@@ -341,6 +345,9 @@ function StatsScreenInner() {
      dal periodo visualizzato (così la statistica giornaliera/settimanale/
      mensile non sottrae per default fornitori che hanno scadenza altrove). */
   const [excludeFornitoreScad, setExcludeFornitoreScad] = useState<Record<string, boolean>>({});
+
+  // Round 66 — Stato del dropdown "FORN. SPESA RIPART." (collassato di default)
+  const [showFornRipart, setShowFornRipart] = useState(false);
 
   const handleLineTap = (chartKey: string, lineIdx: number) => {
     setActiveChartLine((prev) => ({
@@ -719,34 +726,50 @@ function StatsScreenInner() {
 
   const fornitoriLines = useMemo(() => {
     // Per ogni fornitore della rubrica, somma Fatturata + Libera da ogni giornata.
-    // FIX: I nomi dentro `dettaglio_fornitori` POSSONO avere spazi extra rispetto
-    // a `f.nome` (es. "Andrea Pane " vs "Andrea Pane"). Confrontiamo dopo trim()
-    // e in modo case-insensitive così come fa la logica di fornitoriTotals.
+    // Round 66: INCLUDE ANCHE le spese ripartite (categoria='fornitore') del
+    //           fornitore quando il dayOfPurchase cade nella giornata `g`.
+    //           Prima un fornitore con SOLO ripartite mostrava 0 — non è
+    //           più così, ora il totale per periodo è completo.
     const norm = (s: string) => (s || '').trim().toLowerCase();
+    const spList = Array.isArray(store.spesePeriodiche) ? store.spesePeriodiche : [];
     return fornitori.map((f, i) => {
       const targetNome = norm(f.nome);
+      // Indicizza le ripartite di QUESTO fornitore per dayOfPurchase
+      const ripByDay: Record<string, number> = {};
+      spList.forEach((sp: any) => {
+        if (norm(sp.nome) !== targetNome) return;
+        if (sp.categoria && sp.categoria !== 'fornitore') return;
+        const dp = sp.dayOfPurchase || sp.from;
+        if (!dp) return;
+        ripByDay[dp] = (ripByDay[dp] || 0) + (Number(sp.importo) || 0);
+      });
       return {
         label: f.nome,
         color: PALETTE[(i + 1) % PALETTE.length],
         data: groupData(filteredData, (g) => {
-          if (!g.dettaglio_fornitori) return 0;
           let total = 0;
-          Object.entries(g.dettaglio_fornitori).forEach(([k, v]) => {
-            // Estrai il nome base togliendo "__libera" / "__liberaLabel" / "__fattn..."
-            // così facciamo match anche con varianti di chiavi salvate dall'app.
-            const isLibera = k.includes('__libera') && !k.includes('__liberaLabel');
-            const isFatturata = !k.includes('__');
-            if (!isLibera && !isFatturata) return;
-            const baseName = k.replace(/__libera$/, '').replace(/__liberaLabel$/, '');
-            if (norm(baseName) === targetNome) {
-              total += (v as number) || 0;
-            }
-          });
+          // Fornitori DAILY tracciati in dettaglio_fornitori
+          if (g.dettaglio_fornitori) {
+            Object.entries(g.dettaglio_fornitori).forEach(([k, v]) => {
+              const isLibera = k.includes('__libera') && !k.includes('__liberaLabel');
+              const isFatturata = !k.includes('__');
+              if (!isLibera && !isFatturata) return;
+              const baseName = k.replace(/__libera$/, '').replace(/__liberaLabel$/, '');
+              if (norm(baseName) === targetNome) {
+                total += (v as number) || 0;
+              }
+            });
+          }
+          // Round 66: aggiunge le ripartite acquistate proprio in questa giornata.
+          try {
+            const dIso = `${new Date(g.data).getFullYear()}-${String(new Date(g.data).getMonth() + 1).padStart(2, '0')}-${String(new Date(g.data).getDate()).padStart(2, '0')}`;
+            if (ripByDay[dIso]) total += ripByDay[dIso];
+          } catch { /* skip */ }
           return total;
         }),
       };
     });
-  }, [filteredData, filtroTempo, fornitori]);
+  }, [filteredData, filtroTempo, fornitori, store.spesePeriodiche]);
 
   const speseFisseItems = useMemo(() => {
     /* ═══ Round 64 — ALLINEAMENTO HOME/STATS ═══
@@ -892,6 +915,35 @@ function StatsScreenInner() {
         });
       }
     });
+
+    /* ═══ Round 66 — INCLUDE LE SPESE RIPARTITE DI FORNITORE ═══
+       L'utente segnalava: "FORNITORI TOT" mostra 0 quando un fornitore
+       ha solo ripartite. Fix: somma anche le spese ripartite
+       (categoria='fornitore') comprate nelle giornate del periodo
+       filtrato. Vengono inserite come "libera" (= contanti) di default
+       (sono comunque ripartizioni di un acquisto). */
+    try {
+      const spList = Array.isArray(store.spesePeriodiche) ? store.spesePeriodiche : [];
+      // Set di ISO date delle giornate visibili (per evitare doppi conteggi)
+      const daysIso = new Set<string>();
+      filteredData.forEach((g: any) => {
+        try {
+          const d = new Date(g.data);
+          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          daysIso.add(iso);
+        } catch { /* skip */ }
+      });
+      spList.forEach((sp: any) => {
+        if (sp.categoria && sp.categoria !== 'fornitore') return;
+        const dp = sp.dayOfPurchase || sp.from;
+        if (!dp || !daysIso.has(dp)) return;
+        const imp = Number(sp.importo) || 0;
+        if (imp <= 0) return;
+        libera += imp;
+        if (!perForn[sp.nome]) perForn[sp.nome] = { fatturata: 0, libera: 0 };
+        perForn[sp.nome].libera += imp;
+      });
+    } catch { /* skip */ }
     
     return {
       fatturata: Math.round(fatturata),
@@ -901,7 +953,7 @@ function StatsScreenInner() {
         nome, fatturata: Math.round(vals.fatturata), libera: Math.round(vals.libera),
       })).sort((a, b) => (b.fatturata + b.libera) - (a.fatturata + a.libera)),
     };
-  }, [filteredData]);
+  }, [filteredData, store.spesePeriodiche]);
 
   /* ═══ VOCI EXTRA PERIODO (fornitori marcati WEEKLY/MONTHLY) ═══
      Queste voci NON vengono detratte dal netto del giorno; vengono
@@ -1005,32 +1057,25 @@ function StatsScreenInner() {
     };
     const items: Item[] = [];
 
-    const isoFromDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const periodFrom = filtroTempo === 'Pers.' && persDateFrom
-      ? isoFromDate(persDateFrom)
-      : (filteredByTime[0] ? isoFromDate(new Date(filteredByTime[0].data)) : '');
-    const periodTo = filtroTempo === 'Pers.' && persDateTo
-      ? isoFromDate(persDateTo)
-      : (filteredByTime[filteredByTime.length - 1] ? isoFromDate(new Date(filteredByTime[filteredByTime.length - 1].data)) : '');
+    // Round 66 — period boundaries CALENDAR-BASED (non più derivati da filteredByTime).
+    // Per "Sett." prende Lun-Dom della settimana corrente (anche se non ci sono giornate
+    // salvate in quei giorni). Per "Pers." usa le date scelte dall'utente.
+    const { from: periodFrom, to: periodTo } = getPeriodBoundaries(
+      filtroTempo as FiltroTempo,
+      persDateFrom,
+      persDateTo,
+    );
 
     /* ═══ Round 61 — sorgente UNICA: store.spesePeriodiche ═══
-       Mostriamo TUTTE le voci di spesePeriodiche il cui dayOfPurchase è
-       all'interno del periodo visualizzato (così l'utente le vede). Il
-       flag `inPeriod` indica se la dataStorno (=to) cade nel periodo;
-       solo in questo caso vengono sottratte dal netto (default).
-
-       Legacy: lasciamo anche la lettura dei vecchi dettaglio_fornitori_*
-       per i dati non migrati, ma in pratica la migrazione li sposta. */
+       Round 66 — APPLICATA REGOLA B: filtra strettamente per periodo
+       (dayOfPurchase ∈ periodo OPPURE to ∈ periodo). Spese di settimane
+       precedenti o successive non rilevanti vengono escluse. */
     const spList = Array.isArray(store.spesePeriodiche) ? store.spesePeriodiche : [];
     spList.forEach((sp: any) => {
-      // Filtra solo le spesePeriodiche con dayOfPurchase ∈ [periodFrom..periodTo]
-      // oppure con il periodo intero che interseca il range visualizzato.
-      const visible = periodFrom && periodTo
-        ? (sp.dayOfPurchase >= periodFrom && sp.dayOfPurchase <= periodTo) ||
-          (sp.to >= periodFrom && sp.from <= periodTo)
-        : true;
+      const visible = isSpesaInPeriodo(sp, periodFrom, periodTo);
       if (!visible) return;
-      const inPeriod = periodFrom && periodTo ? (sp.to >= periodFrom && sp.to <= periodTo) : true;
+      // Deducibile dal netto (toggle ON default) se `to` cade nel periodo.
+      const inPeriod = isSpesaDeducibile(sp, periodFrom, periodTo);
       items.push({
         key: sp.id || `${sp.nome}__${sp.dayOfPurchase}__${sp.to}`,
         nome: sp.nome,
@@ -1059,7 +1104,7 @@ function StatsScreenInner() {
       totSelezionato: Math.round(totSelezionato),
       totPromemoria: Math.round(totPromemoria),
     };
-  }, [store.spesePeriodiche, filteredByTime, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad]);
+  }, [store.spesePeriodiche, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad]);
 
   /* ═══ ROUND 56 — TOT NETTO RICALCOLATO IN BASE AI FLAG ═══
      L'utente segnalava: nel modal "Calcolo Netto" le voci si flaggano
@@ -2618,6 +2663,73 @@ function StatsScreenInner() {
                       excluded={excludeFornitori} onToggle={() => setExcludeFornitori(!excludeFornitori)}
                       icon="storefront-outline" iconColor="#1A4040"
                     />
+
+                    {/* ═══ Round 66 — FORN. SPESA RIPART. (collassabile) ═══
+                        Mostra SOLO le ripartite categoria='fornitore' del periodo.
+                        Click sulla riga → toggle del dropdown con i singoli items.
+                        I checkbox dei singoli items rispettano excludeFornitoreScad. */}
+                    {(() => {
+                      const fornItems = fornitoriScadenze.items.filter((it) => it.categoria === 'fornitore');
+                      if (fornItems.length === 0) return null;
+                      const totFornRip = fornItems.reduce((s, it) => {
+                        const ex = excludeFornitoreScad[it.key];
+                        const isEx = ex !== undefined ? ex : !it.inPeriod;
+                        return s + (isEx ? 0 : it.importo);
+                      }, 0);
+                      const fmt = (iso: string) => {
+                        if (!iso) return '—';
+                        const [, m, d] = iso.split('-');
+                        return `${d}/${m}`;
+                      };
+                      return (
+                        <View>
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => setShowFornRipart((p) => !p)}
+                            style={{
+                              flexDirection: 'row', alignItems: 'center',
+                              paddingVertical: 12, paddingHorizontal: 12,
+                              backgroundColor: '#F5F1E8', borderRadius: 12,
+                              marginVertical: 4,
+                              borderLeftWidth: 3, borderLeftColor: '#1E7F85',
+                            }}
+                          >
+                            <Ionicons name="layers-outline" size={18} color="#1E7F85" />
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A3535', marginLeft: 10, flex: 1 }}>
+                              FORN. SPESA RIPART.
+                            </Text>
+                            <Text style={{ fontSize: 14, fontWeight: '900', color: '#1A3535', marginRight: 8 }}>
+                              €{Math.round(totFornRip)}
+                            </Text>
+                            <Ionicons name={showFornRipart ? 'chevron-up' : 'chevron-down'} size={18} color="#1E7F85" />
+                          </TouchableOpacity>
+                          {showFornRipart && (
+                            <View style={{ marginLeft: 12 }}>
+                              {fornItems.map((it) => {
+                                const userExcluded = excludeFornitoreScad[it.key];
+                                const isExcluded = userExcluded !== undefined ? userExcluded : !it.inPeriod;
+                                return (
+                                  <NettoRow
+                                    key={it.key}
+                                    label={it.nome}
+                                    value={Math.round(it.importo)}
+                                    excluded={isExcluded}
+                                    onToggle={() => setExcludeFornitoreScad({
+                                      ...excludeFornitoreScad,
+                                      [it.key]: !isExcluded,
+                                    })}
+                                    icon="calendar-outline"
+                                    iconColor={it.type === 'WEEKLY' ? '#1E7F85' : '#8B6914'}
+                                    hint={`📅 Comprata il ${fmt(it.dataAcquisto)} — scalata il ${fmt(it.dataStorno)}${!it.inPeriod ? ' (fuori periodo)' : ''}`}
+                                  />
+                                );
+                              })}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })()}
+
                     <NettoRow
                       label="INVENDUTO" value={invendutoSum}
                       excluded={excludeInvenduto} onToggle={() => setExcludeInvenduto(!excludeInvenduto)}
@@ -2629,55 +2741,59 @@ function StatsScreenInner() {
                       icon="car-outline" iconColor="#5A7575"
                     />
 
-                    {/* ═══ Round 60+61 — FORNITORI A SCADENZA (CUSTOM/WEEKLY/MONTHLY) ═══
-                        Mostrati come voci INDIVIDUALI con info data acquisto +
-                        data storno. Default escluso se la dataStorno cade FUORI
-                        dal periodo visualizzato. L'utente può flaggare manualmente. */}
-                    {fornitoriScadenze.items.length > 0 && (
-                      <>
-                        <View style={{ marginTop: 14, marginBottom: 6 }}>
-                          <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.6 }}>
-                            SPESE RIPARTITE
-                          </Text>
-                        </View>
-                        {/* ═══ Round 61 — ALERT VISIVO con totale promemoria ═══ */}
-                        {fornitoriScadenze.totPromemoria > 0 && (
-                          <View style={{
-                            backgroundColor: '#FFF8E6', borderRadius: 10,
-                            borderLeftWidth: 3, borderLeftColor: '#D4AF37',
-                            padding: 10, marginBottom: 8,
-                          }}>
-                            <Text style={{ fontSize: 11, color: '#5A4A1F', lineHeight: 16 }}>
-                              ⚠️ È presente una spesa di <Text style={{ fontWeight: '900' }}>€{fornitoriScadenze.totPromemoria}</Text> che verrà decurtata dall'incasso del periodo stabilito (settimanale o altro), non rimossa dall'incasso giornaliero.
+                    {/* ═══ Round 60+61+66 — SPESE RIPARTITE (solo voci, non fornitori) ═══
+                        Le ripartite di tipo `categoria='fornitore'` sono già nel
+                        dropdown "FORN. SPESA RIPART." sopra. Qui mostriamo solo
+                        le voci generiche (es. "Dolci Palermo", "Caffè bar"). */}
+                    {(() => {
+                      const vociItems = fornitoriScadenze.items.filter((it) => it.categoria !== 'fornitore');
+                      if (vociItems.length === 0) return null;
+                      const totPromemoriaVoci = vociItems.filter((it) => !it.inPeriod).reduce((s, it) => s + it.importo, 0);
+                      return (
+                        <>
+                          <View style={{ marginTop: 14, marginBottom: 6 }}>
+                            <Text style={{ fontSize: 10, fontWeight: '900', color: '#7A9090', letterSpacing: 0.6 }}>
+                              SPESE RIPARTITE
                             </Text>
                           </View>
-                        )}
-                        {fornitoriScadenze.items.map((it) => {
-                          const userExcluded = excludeFornitoreScad[it.key];
-                          const isExcluded = userExcluded !== undefined ? userExcluded : !it.inPeriod;
-                          const fmt = (iso: string) => {
-                            if (!iso) return '—';
-                            const [, m, d] = iso.split('-');
-                            return `${d}/${m}`;
-                          };
-                          return (
-                            <NettoRow
-                              key={it.key}
-                              label={it.nome}
-                              value={Math.round(it.importo)}
-                              excluded={isExcluded}
-                              onToggle={() => setExcludeFornitoreScad({
-                                ...excludeFornitoreScad,
-                                [it.key]: !isExcluded,
-                              })}
-                              icon="calendar-outline"
-                              iconColor={it.type === 'WEEKLY' ? '#1E7F85' : '#8B6914'}
-                              hint={`📅 Comprata il ${fmt(it.dataAcquisto)} — scalata il ${fmt(it.dataStorno)}${!it.inPeriod ? ' (fuori periodo)' : ''}`}
-                            />
-                          );
-                        })}
-                      </>
-                    )}
+                          {totPromemoriaVoci > 0 && (
+                            <View style={{
+                              backgroundColor: '#FFF8E6', borderRadius: 10,
+                              borderLeftWidth: 3, borderLeftColor: '#D4AF37',
+                              padding: 10, marginBottom: 8,
+                            }}>
+                              <Text style={{ fontSize: 11, color: '#5A4A1F', lineHeight: 16 }}>
+                                ⚠️ È presente una spesa di <Text style={{ fontWeight: '900' }}>€{Math.round(totPromemoriaVoci)}</Text> che verrà decurtata dall'incasso del periodo stabilito (settimanale o altro), non rimossa dall'incasso giornaliero.
+                              </Text>
+                            </View>
+                          )}
+                          {vociItems.map((it) => {
+                            const userExcluded = excludeFornitoreScad[it.key];
+                            const isExcluded = userExcluded !== undefined ? userExcluded : !it.inPeriod;
+                            const fmt = (iso: string) => {
+                              if (!iso) return '—';
+                              const [, m, d] = iso.split('-');
+                              return `${d}/${m}`;
+                            };
+                            return (
+                              <NettoRow
+                                key={it.key}
+                                label={it.nome}
+                                value={Math.round(it.importo)}
+                                excluded={isExcluded}
+                                onToggle={() => setExcludeFornitoreScad({
+                                  ...excludeFornitoreScad,
+                                  [it.key]: !isExcluded,
+                                })}
+                                icon="calendar-outline"
+                                iconColor={it.type === 'WEEKLY' ? '#1E7F85' : '#8B6914'}
+                                hint={`📅 Comprata il ${fmt(it.dataAcquisto)} — scalata il ${fmt(it.dataStorno)}${!it.inPeriod ? ' (fuori periodo)' : ''}`}
+                              />
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
                   </>
                 );
               })()}

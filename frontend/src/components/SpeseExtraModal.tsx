@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MiniMonthCalendar } from './MiniMonthCalendar';
 import { useTranslation } from 'react-i18next';
 import { RangePickerModal, type RangeResult } from './RangePickerModal';
+// Round 66 — utility condivisa per filtrare le spese ripartite per periodo
+import { getWeekBoundaries, isSpesaInPeriodo } from '../utils/calcoli';
 
 interface Fornitore {
   nome: string;
@@ -324,21 +326,20 @@ export const SpeseExtraModal: React.FC<Props> = ({
             </View>
           </View>
 
-          {/* ═══ Round 65 — TOTALE + SPESE RIPARTITE UNIFICATI ═══
+          {/* ═══ Round 65+66 — TOTALE + SPESE RIPARTITE UNIFICATI ═══
               Un unico "pulsante" composito con due righe:
                 • Riga 1 → "Totale del giorno: €{tot}"
                 • Riga 2 → "Spese ripartite: €{spese}" + freccia per espandere
               Click sul pulsante = toggle dell'accordion dettaglio.
               Se NON ci sono spese ripartite attive oggi, mostra solo la
               Riga 1 (come prima del Round 65) senza essere clickabile.
-              Filtro per "spese non scadute": from <= dataCorrente <= to.
-              Round 65 — fix: voci che superano `to` non vengono mostrate. */}
+              Round 66 — REGOLA B (utente confermata): mostra ripartite
+              RILEVANTI per la SETTIMANA corrente (Lun-Dom di dataCorrente),
+              filtrate da `isSpesaInPeriodo`: acquistate o scalate in settimana. */}
           {(() => {
-            const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const todayIso = dataCorrente ? isoOf(dataCorrente) : '';
-            const active = (dataCorrente && Array.isArray(spesePeriodiche))
-              ? spesePeriodiche.filter((sp: any) => sp.from <= todayIso && todayIso <= sp.to)
-              : [];
+            const week = dataCorrente ? getWeekBoundaries(dataCorrente) : { from: '', to: '' };
+            const active = (Array.isArray(spesePeriodiche) ? spesePeriodiche : [])
+              .filter((sp: any) => isSpesaInPeriodo(sp, week.from, week.to));
             const totSum = active.reduce((s: number, sp: any) => s + (Number(sp.importo) || 0), 0);
             const fmt = (iso: string) => {
               if (!iso) return '—';
