@@ -324,66 +324,71 @@ export const SpeseExtraModal: React.FC<Props> = ({
             </View>
           </View>
 
-          <View style={st.totalRow}>
-            <Text style={st.totalLabel}>Totale del giorno:</Text>
-            <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(0)}</Text>
-          </View>
-
-          {/* ═══ Round 61 + 63 — PROMEMORIA SPESE RIPARTITE ATTIVE (ACCORDION) ═══
-              Mostra TUTTE le spese in `spesePeriodiche` il cui range
-              [from..to] include `dataCorrente`. Questo NON intacca il
-              totale del giorno: è solo un promemoria visivo.
-              Round 63: trasformato in ACCORDION compatto perché in app
-              con tanti fornitori periodici la lista copriva tutto lo
-              schermo. Header sempre visibile, dettaglio espandibile. */}
+          {/* ═══ Round 65 — TOTALE + SPESE RIPARTITE UNIFICATI ═══
+              Un unico "pulsante" composito con due righe:
+                • Riga 1 → "Totale del giorno: €{tot}"
+                • Riga 2 → "Spese ripartite: €{spese}" + freccia per espandere
+              Click sul pulsante = toggle dell'accordion dettaglio.
+              Se NON ci sono spese ripartite attive oggi, mostra solo la
+              Riga 1 (come prima del Round 65) senza essere clickabile.
+              Filtro per "spese non scadute": from <= dataCorrente <= to.
+              Round 65 — fix: voci che superano `to` non vengono mostrate. */}
           {(() => {
-            if (!dataCorrente || !Array.isArray(spesePeriodiche) || spesePeriodiche.length === 0) return null;
             const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const todayIso = isoOf(dataCorrente);
-            const active = spesePeriodiche.filter((sp: any) => sp.from <= todayIso && todayIso <= sp.to);
-            if (active.length === 0) return null;
+            const todayIso = dataCorrente ? isoOf(dataCorrente) : '';
+            const active = (dataCorrente && Array.isArray(spesePeriodiche))
+              ? spesePeriodiche.filter((sp: any) => sp.from <= todayIso && todayIso <= sp.to)
+              : [];
             const totSum = active.reduce((s: number, sp: any) => s + (Number(sp.importo) || 0), 0);
             const fmt = (iso: string) => {
               if (!iso) return '—';
               const [, m, d] = iso.split('-');
               return `${d}/${m}`;
             };
+            const hasRip = active.length > 0;
             return (
-              <View style={{
-                marginHorizontal: 16, marginTop: -4, marginBottom: 10,
-                backgroundColor: '#EAF7F8',
-                borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#1E7F85',
-              }}>
-                {/* Header sempre visibile */}
+              <View style={st.totalRowWrap}>
                 <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setSpeseRipartiteOpen((p) => !p)}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 6,
-                    paddingHorizontal: 12, paddingVertical: 10,
-                  }}
+                  activeOpacity={hasRip ? 0.6 : 1}
+                  disabled={!hasRip}
+                  onPress={() => { if (hasRip) setSpeseRipartiteOpen((p) => !p); }}
+                  style={[st.totalRow, hasRip && st.totalRowClickable]}
                 >
-                  <Ionicons name="time-outline" size={14} color="#1E7F85" />
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#1A4040', letterSpacing: 0.5, flex: 1 }}>
-                    SPESE RIPARTITE: € {totSum.toFixed(0)} ({active.length} {active.length === 1 ? 'voce' : 'voci'})
-                  </Text>
-                  <Ionicons
-                    name={speseRipartiteOpen ? 'chevron-up' : 'chevron-down'}
-                    size={16} color="#1E7F85"
-                  />
+                  {/* RIGA 1 — Totale del giorno */}
+                  <View style={st.totalRowLine}>
+                    <Text style={st.totalLabel}>Totale del giorno:</Text>
+                    <Text style={st.totalVal}>{'\u20AC'}{getTotale().toFixed(0)}</Text>
+                  </View>
+                  {/* RIGA 2 — Spese ripartite (solo se ci sono attive) */}
+                  {hasRip && (
+                    <View style={st.totalRowLine2}>
+                      <Ionicons name="time-outline" size={13} color="#1E7F85" />
+                      <Text style={st.totalRipLabel}>
+                        Spese ripartite: {'\u20AC'}{totSum.toFixed(0)}
+                        <Text style={st.totalRipCount}> ({active.length} {active.length === 1 ? 'voce' : 'voci'})</Text>
+                      </Text>
+                      <Ionicons
+                        name={speseRipartiteOpen ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color="#1E7F85"
+                        style={{ marginLeft: 'auto' }}
+                      />
+                    </View>
+                  )}
                 </TouchableOpacity>
-                {/* Dettaglio scrollable solo se espanso */}
-                {speseRipartiteOpen && (
-                  <View style={{ paddingHorizontal: 12, paddingBottom: 12, maxHeight: 160 }}>
-                    <ScrollView showsVerticalScrollIndicator={true} nestedScrollEnabled>
+
+                {/* DETTAGLIO espandibile */}
+                {hasRip && speseRipartiteOpen && (
+                  <View style={st.totalRipDetail}>
+                    <ScrollView showsVerticalScrollIndicator={true} nestedScrollEnabled style={{ maxHeight: 160 }}>
                       {active.map((sp: any) => (
-                        <Text key={sp.id} style={{ fontSize: 11, color: '#1A4040', lineHeight: 16, paddingVertical: 2 }}>
+                        <Text key={sp.id} style={st.totalRipDetailItem}>
                           <Text style={{ fontWeight: '900' }}>{sp.nome}</Text>{' '}
-                          €{Number(sp.importo).toFixed(0)} (dal {fmt(sp.from)} al {fmt(sp.to)})
+                          {'\u20AC'}{Number(sp.importo).toFixed(0)} (dal {fmt(sp.from)} al {fmt(sp.to)})
                         </Text>
                       ))}
                     </ScrollView>
-                    <Text style={{ fontSize: 10, color: '#5A7575', fontStyle: 'italic', marginTop: 6 }}>
+                    <Text style={st.totalRipDetailHint}>
                       ⚠️ Questa cifra andrà tolta dall'incasso complessivo del periodo stabilito, non dal singolo giorno.
                     </Text>
                   </View>
@@ -1165,14 +1170,42 @@ const st = StyleSheet.create({
   handle: { width: 40, height: 4, backgroundColor: '#B0C4BC', borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   title: { fontSize: 16, fontWeight: '900', color: '#1A4040', letterSpacing: 1.5 },
+  totalRowWrap: { marginBottom: 16 },
   totalRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 14, marginBottom: 16,
+    backgroundColor: '#EDE8DA', borderRadius: 14, padding: 14,
     // @ts-ignore
     boxShadow: '6px 6px 14px rgba(160,150,130,0.5), -5px -5px 12px rgba(255,255,250,0.95)',
   },
+  totalRowClickable: {
+    // Quando ci sono spese ripartite, il pulsante è ATTIVO (tap → toggle dettaglio)
+    borderLeftWidth: 3, borderLeftColor: '#1E7F85',
+  },
+  totalRowLine: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  totalRowLine2: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 8, paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#C9C4B6',
+  },
   totalLabel: { fontSize: 11, fontWeight: '700', color: '#5A7575' },
   totalVal: { fontSize: 18, fontWeight: '900', color: '#1A3535' },
+  totalRipLabel: {
+    fontSize: 11, fontWeight: '800', color: '#1A4040', letterSpacing: 0.3,
+  },
+  totalRipCount: { fontSize: 10, fontWeight: '600', color: '#5A7575' },
+  totalRipDetail: {
+    backgroundColor: '#EAF7F8', borderRadius: 12,
+    borderLeftWidth: 3, borderLeftColor: '#1E7F85',
+    paddingHorizontal: 12, paddingVertical: 10, marginTop: -8,
+    marginBottom: 0,
+  },
+  totalRipDetailItem: {
+    fontSize: 11, color: '#1A4040', lineHeight: 16, paddingVertical: 2,
+  },
+  totalRipDetailHint: {
+    fontSize: 10, color: '#5A7575', fontStyle: 'italic', marginTop: 6,
+  },
   sectionTitle: { fontSize: 10, fontWeight: '800', color: '#5A7575', letterSpacing: 1.5, marginTop: 12, marginBottom: 8 },
   card: {
     backgroundColor: '#EDE8DA', borderRadius: 14, padding: 14, marginBottom: 10,

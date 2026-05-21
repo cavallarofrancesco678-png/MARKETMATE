@@ -128,7 +128,12 @@ export default function HomeScreen() {
     const updated = (cur.fornitori || []).map((f: any) => {
       const newMode = v[f.nome];
       if (!newMode) return f;
-      const normalized: 'DAILY' | 'CUSTOM' = newMode === 'DAILY' ? 'DAILY' : 'CUSTOM';
+      // Round 65: il supplier-level ora supporta DAILY | CUSTOM | WEEKLY.
+      // MONTHLY (legacy) → CUSTOM 30g (gestito al save).
+      const normalized: 'DAILY' | 'CUSTOM' | 'WEEKLY' =
+        newMode === 'DAILY' ? 'DAILY'
+        : newMode === 'WEEKLY' ? 'WEEKLY'
+        : 'CUSTOM';
       if (f.deductionMode === normalized) return f;
       return { ...f, deductionMode: normalized };
     });
@@ -325,7 +330,7 @@ export default function HomeScreen() {
   useEffect(() => {
     try {
       const fList = (store.fornitori as any[]) || [];
-      const dedMap: Record<string, 'DAILY' | 'CUSTOM'> = {};
+      const dedMap: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY'> = {};
       const daysMap: Record<string, number> = {};
       const startDateMap: Record<string, string> = {};
       fList.forEach((f) => {
@@ -468,24 +473,27 @@ export default function HomeScreen() {
       // Carica fornitori info (numero fattura + scadenza)
       setFornInfo((saved as any).fornitoriInfo || {});
       // Carica deduction type per fornitore + giorni custom (default DAILY)
-      // Backwards-compat: se ci sono valori legacy 'WEEKLY'/'MONTHLY', li
-      // mappiamo a CUSTOM 7g/30g e li reinvieremo aggiornati al prossimo save.
+      // Round 65: WEEKLY torna a essere un valore VALIDO di prim'ordine
+      // (l'utente lo seleziona dal pulsante "Settimanale"). Solo MONTHLY
+      // legacy viene convertito a CUSTOM/30g.
       const savedDed = (saved as any).dettaglio_fornitori_deduction || {};
       const savedDays = (saved as any).dettaglio_fornitori_days || {};
-      const migratedDed: Record<string, 'DAILY' | 'CUSTOM'> = {};
+      const migratedDed: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY'> = {};
       const migratedDays: Record<string, number> = { ...savedDays };
       Object.entries(savedDed).forEach(([nome, mode]) => {
         if (mode === 'WEEKLY') {
-          migratedDed[nome] = 'CUSTOM';
+          migratedDed[nome] = 'WEEKLY';
           if (!migratedDays[nome]) migratedDays[nome] = 7;
         } else if (mode === 'MONTHLY') {
           migratedDed[nome] = 'CUSTOM';
           if (!migratedDays[nome]) migratedDays[nome] = 30;
+        } else if (mode === 'CUSTOM') {
+          migratedDed[nome] = 'CUSTOM';
         } else {
-          migratedDed[nome] = (mode === 'CUSTOM' ? 'CUSTOM' : 'DAILY');
+          migratedDed[nome] = 'DAILY';
         }
       });
-      setFornDeductionType(migratedDed);
+      setFornDeductionType(migratedDed as any);
       setFornDeductionDays(migratedDays);
       // Round 45: carica anche lo snapshot startDate per ogni fornitore
       const savedStartDate = (saved as any).dettaglio_fornitori_startDate || {};
@@ -501,7 +509,8 @@ export default function HomeScreen() {
       // le giornate (anche già salvate) vengono ricalcolate con 3 giorni.
       try {
         const fList = (useAppStore.getState() as any).fornitori || [];
-        const fornDedFromSupplier: Record<string, 'DAILY' | 'CUSTOM'> = {};
+        // Round 65: il supplier-level ora supporta WEEKLY
+        const fornDedFromSupplier: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY'> = {};
         const fornDaysFromSupplier: Record<string, number> = {};
         fList.forEach((f: any) => {
           if (!f || !f.nome) return;
@@ -554,11 +563,14 @@ export default function HomeScreen() {
               return next;
             });
             // Sincronizza type/days/startDate
-            const dedUpd: Record<string, 'DAILY' | 'CUSTOM'> = {};
+            // Round 65: usa il `type` salvato (WEEKLY/CUSTOM) invece di forzare CUSTOM,
+            // così il pulsante "Settimanale" resta evidenziato all'apertura della modal.
+            const dedUpd: Record<string, 'DAILY' | 'CUSTOM' | 'WEEKLY'> = {};
             const daysUpd: Record<string, number> = {};
             const startUpd: Record<string, string> = {};
             fornPeriodiciOggi.forEach((sp: any) => {
-              dedUpd[sp.nome] = 'CUSTOM';
+              const tp = (sp.type === 'WEEKLY' ? 'WEEKLY' : 'CUSTOM') as 'WEEKLY' | 'CUSTOM';
+              dedUpd[sp.nome] = tp;
               const from = new Date(sp.from + 'T00:00:00');
               const to = new Date(sp.to + 'T00:00:00');
               const dd = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);

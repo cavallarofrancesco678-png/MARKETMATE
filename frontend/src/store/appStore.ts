@@ -107,8 +107,13 @@ export interface Fornitore {
    * stats.tsx legge sempre il valore attuale qui dentro, non lo
    * snapshot della singola giornata.
    */
-  deductionMode?: 'DAILY' | 'CUSTOM';
-  /** Numero di giorni del periodo personalizzato (solo se deductionMode='CUSTOM'). Default 7. */
+  /**
+   * Round 65: aggiunto WEEKLY come modalità di prim'ordine (oltre a DAILY/CUSTOM).
+   * Il pulsante "Settimanale" del modal SpeseExtra ora salva qui WEEKLY e
+   * resta evidenziato al reload (prima veniva mappato a CUSTOM).
+   */
+  deductionMode?: 'DAILY' | 'CUSTOM' | 'WEEKLY';
+  /** Numero di giorni del periodo personalizzato (CUSTOM=user-set, WEEKLY=7). Default 7. */
   deductionDays?: number;
   /**
    * Data di inizio del periodo CUSTOM ('YYYY-MM-DD').
