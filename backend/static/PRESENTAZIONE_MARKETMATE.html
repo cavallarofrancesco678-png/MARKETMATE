@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>MarketMate — Presentazione</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #1A3535;
+    line-height: 1.55;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 32px 28px;
+    background: #FDFBF6;
+  }
+  .cover {
+    text-align: center;
+    padding: 40px 0 24px;
+    border-bottom: 3px solid #1E7F85;
+    margin-bottom: 32px;
+    page-break-after: always;
+  }
+  .cover h1 {
+    font-size: 56px;
+    font-weight: 900;
+    color: #1E7F85;
+    margin: 0;
+    letter-spacing: -1.5px;
+  }
+  .cover .tagline {
+    font-size: 20px;
+    color: #5A7575;
+    margin-top: 12px;
+    font-weight: 300;
+  }
+  .cover .date {
+    font-size: 12px;
+    color: #8B8B8B;
+    margin-top: 40px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  h2 {
+    font-size: 26px;
+    color: #1E7F85;
+    border-left: 5px solid #D2691E;
+    padding-left: 14px;
+    margin-top: 36px;
+    margin-bottom: 14px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 17px;
+    color: #1A3535;
+    margin-top: 22px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+  }
+  h3::before {
+    content: "▶ ";
+    color: #D2691E;
+    margin-right: 4px;
+  }
+  p { margin: 8px 0; font-size: 13px; }
+  ul { margin: 6px 0 14px 0; padding-left: 22px; font-size: 13px; }
+  li { margin-bottom: 4px; }
+  .highlight {
+    background: linear-gradient(transparent 60%, #FFE9B8 60%);
+    font-weight: 700;
+  }
+  .card {
+    background: #F5F1E8;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    border-left: 4px solid #1E7F85;
+    page-break-inside: avoid;
+  }
+  .problem {
+    background: #FFF0F0;
+    border-left-color: #D46A6A;
+  }
+  .solution {
+    background: #EAF7F8;
+    border-left-color: #1E7F85;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 12px;
+    page-break-inside: avoid;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid #DCD5C4;
+  }
+  th {
+    background: #1E7F85;
+    color: white;
+    font-weight: 700;
+  }
+  tr:nth-child(even) td { background: #F5F1E8; }
+  .feature-num {
+    display: inline-block;
+    background: #1E7F85;
+    color: white;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 26px;
+    font-weight: 700;
+    margin-right: 8px;
+    font-size: 13px;
+  }
+  .quote {
+    font-style: italic;
+    color: #5A7575;
+    text-align: center;
+    margin: 22px 0;
+    font-size: 14px;
+  }
+  .footer {
+    border-top: 2px solid #DCD5C4;
+    margin-top: 40px;
+    padding-top: 14px;
+    text-align: center;
+    font-size: 11px;
+    color: #8B8B8B;
+  }
+  @media print {
+    body { background: white; padding: 0; }
+    .card { background: #F5F1E8 !important; -webkit-print-color-adjust: exact; }
+    th { background: #1E7F85 !important; color: white !important; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>MarketMate</h1>
+  <p class="tagline">L'app gestionale per ambulanti, fieristi<br>e operatori dei mercati</p>
+  <p class="date">PRESENTAZIONE — MAGGIO 2026</p>
+</div>
+
+<h2>Il Problema</h2>
+<div class="card problem">
+  <p>Migliaia di operatori italiani vivono di mercati settimanali, fiere e vendita ambulante.
+  Ogni giorno gestiscono <span class="highlight">decine di transazioni in contanti</span>, fornitori multipli, spese ricorrenti e trasferte.</p>
+  <p>Eppure, <span class="highlight">la stragrande maggioranza usa ancora carta e penna</span> o, al massimo, un foglio Excel improvvisato.</p>
+  <p><strong>Risultato:</strong></p>
+  <ul>
+    <li>Bilanci approssimativi, redditività reale sconosciuta</li>
+    <li>Spese fisse "dimenticate" che erodono il profitto</li>
+    <li>Impossibile capire se un mercato/fornitore è davvero conveniente</li>
+    <li>Stress al commercialista per ricostruire i conti a fine anno</li>
+  </ul>
+</div>
+
+<h2>La Soluzione</h2>
+<div class="card solution">
+  <p><strong>MarketMate</strong> è la prima app mobile (iOS + Android) pensata su misura per chi vive <span class="highlight">giorno per giorno tra mercati e fiere</span>.</p>
+  <p>Una sola schermata, <strong>30 secondi al giorno</strong>, e l'attività è sotto controllo:
+  incasso, costi, utile reale, andamento storico, statistiche avanzate.</p>
+  <p>Nessun corso da fare. Nessun PC. <strong>Solo il telefono che hai già in tasca.</strong></p>
+</div>
+
+<h2>Funzioni Principali</h2>
+
+<h3><span class="feature-num">1</span>Agenda Settimanale Intelligente</h3>
+<ul>
+  <li>Tutti i giorni della settimana mappati: per ogni giorno il <strong>mercato di riferimento</strong>, i km da percorrere, il plateatico (giornaliero o annuo).</li>
+  <li>Identifica automaticamente il mercato di <strong>oggi</strong>: l'app sa già dove sei, cosa stai facendo e quanto ti sta costando.</li>
+  <li>Gestione <strong>Fiere</strong> separata dai mercati ricorrenti.</li>
+</ul>
+
+<h3><span class="feature-num">2</span>Home Giornaliera "One-Tap"</h3>
+<ul>
+  <li>Inserisci il <strong>lordo</strong> della giornata in 3 secondi.</li>
+  <li>Separazione automatica <strong>Contanti / POS</strong> con calcolo immediato.</li>
+  <li>L'<strong>utile reale</strong> del giorno calcolato in tempo reale al netto di:
+    quota giornaliera spese fisse, carburante, collaboratori, fornitori, spese extra, invenduto.</li>
+</ul>
+
+<h3><span class="feature-num">3</span>Spese Ripartite — La funzione esclusiva di MarketMate</h3>
+<div class="card solution">
+  <p><strong>Concetto rivoluzionario:</strong> hai speso €200 di pane lunedì che vendi nell'arco di 7 giorni?
+  MarketMate <span class="highlight">distribuisce automaticamente quel costo sui 7 giorni</span>, così l'utile giornaliero è realistico e non distorto dal singolo acquisto.</p>
+</div>
+<ul>
+  <li>Tre modalità: <strong>Oggi</strong> (default), <strong>Settimanale</strong> (Lun-Dom), <strong>Personalizzata</strong> (range a scelta).</li>
+  <li>Funziona sia per fornitori che per voci generiche.</li>
+  <li>Filtro automatico per periodo: vedi solo le spese rilevanti per la settimana/mese che stai analizzando.</li>
+</ul>
+
+<h3><span class="feature-num">4</span>Gestione Fornitori Completa</h3>
+<ul>
+  <li>Rubrica con prodotti, ricarico medio, modalità pagamento (Contanti / Fattura / Misto).</li>
+  <li>Tracciamento <strong>fatture in scadenza</strong> con promemoria.</li>
+  <li>Storico acquisti per fornitore: scopri chi ti fa risparmiare di più.</li>
+</ul>
+
+<h3><span class="feature-num">5</span>Collaboratori / Staff</h3>
+<ul>
+  <li>Anagrafica con costo orario.</li>
+  <li>Presenze giornaliere con un tocco.</li>
+  <li>Calcolo automatico costo manodopera integrato nell'utile.</li>
+</ul>
+
+<h3><span class="feature-num">6</span>Statistiche Avanzate</h3>
+<p>Filtri temporali: <strong>Oggi / Ieri / Settimana / Mese / Anno / Anno precedente / Personalizzato</strong>. Filtri per giorno (LUN, MAR, ...) e per Fiere.</p>
+<ul>
+  <li>Grafici Lordo vs Netto, Cash vs POS, Spese fisse vs straordinarie</li>
+  <li>Top fornitori per spesa, andamento collaboratori, invenduto per categoria</li>
+  <li>Statistica meteo (giorni di sole / pioggia → impatto sull'incasso)</li>
+</ul>
+
+<h3><span class="feature-num">7</span>Calcolo Netto Interattivo</h3>
+<div class="card">
+  <p>Il <strong>vero "cervello" di MarketMate</strong>: un modal in cui l'utente vede l'incasso lordo e può
+  <span class="highlight">escludere/includere ogni categoria di costo in tempo reale</span>, capendo subito
+  <em>"quanto guadagno davvero questa settimana SENZA contare il carburante? E SENZA i collaboratori?"</em>.</p>
+</div>
+
+<h3><span class="feature-num">8</span>Assistente AI Integrato (GPT-4.1)</h3>
+<ul>
+  <li>"Buongiorno" personalizzato che cita dati reali dell'attività</li>
+  <li>L'utente può chiedere all'AI: <em>"Come miglioro l'incasso del sabato?"</em></li>
+  <li>L'AI risponde leggendo i <strong>dati reali</strong> dell'app, non risposte generiche.</li>
+</ul>
+
+<h3><span class="feature-num">9</span>Meteo Integrato</h3>
+<ul>
+  <li>Previsione automatica del mercato di oggi/domani.</li>
+  <li>Statistica storica: <em>"i giorni di pioggia incassi -30%"</em> — l'app te lo dice.</li>
+</ul>
+
+<h3><span class="feature-num">10</span>Collaborazione Team (Hybrid Cloud Sync)</h3>
+<ul>
+  <li>Codice di invito a <strong>6 caratteri</strong> per aggiungere collaboratori.</li>
+  <li>Ruoli differenziati: <strong>Amministratore</strong> / <strong>Collaboratore</strong>.</li>
+  <li>Sincronizzazione automatica + funzionamento offline garantito.</li>
+</ul>
+
+<h3><span class="feature-num">11</span>Promemoria, Diario di Bordo & Privacy</h3>
+<ul>
+  <li>Agenda integrata, scadenze fatture, notifiche push.</li>
+  <li>Storico completo navigabile: cosa è successo il 15 marzo dell'anno scorso?</li>
+  <li>Dati salvati <strong>localmente</strong> (cifrati), sync cloud opzionale crittografata. Nessun dato venduto a terzi.</li>
+</ul>
+
+<h2>Vantaggi Competitivi</h2>
+<table>
+  <thead>
+    <tr><th>Aspetto</th><th>App generaliste</th><th>MarketMate</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Conosce il mondo "mercati"</td><td>No</td><td><strong>Sì, nativamente</strong></td></tr>
+    <tr><td>Plateatico, fiere, km giornalieri</td><td>Da configurare a mano</td><td><strong>Pre-impostati</strong></td></tr>
+    <tr><td>Spese ripartite su periodo</td><td>Non esistono</td><td><strong>Esclusive MarketMate</strong></td></tr>
+    <tr><td>AI con dati reali</td><td>Generica</td><td><strong>Personalizzata</strong></td></tr>
+    <tr><td>Funziona offline</td><td>Raramente</td><td><strong>Sempre</strong></td></tr>
+    <tr><td>UX per smartphone in piazza</td><td>Desktop-first</td><td><strong>Mobile-first</strong></td></tr>
+    <tr><td>Made in Italy</td><td>Tradotto male</td><td><strong>Nato in italiano</strong></td></tr>
+  </tbody>
+</table>
+
+<h2>Potenzialità — Dove può arrivare</h2>
+
+<h3>A breve termine (già in roadmap)</h3>
+<ul>
+  <li>Sottoscrizioni Stripe: piano Free e Premium (multi-utente, AI avanzata, export commercialista).</li>
+  <li>Sistema referral & premi: porta un amico, sblocca mesi gratis.</li>
+  <li>Export PDF/Excel automatico per il commercialista.</li>
+  <li>OCR scontrini fornitori.</li>
+  <li>Integrazione con cassetto fiscale / fattura elettronica passiva.</li>
+</ul>
+
+<h3>A medio termine</h3>
+<ul>
+  <li><strong>Marketplace fornitori:</strong> scopri fornitori della tua zona, confronta prezzi tra colleghi.</li>
+  <li><strong>Benchmarking anonimo:</strong> <em>"operatori come te incassano in media €X il sabato"</em>.</li>
+  <li><strong>AI predittiva:</strong> <em>"sabato pioverà, riduci ordine pane del 20%"</em>.</li>
+  <li>Modulo bilancio annuale per regime semplificato.</li>
+</ul>
+
+<h3>A lungo termine — La visione</h3>
+<div class="card">
+  <p>MarketMate non è "un'app per ambulanti". È la <span class="highlight">prima piattaforma SaaS verticale per il commercio itinerante in Italia</span>, un settore da decine di migliaia di operatori finora totalmente ignorato dal mondo digitale.</p>
+  <p>L'obiettivo è diventare lo <strong>standard de facto</strong> del settore — come Square e Toast lo sono per la ristorazione — e generare valore non solo dai canoni di sottoscrizione ma anche da:</p>
+  <ul>
+    <li>Insights aggregati anonimizzati per associazioni di categoria</li>
+    <li>Partnership con assicurazioni, POS, network di mercati</li>
+    <li>Espansione cross-border (Spagna, Francia, Germania)</li>
+  </ul>
+</div>
+
+<h2>Dati Tecnici</h2>
+<table>
+  <tbody>
+    <tr><td><strong>Piattaforme</strong></td><td>iOS + Android (codebase unico Expo / React Native)</td></tr>
+    <tr><td><strong>Backend</strong></td><td>FastAPI (Python) su cloud Kubernetes</td></tr>
+    <tr><td><strong>Database</strong></td><td>MongoDB</td></tr>
+    <tr><td><strong>AI</strong></td><td>GPT-4.1-mini via Emergent LLM Gateway</td></tr>
+    <tr><td><strong>Meteo</strong></td><td>Open-Meteo (gratuito, illimitato)</td></tr>
+    <tr><td><strong>Sicurezza</strong></td><td>AsyncStorage cifrato, JWT, HTTPS end-to-end</td></tr>
+    <tr><td><strong>Linee di codice</strong></td><td>~25.000 (frontend + backend)</td></tr>
+    <tr><td><strong>Test coverage</strong></td><td>100% sugli endpoint critici</td></tr>
+  </tbody>
+</table>
+
+<h2>Conclusione</h2>
+<div class="card solution">
+  <p>MarketMate trasforma uno <strong>smartphone</strong> in un <span class="highlight">commercialista in tasca</span> per chi vive del mercato.</p>
+  <p>In 30 secondi al giorno l'operatore sa:</p>
+  <ul>
+    <li>Quanto sta guadagnando <strong>davvero</strong></li>
+    <li>Quale giornata della settimana è più redditizia</li>
+    <li>Quale fornitore gli sta erodendo i margini</li>
+    <li>Quanto incasserà domani in base al meteo</li>
+  </ul>
+  <p><strong>Per la prima volta</strong>, il commercio ambulante italiano ha uno strumento digitale fatto su misura per come lavora davvero.</p>
+</div>
+
+<p class="quote">"Il tuo banco. I tuoi numeri. La tua libertà."</p>
+
+<div class="footer">
+  MarketMate — Versione Beta — Maggio 2026<br>
+  Presentazione preparata per la review del 26 maggio 2026
+</div>
+
+</body>
+</html>

@@ -887,6 +887,53 @@ async def get_weather(req: WeatherRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
+# ═══ PRESENTAZIONE MARKETMATE — Pubblicamente accessibile ═══
+# Pagina di presentazione del prodotto, pronta da stampare con Cmd+P / Ctrl+P.
+# URL: GET /api/presentazione         → HTML stilizzato (visualizzabile + stampabile)
+#      GET /api/presentazione/pdf     → download diretto del file HTML
+#      GET /api/presentazione/md      → download della versione Markdown
+@app.get("/api/presentazione", response_class=HTMLResponse)
+async def view_presentazione():
+    file_path = ROOT_DIR / "static" / "PRESENTAZIONE_MARKETMATE.html"
+    if not file_path.exists():
+        return HTMLResponse("<h1>Presentazione non trovata</h1>", status_code=404)
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        return HTMLResponse(content=html, status_code=200)
+    except Exception as e:
+        return HTMLResponse(f"<h1>Errore: {e}</h1>", status_code=500)
+
+@app.get("/api/presentazione/html")
+async def download_presentazione_html():
+    file_path = ROOT_DIR / "static" / "PRESENTAZIONE_MARKETMATE.html"
+    if not file_path.exists():
+        return {"error": "File non trovato"}
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/octet-stream",
+        filename="MarketMate-Presentazione.html",
+        headers={
+            "Content-Disposition": 'attachment; filename="MarketMate-Presentazione.html"',
+            "Cache-Control": "no-cache",
+        },
+    )
+
+@app.get("/api/presentazione/md")
+async def download_presentazione_md():
+    file_path = ROOT_DIR / "static" / "PRESENTAZIONE_MARKETMATE.md"
+    if not file_path.exists():
+        return {"error": "File non trovato"}
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/octet-stream",
+        filename="MarketMate-Presentazione.md",
+        headers={
+            "Content-Disposition": 'attachment; filename="MarketMate-Presentazione.md"',
+            "Cache-Control": "no-cache",
+        },
+    )
+
 # ═══ ENDPOINT BACKUP PERSONALE FRANCESCO ═══
 # File pre-confezionato con i dati di "Il Panivendolo" da scaricare e
 # importare nell'app pulita tramite "APRI BACKUP" → seleziona il file.
