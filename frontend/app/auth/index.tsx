@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../src/store/authStore';
+import { GoogleLoginButton } from '../../src/components/GoogleLoginButton';
 
 export default function AuthLanding() {
   const [mode, setMode] = useState<'choice' | 'login' | 'register' | 'invite'>('choice');
@@ -55,6 +56,12 @@ export default function AuthLanding() {
           {mode === 'choice' && (
             <View style={s.card}>
               <Text style={s.h2}>Scegli come accedere</Text>
+              {/* Round 67 — Google OAuth come opzione principale e veloce */}
+              <GoogleLoginButton
+                onSuccess={() => router.replace('/home')}
+                onError={(m) => setErr(m)}
+              />
+              <View style={s.divider}><Text style={s.dividerTxt}>oppure con email</Text></View>
               <TouchableOpacity style={s.primaryBtn} onPress={() => setMode('register')}>
                 <Ionicons name="person-add" size={18} color="#FFF" />
                 <Text style={s.primaryTxt}>CREA NUOVO ACCOUNT</Text>
@@ -69,6 +76,7 @@ export default function AuthLanding() {
                 <Text style={s.ghostTxt}>HO UN CODICE INVITO</Text>
               </TouchableOpacity>
               <Text style={s.helpTxt}>Il codice invito ti viene dato dal titolare dell'account.</Text>
+              {err ? <Text style={s.err}>{err}</Text> : null}
             </View>
           )}
 

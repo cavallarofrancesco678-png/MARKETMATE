@@ -12,6 +12,7 @@ import {
   Platform,
   StatusBar,
   Share as RNShare,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppStore, MercatoAgenda } from '../../src/store/appStore';
@@ -41,8 +42,66 @@ import { NotificationsCard } from '../../src/components/NotificationsCard';
 // AccountSection — Login/Register/Multi-user entrypoint
 // ═══════════════════════════════════════════════════════════════
 function AccountSection() {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, deleteAccount } = useAuthStore();
   const { t } = useTranslation();
+  const [deleting, setDeleting] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const wipeAllAppData = useAppStore((st) => (st as any).resetAll);
+
+  /* ═══ Round 67 — Cancellazione DEFINITIVA account (GDPR Art. 17 + Apple 5.1.1) ═══
+     Doppia conferma: prima conferma soft, poi modal con typing del testo
+     "ELIMINA" come safeguard contro click accidentali. */
+  const performDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const details = await deleteAccount();
+      // Pulisce anche i dati locali (Zustand + AsyncStorage)
+      try { if (typeof wipeAllAppData === 'function') await wipeAllAppData(); } catch {}
+      const msg = details?.is_owner
+        ? `Account eliminato. Rimossi ${details.collaborators_deleted} collaboratori e ${details.data_records_deleted} record dati.`
+        : 'Account collaboratore eliminato.';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Eliminato', msg);
+      }
+      // Reindirizza all'onboarding
+      router.replace('/');
+    } catch (e: any) {
+      const err = String(e?.message || e || 'Errore sconosciuto');
+      if (Platform.OS === 'web') {
+        window.alert('Errore: ' + err);
+      } else {
+        Alert.alert('Errore', err);
+      }
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const promptDeleteAccount = () => {
+    const isOwner = user?.role === 'owner';
+    const warningMsg = isOwner
+      ? 'ATTENZIONE: stai per eliminare DEFINITIVAMENTE il tuo account TITOLARE.\n\nVerranno cancellati:\n• Il tuo profilo\n• TUTTI i tuoi collaboratori\n• TUTTI i dati dell\'attività (storico, fornitori, fiere, statistiche)\n\nQuesta operazione è IRREVERSIBILE.'
+      : 'Stai per eliminare il tuo account collaboratore. I dati dell\'attività restano in capo al titolare.\n\nQuesta operazione è irreversibile.';
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(warningMsg + '\n\nProcedere con la richiesta?')) {
+        setShowDeleteConfirm(true);
+      }
+    } else {
+      Alert.alert(
+        '⚠️ Eliminare account?',
+        warningMsg,
+        [
+          { text: 'Annulla', style: 'cancel' },
+          { text: 'Procedi', style: 'destructive', onPress: () => setShowDeleteConfirm(true) },
+        ],
+      );
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <View style={[s.card, { marginTop: 20 }]}>
@@ -101,7 +160,133 @@ function AccountSection() {
         <Ionicons name="log-out" size={18} color="#D46A6A" />
         <Text style={{ color: '#D46A6A', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>ESCI DALL'ACCOUNT</Text>
       </TouchableOpacity>
+
+      {/* ═══ Round 67 — ELIMINA ACCOUNT (GDPR Art. 17) ═══ */}
+      <TouchableOpacity
+        style={{
+          marginTop: 10,
+          backgroundColor: '#FFEDE9',
+          borderRadius: 14,
+          paddingVertical: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          borderWidth: 1.5,
+          borderColor: '#D62828',
+        }}
+        onPress={promptDeleteAccount}
+        disabled={deleting}
+      >
+        <Ionicons name="trash" size={18} color="#D62828" />
+        <Text style={{ color: '#D62828', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>
+          ELIMINA ACCOUNT
+        </Text>
+      </TouchableOpacity>
+      <Text style={{ fontSize: 10, color: '#7A7A7A', textAlign: 'center', marginTop: 6, fontStyle: 'italic' }}>
+        Diritto all'oblio (GDPR Art. 17). Operazione irreversibile.
+      </Text>
+
+      {/* ═══ Modal CONFERMA FINALE con typing safeguard ═══ */}
+      <DeleteAccountConfirmModal
+        visible={showDeleteConfirm}
+        isOwner={isOwner}
+        deleting={deleting}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={performDeleteAccount}
+      />
     </View>
+  );
+}
+
+/* ═══ Round 67 — Modal di conferma con typing safeguard ═══
+   L'utente deve digitare "ELIMINA" per attivare il pulsante finale.
+   Previene click accidentali e segnala chiaramente l'irreversibilità. */
+function DeleteAccountConfirmModal(props: {
+  visible: boolean;
+  isOwner: boolean;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const [typed, setTyped] = React.useState('');
+  React.useEffect(() => { if (!props.visible) setTyped(''); }, [props.visible]);
+  const canConfirm = typed.trim().toUpperCase() === 'ELIMINA';
+
+  if (!props.visible) return null;
+  return (
+    <Modal transparent animationType="fade" visible={props.visible} onRequestClose={props.onCancel}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 }}>
+        <View style={{ backgroundColor: '#FFF', borderRadius: 18, padding: 22 }}>
+          <View style={{ alignItems: 'center', marginBottom: 14 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFEDE9', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="warning" size={32} color="#D62828" />
+            </View>
+          </View>
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A4040', textAlign: 'center', marginBottom: 10 }}>
+            Conferma eliminazione
+          </Text>
+          <Text style={{ fontSize: 13, color: '#5A5A5A', lineHeight: 19, marginBottom: 16, textAlign: 'center' }}>
+            {props.isOwner
+              ? 'Stai per eliminare in modo DEFINITIVO il tuo account titolare e tutti i dati associati.'
+              : 'Stai per eliminare in modo DEFINITIVO il tuo account collaboratore.'}
+            {'\n\n'}Per confermare, digita <Text style={{ fontWeight: '900', color: '#D62828' }}>ELIMINA</Text> qui sotto:
+          </Text>
+          <TextInput
+            value={typed}
+            onChangeText={setTyped}
+            placeholder="Digita ELIMINA"
+            placeholderTextColor="#B0B0B0"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            style={{
+              backgroundColor: '#F5F1E8',
+              borderRadius: 10,
+              padding: 12,
+              fontSize: 16,
+              fontWeight: '700',
+              textAlign: 'center',
+              color: '#D62828',
+              letterSpacing: 3,
+              borderWidth: 1.5,
+              borderColor: canConfirm ? '#D62828' : '#DCD5C4',
+            }}
+          />
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+            <TouchableOpacity
+              onPress={props.onCancel}
+              disabled={props.deleting}
+              style={{ flex: 1, backgroundColor: '#F5F1E8', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '900', color: '#1A4040' }}>ANNULLA</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={props.onConfirm}
+              disabled={!canConfirm || props.deleting}
+              style={{
+                flex: 1,
+                backgroundColor: canConfirm && !props.deleting ? '#D62828' : '#E5C8C5',
+                borderRadius: 12,
+                paddingVertical: 14,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              {props.deleting ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <>
+                  <Ionicons name="trash" size={15} color="#FFF" />
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: '#FFF' }}>ELIMINA</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -912,6 +1097,9 @@ function SettingsPageInner() {
 
       {/* ─── PROMEMORIA GIORNALIERI (notifiche locali) ─── */}
       <NotificationsCard />
+
+      {/* ─── ACCOUNT CLOUD (login Google + delete account GDPR) — Round 67 ─── */}
+      <AccountSection />
 
       {/* ─── SQUADRA COLLABORATORI ─── */}
       <Text style={s.secTitle} testID="sett-collab-card" ref={anchorCollab as any}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>

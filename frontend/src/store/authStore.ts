@@ -39,8 +39,14 @@ interface AuthState {
   hydrate: () => Promise<void>;
   register: (email: string, password: string, nomeAttivita?: string, nomeTitolare?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  /** Round 67 — Login con Google via Emergent Auth.
+   *  Riceve il session_token già ottenuto dal frontend dopo l'OAuth flow. */
+  loginWithGoogle: (sessionToken: string) => Promise<void>;
   redeemInvite: (code: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Round 67 — Cancellazione DEFINITIVA dell'account (GDPR Art. 17).
+   *  Per gli OWNER: cancella anche tutti i collaboratori e i dati attività. */
+  deleteAccount: () => Promise<{ collaborators_deleted: number; data_records_deleted: number; is_owner: boolean }>;
   refreshMe: () => Promise<void>;
   // Sync
   pull: () => Promise<any | null>;
@@ -147,6 +153,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token: res.access_token, user: res.user, isAuthenticated: true });
   },
 
+  /* ═══ Round 67 — LOGIN GOOGLE via Emergent Auth ═══
+     Riceve il session_token già ottenuto chiamando l'endpoint Emergent
+     `oauth/session-data`. Lo passa al nostro backend che lo verifica
+     server-side e restituisce un JWT MarketMate standard. */
+  loginWithGoogle: async (sessionToken) => {
+    const res = await apiCall('/auth/google_login', {
+      method: 'POST',
+      body: JSON.stringify({ session_token: sessionToken }),
+    });
+    await secureSet(TOKEN_KEY, res.access_token);
+    await secureSet(USER_KEY, JSON.stringify(res.user));
+    set({ token: res.access_token, user: res.user, isAuthenticated: true });
+  },
+
   redeemInvite: async (code, email, password) => {
     const res = await apiCall('/auth/redeem_invite', {
       method: 'POST',
@@ -161,6 +181,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await secureDel(TOKEN_KEY);
     await secureDel(USER_KEY);
     set({ token: null, user: null, isAuthenticated: false, lastSyncAt: null });
+  },
+
+  /* ═══ Round 67 — CANCELLAZIONE DEFINITIVA ACCOUNT (GDPR Art. 17) ═══
+     Chiama DELETE /api/auth/account → il backend cancella l'utente
+     dalla collezione `users` e, se è owner, anche tutti i collaboratori
+     e i dati attività (account_data, sync_snapshots, ecc.).
+     Subito dopo: pulisce token + user salvati in SecureStore. */
+  deleteAccount: async () => {
+    const { token } = get();
+    if (!token) throw new Error('Devi essere autenticato per eliminare l\'account');
+    const res = await apiCall('/auth/account', { method: 'DELETE' }, token);
+    // Logout locale dopo cancellazione server
+    await secureDel(TOKEN_KEY);
+    await secureDel(USER_KEY);
+    set({ token: null, user: null, isAuthenticated: false, lastSyncAt: null });
+    return res.details || { collaborators_deleted: 0, data_records_deleted: 0, is_owner: false };
   },
 
   refreshMe: async () => {

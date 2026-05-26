@@ -16,6 +16,7 @@ import os
 import uuid
 import secrets
 import string
+import httpx
 from datetime import datetime, timedelta
 from typing import Optional, List, Literal
 
@@ -280,6 +281,183 @@ async def me(current=Depends(get_current_user)):
         nome_titolare=user.get("nome_titolare", ""),
         created_at=user["created_at"],
     )
+
+
+# ═══════════════════════════════════════════════════════════════
+# GOOGLE OAUTH (via Emergent Auth Gateway) — Round 67
+# ═══════════════════════════════════════════════════════════════
+# Flusso:
+#   1. Frontend apre `https://auth.emergentagent.com/?redirect=...` in WebBrowser
+#   2. Utente fa login con Google
+#   3. Emergent redirige a redirect_url con `#session_id=...`
+#   4. Frontend chiama Emergent `/auth/v1/env/oauth/session-data` con header
+#      `X-Session-ID` per ottenere {email, name, picture, session_token}
+#   5. Frontend POST `/api/auth/google_login` con il `session_token`
+#   6. Backend verifica il token con Emergent una seconda volta (server-side
+#      anti-tampering), upserta l'utente per email, ritorna JWT MarketMate.
+EMERGENT_SESSION_DATA_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+class GoogleLoginRequest(BaseModel):
+    session_token: str
+
+@auth_router.post("/google_login", response_model=AuthResponse)
+async def google_login(req: GoogleLoginRequest):
+    """Login (o registrazione) tramite Emergent Auth + Google OAuth.
+
+    Idempotente: se l'utente con quell'email esiste già, viene riconosciuto
+    senza creare duplicati. Il `password_hash` resta vuoto (utente OAuth-only)."""
+    if _db is None:
+        raise HTTPException(status_code=500, detail="DB non inizializzato")
+    if not req.session_token or len(req.session_token) < 10:
+        raise HTTPException(status_code=400, detail="session_token mancante o non valido")
+    await _ensure_indexes()
+
+    # Verifica server-side con Emergent
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(
+                EMERGENT_SESSION_DATA_URL,
+                headers={"X-Session-ID": req.session_token},
+            )
+        if r.status_code != 200:
+            raise HTTPException(status_code=401, detail="Sessione Google non valida o scaduta")
+        data = r.json() or {}
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Errore verifica Google: {str(e)}")
+
+    email = (data.get("email") or "").lower().strip()
+    name = (data.get("name") or "").strip()
+    picture = (data.get("picture") or "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email non fornita da Google")
+
+    # Upsert per email
+    existing = await _db.users.find_one({"email": email})
+    if existing:
+        user_id = existing["id"]
+        owner_id = existing["account_owner_id"]
+        role = existing["role"]
+        # Aggiorna campi opzionali (foto profilo, nome) se erano vuoti
+        updates = {}
+        if name and not existing.get("nome_titolare"):
+            updates["nome_titolare"] = name
+        if picture and existing.get("picture") != picture:
+            updates["picture"] = picture
+        updates["last_login_at"] = datetime.utcnow()
+        updates["auth_provider"] = "google"
+        await _db.users.update_one({"id": user_id}, {"$set": updates})
+        user_doc = {**existing, **updates}
+    else:
+        # Nuovo utente OWNER (chi accede via Google senza invito è owner)
+        user_id = str(uuid.uuid4())
+        user_doc = {
+            "id": user_id,
+            "email": email,
+            "password_hash": "",  # OAuth-only
+            "role": "owner",
+            "account_owner_id": user_id,
+            "nome_attivita": "",
+            "nome_titolare": name,
+            "picture": picture,
+            "auth_provider": "google",
+            "created_at": datetime.utcnow(),
+            "last_login_at": datetime.utcnow(),
+        }
+        await _db.users.insert_one(user_doc)
+        owner_id = user_id
+        role = "owner"
+
+    token = _create_access_token(user_id, owner_id, role)
+    return AuthResponse(
+        access_token=token,
+        user=UserInfo(
+            id=user_id, email=email, role=role,
+            account_owner_id=owner_id,
+            nome_attivita=user_doc.get("nome_attivita", ""),
+            nome_titolare=user_doc.get("nome_titolare", "") or name,
+            created_at=user_doc.get("created_at") or datetime.utcnow(),
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# DELETE ACCOUNT (GDPR + Apple Guideline 5.1.1) — Round 67
+# ═══════════════════════════════════════════════════════════════
+# Cancellazione DEFINITIVA dell'account utente:
+#  - Owner: elimina utente + TUTTI i collaboratori + TUTTI i dati attività
+#  - Collaboratore: elimina SOLO il proprio utente (i dati dell'attività
+#    restano in capo all'owner, che è il titolare legale del trattamento)
+# Operazione IRREVERSIBILE. Non c'è "soft delete" — è un requisito GDPR
+# Art. 17 (diritto all'oblio).
+@auth_router.delete("/account")
+async def delete_account(current=Depends(get_current_user)):
+    if _db is None:
+        raise HTTPException(status_code=500, detail="DB non inizializzato")
+
+    user_id = current["user_id"]
+    account_owner_id = current["account_owner_id"]
+    role = current["role"]
+
+    user = await _db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utente non trovato")
+
+    deleted_summary = {
+        "user_id": user_id,
+        "email": user.get("email"),
+        "role": role,
+        "collaborators_deleted": 0,
+        "data_records_deleted": 0,
+        "is_owner": role == "owner",
+    }
+
+    if role == "owner":
+        # 1. Cancella TUTTI i dati dell'attività (account_data, sync, ecc.)
+        collections_to_purge = [
+            "account_data",
+            "sync_snapshots",
+            "invite_codes",
+            "user_subscriptions",
+            "stripe_events",
+            "referral_codes",
+            "referral_redemptions",
+        ]
+        for coll_name in collections_to_purge:
+            try:
+                res = await _db[coll_name].delete_many({
+                    "$or": [
+                        {"account_owner_id": account_owner_id},
+                        {"owner_id": account_owner_id},
+                        {"user_id": account_owner_id},
+                    ]
+                })
+                deleted_summary["data_records_deleted"] += getattr(res, "deleted_count", 0)
+            except Exception:
+                # Collezione potrebbe non esistere ancora — ignora
+                pass
+
+        # 2. Cancella TUTTI i collaboratori legati all'owner
+        res_collab = await _db.users.delete_many({
+            "account_owner_id": account_owner_id,
+            "id": {"$ne": user_id},  # non l'owner stesso (lo cancelliamo dopo)
+        })
+        deleted_summary["collaborators_deleted"] = getattr(res_collab, "deleted_count", 0)
+
+        # 3. Infine cancella l'utente owner
+        await _db.users.delete_one({"id": user_id})
+    else:
+        # Collaboratore: solo se stesso (i dati restano in capo all'owner)
+        await _db.users.delete_one({"id": user_id})
+
+    return {"success": True, "message": "Account eliminato definitivamente", "details": deleted_summary}
+
+
+@auth_router.post("/logout")
+async def logout(current=Depends(get_current_user)):
+    """Logout server-side (per ora il JWT è stateless — il frontend
+    deve solo cancellare il token locale). Endpoint disponibile per
+    compatibilità futura con session revocation lists."""
+    return {"success": True}
 
 
 @auth_router.post("/invites/create", response_model=InviteInfo)
