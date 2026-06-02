@@ -53,7 +53,8 @@
           "defaultChannel": "marketmate-reminders"
         }
       ],
-      "./plugins/with-adi-registration"
+      "./plugins/with-adi-registration",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

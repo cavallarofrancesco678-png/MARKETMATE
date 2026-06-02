@@ -1166,6 +1166,11 @@ app.include_router(auth_router)
 app.include_router(sync_router)
 app.include_router(team_router)
 
+# ═══ STRIPE SUBSCRIPTIONS (Round 68) ═══
+from stripe_module import stripe_router, init_stripe_db
+init_stripe_db(db)
+app.include_router(stripe_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

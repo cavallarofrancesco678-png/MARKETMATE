@@ -271,7 +271,19 @@ frontend:
 
 
 backend:
-  - task: "Round 64 backend sanity check"
+  - task: "Round 68 — Stripe Subscriptions (LIVE mode)"
+    implemented: true
+    working: true
+    file: "backend/stripe_module.py, backend/server.py, backend/.env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "ROUND 68 STRIPE INTEGRATION (LIVE MODE) — Implementati 5 endpoint: GET /api/stripe/config (pubblico, restituisce publishable_key + price IDs), POST /api/stripe/create-checkout-session (auth, owner-only, genera URL Stripe Checkout per piano monthly/annual), POST /api/stripe/create-portal-session (auth, apre Stripe Customer Portal per gestione abbonamento), GET /api/stripe/subscription-status (auth, restituisce stato sub corrente — collaboratori vedono lo stato dell'owner), POST /api/stripe/webhook (verifica firma whsec_, gestisce checkout.session.completed/customer.subscription.{created,updated,deleted}). Persisti subscription nel doc user.subscription con campi {id, status, plan, price_id, current_period_end, cancel_at_period_end}. Idempotenza webhook tramite collection stripe_events con _id=evento. Test end-to-end CURL: register → /stripe/subscription-status (empty) → /stripe/create-checkout-session monthly → restituisce cs_live_... URL ✓. Customer Stripe creato automaticamente al primo checkout. Live keys configurate in /app/backend/.env (NON ruotate per scelta utente). Fix bug: usato getattr(cust, 'deleted', False) invece di cust.get() perché Stripe SDK Customer non è un dict."
+
+
     implemented: true
     working: true
     file: "backend/server.py"

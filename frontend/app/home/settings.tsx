@@ -29,6 +29,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../../src/store/authStore';
+import { useSubscriptionStore } from '../../src/store/subscriptionStore';
 import { useTeamSyncStore, roleBackendToUi } from '../../src/store/teamSyncStore';
 import * as Clipboard from 'expo-clipboard';
 import { useTutorialStore } from '../../src/store/tutorialStore';
@@ -39,6 +40,55 @@ import { RoleGuard } from '../../src/components/RoleGuard';
 import { NotificationsCard } from '../../src/components/NotificationsCard';
 
 // ═══════════════════════════════════════════════════════════════
+/* ═══ Round 68 — Card "MarketMate Premium" nelle Settings ═══
+   Mostra: stato abbonamento corrente + link rapido alla schermata
+   /subscription dove l'utente può sottoscrivere o gestire il piano. */
+function PremiumCard() {
+  const { user, isAuthenticated } = useAuthStore();
+  const { status, refreshStatus, loadConfig } = useSubscriptionStore();
+  React.useEffect(() => {
+    loadConfig();
+    if (isAuthenticated) refreshStatus();
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) return null; // Senza account cloud, niente Premium
+  const isOwner = user?.role === 'owner';
+  const active = status?.active === true;
+
+  return (
+    <View style={[s.card, { marginTop: 20 }]}>
+      <View style={s.sectionHeader}>
+        <Ionicons name={active ? 'diamond' : 'diamond-outline'} size={20} color="#D2691E" />
+        <Text style={s.sectionTitle}>MARKETMATE PREMIUM</Text>
+      </View>
+      {active ? (
+        <View style={{ backgroundColor: '#E8F7EE', borderRadius: 10, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#0E8A4E' }}>
+          <Text style={{ fontSize: 13, fontWeight: '900', color: '#0E8A4E' }}>✓ Premium attivo</Text>
+          <Text style={{ fontSize: 11, color: '#5A7575', marginTop: 4 }}>
+            Piano {status?.plan === 'annual' ? 'Annuale (€69/anno)' : 'Mensile (€6.90/mese)'}
+            {status?.currentPeriodEnd ? ` · Prossimo rinnovo: ${new Date(status.currentPeriodEnd).toLocaleDateString('it-IT')}` : ''}
+          </Text>
+        </View>
+      ) : (
+        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 10, lineHeight: 16 }}>
+          {isOwner
+            ? 'Sblocca cloud sync, team illimitato, statistiche AI, export commercialista e molto altro.'
+            : 'L\'abbonamento Premium è gestito dal titolare dell\'account.'}
+        </Text>
+      )}
+      <TouchableOpacity
+        style={{ backgroundColor: active ? '#1E7F85' : '#D2691E', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        onPress={() => router.push('/subscription' as any)}
+      >
+        <Ionicons name={active ? 'settings-outline' : 'diamond'} size={18} color="#FFF" />
+        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>
+          {active ? 'GESTISCI ABBONAMENTO' : (isOwner ? 'SCOPRI PREMIUM' : 'VEDI DETTAGLI')}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // AccountSection — Login/Register/Multi-user entrypoint
 // ═══════════════════════════════════════════════════════════════
 function AccountSection() {
@@ -1100,6 +1150,9 @@ function SettingsPageInner() {
 
       {/* ─── ACCOUNT CLOUD (login Google + delete account GDPR) — Round 67 ─── */}
       <AccountSection />
+
+      {/* ─── ABBONAMENTO PREMIUM — Round 68 ─── */}
+      <PremiumCard />
 
       {/* ─── SQUADRA COLLABORATORI ─── */}
       <Text style={s.secTitle} testID="sett-collab-card" ref={anchorCollab as any}>{t('settings.collaboratorsTitle') || 'COLLABORATORI'}</Text>
