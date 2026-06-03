@@ -1916,20 +1916,12 @@ function SettingsPageInner() {
         </View>
       </View>
 
-      {/* ─── Round 63: INFORMAZIONI E PRIVACY (spostata in fondo, dopo MarketMate, su richiesta utente) ─── */}
+      {/* ─── Round 63+69: INFORMAZIONI E DOCUMENTI LEGALI (spostata in fondo) ─── */}
       <View style={[s.card, { marginTop: 16 }]}>
         <TouchableOpacity
           activeOpacity={0.7}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
-          onPress={async () => {
-            const url = `${process.env.EXPO_PUBLIC_BACKEND_URL || 'https://marketmate-hub-1.emergent.host'}/api/privacy-policy`;
-            try {
-              const Linking = await import('expo-linking');
-              await Linking.openURL(url);
-            } catch {
-              try { (window as any).open?.(url, '_blank'); } catch {}
-            }
-          }}
+          onPress={() => router.push('/legal/privacy' as any)}
         >
           <Ionicons name="shield-checkmark-outline" size={22} color="#1E7F85" />
           <View style={{ flex: 1 }}>
@@ -1937,10 +1929,29 @@ function SettingsPageInner() {
               {t('settings.privacyPolicy') || 'Privacy Policy'}
             </Text>
             <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
-              {t('settings.privacyPolicyDesc') || 'Come trattiamo i tuoi dati personali'}
+              {t('settings.privacyPolicyDesc') || 'Come trattiamo i tuoi dati personali (GDPR)'}
             </Text>
           </View>
-          <Ionicons name="open-outline" size={16} color="#7A9090" />
+          <Ionicons name="chevron-forward" size={16} color="#7A9090" />
+        </TouchableOpacity>
+
+        <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
+          onPress={() => router.push('/legal/terms' as any)}
+        >
+          <Ionicons name="document-text-outline" size={22} color="#1E7F85" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A3A3A' }}>
+              Termini di Servizio
+            </Text>
+            <Text style={{ fontSize: 11, color: '#7A9090', marginTop: 2 }}>
+              Le regole d'uso dell'app
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#7A9090" />
         </TouchableOpacity>
 
         <View style={{ height: 1, backgroundColor: '#E2D9C4', marginVertical: 6 }} />

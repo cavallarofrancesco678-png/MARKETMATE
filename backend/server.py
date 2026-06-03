@@ -887,8 +887,53 @@ async def get_weather(req: WeatherRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
+# ═══ DOCUMENTI LEGALI — Pubblicamente accessibili (Round 69) ═══
+# Privacy Policy, Termini di Servizio, Cookie Policy.
+# URL pubblici utilizzabili sia per l'app sia per il sito marketmate.info.
+@app.get("/api/legal/privacy", response_class=HTMLResponse)
+async def legal_privacy():
+    return _serve_legal_html("privacy.html")
+
+@app.get("/api/legal/terms", response_class=HTMLResponse)
+async def legal_terms():
+    return _serve_legal_html("terms.html")
+
+@app.get("/api/legal/cookies", response_class=HTMLResponse)
+async def legal_cookies():
+    return _serve_legal_html("cookies.html")
+
+@app.get("/api/legal/{doc}/md")
+async def legal_md(doc: str):
+    """Scarica la versione Markdown del documento. doc = privacy|terms|cookies"""
+    mapping = {
+        "privacy": "PRIVACY_POLICY.md",
+        "terms": "TERMS_OF_SERVICE.md",
+        "cookies": "COOKIE_POLICY.md",
+    }
+    name = mapping.get(doc.lower())
+    if not name:
+        return {"error": "Documento non trovato"}
+    path = ROOT_DIR / "static" / "legal" / name
+    if not path.exists():
+        return {"error": "File non trovato"}
+    return FileResponse(
+        path=str(path),
+        media_type="text/markdown",
+        filename=f"MarketMate-{name}",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+def _serve_legal_html(filename: str) -> HTMLResponse:
+    path = ROOT_DIR / "static" / "legal" / filename
+    if not path.exists():
+        return HTMLResponse(f"<h1>Documento non trovato: {filename}</h1>", status_code=404)
+    try:
+        return HTMLResponse(content=path.read_text(encoding="utf-8"), status_code=200)
+    except Exception as e:
+        return HTMLResponse(f"<h1>Errore: {e}</h1>", status_code=500)
+
+
 # ═══ PRESENTAZIONE MARKETMATE — Pubblicamente accessibile ═══
-# Pagina di presentazione del prodotto, pronta da stampare con Cmd+P / Ctrl+P.
 # URL: GET /api/presentazione         → HTML stilizzato (visualizzabile + stampabile)
 #      GET /api/presentazione/pdf     → download diretto del file HTML
 #      GET /api/presentazione/md      → download della versione Markdown
