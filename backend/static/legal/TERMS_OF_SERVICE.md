@@ -19,7 +19,7 @@ In questo documento:
 
 ## 2. Accettazione
 
-Utilizzando l'App **accetti integralmente** questi Termini di Servizio e la nostra [Privacy Policy](https://marketmate.info/privacy).
+Utilizzando l'App **accetti integralmente** questi Termini di Servizio e la nostra [Privacy Policy](https://www.marketmateapp.info/privacy).
 
 Se non accetti, devi **interrompere l'utilizzo** del Servizio.
 
@@ -222,7 +222,7 @@ Ai sensi del Reg. UE 524/2013, puoi accedere alla piattaforma europea ODR (Onlin
 Per qualsiasi domanda sui presenti Termini:
 
 📧 **contact@marketmateapp.info**
-🌐 **https://marketmate.info**
+🌐 **https://www.marketmateapp.info**
 
 ---
 

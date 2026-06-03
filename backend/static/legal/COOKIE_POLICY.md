@@ -5,7 +5,7 @@
 
 ---
 
-> Questa Cookie Policy si applica al **sito web** [https://marketmate.info](https://marketmate.info).
+> Questa Cookie Policy si applica al **sito web** [https://www.marketmateapp.info](https://www.marketmateapp.info).
 > L'**app mobile MarketMate** (iOS / Android) **NON usa cookie** né tecnologie di tracking pubblicitarie.
 
 ---
@@ -15,7 +15,7 @@
 I cookie sono piccoli file di testo che il sito invia al tuo browser e che vengono memorizzati sul tuo dispositivo. Possono essere:
 - **Di sessione**: cancellati alla chiusura del browser
 - **Persistenti**: rimangono memorizzati per un periodo definito
-- **Di prime parti**: impostati direttamente da `marketmate.info`
+- **Di prime parti**: impostati direttamente da `www.marketmateapp.info`
 - **Di terze parti**: impostati da altri servizi (es. Stripe, Google)
 
 ---
@@ -26,10 +26,10 @@ I cookie sono piccoli file di testo che il sito invia al tuo browser e che vengo
 
 | Nome | Origine | Finalità | Durata |
 |---|---|---|---|
-| `mm_session` | marketmate.info | Mantiene la sessione utente loggato | Sessione |
-| `mm_csrf` | marketmate.info | Protezione attacchi CSRF | Sessione |
-| `mm_lang` | marketmate.info | Lingua scelta dall'utente | 12 mesi |
-| `mm_consent` | marketmate.info | Memorizza le tue scelte sul banner cookie | 6 mesi |
+| `mm_session` | www.marketmateapp.info | Mantiene la sessione utente loggato | Sessione |
+| `mm_csrf` | www.marketmateapp.info | Protezione attacchi CSRF | Sessione |
+| `mm_lang` | www.marketmateapp.info | Lingua scelta dall'utente | 12 mesi |
+| `mm_consent` | www.marketmateapp.info | Memorizza le tue scelte sul banner cookie | 6 mesi |
 
 **Base giuridica**: legittimo interesse (Art. 6.1.f GDPR) — sono indispensabili al funzionamento del sito.
 
@@ -37,7 +37,7 @@ I cookie sono piccoli file di testo che il sito invia al tuo browser e che vengo
 
 | Nome | Origine | Finalità | Durata |
 |---|---|---|---|
-| `mm_theme` | marketmate.info | Memorizza tema chiaro/scuro | 12 mesi |
+| `mm_theme` | www.marketmateapp.info | Memorizza tema chiaro/scuro | 12 mesi |
 
 ### 2.3 Cookie analitici (consenso opzionale, **anonimizzati**)
 
@@ -99,7 +99,7 @@ Aggiorneremo questa Policy se cambieremo i cookie utilizzati. La versione corren
 Per qualsiasi domanda:
 
 📧 **contact@marketmateapp.info**
-🌐 **https://marketmate.info**
+🌐 **https://www.marketmateapp.info**
 
 ---
 

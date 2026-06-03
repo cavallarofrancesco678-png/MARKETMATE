@@ -889,7 +889,7 @@ app.include_router(api_router)
 
 # ═══ DOCUMENTI LEGALI — Pubblicamente accessibili (Round 69) ═══
 # Privacy Policy, Termini di Servizio, Cookie Policy.
-# URL pubblici utilizzabili sia per l'app sia per il sito marketmate.info.
+# URL pubblici utilizzabili sia per l'app sia per il sito www.marketmateapp.info.
 @app.get("/api/legal/privacy", response_class=HTMLResponse)
 async def legal_privacy():
     return _serve_legal_html("privacy.html")

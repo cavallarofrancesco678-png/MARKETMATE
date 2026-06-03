@@ -40,7 +40,7 @@ STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_MENSILE = os.getenv("STRIPE_PRICE_MENSILE", "")
 STRIPE_PRICE_ANNUALE = os.getenv("STRIPE_PRICE_ANNUALE", "")
-APP_DOMAIN = os.getenv("APP_DOMAIN", "https://marketmate.info")
+APP_DOMAIN = os.getenv("APP_DOMAIN", "https://www.marketmateapp.info")
 
 # Flag: indica se siamo in modalità live (basato sul prefisso della secret key)
 STRIPE_IS_LIVE = STRIPE_SECRET_KEY.startswith("sk_live_")

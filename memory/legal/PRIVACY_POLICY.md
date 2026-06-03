@@ -13,7 +13,7 @@ Il Titolare del trattamento dei dati personali è:
 > [INDIRIZZO COMPLETO — Via, Numero civico, CAP, Città, Provincia, ITALIA]
 > Partita IVA / Codice Fiscale: **[INSERIRE P.IVA o C.F.]**
 > Email contatti / DPO: **contact@marketmateapp.info**
-> Sito: **https://marketmate.info**
+> Sito: **https://www.marketmateapp.info**
 
 Nel seguito ci riferiamo a noi come "**MarketMate**", "noi", "la Società". Ci riferiamo a te come "**Utente**", "tu", "l'Interessato".
 
@@ -55,7 +55,7 @@ Il servizio comprende:
 | **Tecnici** | Modello dispositivo, sistema operativo, versione app, identificativo univoco anonimo | Diagnostica, miglioramento app |
 | **Posizione approssimativa** | Solo se attivi il meteo: latitudine/longitudine derivate dal CAP di partenza (no GPS preciso) | Previsioni meteo Open-Meteo |
 | **Log d'uso** | Data/ora accessi, indirizzo IP, lingua | Sicurezza, antifrode |
-| **Cookie** (solo sito web marketmate.info) | Vedi [Cookie Policy](https://marketmate.info/cookie) | Funzionalità sito |
+| **Cookie** (solo sito web www.marketmateapp.info) | Vedi [Cookie Policy](https://www.marketmateapp.info/cookie) | Funzionalità sito |
 
 ### 3.3 Dati che NON raccogliamo
 
@@ -176,7 +176,7 @@ Se non sei d'accordo con le modifiche, puoi sempre cancellare l'account.
 Per qualsiasi domanda, esercizio dei diritti o segnalazione:
 
 📧 **contact@marketmateapp.info**
-🌐 **https://marketmate.info**
+🌐 **https://www.marketmateapp.info**
 
 ---
 
