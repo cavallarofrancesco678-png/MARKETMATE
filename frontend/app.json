@@ -15,7 +15,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#F0F4F8"
+        "backgroundColor": "#1E7F85"
       },
       "edgeToEdgeEnabled": true,
       "package": "it.tvscavallaro.marketmate",
@@ -37,9 +37,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#F0F4F8"
+          "backgroundColor": "#1E7F85"
         }
       ],
       "expo-localization",

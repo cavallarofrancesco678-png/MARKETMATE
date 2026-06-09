@@ -271,7 +271,19 @@ frontend:
 
 
 backend:
-  - task: "Round 68 — Stripe Subscriptions (LIVE mode)"
+  - task: "Round 69 — Branding, Push Token, Documenti Legali"
+    implemented: true
+    working: true
+    file: "frontend/assets/images/, frontend/app.json, frontend/src/lib/pushNotifications.ts, backend/auth_module.py, backend/server.py, backend/static/legal/*"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "ROUND 69 — BRANDING + ASSETS + PUSH + LEGAL. (1) ASSETS: scaricato logo SVG ufficiale MarketMate da CDN Emergent (508KB SVG → rendering cairosvg). Rigenerati icon.png/adaptive-icon.png/splash-icon.png/favicon.png/app-image.png/splash-image.png a 1024x1024 (favicon 196x196) con logo arancione/marrone autentico + tagline 'MOBILE VENDOR\\'S AGENDA'. Sostituita la vecchia icona blu Emergent. (2) APP.JSON: backgroundColor splash → #1E7F85 (brand), backgroundColor adaptive-icon → #1E7F85, imageWidth splash da 200 → 220. (3) PUSH NOTIFICATIONS: creato /app/frontend/src/lib/pushNotifications.ts con registerForPushNotifications() — usa Expo Push Token (no Firebase). Endpoint backend POST /api/auth/push-token (idempotente, max 5 token/utente), DELETE /api/auth/push-token. Hook in _layout.tsx all'avvio (best-effort, non blocca). Installato expo-device. Web no-op (no push reali). (4) LEGAL DOCS: aggiornati 3 documenti con dati ufficiali da visura camerale OLD MEMORIES SHIRT di Cavallaro Francesco (P.IVA 14055260963, sede Bareggio MI, REA MI-2759384). Dominio sito → www.marketmateapp.info. Email contact → contact@marketmateapp.info. Endpoint /api/legal/{privacy,terms,cookies} servono HTML stilizzati + MD scaricabile. Schermate in-app /legal/privacy /legal/terms /legal/cookies create. (5) STRIPE LIVE: tutto funzionante (pk_live/sk_live/webhook whsec_), endpoint testati via curl. Test: register → /stripe/create-checkout-session monthly → cs_live_... URL ✓. (6) AUTH BACKEND: endpoint /api/auth/google_login (Emergent OAuth) + /api/auth/account DELETE (GDPR). (7) FRONTEND DELETE ACCOUNT: AccountSection in Settings con modal typing-safeguard 'ELIMINA'. UI Welcome screen mostra logo brand corretto, schermata Premium €69/€6.90 con banner LIVE rosso, schermata onboarding lingua, Settings con sezioni AccountCloud/Premium/Privacy/Termini funzionanti. Bundle ID app: it.tvscavallaro.marketmate (eredità precedente, da verificare se va cambiato in oldmemoriesshirt prima del submission Apple)."
+
+
     implemented: true
     working: true
     file: "backend/stripe_module.py, backend/server.py, backend/.env"

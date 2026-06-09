@@ -13,6 +13,7 @@ import { useTutorialStore } from '../src/store/tutorialStore';
 import { useAppLockStore } from '../src/store/appLockStore';
 import { useNotificationsStore } from '../src/store/notificationsStore';
 import { TutorialOverlay } from '../src/components/TutorialOverlay';
+import { registerForPushNotifications } from '../src/lib/pushNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,6 +61,12 @@ export default function RootLayout() {
       try { await hydrateNotifs(); } catch (e) { console.warn('notif hydrate failed', e); }
 
       if (!cancelled) setStorageHydrated(true);
+
+      // ═══ Round 69: registrazione Push Token (best-effort, non blocca avvio) ═══
+      // Su web → no-op. Su mobile reale → chiede permessi push e salva token.
+      // Se l'utente non è loggato, il token viene comunque cachato e inviato
+      // al backend al prossimo login.
+      try { registerForPushNotifications(); } catch (e) { console.warn('push register failed', e); }
     })();
     return () => { cancelled = true; };
   }, [loadFromStorage, authHydrate, tutHydrate, hydrateLock]);

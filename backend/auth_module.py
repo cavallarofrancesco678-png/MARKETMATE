@@ -460,6 +460,53 @@ async def logout(current=Depends(get_current_user)):
     return {"success": True}
 
 
+# ═══════════════════════════════════════════════════════════════
+# PUSH TOKEN — Round 69
+# Salva/aggiorna l'Expo Push Token del device per inviare push
+# notifications remote da server (es. invito team, scadenze).
+# ═══════════════════════════════════════════════════════════════
+class PushTokenRequest(BaseModel):
+    push_token: str
+    platform: Optional[str] = None  # 'ios' | 'android' | 'web'
+    device_name: Optional[str] = None
+
+@auth_router.post("/push-token")
+async def register_push_token(req: PushTokenRequest, current=Depends(get_current_user)):
+    if not req.push_token:
+        raise HTTPException(status_code=400, detail="push_token mancante")
+    user_id = current["user_id"]
+    # Strategia: salviamo una LISTA di token nell'utente (un utente può avere
+    # più device collegati: telefono + tablet). Evitiamo duplicati.
+    user = await _db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utente non trovato")
+    tokens = user.get("push_tokens") or []
+    # Rimuovi eventuale duplicato dello stesso device, poi appendi
+    tokens = [t for t in tokens if t.get("token") != req.push_token]
+    tokens.append({
+        "token": req.push_token,
+        "platform": req.platform or "unknown",
+        "device_name": req.device_name or "unknown",
+        "registered_at": datetime.utcnow().isoformat(),
+    })
+    # Massimo 5 token per utente (gli altri vengono troncati FIFO)
+    tokens = tokens[-5:]
+    await _db.users.update_one({"id": user_id}, {"$set": {"push_tokens": tokens}})
+    return {"success": True, "tokens_count": len(tokens)}
+
+
+@auth_router.delete("/push-token")
+async def unregister_push_token(push_token: str, current=Depends(get_current_user)):
+    """Rimuove un Push Token (es. quando l'utente fa logout sul device)."""
+    user_id = current["user_id"]
+    user = await _db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utente non trovato")
+    tokens = [t for t in (user.get("push_tokens") or []) if t.get("token") != push_token]
+    await _db.users.update_one({"id": user_id}, {"$set": {"push_tokens": tokens}})
+    return {"success": True}
+
+
 @auth_router.post("/invites/create", response_model=InviteInfo)
 async def create_invite(req: CreateInviteRequest, current=Depends(get_current_user)):
     """Only the account OWNER can create invites."""
