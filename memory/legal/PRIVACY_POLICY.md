@@ -9,15 +9,15 @@
 
 Il Titolare del trattamento dei dati personali è:
 
-> **[RAGIONE SOCIALE / NOME COGNOME]**
-> [INDIRIZZO COMPLETO — Via, Numero civico, CAP, Città, Provincia, ITALIA]
-> Partita IVA / Codice Fiscale: **[INSERIRE P.IVA o C.F.]**
+> **OLD MEMORIES SHIRT di Cavallaro Francesco**
+> Via Madonna Pellegrina 78, 20008 Bareggio (MI), ITALIA
+> Partita IVA / Codice Fiscale: **14055260963 (C.F. CVLFNC65E11F205G — REA MI-2759384)**
 > Email contatti / DPO: **contact@marketmateapp.info**
+> PEC: **olmemories@pec.it**
 > Sito: **https://www.marketmateapp.info**
 
 Nel seguito ci riferiamo a noi come "**MarketMate**", "noi", "la Società". Ci riferiamo a te come "**Utente**", "tu", "l'Interessato".
 
-> ⚠️ **Nota per il Titolare**: prima di pubblicare questa Policy devi completare i campi indicati con `[ ]`. Se sei una ditta individuale, indica Nome+Cognome e P.IVA. Se sei una società, indica ragione sociale + sede legale + P.IVA + REA.
 
 ---
 

@@ -8,7 +8,7 @@
 ## 1. Definizioni
 
 In questo documento:
-- **"MarketMate"** o **"noi"** = **[RAGIONE SOCIALE / NOME COGNOME]**, P.IVA **[INSERIRE]**, con sede in **[INDIRIZZO]**, contattabile a **contact@marketmateapp.info**
+- **"MarketMate"** o **"noi"** = **OLD MEMORIES SHIRT di Cavallaro Francesco**, P.IVA **14055260963**, con sede in **Via Madonna Pellegrina 78, 20008 Bareggio (MI)**, contattabile a **contact@marketmateapp.info**
 - **"App"** = l'applicazione mobile MarketMate per iOS e Android, e il sito web associato
 - **"Servizio"** = l'insieme delle funzionalità offerte dall'App, sia gratuite che a pagamento
 - **"Utente"** o **"tu"** = chiunque utilizzi l'App, registrato o meno
@@ -201,7 +201,7 @@ In caso di cessazione, gli abbonamenti in corso saranno **rimborsati pro-quota**
 
 - I presenti Termini sono regolati dalla **legge italiana**.
 - Per i consumatori: foro del luogo di residenza (Art. 66-bis Codice del Consumo).
-- Per i professionisti: foro esclusivo di **[CITTÀ DELLA SEDE LEGALE]**.
+- Per i professionisti: foro esclusivo di **Milano**.
 
 ### 12.1 Risoluzione alternativa controversie (ODR)
 Ai sensi del Reg. UE 524/2013, puoi accedere alla piattaforma europea ODR (Online Dispute Resolution):
