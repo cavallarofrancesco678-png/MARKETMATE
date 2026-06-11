@@ -979,6 +979,123 @@ async def download_presentazione_md():
         },
     )
 
+# ═══ STORE SCREENSHOTS — Galleria mockup per App Store / Google Play ═══
+# URL:
+#   GET /api/store-screenshots                  → Galleria HTML con anteprima e link download
+#   GET /api/store-screenshots/{platform}/{f}   → Singolo PNG (platform = ios | android)
+#   GET /api/store-screenshots/zip/{platform}   → Tutti gli screenshot di una piattaforma in ZIP
+@app.get("/api/store-screenshots", response_class=HTMLResponse)
+async def store_screenshots_gallery():
+    """Galleria visuale di tutti gli screenshot pronti per App Store e Play Store."""
+    base = ROOT_DIR / "static" / "store-screenshots"
+    ios = sorted((base / "ios").glob("*.png")) if (base / "ios").exists() else []
+    android = sorted((base / "android").glob("*.png")) if (base / "android").exists() else []
+
+    def render_grid(items, platform_label, platform_key, size_label):
+        cards = []
+        for p in items:
+            name = p.name
+            label = name.replace(".png", "").split("_", 1)[1].replace("_", " ").title()
+            cards.append(f'''
+            <div class="card">
+              <img src="/api/store-screenshots/{platform_key}/{name}" alt="{label}" loading="lazy"/>
+              <div class="meta">
+                <span class="lbl">{label}</span>
+                <a class="dl" href="/api/store-screenshots/{platform_key}/{name}?download=1" download>Scarica</a>
+              </div>
+            </div>''')
+        return f'''
+        <section>
+          <h2>{platform_label} <small>· {size_label} · {len(items)} screenshot</small></h2>
+          <div class="grid">{"".join(cards)}</div>
+        </section>'''
+
+    html = f"""<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MarketMate — Store Screenshots</title>
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#F4F6F4;color:#0E2F26;padding:24px;line-height:1.4}}
+  header{{max-width:1200px;margin:0 auto 32px;text-align:center}}
+  header h1{{font-size:34px;color:#0E5A4A}}
+  header p{{color:#5A6E68;margin-top:8px;font-size:16px}}
+  main{{max-width:1200px;margin:0 auto}}
+  section{{margin-bottom:48px;background:#fff;border-radius:18px;padding:24px;box-shadow:0 2px 10px rgba(14,90,74,.06)}}
+  section h2{{color:#0E5A4A;font-size:22px;margin-bottom:18px}}
+  section h2 small{{color:#7C8A86;font-weight:400;font-size:14px;margin-left:8px}}
+  .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}}
+  .card{{background:#F8FAF9;border:1px solid #E0E8E5;border-radius:14px;overflow:hidden;transition:transform .15s}}
+  .card:hover{{transform:translateY(-3px);box-shadow:0 6px 18px rgba(14,90,74,.12)}}
+  .card img{{width:100%;display:block;background:#D8EDE5}}
+  .meta{{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:13px}}
+  .lbl{{font-weight:600;color:#0E2F26}}
+  .dl{{color:#0E5A4A;text-decoration:none;font-weight:700;background:#D8EDE5;padding:6px 12px;border-radius:8px;font-size:12px}}
+  .dl:hover{{background:#0E5A4A;color:#fff}}
+  .tools{{text-align:center;margin-top:18px;padding:18px;background:#0E5A4A;color:#fff;border-radius:14px}}
+  .tools a{{display:inline-block;color:#fff;background:#F2B45A;padding:10px 22px;border-radius:10px;text-decoration:none;font-weight:700;margin:6px}}
+  .tools a:hover{{opacity:.88}}
+  footer{{text-align:center;color:#7C8A86;font-size:13px;margin-top:32px;padding-top:18px;border-top:1px solid #E0E8E5}}
+</style>
+</head><body>
+<header>
+  <h1>📱 MarketMate · Store Screenshots</h1>
+  <p>Mockup pronti per Apple App Store e Google Play Console. Clicca "Scarica" per ogni singolo PNG.</p>
+</header>
+<main>
+  {render_grid(ios, "🍏 Apple App Store", "ios", "1290 × 2796 — iPhone 6.7″")}
+  {render_grid(android, "🤖 Google Play Store", "android", "1080 × 2400 — 9:20")}
+  <div class="tools">
+    <strong>Servono in PSD/Sketch?</strong><br/>
+    <a href="/api/store-screenshots/zip/ios" download>⬇️ ZIP iOS (5 file)</a>
+    <a href="/api/store-screenshots/zip/android" download>⬇️ ZIP Android (8 file)</a>
+  </div>
+  <footer>MarketMate · Mobile Vendor's Agenda · www.marketmateapp.info</footer>
+</main>
+</body></html>"""
+    return HTMLResponse(content=html, status_code=200)
+
+
+@app.get("/api/store-screenshots/zip/{platform}")
+async def store_screenshots_zip(platform: str):
+    """ZIP contenente tutti gli screenshot di una piattaforma."""
+    import io
+    import zipfile
+    if platform not in ("ios", "android"):
+        return {"error": "Platform non valida"}
+    base = ROOT_DIR / "static" / "store-screenshots" / platform
+    if not base.exists():
+        return {"error": "Cartella non trovata"}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in sorted(base.glob("*.png")):
+            zf.write(p, arcname=f"MarketMate-{platform}/{p.name}")
+    buf.seek(0)
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="MarketMate-{platform}-screenshots.zip"'},
+    )
+
+
+@app.get("/api/store-screenshots/{platform}/{filename}")
+async def store_screenshot_file(platform: str, filename: str, download: int = 0):
+    """Serve un singolo screenshot PNG. download=1 → forza download (Content-Disposition)."""
+    if platform not in ("ios", "android"):
+        return {"error": "Platform non valida (ios|android)"}
+    if not filename.endswith(".png") or "/" in filename or ".." in filename:
+        return {"error": "Nome file non valido"}
+    path = ROOT_DIR / "static" / "store-screenshots" / platform / filename
+    if not path.exists():
+        return {"error": "File non trovato"}
+    headers = {"Cache-Control": "public, max-age=3600"}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="MarketMate-{platform}-{filename}"'
+    return FileResponse(path=str(path), media_type="image/png", headers=headers)
+
+
 # ═══ ENDPOINT BACKUP PERSONALE FRANCESCO ═══
 # File pre-confezionato con i dati di "Il Panivendolo" da scaricare e
 # importare nell'app pulita tramite "APRI BACKUP" → seleziona il file.

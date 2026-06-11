@@ -45,3 +45,19 @@ Italiano (primaria), Inglese, Francese, Tedesco, Spagnolo, Portoghese
 - `/api/legal/{doc}/md` (Markdown scaricabili)
 - `/api/presentazione` (presentazione commerciale)
 - `/api/stripe/config` (pubblico, no auth)
+- `/api/store-screenshots` (galleria mockup App Store + Play Store)
+- `/api/store-screenshots/{ios|android}/{file}.png` (singolo screenshot)
+- `/api/store-screenshots/zip/{ios|android}` (download ZIP completo)
+
+## 📸 Store screenshots
+- **iOS**: 5 mockup pronti — 1290 × 2796 (iPhone 6.7″ Pro Max)
+- **Android**: 8 mockup pronti — 1080 × 2400 (9:20)
+- Generator: `/app/memory/store_screenshots/generate.py` (rigenerabili via `python3 generate.py`)
+- Servono per submission Apple App Store Connect e Google Play Console
+
+## 🔔 Push Notifications (Round 69)
+- Backend endpoint: `POST /api/auth/push-token` (auth richiesta) e `DELETE /api/auth/push-token?push_token=...`
+- Frontend: `src/lib/pushNotifications.ts` chiamato in `app/_layout.tsx` al boot (best-effort, non blocca)
+- Funziona via Expo Push API (https://exp.host/--/api/v2/push/send) — NO Firebase richiesto
+- Su web/simulator: no-op silenzioso. Su device reale: chiede permessi e salva token (max 5 device/utente)
+- ⚠️ Il flusso completo si testa SOLO su build EAS (development o production), NON in Expo Go
