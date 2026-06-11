@@ -10,7 +10,18 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "it.tvscavallaro.marketmate"
+      "bundleIdentifier": "it.tvscavallaro.marketmate",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleDisplayName": "MarketMate",
+        "CFBundleAllowMixedLocalizations": true,
+        "LSApplicationCategoryType": "public.app-category.business",
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
