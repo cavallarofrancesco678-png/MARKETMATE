@@ -2234,7 +2234,7 @@ export default function HomeScreen() {
           {([['mese', 'MESE'], ['anno', 'ANNO'], ['annoprec', 'ANNO PREC.']] as [string, string][]).map(([k, l]) => {
             const on = chartMode === k;
             return (
-              <TouchableOpacity key={k} style={[s.filterBtn, on && s.filterOn]} onPress={() => setChartMode(k as any)}>
+              <TouchableOpacity key={k} testID={`chart-mode-${k}`} style={[s.filterBtn, on && s.filterOn]} onPress={() => setChartMode(k as any)}>
                 <Text style={[s.filterTxt, on && { color: '#FFF' }]}>{l}</Text>
               </TouchableOpacity>
             );

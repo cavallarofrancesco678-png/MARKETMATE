@@ -1130,7 +1130,7 @@ function StatsScreenInner() {
       totSelezionato: Math.round(totSelezionato),
       totPromemoria: Math.round(totPromemoria),
     };
-  }, [store.spesePeriodiche, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad]);
+  }, [store.spesePeriodiche, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad, dataRiferimento]);
 
   /* ═══ ROUND 56 — TOT NETTO RICALCOLATO IN BASE AI FLAG ═══
      L'utente segnalava: nel modal "Calcolo Netto" le voci si flaggano

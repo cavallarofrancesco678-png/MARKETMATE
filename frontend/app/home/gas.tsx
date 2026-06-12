@@ -378,11 +378,11 @@ export default function GasScreen() {
       {/* ═══ CALENDARIO ═══ */}
       <View style={s.calCard}>
         <View style={s.calHeader}>
-          <TouchableOpacity onPress={() => goToMonth(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity testID="gas-cal-prev-month" onPress={() => goToMonth(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-back" size={18} color="#1E7F85" />
           </TouchableOpacity>
           <Text style={s.calMonthTxt}>{(t('gas.months', { returnObjects: true }) as string[])?.[displayMonth.getMonth()]?.toUpperCase() || MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
-          <TouchableOpacity onPress={() => goToMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity testID="gas-cal-next-month" onPress={() => goToMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-forward" size={18} color="#1E7F85" />
           </TouchableOpacity>
         </View>
