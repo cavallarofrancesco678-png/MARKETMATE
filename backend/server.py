@@ -44,10 +44,16 @@ class ChatRequest(BaseModel):
     message: str
     context: str = ""
     session_id: str = "default"
+    # Round 67 — rate limiting + protocollo localizzazione AI
+    device_id: str = ""
+    mercato_citta: str = ""
+    settore: str = ""
 
 class ChatResponse(BaseModel):
     response: str
     session_id: str
+    # Round 67 — True quando il limite di consumo AI è stato raggiunto
+    limit_reached: bool = False
 
 # Round 57: rimossi i model ReceiptAnalyzeRequest/ReceiptAnalyzeResponse
 # (la funzionalità OCR scontrino è stata eliminata)
@@ -104,11 +110,105 @@ async def get_status_checks():
 # ── AI Chat sessions store ──
 chat_sessions: dict = {}
 
+# ═══ Round 67 — RATE LIMITING AI ═══
+# Limiti concordati con l'utente in base al prezzo dell'app (€6,90/mese):
+# ogni messaggio (saluto incluso) costa ~€0,01 → budget AI ≈ €1/mese (14%).
+AI_DAILY_LIMIT = 10     # messaggi al giorno per dispositivo
+AI_MONTHLY_LIMIT = 100  # messaggi al mese per dispositivo
+
+AI_LIMIT_MSG_DAILY = (
+    "⏳ Hai raggiunto il limite giornaliero di 10 messaggi AI. "
+    "Il contatore si azzera a mezzanotte: ci vediamo domani! "
+    "Nel frattempo puoi consultare le tue Statistiche e l'Agenda. 📊"
+)
+AI_LIMIT_MSG_MONTHLY = (
+    "⏳ Hai raggiunto il limite mensile di 100 messaggi AI incluso nel tuo abbonamento. "
+    "Il contatore si azzera il 1° del prossimo mese. "
+    "Nel frattempo puoi consultare le tue Statistiche e l'Agenda. 📊"
+)
+
+async def check_ai_usage(device_id: str) -> dict:
+    """Controlla i limiti d'uso AI per il dispositivo (10/giorno, 100/mese).
+    Ritorna {'allowed': bool, 'message': str}. NON incrementa il contatore."""
+    now = datetime.utcnow()
+    day = now.strftime('%Y-%m-%d')
+    month = now.strftime('%Y-%m')
+    daily_doc = await db.ai_usage.find_one({"device_id": device_id, "day": day})
+    daily_count = (daily_doc or {}).get("count", 0)
+    if daily_count >= AI_DAILY_LIMIT:
+        return {"allowed": False, "message": AI_LIMIT_MSG_DAILY}
+    pipeline = [
+        {"$match": {"device_id": device_id, "month": month}},
+        {"$group": {"_id": None, "total": {"$sum": "$count"}}},
+    ]
+    agg = await db.ai_usage.aggregate(pipeline).to_list(1)
+    monthly_count = agg[0]["total"] if agg else 0
+    if monthly_count >= AI_MONTHLY_LIMIT:
+        return {"allowed": False, "message": AI_LIMIT_MSG_MONTHLY}
+    return {"allowed": True, "message": ""}
+
+async def increment_ai_usage(device_id: str):
+    """Incrementa il contatore d'uso AI (1 doc per dispositivo per giorno)."""
+    now = datetime.utcnow()
+    day = now.strftime('%Y-%m-%d')
+    month = now.strftime('%Y-%m')
+    await db.ai_usage.update_one(
+        {"device_id": device_id, "day": day},
+        {"$inc": {"count": 1}, "$setOnInsert": {"month": month}},
+        upsert=True,
+    )
+
+# ═══ Round 67 — LOOKUP REGIONE/PROVINCIA per il protocollo di localizzazione AI ═══
+# Cache in-memory: città → {regione, provincia}. Usa Open-Meteo geocoding
+# (admin1 = regione, admin2 = provincia) senza chiavi API.
+_region_cache: dict = {}
+
+async def get_region_info(citta: str) -> dict:
+    """Risolve la città del mercato in {regione, provincia} (best effort)."""
+    key = (citta or "").strip().lower()
+    if not key:
+        return {}
+    if key in _region_cache:
+        return _region_cache[key]
+    try:
+        async with httpx.AsyncClient(timeout=6) as client_http:
+            resp = await client_http.get(
+                "https://geocoding-api.open-meteo.com/v1/search",
+                params={"name": citta, "count": 3, "language": "it"},
+            )
+            if resp.status_code == 200:
+                results = (resp.json() or {}).get("results") or []
+                # Preferisci risultati italiani
+                it = [r for r in results if r.get("country_code", "").lower() == "it"]
+                r = (it or results)[0] if results else None
+                if r:
+                    info = {
+                        "regione": r.get("admin1", ""),
+                        "provincia": r.get("admin2", ""),
+                        "paese": r.get("country", ""),
+                    }
+                    _region_cache[key] = info
+                    return info
+    except Exception as e:
+        logger.warning(f"get_region_info failed for '{citta}': {e}")
+    _region_cache[key] = {}
+    return {}
+
 @api_router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(req: ChatRequest):
     llm_key = os.environ.get('EMERGENT_LLM_KEY', '')
     if not llm_key:
         return ChatResponse(response="Chiave AI non configurata.", session_id=req.session_id)
+
+    # ═══ Round 67 — RATE LIMITING (10 msg/giorno, 100 msg/mese per dispositivo) ═══
+    limiter_id = (req.device_id or "").strip() or f"sess_{req.session_id}"
+    try:
+        usage = await check_ai_usage(limiter_id)
+        if not usage["allowed"]:
+            return ChatResponse(response=usage["message"], session_id=req.session_id, limit_reached=True)
+    except Exception as e:
+        # Fail-open: se il DB non risponde non blocchiamo la chat
+        logger.warning(f"AI usage check failed (fail-open): {e}")
 
     try:
         sid = req.session_id or "default"
@@ -121,8 +221,42 @@ async def ai_chat(req: ChatRequest):
         # Giornate, ecc.) e NON deve mai "inventare" città/mercati basandosi
         # sui suoi training data. Multi-tenant safe per la distribuzione
         # commerciale di MarketMate.
-        system_msg = """Sei MarketMate AI, l'assistente personale per ambulanti e venditori ai mercati.
-Rispondi SEMPRE nella lingua usata dall'utente. Sei diretto, amichevole, colloquiale e ULTRA SINTETICO.
+        system_msg = """Sei MarketMate AI, l'assistente STRATEGICO per un'attività di commercio ambulante (mercati e fiere).
+Il tuo compito è fornire analisi operative basate sui dati geografici, normativi e storici dell'utente.
+Rispondi SEMPRE nella lingua usata dall'utente. Linguaggio asciutto, professionale e ULTRA SINTETICO.
+
+═══ 🚧 AMBITO ESCLUSIVO (REGOLA INVIOLABILE) ═══
+Tratti ESCLUSIVAMENTE tematiche legate all'app MarketMate e all'attività di commercio ambulante dell'utente:
+mercati, fiere, incassi, spese, fornitori, fatture, collaboratori, carburante, meteo operativo, agenda/ordini,
+statistiche, normative e bandi DI SETTORE, calendario scolastico (solo come impatto sulle vendite), funzioni dell'app.
+⚠️ Se l'utente fa domande GENERICHE fuori tema (politica, sport, ricette, codice, cultura generale, compiti, ecc.)
+RIFIUTA gentilmente con UNA sola riga: "Sono l'assistente di MarketMate: posso aiutarti solo su temi legati alla tua attività e ai tuoi dati. 😊" — NON rispondere mai alla domanda fuori tema, nemmeno parzialmente.
+
+═══ 📍 PROTOCOLLO DI LOCALIZZAZIONE DINAMICA ═══
+Nel CONTESTO trovi il blocco "MERCATO_INFO" (JSON con citta, provincia, regione, settore).
+- Prima di OGNI analisi identifica Regione e Provincia del mercato corrente da MERCATO_INFO.
+- Routing dati: adatta OGNI risposta (bandi, normative, calendario scolastico, fiere) ESCLUSIVAMENTE al territorio di competenza del mercato in calendario.
+- Coerenza territoriale: NON incrociare MAI dati normativi o scolastici di regioni differenti. L'informazione deve essere sempre strettamente locale.
+- Se MERCATO_INFO è vuoto/assente, chiedi all'utente di configurare il mercato in Impostazioni → Agenda Mercati prima di dare analisi territoriali.
+
+═══ 🏫 CALENDARIO SCOLASTICO E ANALISI PREDITTIVA ═══
+- Quando rilevante, verifica le date di apertura/chiusura scuole della REGIONE di riferimento (usa la tua conoscenza dei calendari scolastici regionali italiani; se non sei certo delle date esatte, dillo e invita a verificare sul sito della Regione).
+- AVVISO STORICO: se il mercato coincide con chiusure scolastiche o ponti, analizza lo storico delle performance di QUEL mercato nei DATI COMPLETI APP. Segnala l'impatto percentuale rilevato in passato e suggerisci azioni correttive (es. gestione merci deperibili, riduzione quantità).
+
+═══ 🏛️ MONITORAGGIO ISTITUZIONALE (ASCO / UNIONE COMMERCIANTI / BANDI) ═══
+- Su richiesta, fornisci una panoramica di bandi, finanziamenti, normative di settore e convenzioni rilevanti per il settore dell'utente (da MERCATO_INFO.settore) nella provincia/regione del mercato.
+- ⚠️ NON hai accesso al web in tempo reale: NON inventare MAI numeri di bando, scadenze precise o importi specifici. Indica le FONTI UFFICIALI dove verificare (portale della Regione {regione}, Camera di Commercio di {provincia}, Confcommercio/Unione Commercianti provinciale, portali ASCO locali) e i canali tipici di finanziamento per la categoria.
+- Dopo il report operativo del saluto (meteo, costi, vendite), SE MERCATO_INFO contiene la regione, aggiungi UNA riga: "Posso darti indicazioni su bandi o normative per l'area {Regione/Provincia}. Vuoi una panoramica?"
+- FORMATO NOTIZIE (se l'utente risponde Sì), per ogni voce:
+  • Titolo: [chiaro]
+  • Impatto: [rilevanza per l'attività]
+  • Scadenza/Azione: [periodo tipico o passo successivo — MAI date inventate]
+  • Fonte: [dove verificare/approfondire]
+  Chiudi sempre con: "⚠️ Verifica sempre date e requisiti sui portali ufficiali."
+
+═══ 💰 GESTIONE DATI E CALCOLI ═══
+- Sottrai SEMPRE costi fissi e variabili (incluso il carburante calcolato sui km specifici del tragitto) dal lordo, salvo flag specifici su voci non detraibili (vedi blocco BILANCIO nel contesto).
+- Ottimizzazione: suggerisci di valutare convenzioni locali SOLO se rilevi spese superiori alla media in categorie tipicamente coperte da accordi di zona (carburante, assicurazioni, forniture).
 
 ═══ ⚠️ MANDATO DI PRECISIONE (REGOLA INVIOLABILE) ═══
 ⚠️ NON DEVI MAI inventare nomi di mercati, città, località, fornitori, distributori, importi o condizioni meteo.
@@ -240,6 +374,7 @@ NON usare frasi generiche di incoraggiamento tipo "porta tutto l'occorrente senz
 I km del tragitto sono nel campo "km" dell'agenda. Se vedi che è uguale a 0 NON inventare un numero, scrivi "(km non calcolati - imposta partenza in Settings)".
 
 PER TUTTE LE ALTRE DOMANDE (chat libera, NON saluto iniziale):
+⚠️ SOLO temi dell'app/attività (vedi AMBITO ESCLUSIVO). Fuori tema → rifiuta con la frase standard.
 - Hai accesso COMPLETO a TUTTI i dati dell'utente nel blocco "═══ DATI COMPLETI APP ═══" del CONTESTO. Includono:
   • storico_giornate: TUTTE le giornate con lordo/netto/contanti/POS/fornitori (con tipo detrazione DAILY/WEEKLY/MONTHLY)/spese extra/invenduto
   • ordini_agenda: TUTTI gli ordini segnati dall'utente nell'agenda (data + testo)
@@ -302,15 +437,39 @@ Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare perc
             ).with_model("openai", "gpt-4.1-mini")
 
         chat = chat_sessions[sid]
+        # ═══ Round 67 — MERCATO_INFO (protocollo localizzazione dinamica) ═══
+        # Risolve la città del mercato in regione/provincia e la inietta come
+        # JSON contestuale, così l'AI adatta bandi/normative/calendario
+        # scolastico ESCLUSIVAMENTE al territorio di competenza.
+        mercato_info_block = ""
+        if (req.mercato_citta or "").strip():
+            region = await get_region_info(req.mercato_citta)
+            mercato_info = {
+                "citta": req.mercato_citta.strip(),
+                "provincia": region.get("provincia", ""),
+                "regione": region.get("regione", ""),
+                "paese": region.get("paese", ""),
+                "settore": (req.settore or "").strip() or "Alimentare",
+            }
+            mercato_info_block = (
+                "=== MERCATO_INFO ===\n"
+                + json.dumps(mercato_info, ensure_ascii=False)
+                + "\n=== FINE MERCATO_INFO ===\n\n"
+            )
         # ═══ IMPORTANTE: Allega il CONTESTO AGGIORNATO ad ogni messaggio utente ═══
         # Questo garantisce che l'AI veda sempre i dati più recenti del database locale,
         # anche se la sessione era già in cache con contesto stale.
         if req.context and req.context.strip():
-            enriched_message = f"=== DATI ATTIVITA (aggiornati ora) ===\n{req.context}\n=== FINE DATI ===\n\nMessaggio utente: {req.message}"
+            enriched_message = f"{mercato_info_block}=== DATI ATTIVITA (aggiornati ora) ===\n{req.context}\n=== FINE DATI ===\n\nMessaggio utente: {req.message}"
         else:
-            enriched_message = req.message
+            enriched_message = f"{mercato_info_block}{req.message}" if mercato_info_block else req.message
         user_msg = UserMessage(text=enriched_message)
         response = await chat.send_message(user_msg)
+        # ═══ Round 67 — incrementa il contatore SOLO a chiamata riuscita ═══
+        try:
+            await increment_ai_usage(limiter_id)
+        except Exception as e:
+            logger.warning(f"AI usage increment failed: {e}")
         return ChatResponse(response=response, session_id=sid)
 
     except Exception as e:

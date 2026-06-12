@@ -1,0 +1,62 @@
+{
+  "summary": "Round 67 MarketMate UI testing via localStorage seed injection. Backend AI /api/ai/chat smoke OK (200, limit_reached present). UI seed loading works (TEST/MAGENTA visible, KPI €600 LORDO / €594 UTILE). Test 1 (Carburante month sync): initial sync verified — filter chip 'GIU 2026' matches calendar 'GIUGNO 2026' both consistent. Test 5 (Buongiorno AI): WORKS — greeting 'Ciao Mario! ☀️ ... Bilancio di oggi: incassati €600, spese totali €6 → utile reale €594' received correctly with personalized data and budget calculations. Test 3 (Home ANNO PREC.): chart did NOT display the expected 2-bar single-market comparison (€800 vs €600, -25%) — after clicking ANNO PREC. the chart area still rendered MESE-style summary (€600 / 1 giornate / media €600), without prev-year bar or year labels (2025/2026). POSSIBLE BUG. Test 2 (Statistiche fattura ripartita): FORNITORI section TOT shows €0 even with seeded spesePeriodiche entry of 120€ + pagamentoMode='fattura' + importoFattura=120 on today's dayOfPurchase. POSSIBLE BUG — the Round 67 split classification may not be triggering, or the spesePeriodiche entry is not being included in filteredData's daysIso set. Tutorial 'Salta la guida' floating banner appears intermittently on every page nav, was closed each time.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "home/index.tsx — Grafico Mercato (modalità 'annoprec')",
+        "issue": "Clicking the 'ANNO PREC.' toggle with seed containing a previous-year same-DOW-same-month giornata (€800 on 2025-06-27 Fri) and a current giornata (€600 on 2026-06-12 Fri) did not render the expected 2-bar comparison. Chart text remained '€600 / 1 giornate / media €600' with no '2025' / '2026' year labels and no '-25%' delta. Expected per Round 67 spec: 'ultimo venerdì di maggio 2025 vs ultimo venerdì di maggio 2026' single-market comparison with date labels and delta. Reference: /app/frontend/app/home/index.tsx:1957-1995",
+        "testID": "(no testID on toggle — uses text 'ANNO PREC.')",
+        "priority": "HIGH"
+      },
+      {
+        "component": "stats.tsx — FORNITORI / fornitoriTotals",
+        "issue": "Seeded spesePeriodiche entry { nome:'TestForn', importo:120, categoria:'fornitore', dayOfPurchase:<today>, pagamentoMode:'fattura', numeroFattura:'FT-99', importoFattura:120, importoContanti:0, type:'WEEKLY' } did NOT appear under FORNITORI section in Statistics (Mese filter). 'FORNITORI TOT: €0' was shown. Expected 120€ classified under 'Fatturata' bucket. Possible cause: daysIso.has(sp.dayOfPurchase) failing (timezone mismatch between dayOfPurchase ISO 'YYYY-MM-DD' and filteredData.data → new Date.getDate() local), OR collapsed FORNITORI section did not expand to show breakdown. Recommend main agent verify the dayOfPurchase ISO normalization and confirm fornitoriTotals classifies 120€ as fatturata. Reference: /app/frontend/app/home/stats.tsx:898-979",
+        "testID": "(none on fornitori section)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Tutorial banner",
+        "issues": ["Floating tutorial 'Passo 1 di 18 / Ciao! Sono la tua guida' banner re-appears on every page navigation even with seed isConfigured:true. User must dismiss repeatedly. Consider persisting tutorial dismissal."]
+      }
+    ],
+    "react_native_issues": [
+      {"component": "shadow* style props", "issue": "Console warnings: 'shadow* style props are deprecated. Use boxShadow.' Multiple occurrences across screens."},
+      {"component": "props.pointerEvents", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents.'"}
+    ]
+  },
+  "test_report_links": [
+    "/app/frontend_tests/seed_marketmate.js"
+  ],
+  "action_items": [
+    "BUG (TEST 3): Verify ANNO PREC. branch in home/index.tsx — when seeded with same-DOW prev-year giornata + current-year giornata, chart did not render 2 bars / year labels / delta. Inspect whether `filtered` (mercatoFiltered) includes 2025 data or if filtering by current year is happening before the chartMode switch. Reference lines 1957-1995.",
+    "BUG (TEST 2): Verify fornitoriTotals in stats.tsx correctly picks up spesePeriodiche with pagamentoMode='fattura' on today's dayOfPurchase. Suspected timezone/format mismatch when comparing `sp.dayOfPurchase` (YYYY-MM-DD string) to the daysIso Set built from `new Date(g.data).getFullYear()/getMonth()/getDate()`. Also verify the FORNITORI section per-fornitore breakdown actually surfaces fatturata vs libera labels.",
+    "Replace deprecated shadow* style props with boxShadow across the codebase to eliminate warnings.",
+    "Replace deprecated props.pointerEvents with style.pointerEvents.",
+    "Consider persisting tutorial dismissal in storage (e.g., tutorial_dismissed flag) so banner does not re-appear on every page navigation when isConfigured=true."
+  ],
+  "critical_code_review_comments": [
+    "gas.tsx:288-293 — goToMonth() correctly syncs both displayMonth and period via setPeriod(monthPeriodOf(next)). Looks good.",
+    "gas.tsx:464-470 — RangePicker onConfirm correctly syncs displayMonth from r.from. Looks good.",
+    "stats.tsx:899-979 — fornitoriTotals logic looks correct on paper: classifies by importoFattura/importoContanti split first, then legacy pagamentoMode/numeroFattura. UI rendering must be verified — possibly the entry is computed correctly but the FORNITORI total is using a different variable, or daysIso building has TZ issue with `getDate()` vs UTC ISO `dayOfPurchase`.",
+    "stats.tsx:594-625 — chartLabels and groupData use `dataRiferimento` correctly for weekly bucket support including 5-week months. Looks good.",
+    "index.tsx:1957-1995 — annoprec branch logic looks correct (filters by year/month/DOW/lordo>0 and picks most recent). However, `filtered` upstream may exclude previous-year data. Recommend logging `filtered.length` to debug.",
+    "BuongiornoModal.tsx:29-43 + 390-440 — device_id persistence via AsyncStorage works; mercato_citta and settore are sent in request body. limit_reached is handled. Backend integration confirmed working (greeting returned)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (smoke /api/ai/chat 200 OK with limit_reached:false)",
+    "frontend": "40% (TEST 1 partial — initial sync OK, back-arrow click not verified due to selector difficulty; TEST 5 OK; TEST 2 FAIL; TEST 3 FAIL; TEST 4 NA)"
+  },
+  "seed_data_creation": "Injected localStorage 'marketmate_data' with isConfigured:true, nomeAttivita:'Test', mercato venerdì=Magenta, storicoGiornate=[prev-year-same-Fri-of-June €800 + today €600], storicoCarburante=[current-month €50 + prev-month €80], spesePeriodiche=[1 ripartita fattura €120 dayOfPurchase=today pagamentoMode=fattura].",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "localStorage 'marketmate_data' seed works for bypassing onboarding (use pin:'' to skip pin lock; isConfigured:true required). Tutorial banner ('Salta la guida') re-appears on every nav and must be dismissed. Each browser_automation invocation starts a fresh session (localStorage cleared), so seed + tests must be combined into a single Playwright script execution. Tests 2 and 3 need re-verification: (a) ANNO PREC. chart should display 2 bars for prev-year vs current-year single-market with date labels and delta — currently rendering as MESE summary; (b) spesePeriodiche with pagamentoMode=fattura on today should appear under FORNITORI > Fatturata — currently FORNITORI TOT shows €0. Backend /api/ai/chat works (200 with limit_reached). Buongiorno modal renders AI greeting with personalized data successfully.",
+  "rca_of_issue": "TEST 3 RCA (suspected): The annoprec branch at home/index.tsx:1957-1995 relies on `filtered` which is the upstream mercatoFiltered array. If `mercatoFiltered` only includes current-year data (due to a previous time filter), lastMarketOf(yearCur-1) will return null and the 2025 bar will not render. Recommend inspecting mercatoFiltered build logic at lines ~1820-1880 and confirming it preserves multi-year data when chartMode='annoprec'.\n\nTEST 2 RCA (suspected): The Round 67 fornitoriTotals try-block at stats.tsx:931-969 builds daysIso from `new Date(g.data).getFullYear()/getMonth()+1/getDate()` in LOCAL timezone, then compares against `sp.dayOfPurchase` which is a 'YYYY-MM-DD' string. If sp.dayOfPurchase was originally produced from a UTC ISO `toISOString().slice(0,10)`, the dates may not match (UTC-shifted by 1 day in negative timezones). Verify by logging both daysIso contents and sp.dayOfPurchase values during test run. Alternative: the per-fornitore breakdown UI may simply not be expanded — check screenshot of expanded FORNITORI section to confirm whether 'Fatturata' line shows €120."
+}

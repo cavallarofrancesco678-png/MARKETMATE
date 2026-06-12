@@ -21,6 +21,26 @@ import { router } from 'expo-router';
 
 const REFERRAL_DISMISS_KEY = 'mm_referral_dismissed_at';
 const REFERRAL_COOLDOWN_DAYS = 10;
+/* Round 67 — ID dispositivo persistente per il rate-limit AI lato backend
+   (10 messaggi/giorno + 100/mese). Generato una sola volta e riusato. */
+const DEVICE_ID_KEY = 'mm_device_id';
+
+let _cachedDeviceId: string | null = null;
+const getDeviceId = async (): Promise<string> => {
+  if (_cachedDeviceId) return _cachedDeviceId;
+  try {
+    let id = await AsyncStorage.getItem(DEVICE_ID_KEY);
+    if (!id) {
+      id = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+    }
+    _cachedDeviceId = id;
+    return id;
+  } catch {
+    _cachedDeviceId = `dev_fallback_${Date.now()}`;
+    return _cachedDeviceId;
+  }
+};
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -30,6 +50,9 @@ interface ChatMessage {
 interface StoreData {
   nomeAttivita: string;
   nomeTitolare: string;
+  /** Settore merceologico dell'attività (es. 'Alimentare') — inviato al
+      backend dentro mercato_info per il protocollo di localizzazione AI. */
+  settore?: string;
   meteoOggi: string;
   mercatoOggi: string;
   settimanaPrec: { lordo: number; netto: number; giorni: number };
@@ -98,6 +121,8 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   const [fuelData, setFuelData] = useState<string>('');
   const [weatherData, setWeatherData] = useState<string>('');
   const [dataReady, setDataReady] = useState(false);
+  // Round 67: limite consumo AI raggiunto (10/giorno o 100/mese)
+  const [limitReached, setLimitReached] = useState(false);
   // Round 48: banner Referral con dismiss persistente (10gg cooldown)
   const [showReferralBanner, setShowReferralBanner] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -148,6 +173,7 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
       sessionId.current = `session_${Date.now()}`;
       setMessages([]);
       setDataReady(false);
+      setLimitReached(false);
       const promises: Promise<void>[] = [];
 
       if (storeData.partenzaDa && storeData.mercatoOggi) {
@@ -360,6 +386,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
   const sendInvisibleGreeting = async () => {
     setLoading(true);
     try {
+      const deviceId = await getDeviceId();
       const res = await fetch(`${API_URL}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -367,9 +394,13 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
           message: '__INIT_GREETING__',
           session_id: sessionId.current,
           context: contextStr,
+          device_id: deviceId,
+          mercato_citta: storeData.mercatoOggi || storeData.partenzaDa || '',
+          settore: storeData.settore || '',
         }),
       });
       const data = await res.json();
+      if (data.limit_reached) setLimitReached(true);
       if (data.response) {
         setMessages([{ role: 'assistant', text: data.response }]);
       }
@@ -381,7 +412,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
   };
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || limitReached) return;
 
     const userMsg: ChatMessage = { role: 'user', text: text.trim() };
     setMessages((prev) => [...prev, userMsg]);
@@ -390,6 +421,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
     Keyboard.dismiss();
 
     try {
+      const deviceId = await getDeviceId();
       const res = await fetch(`${API_URL}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -397,9 +429,13 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
           message: text.trim(),
           context: contextStr,
           session_id: sessionId.current,
+          device_id: deviceId,
+          mercato_citta: storeData.mercatoOggi || storeData.partenzaDa || '',
+          settore: storeData.settore || '',
         }),
       });
       const data = await res.json();
+      if (data.limit_reached) setLimitReached(true);
       const aiMsg: ChatMessage = { role: 'assistant', text: data.response || 'Nessuna risposta.' };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (e) {
@@ -553,18 +589,19 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
             </TouchableOpacity>
             <TextInput
               style={st.textInput}
-              placeholder={t('modals.askSomething')}
+              placeholder={limitReached ? 'Limite giornaliero AI raggiunto' : t('modals.askSomething')}
               placeholderTextColor="#B0B0A0"
               value={input}
               onChangeText={setInput}
               onSubmitEditing={() => sendMessage(input)}
               returnKeyType="send"
               multiline={false}
+              editable={!limitReached}
             />
             <TouchableOpacity
-              style={[st.sendBtn, !input.trim() && { opacity: 0.4 }]}
+              style={[st.sendBtn, (!input.trim() || limitReached) && { opacity: 0.4 }]}
               onPress={() => sendMessage(input)}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || limitReached}
               activeOpacity={0.7}
             >
               <Ionicons name="send" size={20} color="#FFF" />

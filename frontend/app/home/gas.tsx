@@ -39,6 +39,20 @@ const safeParseDate = (raw: any): Date | null => {
 const isoOf = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+/* Round 67 — costruisce un RangeResult 'mese' per la data indicata.
+   Usato per la SINCRONIZZAZIONE fra il filtro periodo (KPI/grafico sopra)
+   e il calendario mensile (sotto): cambiare mese in uno aggiorna l'altro. */
+const monthPeriodOf = (d: Date): RangeResult => {
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return {
+    mode: 'mese',
+    from: isoOf(first),
+    to: isoOf(last),
+    label: `${MESI_SHORT[d.getMonth()]} ${d.getFullYear()}`,
+  };
+};
+
 export default function GasScreen() {
   const store = useAppStore();
   const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante } = store;
@@ -62,17 +76,7 @@ export default function GasScreen() {
        • PERS. ora condivide lo stesso componente di Statistiche per
          coerenza UX. */
   const [periodOpen, setPeriodOpen] = useState(false);
-  const [period, setPeriod] = useState<RangeResult>(() => {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1);
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-      mode: 'mese',
-      from: isoOf(first),
-      to: isoOf(last),
-      label: `${MESI_SHORT[now.getMonth()]} ${now.getFullYear()}`,
-    };
-  });
+  const [period, setPeriod] = useState<RangeResult>(() => monthPeriodOf(new Date()));
 
   const [euroText, setEuroText] = useState('');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -278,6 +282,16 @@ export default function GasScreen() {
   const today = new Date();
   const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
 
+  /* Round 67 — SINCRONIZZAZIONE CALENDARIO ↔ FILTRO PERIODO.
+     Cambiare mese con le frecce del calendario (sotto) aggiorna anche il
+     filtro periodo (sopra) così KPI + grafico mostrano lo STESSO mese. */
+  const goToMonth = (delta: number) => {
+    hapticTap();
+    const next = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + delta, 1);
+    setDisplayMonth(next);
+    setPeriod(monthPeriodOf(next));
+  };
+
   return (
     <ScrollView
       style={[s.root, { paddingTop: topPad }]}
@@ -364,11 +378,11 @@ export default function GasScreen() {
       {/* ═══ CALENDARIO ═══ */}
       <View style={s.calCard}>
         <View style={s.calHeader}>
-          <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1))}>
+          <TouchableOpacity onPress={() => goToMonth(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-back" size={18} color="#1E7F85" />
           </TouchableOpacity>
           <Text style={s.calMonthTxt}>{(t('gas.months', { returnObjects: true }) as string[])?.[displayMonth.getMonth()]?.toUpperCase() || MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
-          <TouchableOpacity onPress={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1))}>
+          <TouchableOpacity onPress={() => goToMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-forward" size={18} color="#1E7F85" />
           </TouchableOpacity>
         </View>
@@ -447,7 +461,13 @@ export default function GasScreen() {
       <RangePickerModal
         visible={periodOpen}
         onClose={() => setPeriodOpen(false)}
-        onConfirm={(r) => setPeriod(r)}
+        onConfirm={(r) => {
+          setPeriod(r);
+          /* Round 67 — sincronizza anche il calendario sotto col mese
+             di inizio del periodo scelto nel filtro sopra. */
+          const d = new Date(r.from + 'T12:00:00');
+          if (!isNaN(d.getTime())) setDisplayMonth(d);
+        }}
         initialMode={period.mode}
         initialFrom={period.mode === 'pers' ? period.from : undefined}
         initialTo={period.mode === 'pers' ? period.to : undefined}

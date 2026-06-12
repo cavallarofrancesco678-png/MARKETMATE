@@ -246,8 +246,21 @@ export default function AgendaScreen() {
         // Importo: preferisci la fattura, altrimenti contanti, altrimenti 0
         const impFatt = Math.abs(dettaglio[forn] || 0);
         const impCash = Math.abs(dettaglio[`${forn}__libera`] || 0);
-        const importoNum = impFatt > 0 ? impFatt : impCash;
+        let importoNum = impFatt > 0 ? impFatt : impCash;
         const dd = new Date(g.data);
+        /* Round 67 — i fornitori con detrazione PERIODICA vengono spostati in
+           spesePeriodiche (i dettaglio_fornitori risultano vuoti → importo 0).
+           Recuperiamo l'importo dalla spesa periodica con stesso giorno+nome
+           così la fattura nell'archivio mostra l'importo reale. */
+        if (importoNum === 0) {
+          try {
+            const dayIso = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+            const spMatch = ((store as any).spesePeriodiche || []).find((sp: any) =>
+              sp.nome === forn && (sp.dayOfPurchase || sp.from) === dayIso
+            );
+            if (spMatch) importoNum = Number(spMatch.importo) || 0;
+          } catch { /* skip */ }
+        }
         const key = `${dd.toISOString().slice(0,10)}_${forn}_${fInfo.numeroFattura}`;
         if (seen.has(key)) return;
         seen.add(key);
@@ -325,7 +338,7 @@ export default function AgendaScreen() {
       });
     });
     return items.sort((a, b) => b.data.getTime() - a.data.getTime());
-  }, [store.storicoGiornate, (store as any).speseExtraSession, ordiniAgenda]);
+  }, [store.storicoGiornate, (store as any).speseExtraSession, ordiniAgenda, (store as any).spesePeriodiche]);
 
   /* ═══ Combina impegniMese con le fatture (definito DOPO fattureArchive per evitare TDZ) ═══ */
   const impegniMeseFinal = useMemo(() => {

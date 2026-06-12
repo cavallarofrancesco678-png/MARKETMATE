@@ -1189,35 +1189,6 @@ export default function HomeScreen() {
     - (excludeFornitori ? 0 : speseExtraFornTotale)
     - (excludeInvenduto ? 0 : invendutoNum)
     - (excludeCollaboratori ? 0 : costoCollabAttivi);
-  /* ── Storico mercato dati reali ── */
-  const storicoMercato = useMemo(() => {
-    const gg = store.storicoGiornate || [];
-    const now = dataCorrente;
-    const mNome = mercatoNome.toLowerCase();
-    const filtered = gg.filter((g) => (g.mercato || '').toLowerCase() === mNome);
-
-    // ═══ MESE: filtra anche per stesso giorno-della-settimana per coerenza con stats ═══
-    const targetDow = now.getDay();
-    const meseData = filtered.filter((g) => {
-      const d = new Date(g.data);
-      return d.getMonth() === now.getMonth()
-          && d.getFullYear() === now.getFullYear()
-          && d.getDay() === targetDow;
-    });
-    const annoData = filtered.filter((g) => new Date(g.data).getFullYear() === now.getFullYear());
-    const annoPrecData = filtered.filter((g) => new Date(g.data).getFullYear() === now.getFullYear() - 1);
-
-    const calcTot = (arr: typeof gg) => arr.reduce((s, g) => s + (g.lordo || 0), 0);
-    const calcMedia = (arr: typeof gg) => arr.length > 0 ? calcTot(arr) / arr.length : 0;
-
-    const meseTot = calcTot(meseData);
-    const annoTot = calcTot(annoData);
-    const annoPrecTot = calcTot(annoPrecData);
-
-    if (chartMode === 'mese') return { totale: meseTot, media: calcMedia(meseData), giorni: meseData.length, label: 'questo mese' };
-    if (chartMode === 'annoprec') return { totale: annoPrecTot, media: calcMedia(annoPrecData), giorni: annoPrecData.length, label: 'anno prec.' };
-    return { totale: annoTot, media: calcMedia(annoData), giorni: annoData.length, label: 'quest\'anno' };
-  }, [store.storicoGiornate, mercatoNome, chartMode, dataCorrente]);
 
   const collabNames = collaboratori.length > 0 ? collaboratori.map((c) => c.nome) : [];
 
@@ -1363,11 +1334,20 @@ export default function HomeScreen() {
       const dt = dettaglioFornDed[nomeBase];
       if (!dt || dt === 'DAILY') return;
       // Somma tutte le voci collegate (nomeBase + nomeBase__libera*)
+      // Round 67 — tracciamo separatamente la parte FATTURA (chiave nomeBase)
+      // e la parte CONTANTI (chiave nomeBase__libera) così le Statistiche
+      // possono classificare correttamente Fatturata vs Contanti anche per
+      // le spese ripartite.
       let importo = 0;
+      let impFatturaPart = 0;
+      let impContantiPart = 0;
       const keysToRemove: string[] = [];
       Object.keys(dettaglioForn).forEach((k) => {
         if (k === nomeBase || k.startsWith(nomeBase + '__libera') || k.startsWith(nomeBase + '__fattn')) {
-          importo += parseFloat(String(dettaglioForn[k])) || 0;
+          const v = parseFloat(String(dettaglioForn[k])) || 0;
+          importo += v;
+          if (k === nomeBase) impFatturaPart += v;
+          else if (k.startsWith(nomeBase + '__libera') && !k.includes('__liberaLabel')) impContantiPart += v;
           keysToRemove.push(k);
         }
       });
@@ -1385,7 +1365,13 @@ export default function HomeScreen() {
         type: dt as 'WEEKLY' | 'CUSTOM' | 'MONTHLY',
         dayOfPurchase: dayIso,
         numeroFattura: fornInfo?.[nomeBase]?.numeroFattura,
-        pagamentoMode: fornInfo?.[nomeBase]?.pagamentoMode,
+        // Round 67 — BUG FIX: il pagamentoMode era letto da fornInfo (che non
+        // lo contiene → sempre undefined). Ora viene letto dallo state corretto
+        // `pagamentoMode` e salviamo anche lo split fattura/contanti, così le
+        // Statistiche sommano le fatture sotto "Fatturata" e non le disperdono.
+        pagamentoMode: pagamentoMode[nomeBase] || 'contanti',
+        importoFattura: Math.round(impFatturaPart * 100) / 100,
+        importoContanti: Math.round(impContantiPart * 100) / 100,
       });
 
       // Rimuoviamo dai dettaglio_* in modo che la giornata salvi solo i DAILY
@@ -1903,7 +1889,6 @@ export default function HomeScreen() {
             const mNome = mercatoNome.toLowerCase();
             const filtered = gg.filter((g) => (g.mercato || '').toLowerCase() === mNome);
             const currentYear = new Date().getFullYear();
-            const prevYear = currentYear - 1;
             
             let chartData: number[] = [];
             let chartLabels: string[] = [];
@@ -1969,16 +1954,41 @@ export default function HomeScreen() {
               const mesiLavorati = chartGiorniPerMese.filter((g) => g > 0).length;
               media = mesiLavorati > 0 ? totale / mesiLavorati : 0;
             } else {
-              // ANNO PREC - confronto 2 barre
-              chartLabels = [String(prevYear), String(currentYear)];
-              const yearDataPrec = filtered.filter((g) => new Date(g.data).getFullYear() === prevYear);
-              const yearDataCorr = filtered.filter((g) => new Date(g.data).getFullYear() === currentYear);
-              totaleAnnoPrec = yearDataPrec.reduce((s, g) => s + (g.lordo || 0), 0);
-              totaleAnnoCorr = yearDataCorr.reduce((s, g) => s + (g.lordo || 0), 0);
+              // ═══ ANNO PREC — Round 67: confronto SINGOLO MERCATO ═══
+              // Confronta l'ULTIMO mercato (1 giornata) dello stesso mese +
+              // stesso giorno-settimana della data selezionata, anno corrente
+              // vs anno precedente. Es: ultimo venerdì di maggio 2026 vs
+              // ultimo venerdì di maggio 2025. Se non ancora tenuto → €0.
+              const targetDow = dataCorrente.getDay();
+              const monthIdx = dataCorrente.getMonth();
+              const yearCur = dataCorrente.getFullYear();
+              const lastMarketOf = (year: number) => {
+                const matches = filtered
+                  .filter((g) => {
+                    const d = new Date(g.data);
+                    return d.getFullYear() === year
+                        && d.getMonth() === monthIdx
+                        && d.getDay() === targetDow
+                        && (g.lordo || 0) > 0;
+                  })
+                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+                return matches[0] || null;
+              };
+              const prevG = lastMarketOf(yearCur - 1);
+              const currG = lastMarketOf(yearCur);
+              totaleAnnoPrec = prevG?.lordo || 0;
+              totaleAnnoCorr = currG?.lordo || 0;
+              const fmtShort = (g: any, year: number) => {
+                if (!g) return String(year);
+                const d = new Date(g.data);
+                return `${d.getDate()}/${d.getMonth() + 1}/${String(year).slice(2)}`;
+              };
+              chartLabels = [fmtShort(prevG, yearCur - 1), fmtShort(currG, yearCur)];
               chartData = [totaleAnnoPrec, totaleAnnoCorr];
-              giorniCount = yearDataPrec.length + yearDataCorr.length;
-              totale = totaleAnnoPrec + totaleAnnoCorr;
-              media = totale / 2;
+              giorniCount = (prevG ? 1 : 0) + (currG ? 1 : 0);
+              // Numero principale = ultimo mercato dell'anno corrente
+              totale = totaleAnnoCorr;
+              media = 0;
             }
             
             const maxVal = Math.max(...chartData, 1);
@@ -2625,6 +2635,7 @@ export default function HomeScreen() {
         storeData={{
           nomeAttivita: store.nomeAttivita || 'La mia attivita',
           nomeTitolare: store.nomeTitolare || 'Titolare',
+          settore: store.settore || 'Alimentare',
           meteoOggi: meteo,
           mercatoOggi: mercatoNome,
           selectedDate: `${dataCorrente.getFullYear()}-${String(dataCorrente.getMonth() + 1).padStart(2, '0')}-${String(dataCorrente.getDate()).padStart(2, '0')}`,

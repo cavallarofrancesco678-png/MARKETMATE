@@ -598,16 +598,18 @@ function StatsScreenInner() {
     const shortDays = getShortDayNames();
     if (filtroTempo === 'Anno') return shortMonths;
     if (filtroTempo === 'Mese') {
-      // Supporto per mesi a 5 settimane
-      const now = new Date();
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      // Supporto per mesi a 5 settimane — Round 67: usa dataRiferimento
+      // (mese navigato) e NON la data odierna, così navigando ai mesi
+      // passati le settimane sono quelle del mese mostrato.
+      const ref = dataRiferimento;
+      const firstDay = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const lastDay = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
       const numWeeks = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
       const weeksCount = Math.min(numWeeks, 5);
       return Array.from({ length: weeksCount }, (_, i) => `S${i + 1}`);
     }
     return shortDays;
-  }, [filtroTempo, t]);
+  }, [filtroTempo, t, dataRiferimento]);
 
   const groupData = (data: Giornata[], field: (g: Giornata) => number): number[] => {
     if (filtroTempo === 'Anno') {
@@ -616,11 +618,11 @@ function StatsScreenInner() {
       return months;
     }
     if (filtroTempo === 'Mese') {
-      // Supporto per mesi a 5 settimane
-      // Calcola il numero di settimane nel mese corrente
-      const now = new Date();
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      // Supporto per mesi a 5 settimane — Round 67: usa dataRiferimento
+      // (mese navigato) per calcolare il numero di settimane corretto.
+      const ref = dataRiferimento;
+      const firstDay = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const lastDay = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
       const numWeeks = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
       const weeksCount = Math.min(numWeeks, 5); // Max 5 settimane
       
@@ -920,8 +922,12 @@ function StatsScreenInner() {
        L'utente segnalava: "FORNITORI TOT" mostra 0 quando un fornitore
        ha solo ripartite. Fix: somma anche le spese ripartite
        (categoria='fornitore') comprate nelle giornate del periodo
-       filtrato. Vengono inserite come "libera" (= contanti) di default
-       (sono comunque ripartizioni di un acquisto). */
+       filtrato.
+       Round 67 — BUG FIX FATTURE DISPERSE: prima TUTTE le ripartite
+       finivano sotto "libera" (contanti) anche se pagate a fattura.
+       Ora classifichiamo usando importoFattura/importoContanti (split
+       salvato al momento dell'acquisto) oppure, per i dati legacy,
+       pagamentoMode/numeroFattura. */
     try {
       const spList = Array.isArray(store.spesePeriodiche) ? store.spesePeriodiche : [];
       // Set di ISO date delle giornate visibili (per evitare doppi conteggi)
@@ -939,9 +945,26 @@ function StatsScreenInner() {
         if (!dp || !daysIso.has(dp)) return;
         const imp = Number(sp.importo) || 0;
         if (imp <= 0) return;
-        libera += imp;
+        let f = 0;
+        let l = 0;
+        if (typeof sp.importoFattura === 'number' || typeof sp.importoContanti === 'number') {
+          // Nuovo formato (Round 67): split esplicito fattura/contanti
+          f = Number(sp.importoFattura) || 0;
+          l = Number(sp.importoContanti) || 0;
+          const resto = imp - f - l;
+          if (resto > 0.005) l += resto; // safety: nessun importo disperso
+        } else if (sp.pagamentoMode === 'fattura' || sp.pagamentoMode === 'misto'
+          || (sp.numeroFattura && String(sp.numeroFattura).trim() !== '')) {
+          // Legacy con indizio di fattura → classifica come fatturata
+          f = imp;
+        } else {
+          l = imp;
+        }
+        fatturata += f;
+        libera += l;
         if (!perForn[sp.nome]) perForn[sp.nome] = { fatturata: 0, libera: 0 };
-        perForn[sp.nome].libera += imp;
+        perForn[sp.nome].fatturata += f;
+        perForn[sp.nome].libera += l;
       });
     } catch { /* skip */ }
     
@@ -1060,10 +1083,13 @@ function StatsScreenInner() {
     // Round 66 — period boundaries CALENDAR-BASED (non più derivati da filteredByTime).
     // Per "Sett." prende Lun-Dom della settimana corrente (anche se non ci sono giornate
     // salvate in quei giorni). Per "Pers." usa le date scelte dall'utente.
+    // Round 67 — passa dataRiferimento così navigando i periodi passati i
+    // confini seguono il periodo mostrato (e non sempre oggi).
     const { from: periodFrom, to: periodTo } = getPeriodBoundaries(
       filtroTempo as FiltroTempo,
       persDateFrom,
       persDateTo,
+      dataRiferimento,
     );
 
     /* ═══ Round 61 — sorgente UNICA: store.spesePeriodiche ═══
@@ -1164,26 +1190,35 @@ function StatsScreenInner() {
     const oggi = new Date();
     oggi.setHours(23, 59, 59, 999);
 
+    /* Round 67 — i confini del periodo usano dataRiferimento (navigabile),
+       e il conteggio dei giorni si ferma alla FINE del periodo mostrato
+       (non a oggi) quando si naviga su periodi passati. */
+    const ref = dataRiferimento;
+    const endOf = (periodEnd: Date) => (periodEnd < oggi ? periodEnd : oggi);
+
     if (filtroTempo === 'Sett.') {
-      const weekStart = new Date(now);
+      const weekStart = new Date(ref);
       weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
       weekStart.setHours(0,0,0,0);
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6); weekEnd.setHours(23,59,59,999);
       const startDate = firstDataDate > weekStart ? firstDataDate : weekStart;
-      const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const daysPassed = Math.max(0, Math.floor((endOf(weekEnd).getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
       return { lavorati: lavoratiCount, nonLavorati: Math.max(0, daysPassed - lavoratiCount), totale: daysPassed };
     } else if (filtroTempo === 'Mese') {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthStart = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const monthEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0); monthEnd.setHours(23,59,59,999);
       const startDate = firstDataDate > monthStart ? firstDataDate : monthStart;
-      const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const daysPassed = Math.max(0, Math.floor((endOf(monthEnd).getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
       return { lavorati: lavoratiCount, nonLavorati: Math.max(0, daysPassed - lavoratiCount), totale: daysPassed };
     } else {
       // Anno o Personalizzato: dal primo dato inserito
-      const yearStart = new Date(now.getFullYear(), 0, 1);
+      const yearStart = new Date(ref.getFullYear(), 0, 1);
+      const yearEnd = new Date(ref.getFullYear(), 11, 31); yearEnd.setHours(23,59,59,999);
       const startDate = firstDataDate > yearStart ? firstDataDate : yearStart;
-      const daysPassed = Math.floor((oggi.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const daysPassed = Math.max(0, Math.floor((endOf(yearEnd).getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
       return { lavorati: lavoratiCount, nonLavorati: Math.max(0, daysPassed - lavoratiCount), totale: daysPassed };
     }
-  }, [filteredData, filtroTempo, store.storicoGiornate]);
+  }, [filteredData, filtroTempo, store.storicoGiornate, dataRiferimento]);
 
   const renderFilterBar = (options: string[], selected: string, onSelect: (v: any) => void, mini = false, labelFn?: (key: string) => string) => (
     <View style={[st.filterRow, { gap: mini ? 4 : 6 }]}>

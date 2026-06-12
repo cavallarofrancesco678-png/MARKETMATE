@@ -244,6 +244,9 @@ export interface SpesaPeriodica {
   numeroFattura?: string;
   pagamentoMode?: 'fattura' | 'contanti' | 'misto';
   fatturaTotale?: number;            // se diverso da importo (parziale)
+  /* Round 67: split fattura/contanti per classificazione corretta in Stats */
+  importoFattura?: number;           // parte pagata con fattura
+  importoContanti?: number;          // parte pagata in contanti
 }
 
 export interface ScontrinoRecord {
