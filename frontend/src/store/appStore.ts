@@ -854,6 +854,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         // aveva inserito: residui di un bug precedente (era possibile tappare
         // su giorni futuri). Difesa: a ogni avvio rimuoviamo dalla storia
         // qualsiasi rifornimento con data > oggi (mezzanotte).
+        let futureRemovedCount = 0;
         if (Array.isArray(parsed.storicoCarburante) && parsed.storicoCarburante.length > 0) {
           const todayMidnight = new Date();
           todayMidnight.setHours(23, 59, 59, 999);
@@ -865,9 +866,9 @@ export const useAppStore = create<AppState>((set, get) => ({
               return d.getTime() <= todayMidnight.getTime();
             } catch { return true; }
           });
-          const removed = before - parsed.storicoCarburante.length;
-          if (removed > 0 && typeof console !== 'undefined') {
-            console.warn(`[appStore] Rimossi ${removed} rifornimenti con data futura (cleanup automatico).`);
+          futureRemovedCount = before - parsed.storicoCarburante.length;
+          if (futureRemovedCount > 0 && typeof console !== 'undefined') {
+            console.warn(`[appStore] Rimossi ${futureRemovedCount} rifornimenti con data futura (cleanup automatico).`);
           }
         }
 
@@ -985,7 +986,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         const wasMigrated = !originalShape.sd || !originalShape.ss || !originalShape.sg
           || !originalShape.sc || !originalShape.fi || !originalShape.aa
           || !originalShape.oa || !originalShape.fr || !originalShape.co || !originalShape.ci
-          || dedupRemovedCount > 0;
+          || dedupRemovedCount > 0
+          || futureRemovedCount > 0;
         if (wasMigrated) {
           try { await storage.setItem('marketmate_data', JSON.stringify(parsed)); } catch {}
         }
