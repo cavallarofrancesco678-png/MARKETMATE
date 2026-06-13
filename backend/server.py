@@ -52,6 +52,11 @@ class ChatRequest(BaseModel):
     # regionali) calcolato lato frontend per il range visualizzato. L'AI lo usa
     # per analisi predittive sull'impatto vendite (es. ponti, vacanze estive).
     calendario_contestuale: str = ""
+    # Round 69 — Lista delle città dei mercati configurati dall'utente.
+    # Formato: stringa con città separate da virgola/pipe (es. "Milano|Monza|Lodi").
+    # L'AI DEVE dedurre la provincia/regione da questa lista, MAI chiedere
+    # all'utente di configurare una provincia in Impostazioni.
+    mercati_lista: str = ""
 
 class ChatResponse(BaseModel):
     response: str
@@ -198,6 +203,64 @@ async def get_region_info(citta: str) -> dict:
     _region_cache[key] = {}
     return {}
 
+
+async def resolve_markets_list(raw_list: str) -> dict:
+    """Round 69 — Risolve una lista di città (separator pipe `|`, virgola o newline)
+    aggregando le regioni/province trovate. Ritorna:
+      {
+        "primary_regione": "...",        # regione più frequente
+        "primary_provincia": "...",      # provincia più frequente nella primary_regione
+        "regioni": [...],                # tutte le regioni uniche trovate
+        "province": [...],               # tutte le province uniche trovate
+        "citta_count": N,
+      }
+    Usato per dedurre la provincia dal pool di mercati dell'utente senza chiedergli
+    di configurare una provincia in Impostazioni.
+    """
+    if not raw_list or not raw_list.strip():
+        return {}
+    # Normalizza separatori
+    raw = raw_list.replace("|", ",").replace("\n", ",").replace(";", ",")
+    cities = [c.strip() for c in raw.split(",") if c.strip()]
+    if not cities:
+        return {}
+    # Risolvi in parallelo (ma limita a 8 per non sovraccaricare il geocoder)
+    cities = cities[:8]
+    import asyncio as _asyncio
+    results = await _asyncio.gather(*(get_region_info(c) for c in cities), return_exceptions=True)
+    regioni_count: dict = {}
+    province_count: dict = {}
+    region_province_map: dict = {}
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        reg = (r.get("regione") or "").strip()
+        prov = (r.get("provincia") or "").strip()
+        if reg:
+            regioni_count[reg] = regioni_count.get(reg, 0) + 1
+            region_province_map.setdefault(reg, {})
+            if prov:
+                region_province_map[reg][prov] = region_province_map[reg].get(prov, 0) + 1
+        if prov:
+            province_count[prov] = province_count.get(prov, 0) + 1
+    if not regioni_count and not province_count:
+        return {}
+    # Primary regione = la più frequente
+    primary_reg = max(regioni_count.items(), key=lambda kv: kv[1])[0] if regioni_count else ""
+    # Primary provincia = la più frequente NELLA primary_reg (sicilia ha più province)
+    primary_prov = ""
+    if primary_reg and region_province_map.get(primary_reg):
+        primary_prov = max(region_province_map[primary_reg].items(), key=lambda kv: kv[1])[0]
+    elif province_count:
+        primary_prov = max(province_count.items(), key=lambda kv: kv[1])[0]
+    return {
+        "primary_regione": primary_reg,
+        "primary_provincia": primary_prov,
+        "regioni": sorted(regioni_count.keys()),
+        "province": sorted(province_count.keys()),
+        "citta_count": len(cities),
+    }
+
 @api_router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(req: ChatRequest):
     llm_key = os.environ.get('EMERGENT_LLM_KEY', '')
@@ -249,25 +312,53 @@ Nel CONTESTO trovi il blocco "MERCATO_INFO" (JSON con citta, provincia, regione,
 
 ═══ 🏛️ MONITORAGGIO ISTITUZIONALE (ASCO / UNIONE COMMERCIANTI / BANDI) — FUNZIONE PROATTIVA ═══
 QUESTA È UNA FUNZIONE PRINCIPALE DELL'APP, NON UN EXTRA: devi parlarne proattivamente.
-- Su richiesta, fornisci una panoramica di bandi, finanziamenti, normative di settore e convenzioni rilevanti per il settore dell'utente (da MERCATO_INFO.settore) nella provincia/regione del mercato.
-- ⚠️ NON hai accesso al web in tempo reale: NON inventare MAI numeri di bando, scadenze precise o importi specifici. Indica le FONTI UFFICIALI dove verificare (portale della Regione {regione}, Camera di Commercio di {provincia}, Confcommercio/Unione Commercianti provinciale, portali ASCO locali) e i canali tipici di finanziamento per la categoria.
-- ⚠️ INVIOLABILE — PROPOSTA SERVIZIO BANDI/NORMATIVE:
-  Dopo il punto 9 (carburante) e PRIMA del punto 10 (bilancio), se MERCATO_INFO contiene la regione, inserisci OBBLIGATORIAMENTE questa riga (varia leggermente il wording):
-    "🏛️ Posso aggiornarti su bandi attivi e normative di settore per {Provincia/Regione}: dimmi 'bandi' o 'normative' quando vuoi."
-  Questa proposta è OBBLIGATORIA nel saluto iniziale quando la regione è disponibile — NON saltarla mai.
-- FORMATO RISPOSTA quando l'utente chiede "bandi", "normative", "ASCO", "Unione Commercianti", "Confcommercio" o "finanziamenti":
-  Apri con: "Per il settore {settore} in {Regione/Provincia} ti suggerisco di monitorare:"
-  Poi elenca 3–5 voci, ognuna nel formato:
-  • Titolo/Tipo: [chiaro — es. "Bando Camera di Commercio digitalizzazione PMI"]
-    Impatto per ambulanti: [rilevanza — es. "rimborso 40% per investimenti su POS/cassa/registratore"]
-    Dove verificare: [URL pattern istituzionale — es. "camcom.{provincia}.it → sezione Bandi"]
-  Voci sempre da menzionare per la categoria commercio ambulante:
-   (1) Bandi Camera di Commercio della provincia (digitalizzazione, formazione, internazionalizzazione)
-   (2) Bandi Regione per attività produttive / commercio su aree pubbliche
-   (3) Confcommercio / Confesercenti / FIVA (Federazione Italiana Venditori Ambulanti) — convenzioni socio (assicurazioni, formazione, CAF, patronato)
-   (4) Portali ASCO / Unione Commercianti locali per accordi su plateatici, fiere, eventi promozionali
-   (5) Misure INPS / Agenzia Entrate specifiche per autonomi (forfettario, super deduzione)
-  Chiudi sempre con: "⚠️ Verifica sempre date, requisiti e importi sui portali ufficiali — i numeri esatti cambiano spesso."
+
+⚠️⚠️⚠️ REGOLA INVIOLABILE — DEDUCI LA PROVINCIA/REGIONE DAI MERCATI ⚠️⚠️⚠️
+- NON chiedere MAI all'utente di "configurare la provincia in Impostazioni".
+- NON dire MAI "per darti notizie precise mi serve la provincia, vai in settings".
+- Hai TUTTO ciò che ti serve nel blocco MERCATO_INFO:
+   • `regione` + `provincia` = ricavate dal mercato di oggi (citta_oggi)
+   • `regioni_coperte` + `province_coperte` = aggregate da TUTTI i mercati settimanali
+   • `mercati_attivi_count` = quante città copre l'utente
+- Se MERCATO_INFO contiene anche solo UNA regione/provincia → usala SENZA scuse.
+- Se MERCATO_INFO è completamente vuoto (utente nuovo, nessun mercato configurato) →
+  dì: "Aggiungi un mercato in Agenda → Mercati settimanali e potrò darti notizie territoriali precise." (UNA volta, mai ripeterlo).
+
+═══ FORMATO RISPOSTA "BANDI/NORMATIVE" — SELEZIONE ACCURATA ═══
+Quando l'utente chiede "bandi", "normative", "ASCO", "Unione Commercianti", "Confcommercio", "convenzioni" o "finanziamenti":
+Apri con: "Per il settore {settore} in {Provincia/Regione} ti segnalo le convenzioni più sfruttabili oggi:"
+
+⚠️ Sii ACCURATO e SELETTIVO. Cita SOLO voci concretamente utili agli ambulanti del settore. Per ciascuna:
+  • **Tipologia** [chiaro, una riga]
+  • **Cosa offre** [vantaggio economico O operativo concreto: %, € risparmio, accesso gratuito, ecc.]
+  • **A chi è rivolto** [solo se utile a chiarire]
+  • **Dove richiederla** [portale ufficiale + sezione]
+
+⚠️ NON inventare numeri/scadenze precise. NON dire "scade il 31 dicembre 2026" se non l'hai nel contesto.
+⚠️ Se NON conosci una convenzione attiva con certezza, NON elencarla. Meglio 3 voci solide che 5 vaghe.
+
+LISTA RIFERIMENTO (citane SOLO quelle che si applicano al settore/zona):
+  (1) **Confcommercio + FIVA-Confcommercio (Federazione Italiana Venditori Ambulanti)** —
+      Polizza RC ambulanti tariffa convenzionata, formazione SAB/HACCP gratuita per soci,
+      CAF/Patronato (730/Unico/ISEE gratis), tutela legale su sanzioni, sconti su carburante (convenzioni Eni Plenitude/Q8/IP), telefonia.
+  (2) **Confesercenti + ANVA (Associazione Nazionale Venditori Ambulanti)** —
+      Convenzioni assicurazione veicoli/merci, formazione, sportello bandi attivi,
+      sconti carburante (IP/Tamoil), assistenza fiscale per forfettari.
+  (3) **Camera di Commercio della provincia** —
+      Bandi ricorrenti tipici: digitalizzazione PMI (rimborso 40-50% per POS, cassa fiscale telematica, e-commerce),
+      formazione (voucher fino a €2.500), Punto Impresa Digitale (consulenza GRATIS).
+  (4) **Regione {regione}** —
+      Bandi settore commercio ambulante/itinerante: tipicamente apertura primavera/autunno per nuove imprese, ricambio generazionale,
+      acquisto attrezzature, mercati e fiere; importi €5.000-€30.000 a fondo perduto.
+  (5) **ASCO / Unione Commercianti locale (provinciale)** —
+      Accordi su tariffe plateatici/sole, calendario fiere e mercati con priorità soci, polizze furto banco/merce convenzionate.
+  (6) **INPS / Agenzia Entrate (autonomi)** —
+      Regime forfettario 5%/15%, super deduzione attrezzature (140%), credito imposta acquisto registratore telematico (€100).
+
+⚠️ IMPORTANTE — "anche se ci sono convenzioni interessanti fallo presente":
+Se sai di una convenzione PARTICOLARMENTE UTILE per quel settore (es. RC ambulanti FIVA per chi vende prodotti freschi, sconti carburante Q8 per chi fa 800+ km/sett, voucher digitalizzazione per chi non ha ancora POS), CITALA PROATTIVAMENTE anche se l'utente non l'ha chiesta esplicitamente. Aggiungi marker "💡 Suggerimento extra:".
+
+Chiudi sempre con: "⚠️ Le convenzioni e i bandi si rinnovano: verifica importi e scadenze attuali sui portali ufficiali."
 
 ═══ 📅 CALENDARIO CONTESTUALE (festività + chiusure scolastiche regionali) ═══
 Nel CONTESTO trovi (quando disponibile) il blocco "CALENDARIO_CONTESTUALE" con:
@@ -465,20 +556,35 @@ Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare perc
             ).with_model("openai", "gpt-4.1-mini")
 
         chat = chat_sessions[sid]
-        # ═══ Round 67 — MERCATO_INFO (protocollo localizzazione dinamica) ═══
-        # Risolve la città del mercato in regione/provincia e la inietta come
-        # JSON contestuale, così l'AI adatta bandi/normative/calendario
-        # scolastico ESCLUSIVAMENTE al territorio di competenza.
+        # ═══ Round 67/69 — MERCATO_INFO (protocollo localizzazione dinamica) ═══
+        # Risolve la città del mercato in regione/provincia E aggrega TUTTI i
+        # mercati configurati dall'utente per dedurre l'area territoriale primaria.
+        # L'AI NON deve MAI chiedere all'utente di "configurare una provincia
+        # in Impostazioni": la deduce da questa lista.
         mercato_info_block = ""
-        if (req.mercato_citta or "").strip():
-            region = await get_region_info(req.mercato_citta)
+        primary_region_for_calendar = ""
+        if (req.mercato_citta or "").strip() or (req.mercati_lista or "").strip():
+            region_single = await get_region_info(req.mercato_citta) if (req.mercato_citta or "").strip() else {}
+            markets_agg = await resolve_markets_list(req.mercati_lista or "") if (req.mercati_lista or "").strip() else {}
+            # Determina regione/provincia "ufficiali" — priorità: mercato di oggi,
+            # poi aggregato dai mercati configurati.
+            regione = region_single.get("regione") or markets_agg.get("primary_regione", "")
+            provincia = region_single.get("provincia") or markets_agg.get("primary_provincia", "")
+            paese = region_single.get("paese") or "Italia"
+            primary_region_for_calendar = regione
             mercato_info = {
-                "citta": req.mercato_citta.strip(),
-                "provincia": region.get("provincia", ""),
-                "regione": region.get("regione", ""),
-                "paese": region.get("paese", ""),
+                "citta_oggi": (req.mercato_citta or "").strip(),
+                "provincia": provincia,
+                "regione": regione,
+                "paese": paese,
                 "settore": (req.settore or "").strip() or "Alimentare",
             }
+            if markets_agg:
+                mercato_info["mercati_attivi_count"] = markets_agg.get("citta_count", 0)
+                if markets_agg.get("regioni"):
+                    mercato_info["regioni_coperte"] = markets_agg["regioni"]
+                if markets_agg.get("province"):
+                    mercato_info["province_coperte"] = markets_agg["province"]
             mercato_info_block = (
                 "=== MERCATO_INFO ===\n"
                 + json.dumps(mercato_info, ensure_ascii=False)

@@ -70,6 +70,23 @@ MarketMate è un'app mobile per ambulanti e venditori ai mercati italiani. Perme
 - Stripe Subscriptions (LIVE keys attive — NO transazioni di test!)
 - Emergent Auth (Google OAuth), Expo Push Notifications
 
+## Round 69 (Giu 2026) — Bugfix utente (4 issue) — COMPLETATI ✅
+1. **Salvataggio Fatture verifica + FIX**: trovato bug — quando si riapriva una giornata salvata, il `pagamentoMode` (fattura/contanti/misto) non veniva ripristinato dalle chiavi presenti in `dettaglio_fornitori`. L'utente vedeva sempre "contanti" anche se aveva salvato "fattura". I dati erano CORRETTAMENTE salvati (chiave `nomeBase` = fattura, `nomeBase__libera` = contanti) ma l'UI non li mostrava. Fix in `home/index.tsx`: deriva il `pagamentoMode` dalle chiavi al load.
+2. **Pulizia rifornimenti fantasma**: 
+   - Cleanup automatico al boot: rimuove dallo storico qualunque rifornimento con `data > oggi`
+   - Nuovo metodo store `clearCarburanteInRange(fromIso, toIso)`
+   - Nuovo bottone "🗑️ Pulisci mese visualizzato" sotto al calendario Gas (con count + conferma)
+   - Difesa in `addCarburante` lato store: blocca date future a livello di state
+3. **AI deduzione provincia automatica**: 
+   - Nuovo campo `mercati_lista` in ChatRequest (pipe-separated cities)
+   - Nuova funzione `resolve_markets_list()` aggrega tutte le città configurate (agenda + fiere + partenza), trova la regione/provincia più frequente
+   - Frontend invia automaticamente la lista da agenda settimanale + fiere + partenza
+   - System prompt: regola INVIOLABILE — l'AI NON deve mai chiedere all'utente di configurare la provincia in Impostazioni
+4. **Selezione bandi più accurata**: 
+   - Sezione "FORMATO RISPOSTA BANDI/NORMATIVE" riscritta con direttive di accuratezza ("Meglio 3 voci solide che 5 vaghe")
+   - 6 categorie concrete con convenzioni specifiche: FIVA-Confcommercio (RC ambulanti tariffa convenzionata, sconti carburante Eni/Q8/IP), ANVA-Confesercenti (formazione + IP/Tamoil), Camera di Commercio (digitalizzazione 40-50%, Punto Impresa Digitale gratis), Regione (fondo perduto €5-30k), ASCO/Unione Commercianti, INPS/Agenzia Entrate (forfettario, credito imposta registratore €100)
+   - Direttiva "💡 Suggerimento extra" per convenzioni proattive anche se l'utente non chiede
+
 ## Round 68 (Giu 2026) — Bugfix utente (3 issue) — COMPLETATI ✅
 1. **Carburante — conti sballati + giorni futuri**: causa unica = i giorni futuri erano cliccabili e creavano entry future che sommavano nel KPI.
    - Bloccato `handleDayPress` su giorni futuri (alert IT)

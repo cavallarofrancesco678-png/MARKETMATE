@@ -345,6 +345,8 @@ interface AppState {
   salvaGiornata: (g: Giornata) => void;
   addCarburante: (c: Carburante) => void;
   removeCarburante: (index: number) => void;
+  clearCarburanteInRange: (fromIso: string, toIso: string) => void;
+  removeCarburante: (index: number) => void;
   /* Round 61 — actions per SpesaPeriodica */
   addSpesaPeriodica: (s: Omit<SpesaPeriodica, 'id' | 'createdAt'>) => void;
   updateSpesaPeriodica: (id: string, patch: Partial<SpesaPeriodica>) => void;
@@ -528,6 +530,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   addCarburante: (c) => {
+    // Round 69 — Difesa: blocchiamo qualunque tentativo di salvare un
+    // rifornimento con data > oggi (impossibile dall'UI ma garantiamo
+    // l'invariant a livello di store per evitare regressioni).
+    try {
+      const d = c?.data instanceof Date ? c.data : new Date(c?.data as any);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      if (!isNaN(d.getTime()) && d.getTime() > todayEnd.getTime()) {
+        console.warn('[appStore] addCarburante BLOCCATO: data futura non ammessa.');
+        return;
+      }
+    } catch { /* skip */ }
     set((state) => ({ storicoCarburante: [...state.storicoCarburante, c] }));
     get().saveToStorage();
   },
@@ -538,6 +552,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       newArr.splice(index, 1);
       return { storicoCarburante: newArr };
     });
+    get().saveToStorage();
+  },
+
+  /* Round 69 — Rimuove TUTTI i rifornimenti in un range [fromIso..toIso].
+     Usato dal pulsante "Pulisci mese visualizzato" nella pagina Carburante. */
+  clearCarburanteInRange: (fromIso: string, toIso: string) => {
+    set((state) => ({
+      storicoCarburante: (state.storicoCarburante || []).filter((c: any) => {
+        try {
+          const d = new Date(c.data);
+          if (isNaN(d.getTime())) return true;
+          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          return !(iso >= fromIso && iso <= toIso);
+        } catch { return true; }
+      }),
+    }));
     get().saveToStorage();
   },
 
@@ -818,6 +848,28 @@ export const useAppStore = create<AppState>((set, get) => ({
         parsed.fornitori = fixArr(parsed.fornitori);
         parsed.collaboratori = fixArr(parsed.collaboratori);
         parsed.codiciInvito = fixArr(parsed.codiciInvito);
+
+        // ═══ Round 69 — PULIZIA AUTOMATICA RIFORNIMENTI FUTURI ═══
+        // L'utente segnalava rifornimenti "fatti" nei prossimi giorni che non
+        // aveva inserito: residui di un bug precedente (era possibile tappare
+        // su giorni futuri). Difesa: a ogni avvio rimuoviamo dalla storia
+        // qualsiasi rifornimento con data > oggi (mezzanotte).
+        if (Array.isArray(parsed.storicoCarburante) && parsed.storicoCarburante.length > 0) {
+          const todayMidnight = new Date();
+          todayMidnight.setHours(23, 59, 59, 999);
+          const before = parsed.storicoCarburante.length;
+          parsed.storicoCarburante = parsed.storicoCarburante.filter((c: any) => {
+            try {
+              const d = new Date(c.data);
+              if (isNaN(d.getTime())) return true;
+              return d.getTime() <= todayMidnight.getTime();
+            } catch { return true; }
+          });
+          const removed = before - parsed.storicoCarburante.length;
+          if (removed > 0 && typeof console !== 'undefined') {
+            console.warn(`[appStore] Rimossi ${removed} rifornimenti con data futura (cleanup automatico).`);
+          }
+        }
 
         // ═══ Round 61 — MIGRAZIONE LEGACY: fornitori CUSTOM/WEEKLY/MONTHLY → spesePeriodiche ═══
         // Cerchiamo tutte le storicoGiornate con dettaglio_fornitori_deduction

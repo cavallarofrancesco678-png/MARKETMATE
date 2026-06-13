@@ -463,12 +463,36 @@ export default function HomeScreen() {
       }
       if (saved.dettaglio_fornitori && Object.keys(saved.dettaglio_fornitori).length > 0) {
         const fornData: Record<string, { importo: string; periodo: string }> = {};
+        // Round 69 — FIX FATTURE: derivare pagamentoMode dalle CHIAVI presenti
+        // in dettaglio_fornitori, così quando l'utente apre un giorno salvato,
+        // il toggle "fattura/contanti/misto" rispecchia esattamente ciò che ha
+        // salvato. Prima si vedeva sempre "contanti" e l'utente pensava che
+        // la fattura non fosse stata salvata (in realtà era salvata, ma l'UI
+        // non lo mostrava).
+        const restoredModes: Record<string, 'contanti' | 'fattura' | 'misto'> = {};
+        const fornitorIdx: Record<string, { hasFattura: boolean; hasContanti: boolean }> = {};
         Object.entries(saved.dettaglio_fornitori).forEach(([nome, val]) => {
           fornData[nome] = { importo: (val as number).toString(), periodo: 'giornaliero' };
+          // Ignora chiavi tecniche (labels)
+          if (nome.endsWith('__liberaLabel') || nome.includes('__fattn')) return;
+          const isContanti = nome.endsWith('__libera');
+          const baseName = isContanti ? nome.slice(0, -'__libera'.length) : nome;
+          const v = Number(val) || 0;
+          if (v <= 0) return;
+          if (!fornitorIdx[baseName]) fornitorIdx[baseName] = { hasFattura: false, hasContanti: false };
+          if (isContanti) fornitorIdx[baseName].hasContanti = true;
+          else fornitorIdx[baseName].hasFattura = true;
+        });
+        Object.entries(fornitorIdx).forEach(([base, flags]) => {
+          if (flags.hasFattura && flags.hasContanti) restoredModes[base] = 'misto';
+          else if (flags.hasFattura) restoredModes[base] = 'fattura';
+          else if (flags.hasContanti) restoredModes[base] = 'contanti';
         });
         setSpeseExtraFornitore(fornData);
+        setPagamentoMode(restoredModes);
       } else {
         setSpeseExtraFornitore({});
+        setPagamentoMode({});
       }
       // Carica fornitori info (numero fattura + scadenza)
       setFornInfo((saved as any).fornitoriInfo || {});
@@ -2798,6 +2822,24 @@ export default function HomeScreen() {
           costoKm: costoPerKm,
           tipoCarburante: store.tipoCarburante || 'benzina',
           mediaScontrino: mercatoOggi?.mediaScontrino || 0,
+          /* Round 69 — Lista mercati attivi: tutte le città uniche presenti
+             in agenda settimanale + fiere ricorrenti + partenzaDa. Inviata
+             al backend per dedurre la provincia/regione SENZA richiedere
+             una configurazione manuale all'utente. */
+          mercatiAttivi: (() => {
+            const set = new Set<string>();
+            (store.agenda || []).forEach((a: any) => {
+              const m = (a?.mercato || '').trim();
+              if (m && a?.lavorativo !== false) set.add(m);
+            });
+            (store.fiere || []).forEach((f: any) => {
+              const lu = (f?.luogo || '').trim();
+              if (lu) set.add(lu);
+            });
+            const pd = (store.partenzaDa || '').trim();
+            if (pd) set.add(pd);
+            return Array.from(set);
+          })(),
           // ── Prossimi 7 giorni: fiere, appuntamenti, ordini ──
           fiereProssime: (fiereProssime || []).map((f: any) => ({
             data: new Date(f.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),

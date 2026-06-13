@@ -56,7 +56,7 @@ const monthPeriodOf = (d: Date): RangeResult => {
 
 export default function GasScreen() {
   const store = useAppStore();
-  const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante } = store;
+  const { storicoCarburante, storicoGiornate, addCarburante, removeCarburante, clearCarburanteInRange } = store;
   const { t } = useTranslation();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -484,6 +484,51 @@ export default function GasScreen() {
             <Text style={s.calLegendTxt}>{regioneMercato ? `Scuole chiuse (${regioneMercato})` : 'Scuole chiuse'}</Text>
           </View>
         </View>
+
+        {/* Round 69 — Pulsante pulisci mese visualizzato (per rimuovere
+            entry fantasma da test passati o errori di inserimento) */}
+        <TouchableOpacity
+          testID="gas-clear-month"
+          style={s.clearMonthBtn}
+          onPress={() => {
+            const monthName = (t('gas.months', { returnObjects: true }) as string[])?.[displayMonth.getMonth()] || MESI[displayMonth.getMonth()];
+            const fromIso = `${displayMonth.getFullYear()}-${String(displayMonth.getMonth() + 1).padStart(2, '0')}-01`;
+            const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0).getDate();
+            const toIso = `${displayMonth.getFullYear()}-${String(displayMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+            const count = (storicoCarburante || []).filter((c) => {
+              try {
+                const d = new Date(c.data);
+                const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                return iso >= fromIso && iso <= toIso;
+              } catch { return false; }
+            }).length;
+            if (count === 0) {
+              const msg = `Nessun rifornimento registrato in ${monthName} ${displayMonth.getFullYear()}.`;
+              if (Platform.OS === 'web') window.alert(msg);
+              else Alert.alert('Vuoto', msg);
+              return;
+            }
+            const doClear = () => {
+              clearCarburanteInRange(fromIso, toIso);
+              const msg2 = `Rimossi ${count} rifornimenti di ${monthName} ${displayMonth.getFullYear()}.`;
+              if (Platform.OS === 'web') window.alert(msg2);
+              else Alert.alert('Pulito', msg2);
+            };
+            const q = `Vuoi davvero cancellare TUTTI i ${count} rifornimenti di ${monthName} ${displayMonth.getFullYear()}? Operazione irreversibile.`;
+            if (Platform.OS === 'web') {
+              if (window.confirm(q)) doClear();
+            } else {
+              Alert.alert('Conferma cancellazione', q, [
+                { text: 'Annulla', style: 'cancel' },
+                { text: 'Cancella tutti', style: 'destructive', onPress: doClear },
+              ]);
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="trash-outline" size={13} color="#B05050" />
+          <Text style={s.clearMonthBtnTxt}>Pulisci mese visualizzato</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ═══ MODAL GIORNO ═══ */}
@@ -785,6 +830,26 @@ const s = StyleSheet.create({
     fontSize: 9,
     fontWeight: '600',
     color: '#7A9090',
+  },
+  // Round 69 — pulsante pulisci mese
+  clearMonthBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5C8C8',
+    backgroundColor: '#FBF4F4',
+    alignSelf: 'center',
+  },
+  clearMonthBtnTxt: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B05050',
   },
   // Modal
   modalOverlay: {

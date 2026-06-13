@@ -1,0 +1,53 @@
+{
+  "summary": "Round 69 fixes — comprehensive backend + frontend testing. ALL 23 backend pytest tests PASS (3 NEW test_ai_round69.py + 20 carry-over). Live AI verification via /api/ai/chat confirms: (a) NO 'configura la provincia in impostazioni' phrase when mercati_lista is populated; (b) AI cites Milano + Lombardia deduced from mercati_lista 'Milano|Monza|Bergamo'; (c) response cites Confcommercio/FIVA, Confesercenti, Camera di Commercio, ASCO/Unione Commercianti Milano, Regione Lombardia with concrete convenzioni (RC ambulanti FIVA, voucher €2500, formazione SAB/HACCP gratuita per soci, sconti carburante Q8/IP); (d) '💡 Suggerimento extra:' present proactively. Frontend Carburante page: auto-cleanup CONFIRMED at runtime — seed contained 2 phantom future entries (today+3 €99, today+7 €88) plus 1 past €50; console emitted '[appStore] Rimossi 2 rifornimenti con data futura (cleanup automatico)' and the page totale shows only €50 (no €99/€88). 'Pulisci mese visualizzato' button (testID gas-clear-month) present below legend, tap triggers window.confirm with correct dynamic message 'Vuoi davvero cancellare TUTTI i 1 rifornimenti di Giugno 2026? Operazione irreversibile.' Round 68 protections preserved (future days dimmed, right-chevron disabled, holiday legend present). Fattura load-restoration logic (issue #1) verified by code review: home/index.tsx lines 464-495 correctly derives pagamentoMode from key suffixes (base→fattura, __libera→contanti, both→misto) — fix is logically sound and isolated. ONE MINOR NON-BLOCKING ISSUE FOUND: appStore.loadFromStorage future-cleanup mutates in-memory state but does NOT include the cleanup in the wasMigrated persistence check (line 985-988), so localStorage retains stale future entries until the next saveToStorage call. Effect: UI is correct (no phantoms shown), but if user closes app before next mutation, the disk-cleanup repeats on every cold start. Cosmetic — log line confirms cleanup ran correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "appStore.loadFromStorage — future-carburante cleanup not persisted",
+        "issue": "After loadFromStorage removes future-dated carburante entries from `parsed.storicoCarburante` (lines 857-872) and `set(parsed)`, the wasMigrated check at lines 985-988 does NOT include the removal flag, so JSON.stringify is NOT written back to localStorage immediately. In-memory state is correct (UI shows no phantoms) but disk still has them until next saveToStorage(). Fix: include `(typeof console !== 'undefined' && /* future-removed flag */ true)` — easiest is to track `removed > 0` in a let and add to wasMigrated condition. Reference: /app/frontend/src/store/appStore.ts:985.",
+        "testID": "n/a (storage layer)",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props (legacy)", "issue": "Console warnings persist: '\"shadow*\" style props are deprecated. Use \"boxShadow\"'. Carry-over from prior iterations."},
+      {"component": "props.pointerEvents (legacy)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Carry-over from prior iterations."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_round69.py",
+    "/app/test_reports/pytest/pytest_round69.xml"
+  ],
+  "action_items": [
+    "MINOR: In /app/frontend/src/store/appStore.ts:857-872, track `let futureRemoved = removed > 0;` and include it in the `wasMigrated` boolean at line 985 so the cleanup is persisted on first load. Currently the in-memory cleanup works but is not flushed to disk until the next mutation. Functionally harmless but logs spam every cold-start.",
+    "(Carry-over) Replace deprecated shadow* style props with boxShadow.",
+    "(Carry-over) Replace deprecated props.pointerEvents with style.pointerEvents."
+  ],
+  "critical_code_review_comments": [
+    "ISSUE 1 — home/index.tsx:464-495: pagamentoMode restoration from dettaglio_fornitori keys is correct. Suffix matching: nome.endsWith('__libera') → contanti side; bare nomeBase → fattura side; both present → 'misto'. Ignores technical keys __liberaLabel / __fattn. Logic isolated and side-effect-free. ✓",
+    "ISSUE 2 — appStore.ts:857-872 future-date filter: uses todayMidnight set to 23:59:59.999, filters strictly > today. Correct boundary. Logged via console.warn for traceability. ✓ Runtime verified.",
+    "ISSUE 2 — appStore.ts:560-572 clearCarburanteInRange: filters by ISO date string comparison (fromIso..toIso inclusive). Safe against invalid dates (returns true → keeps entry). ✓",
+    "ISSUE 2 — gas.tsx:488-531 Pulisci-mese button: precomputes count, shows 'Nessun rifornimento' if 0, else confirm dialog with month name + count + 'Operazione irreversibile.' Cross-platform (Platform.OS web→confirm, native→Alert). ✓ Runtime verified.",
+    "ISSUE 3 — server.py resolve_markets_list: parses pipe/comma-separated list, geocodes up to 8 cities, aggregates regione/provincia. Pytest verifies 'Milano|Monza|Bergamo' → Lombardia. ✓",
+    "ISSUE 3 — BuongiornoModal.tsx:396,408,435,447: sends mercati_lista as pipe-joined string from storeData.mercatiAttivi. Defensive .filter(Boolean). ✓",
+    "ISSUE 3 — home/index.tsx:2829-2842: mercatiAttivi computed as Set of agenda(lavorativo) + fiere.luogo + partenzaDa. ✓",
+    "ISSUE 3+4 — server.py system prompt: INVIOLABLE rule 'NON chiedere MAI all'utente di configurare la provincia in Impostazioni' verified at runtime — forbidden phrases empty in live AI response. ✓",
+    "ISSUE 4 — Live AI test confirms: response cites Confcommercio/FIVA, Confesercenti, Camera di Commercio Milano, ASCO/Unione Commercianti, Regione Lombardia with CONCRETE convenzioni (RC ambulanti, voucher €2500, formazione SAB/HACCP gratuita, sconti Q8/IP) — not vague URLs. Final line includes '💡 Suggerimento extra:' as required. ✓"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (23/23 pytest pass: 3 round69 + 3 round68 + 3 limits + 3 critical + 11 marketmate/bugfixes)",
+    "frontend": "100% functional for user-reported issues (1 minor disk-persistence cosmetic detail)"
+  },
+  "seed_data_creation": "Injected localStorage 'marketmate_data' with isConfigured:true, partenzaDa:'Milano', agenda covering Milano/Monza/Bergamo (3 active days), 3 fornitori, storicoCarburante with 2 phantom future entries + 1 past entry. Skipped tutorial. /tmp/test_buongiorno_e2e.py was created for live AI verification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Round 69 features all working end-to-end. Today's runtime date is Sat 13 June 2026. The fattura saving fix (issue #1) was verified by code review only — UI e2e test would require complex orchestration (open giornata, fill fornitori with different modes, save, close, re-open, verify toggle state). The fix logic is isolated and well-defensive. Key testIDs verified: gas-clear-month, gas-cal-prev-month, gas-cal-next-month. Backend tests run via `cd /app/backend && python -m pytest tests/ -v`. AI integration verified via /tmp/test_buongiorno_e2e.py — see output for 'Confcommercio/FIVA, Camera di Commercio, ASCO/Unione Commercianti, Regione Lombardia' + '💡 Suggerimento extra'.",
+  "rca_of_issue": "Issue 1 (Fattura saving) RCA: Data was correctly written to storicoGiornate.dettaglio_fornitori with key suffix conventions (nomeBase=fattura, nomeBase__libera=contanti), but on re-load the UI never reconstructed pagamentoMode, defaulting all fornitori to 'contanti' — user perceived 'la fattura non si salva'. Fix: home/index.tsx:464-495 now iterates dettaglio_fornitori entries, classifies by suffix, aggregates per-fornitore flags, and sets the toggle state accordingly.\n\nIssue 2 (Phantom carburante) RCA: Round 68 fixed the tap on future days, but legacy localStorage still contained phantom future entries from before that fix. Round 69 added defense-in-depth: (a) loadFromStorage filters future entries on every cold start; (b) addCarburante rejects future dates silently; (c) NEW clearCarburanteInRange + UI button so the user can wipe a specific month manually. Runtime confirmed: 2 phantom future entries removed, only past €50 entry remained.\n\nIssue 3 (Province deduction) RCA: Previous AI prompt allowed asking user to 'configura la provincia in impostazioni'. Fix: backend now (a) parses mercati_lista from frontend, (b) geocodes up to 8 cities, (c) injects MERCATO_INFO with regioni_coperte/province_coperte into context, (d) system prompt has INVIOLABLE rule forbidding the 'configura provincia' phrase. Verified by pytest regex + live AI test.\n\nIssue 4 (Accurate news) RCA: Previous prompt produced vague URL-only suggestions. New prompt enumerates 6 categories (FIVA-Confcommercio, ANVA-Confesercenti, Camera di Commercio, Regione, ASCO/Unione Commercianti, INPS/Agenzia Entrate) with CONCRETE convenzioni per category, and mandates a '💡 Suggerimento extra:' proactive section. Verified by live AI response containing all required institutions + the suggerimento line."
+}

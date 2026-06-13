@@ -56,6 +56,10 @@ interface StoreData {
   settore?: string;
   meteoOggi: string;
   mercatoOggi: string;
+  /** Round 69 — Lista di TUTTE le città dei mercati settimanali + fiere
+      + partenza, usata dal backend per dedurre provincia/regione SENZA
+      richiedere all'utente di configurarla manualmente. */
+  mercatiAttivi?: string[];
   settimanaPrec: { lordo: number; netto: number; giorni: number };
   settimanaPrecMercato?: { lordo: number; netto: number; giorni: number; mercato: string };
   // Stats avanzati
@@ -389,6 +393,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
     try {
       const deviceId = await getDeviceId();
       const calendarBlock = buildCalendarContextStr();
+      const mercatiLista = (storeData.mercatiAttivi || []).filter(Boolean).join('|');
       const res = await fetch(`${API_URL}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -400,6 +405,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
           mercato_citta: storeData.mercatoOggi || storeData.partenzaDa || '',
           settore: storeData.settore || '',
           calendario_contestuale: calendarBlock,
+          mercati_lista: mercatiLista,
         }),
       });
       const data = await res.json();
@@ -426,6 +432,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
     try {
       const deviceId = await getDeviceId();
       const calendarBlock = buildCalendarContextStr();
+      const mercatiLista = (storeData.mercatiAttivi || []).filter(Boolean).join('|');
       const res = await fetch(`${API_URL}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -437,6 +444,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
           mercato_citta: storeData.mercatoOggi || storeData.partenzaDa || '',
           settore: storeData.settore || '',
           calendario_contestuale: calendarBlock,
+          mercati_lista: mercatiLista,
         }),
       });
       const data = await res.json();
@@ -449,8 +457,8 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
     setLoading(false);
   };
 
-  /* Round 68 — Calcola CALENDARIO_CONTESTUALE per i prossimi ~90 giorni
-     usando la regione del mercato/partenza dell'utente. L'AI cita date
+  /* Round 68/69 — Calcola CALENDARIO_CONTESTUALE per i prossimi ~90 giorni
+     usando la regione dedotta dalla lista mercati attivi. L'AI cita date
      esatte di feste e chiusure scolastiche senza approssimazioni. */
   const buildCalendarContextStr = (): string => {
     try {
@@ -458,7 +466,18 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
       const fromIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const to = new Date(now); to.setDate(now.getDate() + 90);
       const toIso = `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, '0')}-${String(to.getDate()).padStart(2, '0')}`;
-      const regione = resolveRegion(storeData.mercatoOggi || storeData.partenzaDa || '');
+      // Round 69 — Itera in ordine: mercato oggi → mercati attivi → partenzaDa
+      // così la regione risolta lato frontend per le scuole è quella dove
+      // l'utente opera oggi (o, in mancanza, il pool dei mercati settimanali).
+      const candidates: string[] = [];
+      if (storeData.mercatoOggi) candidates.push(storeData.mercatoOggi);
+      (storeData.mercatiAttivi || []).forEach(m => { if (m && !candidates.includes(m)) candidates.push(m); });
+      if (storeData.partenzaDa) candidates.push(storeData.partenzaDa);
+      let regione: string | null = null;
+      for (const c of candidates) {
+        const r = resolveRegion(c);
+        if (r) { regione = r; break; }
+      }
       return buildCalendarContextBlock(fromIso, toIso, regione);
     } catch {
       return '';
