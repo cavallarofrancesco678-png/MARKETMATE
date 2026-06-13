@@ -19,6 +19,7 @@ import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTutorialAnchor } from '../../src/store/tutorialLayoutStore';
 import { RangePickerModal, type RangeResult, type RangeMode } from '../../src/components/RangePickerModal';
+import { getDayMarker, resolveRegion } from '../../src/utils/italianCalendar';
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const MESI_SHORT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
@@ -215,6 +216,18 @@ export default function GasScreen() {
   }, [storicoCarburante, displayMonth]);
 
   const handleDayPress = (day: number) => {
+    // Round 68 — BLOCCO GIORNI FUTURI: non si possono inserire rifornimenti
+    // in date future (causa primaria del bug "conti sballati" e "rifornimento
+    // nei prossimi giorni"). Si avvisa l'utente con un toast/alert.
+    const target = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), day);
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    if (target.getTime() > todayMidnight.getTime()) {
+      const msg = t('gas.noFutureRefuel') || 'Non puoi registrare un rifornimento per un giorno futuro.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert(t('common.notice') || 'Attenzione', msg);
+      return;
+    }
     setSelectedDay(day);
     const rifs = rifornimentiMese[day];
     if (rifs && rifs.length > 0) {
@@ -236,6 +249,19 @@ export default function GasScreen() {
 
   const handleSaveDayRifornimento = () => {
     if (!selectedDay) return;
+    // Round 68 — Difesa in profondità: verifica ancora la data del giorno
+    // selezionato per impedire salvataggio futuro anche se la modal fosse
+    // stata aperta in modo anomalo.
+    const target = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), selectedDay);
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    if (target.getTime() > todayMidnight.getTime()) {
+      const msg = t('gas.noFutureRefuel') || 'Non puoi registrare un rifornimento per un giorno futuro.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert(t('common.notice') || 'Attenzione', msg);
+      setShowDayModal(false);
+      return;
+    }
     const euro = parseFloat(dayAmount.replace(',', '.'));
     if (!euro || euro <= 0) {
       if (Platform.OS === 'web') window.alert(t('gas.invalidAmount') || 'Importo non valido');
@@ -281,6 +307,18 @@ export default function GasScreen() {
 
   const today = new Date();
   const isCurrentMonth = displayMonth.getMonth() === today.getMonth() && displayMonth.getFullYear() === today.getFullYear();
+
+  /* Round 68 — resolve regione mercato per marker scolastici contestuali */
+  const regioneMercato = useMemo(
+    () => resolveRegion(store.partenzaDa) || null,
+    [store.partenzaDa]
+  );
+
+  /* Round 68 — la freccia → del calendario si disabilita una volta arrivati
+     al mese corrente: evita all'utente di vagare nei mesi futuri (dove
+     comunque non può registrare nulla) e di sentirsi disorientato. */
+  const canGoForward = displayMonth < new Date(today.getFullYear(), today.getMonth(), 1);
+  const isFutureMonth = displayMonth > new Date(today.getFullYear(), today.getMonth(), 1);
 
   /* Round 67 — SINCRONIZZAZIONE CALENDARIO ↔ FILTRO PERIODO.
      Cambiare mese con le frecce del calendario (sotto) aggiorna anche il
@@ -382,8 +420,13 @@ export default function GasScreen() {
             <Ionicons name="chevron-back" size={18} color="#1E7F85" />
           </TouchableOpacity>
           <Text style={s.calMonthTxt}>{(t('gas.months', { returnObjects: true }) as string[])?.[displayMonth.getMonth()]?.toUpperCase() || MESI[displayMonth.getMonth()].toUpperCase()} {displayMonth.getFullYear()}</Text>
-          <TouchableOpacity testID="gas-cal-next-month" onPress={() => goToMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="chevron-forward" size={18} color="#1E7F85" />
+          <TouchableOpacity
+            testID="gas-cal-next-month"
+            onPress={() => canGoForward && goToMonth(1)}
+            disabled={!canGoForward}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-forward" size={18} color={canGoForward ? '#1E7F85' : '#C5C2B8'} />
           </TouchableOpacity>
         </View>
         <View style={s.calWeekRow}>
@@ -395,10 +438,19 @@ export default function GasScreen() {
               const rif = day ? rifornimentiMese[day] : null;
               const hasRif = rif && rif.length > 0;
               const isToday = isCurrentMonth && day === today.getDate();
+              /* Round 68 — marker festa/scuola + blocco visivo giorni futuri */
+              const dayDate = day ? new Date(displayMonth.getFullYear(), displayMonth.getMonth(), day) : null;
+              const marker = dayDate ? getDayMarker(dayDate, regioneMercato) : { type: null };
+              const isFutureDay = !!(dayDate && dayDate.getTime() > new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime());
               return (
                 <TouchableOpacity
                   key={di}
-                  style={[s.calDay, hasRif && s.calDayActive, isToday && !hasRif && s.calDayToday]}
+                  style={[
+                    s.calDay,
+                    hasRif && s.calDayActive,
+                    isToday && !hasRif && s.calDayToday,
+                    isFutureDay && !hasRif && { opacity: 0.35 },
+                  ]}
                   disabled={!day}
                   onPress={() => day && handleDayPress(day)}
                 >
@@ -406,11 +458,32 @@ export default function GasScreen() {
                     {day || ''}
                   </Text>
                   {hasRif && <Text style={s.calDayAmount}>€{Math.round(rif[0].euro)}</Text>}
+                  {/* Marker festa/scuola — puntino in alto a destra */}
+                  {!hasRif && marker.type && (
+                    <View
+                      style={{
+                        position: 'absolute', top: 2, right: 2,
+                        width: 6, height: 6, borderRadius: 3,
+                        backgroundColor: marker.color || '#D44343',
+                      }}
+                    />
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
         ))}
+        {/* Round 68 — Legenda festività + chiusure scolastiche */}
+        <View style={s.calLegend}>
+          <View style={s.calLegendItem}>
+            <View style={[s.calLegendDot, { backgroundColor: '#D44343' }]} />
+            <Text style={s.calLegendTxt}>Festa nazionale</Text>
+          </View>
+          <View style={s.calLegendItem}>
+            <View style={[s.calLegendDot, { backgroundColor: '#D4A535' }]} />
+            <Text style={s.calLegendTxt}>{regioneMercato ? `Scuole chiuse (${regioneMercato})` : 'Scuole chiuse'}</Text>
+          </View>
+        </View>
       </View>
 
       {/* ═══ MODAL GIORNO ═══ */}
@@ -686,6 +759,32 @@ const s = StyleSheet.create({
     fontWeight: '800',
     color: '#FFF',
     marginTop: 1,
+  },
+  // Round 68 — legenda festività/scuole
+  calLegend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 14,
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#EDE5D5',
+  },
+  calLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  calLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  calLegendTxt: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#7A9090',
   },
   // Modal
   modalOverlay: {

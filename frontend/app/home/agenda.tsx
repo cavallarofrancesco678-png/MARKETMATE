@@ -17,6 +17,7 @@ import { useAppStore } from '../../src/store/appStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { playTap, playSuccess, hapticTap } from '../../src/utils/feedback';
+import { getDayMarker, resolveRegion } from '../../src/utils/italianCalendar';
 
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const GIORNI_SETT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -377,6 +378,12 @@ export default function AgendaScreen() {
 
   const isCurrentMonth = calMonth.getMonth() === today.getMonth() && calMonth.getFullYear() === today.getFullYear();
 
+  /* Round 68 — regione del mercato (partenza) per marker scolastici regionali */
+  const regioneAgenda = useMemo(
+    () => resolveRegion(store.partenzaDa) || null,
+    [store.partenzaDa]
+  );
+
   /* ═══ FIERE RICORRENTI ATTIVE: mappa per giorno-della-settimana (0=Lun..6=Dom) + date specifiche ═══ */
   const fiereByDow = useMemo(() => {
     const map: Record<number, { nome: string; luogo: string }[]> = {};
@@ -589,6 +596,9 @@ export default function AgendaScreen() {
               const hasFiera = !!fieraItem;
               const hasApp = items.some(x => x.tipo === 'appuntamento');
               const hasOrd = items.some(x => x.tipo === 'ordine');
+              /* Round 68 — marker festa/scuola contestuale alla regione del mercato */
+              const dayDate = day ? new Date(calMonth.getFullYear(), calMonth.getMonth(), day) : null;
+              const marker = dayDate ? getDayMarker(dayDate, regioneAgenda) : { type: null };
               // Priorità colore: fiera > ordine > appuntamento
               const fieraColor = fieraItem ? getTipologiaColor(fieraItem.tipologia) : null;
               const bgColor = hasFiera ? fieraColor! :
@@ -637,11 +647,35 @@ export default function AgendaScreen() {
                     <View style={[s.calDot, { backgroundColor: '#FFF' }]} />
                   )}
                   {!hasItem && isWorked && <View style={[s.calDot, { backgroundColor: '#5AAA6A' }]} />}
+                  {/* Round 68 — marker festa/scuola (top-right) */}
+                  {marker.type && (
+                    <View
+                      style={{
+                        position: 'absolute', top: 2, right: 2,
+                        width: 6, height: 6, borderRadius: 3,
+                        backgroundColor: marker.color || '#D44343',
+                        borderWidth: hasItem ? 1 : 0,
+                        borderColor: '#FFF',
+                      }}
+                    />
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
         ))}
+      </View>
+
+      {/* Round 68 — Legenda festività + chiusure scolastiche regionali */}
+      <View style={s.calLegendRow}>
+        <View style={s.calLegendItem}>
+          <View style={[s.calLegendDot, { backgroundColor: '#D44343' }]} />
+          <Text style={s.calLegendTxt}>Festa nazionale</Text>
+        </View>
+        <View style={s.calLegendItem}>
+          <View style={[s.calLegendDot, { backgroundColor: '#D4A535' }]} />
+          <Text style={s.calLegendTxt}>{regioneAgenda ? `Scuole chiuse · ${regioneAgenda}` : 'Scuole chiuse'}</Text>
+        </View>
       </View>
 
       {/* ═══ LEGENDA CALENDARIO (rimossa su richiesta utente) ═══ */}
@@ -1295,6 +1329,31 @@ const s = StyleSheet.create({
     height: 3,
     borderRadius: 2,
     marginTop: 1,
+  },
+  // Round 68 — Legenda festività/scuole
+  calLegendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 14,
+    marginTop: 6,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  calLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  calLegendDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  calLegendTxt: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#7A9090',
   },
   // Note
   noteInput: {

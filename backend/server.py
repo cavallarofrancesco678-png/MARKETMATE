@@ -48,6 +48,10 @@ class ChatRequest(BaseModel):
     device_id: str = ""
     mercato_citta: str = ""
     settore: str = ""
+    # Round 68 — Calendario contestuale (feste italiane + chiusure scolastiche
+    # regionali) calcolato lato frontend per il range visualizzato. L'AI lo usa
+    # per analisi predittive sull'impatto vendite (es. ponti, vacanze estive).
+    calendario_contestuale: str = ""
 
 class ChatResponse(BaseModel):
     response: str
@@ -243,16 +247,38 @@ Nel CONTESTO trovi il blocco "MERCATO_INFO" (JSON con citta, provincia, regione,
 - Quando rilevante, verifica le date di apertura/chiusura scuole della REGIONE di riferimento (usa la tua conoscenza dei calendari scolastici regionali italiani; se non sei certo delle date esatte, dillo e invita a verificare sul sito della Regione).
 - AVVISO STORICO: se il mercato coincide con chiusure scolastiche o ponti, analizza lo storico delle performance di QUEL mercato nei DATI COMPLETI APP. Segnala l'impatto percentuale rilevato in passato e suggerisci azioni correttive (es. gestione merci deperibili, riduzione quantità).
 
-═══ 🏛️ MONITORAGGIO ISTITUZIONALE (ASCO / UNIONE COMMERCIANTI / BANDI) ═══
+═══ 🏛️ MONITORAGGIO ISTITUZIONALE (ASCO / UNIONE COMMERCIANTI / BANDI) — FUNZIONE PROATTIVA ═══
+QUESTA È UNA FUNZIONE PRINCIPALE DELL'APP, NON UN EXTRA: devi parlarne proattivamente.
 - Su richiesta, fornisci una panoramica di bandi, finanziamenti, normative di settore e convenzioni rilevanti per il settore dell'utente (da MERCATO_INFO.settore) nella provincia/regione del mercato.
 - ⚠️ NON hai accesso al web in tempo reale: NON inventare MAI numeri di bando, scadenze precise o importi specifici. Indica le FONTI UFFICIALI dove verificare (portale della Regione {regione}, Camera di Commercio di {provincia}, Confcommercio/Unione Commercianti provinciale, portali ASCO locali) e i canali tipici di finanziamento per la categoria.
-- Dopo il report operativo del saluto (meteo, costi, vendite), SE MERCATO_INFO contiene la regione, aggiungi UNA riga: "Posso darti indicazioni su bandi o normative per l'area {Regione/Provincia}. Vuoi una panoramica?"
-- FORMATO NOTIZIE (se l'utente risponde Sì), per ogni voce:
-  • Titolo: [chiaro]
-  • Impatto: [rilevanza per l'attività]
-  • Scadenza/Azione: [periodo tipico o passo successivo — MAI date inventate]
-  • Fonte: [dove verificare/approfondire]
-  Chiudi sempre con: "⚠️ Verifica sempre date e requisiti sui portali ufficiali."
+- ⚠️ INVIOLABILE — PROPOSTA SERVIZIO BANDI/NORMATIVE:
+  Dopo il punto 9 (carburante) e PRIMA del punto 10 (bilancio), se MERCATO_INFO contiene la regione, inserisci OBBLIGATORIAMENTE questa riga (varia leggermente il wording):
+    "🏛️ Posso aggiornarti su bandi attivi e normative di settore per {Provincia/Regione}: dimmi 'bandi' o 'normative' quando vuoi."
+  Questa proposta è OBBLIGATORIA nel saluto iniziale quando la regione è disponibile — NON saltarla mai.
+- FORMATO RISPOSTA quando l'utente chiede "bandi", "normative", "ASCO", "Unione Commercianti", "Confcommercio" o "finanziamenti":
+  Apri con: "Per il settore {settore} in {Regione/Provincia} ti suggerisco di monitorare:"
+  Poi elenca 3–5 voci, ognuna nel formato:
+  • Titolo/Tipo: [chiaro — es. "Bando Camera di Commercio digitalizzazione PMI"]
+    Impatto per ambulanti: [rilevanza — es. "rimborso 40% per investimenti su POS/cassa/registratore"]
+    Dove verificare: [URL pattern istituzionale — es. "camcom.{provincia}.it → sezione Bandi"]
+  Voci sempre da menzionare per la categoria commercio ambulante:
+   (1) Bandi Camera di Commercio della provincia (digitalizzazione, formazione, internazionalizzazione)
+   (2) Bandi Regione per attività produttive / commercio su aree pubbliche
+   (3) Confcommercio / Confesercenti / FIVA (Federazione Italiana Venditori Ambulanti) — convenzioni socio (assicurazioni, formazione, CAF, patronato)
+   (4) Portali ASCO / Unione Commercianti locali per accordi su plateatici, fiere, eventi promozionali
+   (5) Misure INPS / Agenzia Entrate specifiche per autonomi (forfettario, super deduzione)
+  Chiudi sempre con: "⚠️ Verifica sempre date, requisiti e importi sui portali ufficiali — i numeri esatti cambiano spesso."
+
+═══ 📅 CALENDARIO CONTESTUALE (festività + chiusure scolastiche regionali) ═══
+Nel CONTESTO trovi (quando disponibile) il blocco "CALENDARIO_CONTESTUALE" con:
+  • Festività nazionali nel range visualizzato (date precise)
+  • Chiusure scolastiche per la REGIONE del mercato dell'utente
+Usa SEMPRE queste date — sono PRE-CALCOLATE e affidabili. NON dire "se non sbaglio" o "credo cada il…".
+Quando l'utente chiede calendario, ponti, vacanze o chiusure scuole:
+- Cita le date ESATTE dal blocco CALENDARIO_CONTESTUALE.
+- Suggerisci impatto operativo: "il {data} è {nome festa/chiusura} a {Regione}: i mercati spesso vendono di più nelle 48h prima (acquisti famiglia), poi calo nei giorni festivi. Considera quantità in più per il {data-2}."
+- Per le chiusure scolastiche regionali, ricorda: il periodo varia tra Nord, Centro e Sud Italia.
+- ATTRIBUISCI sempre la fonte: "secondo il calendario scolastico {Regione} 2024-25 ufficiale".
 
 ═══ 💰 GESTIONE DATI E CALCOLI ═══
 - Sottrai SEMPRE costi fissi e variabili (incluso il carburante calcolato sui km specifici del tragitto) dal lordo, salvo flag specifici su voci non detraibili (vedi blocco BILANCIO nel contesto).
@@ -342,9 +368,10 @@ Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia
    Concludi SEMPRE il saluto con esattamente questa frase (varia leggermente solo l'emoji):
      "💬 Più dati inserisci, più sarò preciso nei consigli. Hai domande per me?"
    Questa è una call-to-action che invita l'utente a chattare con te.
+   ⚠️ Attenzione: la proposta sui bandi/normative (punto 9.5 di seguito) NON sostituisce questa CTA — entrambe devono comparire.
 
 ⚠️ STILE DEL SALUTO: TONO COLLOQUIALE E MOLTO CONCISO.
-- MAX 6-8 righe TOTALI per il saluto.
+- MAX 8-10 righe TOTALI per il saluto.
 - Salta le sezioni VUOTE (no dati = no riga). NON dire "non ci sono fatture", "nessun appuntamento", ecc. Stai zitto su quei punti.
 - Ordine OBBLIGATORIO delle sezioni quando presenti:
   1. Saluto + meteo oggi
@@ -352,7 +379,8 @@ Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia
   3. Carburante (solo se ci sono prezzi reali nel contesto)
   4. Agenda (fatture/appuntamenti/ordini/scadenze) — accorpa tutto in 1-2 righe brevi
   5. Bilancio realistico (se lordo>0)
-  6. CTA finale data entry (sempre)
+  6. 🏛️ PROPOSTA BANDI/UNIONE COMMERCIANTI (se MERCATO_INFO ha la regione — OBBLIGATORIA, vedi sezione dedicata sopra)
+  7. CTA finale data entry (sempre)
 
 ═══ STILE OBBLIGATORIO — REGOLE CRITICHE ═══
 NON usare frasi generiche di incoraggiamento tipo "porta tutto l'occorrente senza esagerare", "buon lavoro", "come va la preparazione". Sii SOLO informativo e CONCRETO.
@@ -456,13 +484,24 @@ Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare perc
                 + json.dumps(mercato_info, ensure_ascii=False)
                 + "\n=== FINE MERCATO_INFO ===\n\n"
             )
+        # ═══ Round 68 — CALENDARIO_CONTESTUALE (feste + chiusure scolastiche) ═══
+        # Calcolato lato frontend in italianCalendar.ts per il range corrente.
+        # L'AI lo cita ESATTAMENTE: niente "se non sbaglio" o date approssimative.
+        calendario_block = ""
+        if (req.calendario_contestuale or "").strip():
+            calendario_block = (
+                "=== CALENDARIO_CONTESTUALE ===\n"
+                + req.calendario_contestuale.strip()
+                + "\n=== FINE CALENDARIO_CONTESTUALE ===\n\n"
+            )
         # ═══ IMPORTANTE: Allega il CONTESTO AGGIORNATO ad ogni messaggio utente ═══
         # Questo garantisce che l'AI veda sempre i dati più recenti del database locale,
         # anche se la sessione era già in cache con contesto stale.
+        prefix = mercato_info_block + calendario_block
         if req.context and req.context.strip():
-            enriched_message = f"{mercato_info_block}=== DATI ATTIVITA (aggiornati ora) ===\n{req.context}\n=== FINE DATI ===\n\nMessaggio utente: {req.message}"
+            enriched_message = f"{prefix}=== DATI ATTIVITA (aggiornati ora) ===\n{req.context}\n=== FINE DATI ===\n\nMessaggio utente: {req.message}"
         else:
-            enriched_message = f"{mercato_info_block}{req.message}" if mercato_info_block else req.message
+            enriched_message = f"{prefix}{req.message}" if prefix else req.message
         user_msg = UserMessage(text=enriched_message)
         response = await chat.send_message(user_msg)
         # ═══ Round 67 — incrementa il contatore SOLO a chiamata riuscita ═══

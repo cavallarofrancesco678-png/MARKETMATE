@@ -1,0 +1,54 @@
+{
+  "summary": "Round 68 fixes — comprehensive backend + frontend testing. ALL 15 backend pytest tests PASS (including 3 NEW test_ai_round68.py). Frontend: Carburante future-day block WORKS (alert fires + modal does not open); right-chevron next-month DISABLED (aria-disabled=true) on current month; future days visibly dimmed (opacity 0.35); holiday/school legend rendered ('Festa nazionale' + 'Scuole chiuse (Lombardia)'); yellow markers on weekdays + red dot on June 2 (Festa Repubblica). Agenda calendar shows same legend ('Festa nazionale' + 'Scuole chiuse · Lombardia') with red dot on June 2 and yellow markers on school-closure weekdays. BuongiornoModal: initial AI greeting now mentions '🏛️ Posso aggiornarti su bandi attivi e normative di settore per Provincia di Milano/Lombardia' (Unione Commercianti requirement satisfied); 3 quick chips present (🏛️ Bandi & Normative, 📅 Feste & Scuole, 📊 Riepilogo mese); tapping 'Bandi & Normative' triggers full AI response citing confcommerciomilano.it, ASCO/Unione Commercianti Milano, INPS, Agenzia Entrate — institutional sources covered. ONE MINOR FRONTEND I18N BUG: future-day alert displays raw key 'gas.noFutureRefuel' instead of the Italian translation (root cause: t() returns the key when missing, so `t('gas.noFutureRefuel') || 'fallback'` never falls through). User sees 'gas.noFutureRefuel' instead of 'Non puoi registrare un rifornimento per un giorno futuro'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "gas.tsx — future-day alert message",
+        "issue": "Alert shows raw i18n key 'gas.noFutureRefuel' instead of the Italian message. Root cause: code uses `t('gas.noFutureRefuel') || 'Non puoi...'` but i18next returns the key string when missing, so the `||` fallback never triggers (the key is truthy). User sees the literal 'gas.noFutureRefuel' in the alert. Fix: either add the key to it.json translations OR change to `t('gas.noFutureRefuel', { defaultValue: 'Non puoi registrare un rifornimento per un giorno futuro.' })`. Affects gas.tsx lines 226 and 259 (both handleDayPress and handleSaveDayRifornimento). Same pattern likely exists for 'gas.invalidAmount' and 'gas.enterValidAmount'.",
+        "testID": "(alert is window.alert on web; no testID)",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props (legacy)", "issue": "Console warnings persist: '\"shadow*\" style props are deprecated. Use \"boxShadow\"'. Carry-over from previous iterations. Reference: multiple stylesheets across screens."},
+      {"component": "props.pointerEvents (legacy)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Carry-over from previous iterations."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_round68.py",
+    "/app/backend/tests/test_ai_limits.py",
+    "/app/test_reports/pytest/pytest_round68.xml"
+  ],
+  "action_items": [
+    "MINOR (i18n): Add 'gas.noFutureRefuel', 'gas.invalidAmount', 'gas.enterValidAmount' to /app/frontend/src/i18n/locales/it.json (and other locales) OR refactor `t(key) || fallback` pattern to `t(key, { defaultValue: 'fallback' })` in gas.tsx (lines ~96, 226, 259, 267).",
+    "(Carry-over) Replace deprecated shadow* style props with boxShadow.",
+    "(Carry-over) Replace deprecated props.pointerEvents with style.pointerEvents."
+  ],
+  "critical_code_review_comments": [
+    "gas.tsx:218-241 — handleDayPress correctly blocks future days BEFORE opening modal. Logic uses todayMidnight at 00:00:00 local. ✓",
+    "gas.tsx:250-282 — handleSaveDayRifornimento has defense-in-depth check. ✓",
+    "gas.tsx:320 — canGoForward = displayMonth < new Date(today.getFullYear(), today.getMonth(), 1). Correct: forward navigation only allowed when current view is BEFORE current month. ✓",
+    "gas.tsx:423-430 — Next-month TouchableOpacity uses disabled={!canGoForward} + conditional onPress. Chevron color switches to '#C5C2B8' when disabled. ✓ (verified aria-disabled=true at runtime)",
+    "agenda.tsx:599-661 — Day cell uses getDayMarker correctly with regioneAgenda; marker placed top-right; weekend exclusion already handled inside getDayMarker. ✓",
+    "italianCalendar.ts:204-241 — getDayMarker priority logic correct: holiday > school-closed > none; weekends excluded from school-closed. ✓",
+    "BuongiornoModal.tsx:602-630 — 3 quick chips well-structured with disabled state when limitReached. sendMessage() pre-fills appropriate Italian queries. ✓",
+    "server.py ai/chat — ChatRequest now accepts optional `calendario_contestuale`; 6/6 pytest cases pass including backward compat (chat works without the field) and forward (chat with field). ✓",
+    "Backend system prompt — verified by test_chat_with_unione_commercianti_query: response cites at least one of [camera di commercio, regione, confcommercio, asco, unione commercianti, confesercenti, camcom, fiva]. ✓"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (15/15 pytest pass: 3 round68 + 3 limits + 3 critical + 6 marketmate)",
+    "frontend": "95% (all Round 68 user-reported issues fixed; 1 minor i18n alert message bug)"
+  },
+  "seed_data_creation": "Injected localStorage 'marketmate_data' with isConfigured:true, partenzaDa:'Milano' (→ Lombardia region), pin:'' to skip onboarding/PIN lock. Tutorial flags set (marketmate_tutorial_done='1', tutorial_dismissed='1') but Walk-through banner still appeared on first render — dismissed via 'Salta la guida' before each test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Round 68 features all working end-to-end. Today's runtime date is Sat 13 June 2026 (controls 'current month' for the gas forward-chevron disable logic). Test seed at /app/frontend_tests/seed_marketmate.js. Key data-testids verified: gas-cal-prev-month, gas-cal-next-month (with aria-disabled when at current month). Only outstanding minor item is the i18n alert text fallback in gas.tsx (key prints raw instead of Italian text).",
+  "rca_of_issue": "Backend AI 'Unione Commercianti' missing-functions report (user issue #2): RCA — Round 67 system prompt mentioned bandi only optionally. Round 68 fix in server.py made the 🏛️ bandi/normative section MANDATORY when region is resolved. Verified via E2E: greeting now ALWAYS includes 'Posso aggiornarti su bandi attivi e normative di settore per Provincia di {city}/{region}' and the Bandi chip triggers a full response citing confcommerciomilano.it, ASCO/Unione Commercianti Milano, INPS, Agenzia Entrate.\n\nCarburante 'conti non tornano' (user issue #1): RCA — users could tap future days in the calendar grid and register fuel for tomorrow/next week, then those values polluted the monthly KPI totals. Round 68 fix: tap-handler hard-blocks any day > today (with alert), save-handler has a second guard, future days are visually dimmed (opacity 0.35), and the month navigator's '>' chevron is disabled at current month so users cannot even visit future months. Verified all four protections at runtime.\n\nCalendar 'feste e chiusure scolastiche' (user issue #3): RCA — calendar previously had no visual feedback for holidays/school closures. Round 68 added /app/frontend/src/utils/italianCalendar.ts with dynamic Easter calculation, 12 national holidays, regional school closures (Lombardia/Veneto/Sicily/etc.), and a getDayMarker function that gas.tsx + agenda.tsx consume to render red/yellow dots + a legend below each calendar."
+}

@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { buildCalendarContextBlock, resolveRegion } from '../utils/italianCalendar';
 
 const REFERRAL_DISMISS_KEY = 'mm_referral_dismissed_at';
 const REFERRAL_COOLDOWN_DAYS = 10;
@@ -387,6 +388,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
     setLoading(true);
     try {
       const deviceId = await getDeviceId();
+      const calendarBlock = buildCalendarContextStr();
       const res = await fetch(`${API_URL}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -397,6 +399,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
           device_id: deviceId,
           mercato_citta: storeData.mercatoOggi || storeData.partenzaDa || '',
           settore: storeData.settore || '',
+          calendario_contestuale: calendarBlock,
         }),
       });
       const data = await res.json();
@@ -422,6 +425,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
 
     try {
       const deviceId = await getDeviceId();
+      const calendarBlock = buildCalendarContextStr();
       const res = await fetch(`${API_URL}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -432,6 +436,7 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
           device_id: deviceId,
           mercato_citta: storeData.mercatoOggi || storeData.partenzaDa || '',
           settore: storeData.settore || '',
+          calendario_contestuale: calendarBlock,
         }),
       });
       const data = await res.json();
@@ -442,6 +447,22 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
       setMessages((prev) => [...prev, { role: 'assistant', text: 'Errore di connessione. Riprova.' }]);
     }
     setLoading(false);
+  };
+
+  /* Round 68 — Calcola CALENDARIO_CONTESTUALE per i prossimi ~90 giorni
+     usando la regione del mercato/partenza dell'utente. L'AI cita date
+     esatte di feste e chiusure scolastiche senza approssimazioni. */
+  const buildCalendarContextStr = (): string => {
+    try {
+      const now = new Date();
+      const fromIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const to = new Date(now); to.setDate(now.getDate() + 90);
+      const toIso = `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, '0')}-${String(to.getDate()).padStart(2, '0')}`;
+      const regione = resolveRegion(storeData.mercatoOggi || storeData.partenzaDa || '');
+      return buildCalendarContextBlock(fromIso, toIso, regione);
+    } catch {
+      return '';
+    }
   };
 
   // Web Speech API for microphone
@@ -577,6 +598,36 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
               </View>
             )}
           </ScrollView>
+
+          {/* Round 68 — Quick chip per funzioni dedicate (Bandi / Calendario) */}
+          {!loading && (
+            <View style={st.quickChipsRow}>
+              <TouchableOpacity
+                style={[st.quickChip, limitReached && { opacity: 0.4 }]}
+                onPress={() => sendMessage('Mostrami bandi e normative attive per la mia zona (Unione Commercianti / ASCO / Camera di Commercio)')}
+                disabled={limitReached}
+                activeOpacity={0.7}
+              >
+                <Text style={st.quickChipTxt}>🏛️ Bandi & Normative</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[st.quickChip, limitReached && { opacity: 0.4 }]}
+                onPress={() => sendMessage('Quali sono le prossime festività e chiusure scolastiche della mia regione? Come impattano i mercati?')}
+                disabled={limitReached}
+                activeOpacity={0.7}
+              >
+                <Text style={st.quickChipTxt}>📅 Feste & Scuole</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[st.quickChip, limitReached && { opacity: 0.4 }]}
+                onPress={() => sendMessage('Come va il mio mese? Dammi un riepilogo strategico')}
+                disabled={limitReached}
+                activeOpacity={0.7}
+              >
+                <Text style={st.quickChipTxt}>📊 Riepilogo mese</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Input bar */}
           <View style={[st.inputBar, { paddingBottom: Math.max(insets.bottom + 8, 14) }]}>
@@ -759,5 +810,29 @@ const st = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     // @ts-ignore
     boxShadow: '4px 4px 10px rgba(15,55,60,0.5)',
+  },
+  // Round 68 — Quick chips
+  quickChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexWrap: 'wrap',
+    backgroundColor: '#E5EDE8',
+    borderTopWidth: 1,
+    borderTopColor: '#C0D8D0',
+  },
+  quickChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#1E7F85',
+  },
+  quickChipTxt: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E7F85',
   },
 });
