@@ -223,9 +223,9 @@ export default function GasScreen() {
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
     if (target.getTime() > todayMidnight.getTime()) {
-      const msg = t('gas.noFutureRefuel') || 'Non puoi registrare un rifornimento per un giorno futuro.';
+      const msg = t('gas.noFutureRefuel', { defaultValue: 'Non puoi registrare un rifornimento per un giorno futuro.' });
       if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert(t('common.notice') || 'Attenzione', msg);
+      else Alert.alert(t('common.notice', { defaultValue: 'Attenzione' }), msg);
       return;
     }
     setSelectedDay(day);
@@ -256,9 +256,9 @@ export default function GasScreen() {
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
     if (target.getTime() > todayMidnight.getTime()) {
-      const msg = t('gas.noFutureRefuel') || 'Non puoi registrare un rifornimento per un giorno futuro.';
+      const msg = t('gas.noFutureRefuel', { defaultValue: 'Non puoi registrare un rifornimento per un giorno futuro.' });
       if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert(t('common.notice') || 'Attenzione', msg);
+      else Alert.alert(t('common.notice', { defaultValue: 'Attenzione' }), msg);
       setShowDayModal(false);
       return;
     }

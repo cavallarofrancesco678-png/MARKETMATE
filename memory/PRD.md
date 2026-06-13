@@ -70,6 +70,22 @@ MarketMate è un'app mobile per ambulanti e venditori ai mercati italiani. Perme
 - Stripe Subscriptions (LIVE keys attive — NO transazioni di test!)
 - Emergent Auth (Google OAuth), Expo Push Notifications
 
+## Round 68 (Giu 2026) — Bugfix utente (3 issue) — COMPLETATI ✅
+1. **Carburante — conti sballati + giorni futuri**: causa unica = i giorni futuri erano cliccabili e creavano entry future che sommavano nel KPI.
+   - Bloccato `handleDayPress` su giorni futuri (alert IT)
+   - Difesa in profondità in `handleSaveDayRifornimento`
+   - Freccia "→" disabilitata sui mesi >= corrente
+   - Giorni futuri visualmente dimmati (opacity 0.35)
+2. **Buongiorno AI — funzioni Unione Commercianti**: il system prompt ora ha sezione "MONITORAGGIO ISTITUZIONALE" come funzione PROATTIVA OBBLIGATORIA. Proposta bandi/normative come step 6 del saluto (non più sostituita dalla CTA). Quick-chip nel modal: "🏛️ Bandi & Normative", "📅 Feste & Scuole", "📊 Riepilogo mese".
+3. **Calendario feste/chiusure scolastiche**: nuovo util `/app/frontend/src/utils/italianCalendar.ts` con:
+   - 12 festività nazionali (Pasqua/Pasquetta calcolate dinamicamente)
+   - Chiusure scolastiche per REGIONE (estive Nord/Centro/Sud differenziate, carnevale Nord, pasquali)
+   - Mappa città→regione per top 60 città italiane
+   - Marker visivi 🔴 festa / 🟡 scuole chiuse in calendari Gas + Agenda
+   - Legenda contestuale "Festa nazionale" + "Scuole chiuse · {Regione}"
+   - Blocco CALENDARIO_CONTESTUALE iniettato nel prompt AI per analisi predittive
+4. **Test pytest backend** /app/backend/tests/test_ai_round68.py (3 passed) + /app/backend/tests/test_ai_limits.py (3 passed) — totale 20/20 passed.
+
 ## Round 67 (Giu 2026) — Fix richiesti dall'utente (COMPLETATI ✅)
 1. **Carburante**: calendario mensile (sotto) ↔ filtro periodo (sopra) SINCRONIZZATI (`monthPeriodOf`, `goToMonth` in gas.tsx); somme KPI = mese mostrato. Verificato E2E.
 2. **Statistiche — revisione totale**: 
