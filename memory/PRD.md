@@ -70,6 +70,12 @@ MarketMate è un'app mobile per ambulanti e venditori ai mercati italiani. Perme
 - Stripe Subscriptions (LIVE keys attive — NO transazioni di test!)
 - Emergent Auth (Google OAuth), Expo Push Notifications
 
+## Round 70 (Giu 2026) — Bugfix utente (2 issue) — COMPLETATI ✅
+1. **AI dice "no chiusure scolastiche" anche se ci sono**: causa = `resolveRegion()` lato frontend ha solo i capoluoghi (Magenta/Bareggio non risolti) → contesto vuoto. Fix: portato il calcolo in backend (`build_calendar_context_block` in Python) che usa il geocoder per QUALSIASI città italiana. Sovrascrive sempre il blocco frontend.
+2. **AI raddoppia i km del tragitto (22 → 44)**: causa = nessuna direttiva esplicita nel prompt. Fix: aggiunta sezione "KM — REGOLA CRITICA" con esempio numerico — "il campo km è GIÀ A/R, NON moltiplicare per 2".
+3. Test pytest `test_ai_round70.py` (2 test passed): scuole Magenta + km non raddoppiati.
+4. Totale backend: 24/25 passed (1 skip non correlato).
+
 ## Round 69 (Giu 2026) — Bugfix utente (4 issue) — COMPLETATI ✅
 1. **Salvataggio Fatture verifica + FIX**: trovato bug — quando si riapriva una giornata salvata, il `pagamentoMode` (fattura/contanti/misto) non veniva ripristinato dalle chiavi presenti in `dettaglio_fornitori`. L'utente vedeva sempre "contanti" anche se aveva salvato "fattura". I dati erano CORRETTAMENTE salvati (chiave `nomeBase` = fattura, `nomeBase__libera` = contanti) ma l'UI non li mostrava. Fix in `home/index.tsx`: deriva il `pagamentoMode` dalle chiavi al load.
 2. **Pulizia rifornimenti fantasma**: 

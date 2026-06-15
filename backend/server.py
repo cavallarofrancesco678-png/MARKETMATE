@@ -261,6 +261,126 @@ async def resolve_markets_list(raw_list: str) -> dict:
         "citta_count": len(cities),
     }
 
+
+# ═══ Round 70 — CALENDARIO ITALIANO (lato backend) ═══
+# Replicato in Python perché il frontend con la sua mappa città→regione
+# hardcoded copre solo i capoluoghi. Backend usa il geocoder per QUALSIASI città.
+def _easter_sunday(year: int):
+    """Algoritmo Gauss-Meeus per Pasqua (data Gregoriana)."""
+    import datetime as _dt
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return _dt.date(year, month, day)
+
+
+def _italian_holidays(year: int):
+    """12 festività nazionali italiane per l'anno."""
+    import datetime as _dt
+    easter = _easter_sunday(year)
+    easter_monday = easter + _dt.timedelta(days=1)
+    return [
+        (_dt.date(year, 1, 1), "Capodanno"),
+        (_dt.date(year, 1, 6), "Epifania"),
+        (easter, "Pasqua"),
+        (easter_monday, "Pasquetta"),
+        (_dt.date(year, 4, 25), "Festa della Liberazione"),
+        (_dt.date(year, 5, 1), "Festa dei Lavoratori"),
+        (_dt.date(year, 6, 2), "Festa della Repubblica"),
+        (_dt.date(year, 8, 15), "Ferragosto"),
+        (_dt.date(year, 11, 1), "Ognissanti"),
+        (_dt.date(year, 12, 8), "Immacolata Concezione"),
+        (_dt.date(year, 12, 25), "Natale"),
+        (_dt.date(year, 12, 26), "Santo Stefano"),
+    ]
+
+
+def _school_closures_for_region(year: int, regione: str):
+    """Finestre di chiusura scolastica per la regione (anno solare).
+    Ritorna lista di tuple (from_date, to_date, name).
+    """
+    import datetime as _dt
+    r = (regione or "").lower().strip()
+    out = []
+    # Natalizie (attraversano anno: 23 dic anno → 6 gen anno+1)
+    out.append((_dt.date(year, 12, 23), _dt.date(year + 1, 1, 6), "Vacanze natalizie"))
+    # Pasquali (Giovedì Santo → Martedì di Pasqua)
+    easter = _easter_sunday(year)
+    out.append((easter - _dt.timedelta(days=3), easter + _dt.timedelta(days=2), "Vacanze pasquali"))
+    # Estive (variano per regione)
+    south = {"sicilia", "puglia", "calabria", "basilicata", "campania", "sardegna"}
+    north = {"lombardia", "piemonte", "liguria", "valle d'aosta", "veneto",
+             "friuli-venezia giulia", "trentino-alto adige", "emilia-romagna"}
+    if r in south:
+        out.append((_dt.date(year, 6, 8), _dt.date(year, 9, 12), "Vacanze estive"))
+    elif r in north:
+        out.append((_dt.date(year, 6, 8), _dt.date(year, 9, 11), "Vacanze estive"))
+    else:
+        out.append((_dt.date(year, 6, 11), _dt.date(year, 9, 11), "Vacanze estive"))
+    # Carnevale (Lunedì + Martedì grasso) — per regioni che lo osservano
+    if r in {"veneto", "friuli-venezia giulia", "trentino-alto adige", "emilia-romagna", "lombardia"}:
+        martedi_grasso = easter - _dt.timedelta(days=47)
+        out.append((martedi_grasso - _dt.timedelta(days=1), martedi_grasso, "Vacanze carnevale"))
+    return out
+
+
+def build_calendar_context_block(regione: str, days_ahead: int = 90) -> str:
+    """Genera il blocco CALENDARIO_CONTESTUALE per i prossimi N giorni.
+    Festività nazionali (sempre) + chiusure scolastiche regionali se regione nota.
+    """
+    import datetime as _dt
+    today = _dt.date.today()
+    end = today + _dt.timedelta(days=days_ahead)
+    lines = []
+
+    # Festività
+    years = {today.year}
+    if end.year != today.year:
+        years.add(end.year)
+    holidays = []
+    for y in sorted(years):
+        for d, name in _italian_holidays(y):
+            if today <= d <= end:
+                holidays.append((d, name))
+    holidays.sort()
+    if holidays:
+        lines.append("Festività nazionali nel range:")
+        for d, name in holidays:
+            lines.append(f"  • {d.isoformat()} → {name}")
+
+    # Chiusure scolastiche per regione (se nota)
+    if regione and regione.strip():
+        closures_lines = []
+        seen = set()
+        for y in sorted(years | {today.year - 1}):  # include anno prec per natalizie a cavallo
+            for f, t, name in _school_closures_for_region(y, regione):
+                # Interseca con [today, end]
+                if t < today or f > end:
+                    continue
+                key = (f.isoformat(), t.isoformat(), name)
+                if key in seen:
+                    continue
+                seen.add(key)
+                closures_lines.append((f, t, name))
+        closures_lines.sort()
+        if closures_lines:
+            lines.append(f"Chiusure scolastiche ({regione}):")
+            for f, t, name in closures_lines:
+                lines.append(f"  • {f.isoformat()} → {t.isoformat()}: {name}")
+
+    return "\n".join(lines) if lines else ""
+
 @api_router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(req: ChatRequest):
     llm_key = os.environ.get('EMERGENT_LLM_KEY', '')
@@ -482,6 +602,15 @@ NON usare frasi generiche di incoraggiamento tipo "porta tutto l'occorrente senz
 - "Domani consegna ordine {fornitore} (€{importo})."
 - "Tragitto {partenza}→{mercato}: {km} km A/R."
 
+⚠️⚠️⚠️ KM — REGOLA CRITICA (NON SBAGLIARE) ⚠️⚠️⚠️
+Il campo `km` nell'agenda e nel CONTESTO È GIÀ il TOTALE andata + ritorno.
+- NON moltiplicarlo MAI per 2.
+- NON dire mai "{km} km andata, quindi {km×2} km A/R".
+- Se `km`=22 → "22 km A/R" (NON "44 km A/R").
+- Per stimare il costo carburante: usa `km` × `costoKm` (costoKm è già €/km totale).
+  Es.: km=22, costoKm=0,20 → costo = 22 × 0,20 = €4,40 (NON €8,80).
+Se il valore ti sembra "troppo basso" non interpretarlo: il dato è corretto così.
+
 ❌ NON SCRIVERE:
 - "porta tutto l'occorrente senza esagerare"
 - "come va la preparazione?"
@@ -590,11 +719,24 @@ Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare perc
                 + json.dumps(mercato_info, ensure_ascii=False)
                 + "\n=== FINE MERCATO_INFO ===\n\n"
             )
-        # ═══ Round 68 — CALENDARIO_CONTESTUALE (feste + chiusure scolastiche) ═══
-        # Calcolato lato frontend in italianCalendar.ts per il range corrente.
-        # L'AI lo cita ESATTAMENTE: niente "se non sbaglio" o date approssimative.
+        # ═══ Round 68/70 — CALENDARIO_CONTESTUALE (feste + chiusure scolastiche) ═══
+        # Round 70: ora il backend genera ESPLICITAMENTE il blocco usando la regione
+        # risolta via geocoder (funziona per qualunque città italiana, anche
+        # comuni piccoli come Magenta, Bareggio, Cernusco). Il blocco del frontend
+        # è usato solo come fallback (la sua mappa hardcoded copre solo i capoluoghi).
         calendario_block = ""
-        if (req.calendario_contestuale or "").strip():
+        try:
+            backend_calendar = build_calendar_context_block(primary_region_for_calendar, days_ahead=90)
+            if backend_calendar:
+                calendario_block = (
+                    "=== CALENDARIO_CONTESTUALE ===\n"
+                    + backend_calendar
+                    + "\n=== FINE CALENDARIO_CONTESTUALE ===\n\n"
+                )
+        except Exception as e:
+            logger.warning(f"build_calendar_context_block failed: {e}")
+        # Fallback al blocco frontend se il backend non ha potuto generarlo
+        if not calendario_block and (req.calendario_contestuale or "").strip():
             calendario_block = (
                 "=== CALENDARIO_CONTESTUALE ===\n"
                 + req.calendario_contestuale.strip()
