@@ -70,6 +70,14 @@ MarketMate è un'app mobile per ambulanti e venditori ai mercati italiani. Perme
 - Stripe Subscriptions (LIVE keys attive — NO transazioni di test!)
 - Emergent Auth (Google OAuth), Expo Push Notifications
 
+## Round 71 (Giu 2026) — Bugfix utente (1 issue) — COMPLETATO ✅
+1. **Suono SALVA non si sentiva più**: causa = `feedback.ts` importava `expo-audio` (non installato) → modulo rotto al load; inoltre la CDN `freesound.org` era inaffidabile.
+   - **Fix:** installato `expo-audio@1.1.1` (sostituto ufficiale di `expo-av` deprecato)
+   - Riscrittto `feedback.ts`:
+     - **WEB** → sintesi locale via Web Audio API (doppia nota A5→E6, "ka-ching" senza dipendenze di rete)
+     - **NATIVE** → `expo-audio.createAudioPlayer` con CDN + cleanup automatico dopo 1.5s
+   - Verificato in browser: AudioContext state `running`, sampleRate 44100 ✓
+
 ## Round 70 (Giu 2026) — Bugfix utente (2 issue) — COMPLETATI ✅
 1. **AI dice "no chiusure scolastiche" anche se ci sono**: causa = `resolveRegion()` lato frontend ha solo i capoluoghi (Magenta/Bareggio non risolti) → contesto vuoto. Fix: portato il calcolo in backend (`build_calendar_context_block` in Python) che usa il geocoder per QUALSIASI città italiana. Sovrascrive sempre il blocco frontend.
 2. **AI raddoppia i km del tragitto (22 → 44)**: causa = nessuna direttiva esplicita nel prompt. Fix: aggiunta sezione "KM — REGOLA CRITICA" con esempio numerico — "il campo km è GIÀ A/R, NON moltiplicare per 2".

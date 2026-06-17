@@ -20,7 +20,9 @@
         "CFBundleAllowMixedLocalizations": true,
         "LSApplicationCategoryType": "public.app-category.business",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -65,7 +67,8 @@
         }
       ],
       "./plugins/with-adi-registration",
-      "expo-font"
+      "expo-font",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
