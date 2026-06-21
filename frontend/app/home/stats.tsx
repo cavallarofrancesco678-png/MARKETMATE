@@ -29,6 +29,7 @@ import * as Sharing from 'expo-sharing';
 import { playSuccess } from '../../src/utils/feedback';
 import type { Giornata } from '../../src/store/appStore';
 import { RoleGuard } from '../../src/components/RoleGuard';
+import { AddFatturaModal } from '../../src/components/AddFatturaModal';
 // Round 64+66 — utility condivisa per i calcoli finanziari (Home e Stats
 // devono usare LO STESSO algoritmo per evitare drift Utile vs Netto).
 import {
@@ -285,6 +286,9 @@ function StatsScreenInner() {
   const [showFiere, setShowFiere] = useState(false);
   const [showFornitori, setShowFornitori] = useState(false);
   const [showFattureLog, setShowFattureLog] = useState(true);
+  /* Round 73 — modal aggiungi/modifica fattura (input dedicato, no overwriting) */
+  const [showAddFatturaModal, setShowAddFatturaModal] = useState(false);
+  const [editingFattura, setEditingFattura] = useState<any>(null);
   const [expandedFornitore, setExpandedFornitore] = useState<string | null>(null);
   // Filtro click-to-isolate per il grafico ANDAMENTO NEL TEMPO dei fornitori
   // null = tutti visibili, numero = solo quel fornitore (gli altri spariscono)
@@ -1836,42 +1840,98 @@ function StatsScreenInner() {
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems, 'fixedExpenses')}
         {renderPieBox(t('stats.extraExpenses'), speseExtraItems, 'extraExpenses')}
 
-        {/* ═══ Round 72 — TOTALE FATTURE nel periodo (immutabile) ═══ */}
-        {fatturePeriodoStats.count > 0 && (
-          <View style={[st.card, { marginBottom: GAP, borderLeftWidth: 4, borderLeftColor: '#E89B4A' }]}>
-            <TouchableOpacity onPress={() => setShowFattureLog(!showFattureLog)} activeOpacity={0.7}>
-              <View style={st.chartHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="document-text" size={16} color="#E89B4A" />
-                  <Text style={st.sectionLabel}>FATTURE</Text>
-                  <View style={{ backgroundColor: '#FBEEDB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#A56A1F' }}>{fatturePeriodoStats.count}</Text>
-                  </View>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={[st.sectionTotal, { color: '#E89B4A' }]}>TOT: €{fatturePeriodoStats.totale.toFixed(0)}</Text>
-                  <Ionicons name={showFattureLog ? 'chevron-up' : 'chevron-down'} size={18} color="#E89B4A" />
+        {/* ═══ Round 72/73 — TOTALE FATTURE nel periodo (immutabile) ═══ */}
+        <View style={[st.card, { marginBottom: GAP, borderLeftWidth: 4, borderLeftColor: '#E89B4A' }]}>
+          <TouchableOpacity onPress={() => setShowFattureLog(!showFattureLog)} activeOpacity={0.7}>
+            <View style={st.chartHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="document-text" size={16} color="#E89B4A" />
+                <Text style={st.sectionLabel}>FATTURE</Text>
+                <View style={{ backgroundColor: '#FBEEDB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#A56A1F' }}>{fatturePeriodoStats.count}</Text>
                 </View>
               </View>
-            </TouchableOpacity>
-            {showFattureLog && (
-              <View style={{ marginTop: 12, gap: 8 }}>
-                {Object.entries(fatturePeriodoStats.perFornitore).sort((a: any, b: any) => b[1].totale - a[1].totale).map(([nome, info]: any) => (
-                  <View key={nome} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#FDFAF3', borderRadius: 8 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A4040' }}>{nome}</Text>
-                      <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '600' }}>{info.count} {info.count === 1 ? 'fattura' : 'fatture'}</Text>
-                    </View>
-                    <Text style={{ fontSize: 15, fontWeight: '900', color: '#A56A1F' }}>€{info.totale.toFixed(0)}</Text>
-                  </View>
-                ))}
-                <Text style={{ fontSize: 10, color: '#9AAAAA', fontStyle: 'italic', textAlign: 'center', marginTop: 6 }}>
-                  💡 Conteggio sempre aggiornato — ogni fattura inserita è permanente.
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[st.sectionTotal, { color: '#E89B4A' }]}>TOT: €{fatturePeriodoStats.totale.toFixed(0)}</Text>
+                <Ionicons name={showFattureLog ? 'chevron-up' : 'chevron-down'} size={18} color="#E89B4A" />
+              </View>
+            </View>
+          </TouchableOpacity>
+          {showFattureLog && (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              {/* Pulsante AGGIUNGI FATTURA (Round 73) */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, paddingVertical: 10, paddingHorizontal: 14,
+                  borderRadius: 10, backgroundColor: '#1E7F85',
+                  marginBottom: 4,
+                }}
+                onPress={() => { setEditingFattura(null); setShowAddFatturaModal(true); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle" size={18} color="#FFF" />
+                <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>Aggiungi nuova fattura</Text>
+              </TouchableOpacity>
+              {fatturePeriodoStats.count === 0 ? (
+                <Text style={{ fontSize: 12, color: '#9AAAAA', fontStyle: 'italic', textAlign: 'center', marginTop: 8 }}>
+                  Nessuna fattura registrata nel periodo. Tocca "Aggiungi nuova fattura" per iniziare.
                 </Text>
-              </View>
-            )}
-          </View>
-        )}
+              ) : (
+                <>
+                  {/* Lista per fornitore (tap per espandere → modifica) */}
+                  {Object.entries(fatturePeriodoStats.perFornitore).sort((a: any, b: any) => b[1].totale - a[1].totale).map(([nome, info]: any) => (
+                    <View key={nome} style={{ paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#FDFAF3', borderRadius: 8 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A4040' }}>{nome}</Text>
+                          <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '600' }}>{info.count} {info.count === 1 ? 'fattura' : 'fatture'}</Text>
+                        </View>
+                        <Text style={{ fontSize: 15, fontWeight: '900', color: '#A56A1F' }}>€{info.totale.toFixed(0)}</Text>
+                      </View>
+                      {/* Dettaglio singole fatture (cliccabili per modifica) */}
+                      <View style={{ marginTop: 6, gap: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#F0E6D0' }}>
+                        {fatturePeriodoStats.items
+                          .filter((f: any) => f.fornitore === nome)
+                          .sort((a: any, b: any) => (b.dataEmissione || '').localeCompare(a.dataEmissione || ''))
+                          .map((f: any) => {
+                            const isAuto = String(f.numeroFattura || '').startsWith('_auto_');
+                            return (
+                              <TouchableOpacity
+                                key={f.id}
+                                onPress={() => { setEditingFattura(f); setShowAddFatturaModal(true); }}
+                                activeOpacity={0.7}
+                                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 }}
+                              >
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 11, color: '#3F5A5A', fontWeight: '700' }}>
+                                    {isAuto ? `(senza n°)` : `Fatt. ${f.numeroFattura}`}
+                                    {f.dataEmissione ? `  ·  ${f.dataEmissione.slice(8,10)}/${f.dataEmissione.slice(5,7)}/${f.dataEmissione.slice(2,4)}` : ''}
+                                  </Text>
+                                </View>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#1A4040' }}>€{Number(f.importo || 0).toFixed(0)}</Text>
+                                <Ionicons name="chevron-forward" size={14} color="#B0B7B7" style={{ marginLeft: 6 }} />
+                              </TouchableOpacity>
+                            );
+                          })}
+                      </View>
+                    </View>
+                  ))}
+                  <Text style={{ fontSize: 10, color: '#9AAAAA', fontStyle: 'italic', textAlign: 'center', marginTop: 6 }}>
+                    💡 Tocca una fattura per modificarla. Tocca "+" per aggiungerne una nuova.
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Modal Add/Edit Fattura (Round 73) */}
+        <AddFatturaModal
+          visible={showAddFatturaModal}
+          fattura={editingFattura}
+          onClose={() => { setShowAddFatturaModal(false); setEditingFattura(null); }}
+        />
 
         {/* ─── FORNITORI: card unico con tutti i dati (Fatturata/Contanti, ripartizione, andamento, voci settimanali/mensili) ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>

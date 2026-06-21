@@ -70,6 +70,24 @@ MarketMate è un'app mobile per ambulanti e venditori ai mercati italiani. Perme
 - Stripe Subscriptions (LIVE keys attive — NO transazioni di test!)
 - Emergent Auth (Google OAuth), Expo Push Notifications
 
+## Round 73 (Giu 2026) — FIX DEFINITIVO Fatture (input dedicato) ✅
+**Reclamo utente (ancora):** "metto il numero fattura e quello rimane, ma non rimane l'importo. In STATISTICHE resta solo l'importo dell'ultima fattura che segno".
+
+**Root cause identificata:** il form della giornata ha UN solo input `numero+importo` per fornitore per giorno. Se l'utente inserisce 2 fatture stesso giorno (o cambia numero rapidamente), l'importo viene sovrascritto prima che l'autosave possa registrare la prima.
+
+**Fix UI dedicato — `AddFatturaModal`:**
+1. Nuovo componente `/app/frontend/src/components/AddFatturaModal.tsx`:
+   - Form completo: fornitore (con dropdown rubrica), numero fattura, importo, data emissione, periodo from/to, scadenza, modo pagamento (fattura/contanti/misto), note
+   - Crea **un record indipendente** in `fattureLog` via `addFattura`/`updateFattura`
+   - Cliccando un record esistente → modalità modifica con pulsante elimina
+2. Card "FATTURE" in stats.tsx **ora sempre visibile** con:
+   - Pulsante "+ Aggiungi nuova fattura" prominente
+   - Lista singole fatture cliccabili per modifica (raggruppate per fornitore con totale)
+   - Empty state quando log vuoto
+3. Backfill automatico già implementato in Round 73 precedente (storicoGiornate + spesePeriodiche → fattureLog)
+
+**Risultato:** ora l'utente registra ogni fattura tramite modal dedicato. NESSUN overwriting possibile, ogni record è un'entità separata e immutabile. Stats accumula correttamente. Modifica/Cancella esplicite.
+
 ## Round 72 (Giu 2026) — Bugfix utente CRITICO pre-lancio — COMPLETATO ✅
 **Problema:** "in STATISTICHE appare solo l'importo dell'ultima fattura segnata. Lo stesso accade in NOTE, dove anche la data non è quella corretta"
 
