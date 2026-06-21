@@ -70,6 +70,23 @@ MarketMate è un'app mobile per ambulanti e venditori ai mercati italiani. Perme
 - Stripe Subscriptions (LIVE keys attive — NO transazioni di test!)
 - Emergent Auth (Google OAuth), Expo Push Notifications
 
+## Round 72 (Giu 2026) — Bugfix utente CRITICO pre-lancio — COMPLETATO ✅
+**Problema:** "in STATISTICHE appare solo l'importo dell'ultima fattura segnata. Lo stesso accade in NOTE, dove anche la data non è quella corretta"
+
+**Causa radice:** il tracciamento fatture era legato al `fornitoriInfo` di ogni `Giornata` (1 numeroFattura per fornitore per giorno) → soggetto a overwriting e perdita dati cross-giornata.
+
+**Fix architetturale — `fattureLog` immutabile:**
+1. Nuova interfaccia `Fattura` con campi: id, fornitore, numeroFattura, importo, modoPagamento, **dataEmissione** (giornata), **dataInserimento** (timestamp real), **periodoFrom/To** (riferimento custom), scadenza
+2. Nuovo state `fattureLog: Fattura[]` (append-only) con persistenza AsyncStorage + sync cloud
+3. Actions: `addFattura`, `upsertFatturaByKey` (dedup su fornitore+numero, preserva dataInserimento), `removeFattura`, `updateFattura`
+4. Hook automatico in `handleSalva` di home/index.tsx: ogni fornitore con numeroFattura → upsert nel log
+5. Stats: nuova card "FATTURE" arancione (#E89B4A) con TOT €, count, breakdown per fornitore — aggiornato in real-time
+6. Agenda Tab Fatture: source primaria fattureLog + riga "📝 Inserita il GG/MM/AAAA · 📅 periodo GG/MM → GG/MM"
+7. Agenda Tab Note: include fatture con `data = dataInserimento` (NON dataEmissione)
+8. Fix critico aggiuntivo: `saveToStorage` mancava `fattureLog` nel dataToSave → reload perdeva tutto (trovato dal testing_agent + fixato)
+
+**Testing:** 8 step end-to-end passati via testing_agent. Stats mostra TOT corretto, Agenda mostra tutte le fatture distinte, persistenza F5 verificata.
+
 ## Round 71 (Giu 2026) — Bugfix utente (1 issue) — COMPLETATO ✅
 1. **Suono SALVA non si sentiva più**: causa = `feedback.ts` importava `expo-audio` (non installato) → modulo rotto al load; inoltre la CDN `freesound.org` era inaffidabile.
    - **Fix:** installato `expo-audio@1.1.1` (sostituto ufficiale di `expo-av` deprecato)
