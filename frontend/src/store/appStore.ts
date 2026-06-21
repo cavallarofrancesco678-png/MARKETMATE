@@ -1078,6 +1078,95 @@ export const useAppStore = create<AppState>((set, get) => ({
           parsed.spesePeriodiche = deduped;
         }
 
+        // ═══ Round 73 — BACKFILL FATTURE LOG da storico esistente ═══
+        // Per utenti con dati pre-R72: scansiona storicoGiornate +
+        // spesePeriodiche e popola fattureLog con tutti i pagamenti
+        // mai inseriti, così la card "FATTURE" in stats mostra subito
+        // lo storico. Esegui SOLO se fattureLog è vuoto o non esiste,
+        // così non ricrea duplicati ad ogni avvio.
+        let backfilledCount = 0;
+        if (!Array.isArray(parsed.fattureLog) || parsed.fattureLog.length === 0) {
+          const backfilled: any[] = [];
+          const dedupKeys = new Set<string>();
+
+          // 1) Da storicoGiornate.dettaglio_fornitori + fornitoriInfo
+          (parsed.storicoGiornate || []).forEach((g: any) => {
+            try {
+              const dataEm = new Date(g.data);
+              if (isNaN(dataEm.getTime())) return;
+              const dataIso = `${dataEm.getFullYear()}-${String(dataEm.getMonth() + 1).padStart(2, '0')}-${String(dataEm.getDate()).padStart(2, '0')}`;
+              const det = g.dettaglio_fornitori || {};
+              const info = g.fornitoriInfo || {};
+              const baseNames = new Set<string>();
+              Object.keys(det).forEach((k) => {
+                if (k.endsWith('__liberaLabel') || k.includes('__fattn')) return;
+                if (k.endsWith('__libera')) baseNames.add(k.slice(0, -'__libera'.length));
+                else baseNames.add(k);
+              });
+              baseNames.forEach((nomeFornitore) => {
+                const impFatt = Number(det[nomeFornitore]) || 0;
+                const impCash = Number(det[`${nomeFornitore}__libera`]) || 0;
+                const impTot = Math.abs(impFatt) + Math.abs(impCash);
+                if (impTot <= 0) return;
+                const fInfo = info[nomeFornitore] || {};
+                const numF = String(fInfo.numeroFattura || '').trim();
+                const dedupNum = numF || `_auto_${dataIso}`;
+                const dedupKey = `${nomeFornitore.toLowerCase()}|${dedupNum.toLowerCase()}`;
+                if (dedupKeys.has(dedupKey)) return;
+                dedupKeys.add(dedupKey);
+                const mode = impFatt > 0 && impCash > 0 ? 'misto' : (impFatt > 0 ? 'fattura' : 'contanti');
+                backfilled.push({
+                  id: `ft_bf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                  fornitore: nomeFornitore,
+                  numeroFattura: dedupNum,
+                  importo: impTot,
+                  importoFattura: Math.abs(impFatt) || undefined,
+                  importoContanti: Math.abs(impCash) || undefined,
+                  modoPagamento: mode,
+                  dataEmissione: dataIso,
+                  dataInserimento: g.savedAt || dataEm.toISOString(),
+                  scadenza: fInfo.scadenza || undefined,
+                  note: numF ? undefined : '(backfill — pagamento senza fattura)',
+                });
+              });
+            } catch { /* skip */ }
+          });
+
+          // 2) Da spesePeriodiche
+          (parsed.spesePeriodiche || []).forEach((sp: any) => {
+            try {
+              const importo = Number(sp.importo) || 0;
+              if (importo <= 0) return;
+              const dataIso = sp.dayOfPurchase || sp.from;
+              if (!dataIso) return;
+              const numF = String(sp.numeroFattura || '').trim();
+              const dedupNum = numF || `_auto_${dataIso}`;
+              const dedupKey = `${(sp.nome || '').toLowerCase()}|${dedupNum.toLowerCase()}`;
+              if (dedupKeys.has(dedupKey)) return;
+              dedupKeys.add(dedupKey);
+              backfilled.push({
+                id: `ft_bf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                fornitore: sp.nome,
+                numeroFattura: dedupNum,
+                importo,
+                modoPagamento: sp.pagamentoMode || 'fattura',
+                dataEmissione: dataIso,
+                dataInserimento: sp.createdAt || new Date(dataIso + 'T12:00:00').toISOString(),
+                periodoFrom: sp.from,
+                periodoTo: sp.to,
+                scadenza: sp.scadenza || undefined,
+                note: numF ? undefined : '(backfill da spesa periodica)',
+              });
+            } catch { /* skip */ }
+          });
+
+          if (backfilled.length > 0) {
+            parsed.fattureLog = backfilled;
+            backfilledCount = backfilled.length;
+            console.log(`[Round 73] Backfill fatture: ${backfilledCount} record creati dallo storico esistente.`);
+          }
+        }
+
         set(parsed);
 
         // Se almeno un campo è stato sanitizzato (non era un array originariamente),
@@ -1089,7 +1178,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           || !originalShape.sc || !originalShape.fi || !originalShape.aa
           || !originalShape.oa || !originalShape.fr || !originalShape.co || !originalShape.ci
           || dedupRemovedCount > 0
-          || futureRemovedCount > 0;
+          || futureRemovedCount > 0
+          || backfilledCount > 0;
         if (wasMigrated) {
           try { await storage.setItem('marketmate_data', JSON.stringify(parsed)); } catch {}
         }

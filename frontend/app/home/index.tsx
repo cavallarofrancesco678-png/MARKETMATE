@@ -1502,10 +1502,12 @@ export default function HomeScreen() {
       } catch { /* skip */ }
     });
 
-    /* ═══ Round 72 — APPEND FATTURE LOG (immutabile) ═══
-       Per ogni fornitore con numeroFattura → upsert nel log fatture.
-       L'archivio fatture e il totale Statistiche si basano su questo log,
-       NON sul fornitoriInfo della giornata (che soffre di overwriting). */
+    /* ═══ Round 73 — CATTURA TUTTI I PAGAMENTI FORNITORE NEL LOG ═══
+       FIX critico: in Round 72 il log catturava solo entries con
+       `numeroFattura` valorizzato. L'utente però spesso inserisce
+       pagamenti SENZA numero fattura (ma con periodo di riferimento) →
+       quelle entry venivano perse. Ora catturiamo OGNI fornitore con
+       importo > 0 e creiamo una chiave univoca anche senza numero. */
     try {
       const upsertFattura = (useAppStore.getState() as any).upsertFatturaByKey;
       const giornataIso = (() => {
@@ -1513,11 +1515,25 @@ export default function HomeScreen() {
           return dataCorrente.toISOString().slice(0, 10);
         } catch { return new Date().toISOString().slice(0, 10); }
       })();
-      Object.entries(fornInfo || {}).forEach(([nomeFornitore, info]: any) => {
-        if (!info?.numeroFattura || !String(info.numeroFattura).trim()) return;
-        const imp = dettaglioForn[nomeFornitore] || 0;
-        if (imp <= 0) return;
-        const mode = (pagamentoMode?.[nomeFornitore] || 'fattura') as 'contanti' | 'fattura' | 'misto';
+      // Raccogli TUTTI i fornitori che hanno UN qualunque importo > 0
+      // (sia in fattura `nome` che in contanti `nome__libera`)
+      const allFornitoriBaseNames = new Set<string>();
+      Object.keys(dettaglioForn || {}).forEach((k) => {
+        if (k.endsWith('__liberaLabel') || k.includes('__fattn')) return;
+        if (k.endsWith('__libera')) {
+          allFornitoriBaseNames.add(k.slice(0, -'__libera'.length));
+        } else {
+          allFornitoriBaseNames.add(k);
+        }
+      });
+      allFornitoriBaseNames.forEach((nomeFornitore) => {
+        const impFatt = Number(dettaglioForn[nomeFornitore]) || 0;
+        const impCash = Number(dettaglioForn[`${nomeFornitore}__libera`]) || 0;
+        const impTot = Math.abs(impFatt) + Math.abs(impCash);
+        if (impTot <= 0) return;
+        const info = (fornInfo || {})[nomeFornitore] || {};
+        const numF = String(info?.numeroFattura || '').trim();
+        const mode = (pagamentoMode?.[nomeFornitore] || (numF ? 'fattura' : 'contanti')) as 'contanti' | 'fattura' | 'misto';
         const periodoFrom = fornDeductionStartDate?.[nomeFornitore] || giornataIso;
         const dedDays = fornDeductionDays?.[nomeFornitore] || 0;
         let periodoTo = periodoFrom;
@@ -1528,16 +1544,23 @@ export default function HomeScreen() {
             periodoTo = d.toISOString().slice(0, 10);
           } catch { /* skip */ }
         }
+        // Chiave univoca: se c'è numero fattura usalo, altrimenti
+        // genera una chiave stabile basata su (fornitore + dataEmissione)
+        // così riapertura della stessa giornata fa UPDATE, NON duplica.
+        const dedupNumero = numF || `_auto_${giornataIso}`;
         try {
           upsertFattura?.(
-            { fornitore: nomeFornitore, numeroFattura: String(info.numeroFattura).trim() },
+            { fornitore: nomeFornitore, numeroFattura: dedupNumero },
             {
-              importo: imp,
+              importo: impTot,
+              importoFattura: Math.abs(impFatt) || undefined,
+              importoContanti: Math.abs(impCash) || undefined,
               modoPagamento: mode,
               dataEmissione: giornataIso,
               periodoFrom,
               periodoTo,
               scadenza: info.scadenza || undefined,
+              note: numF ? undefined : '(pagamento senza fattura)',
             }
           );
         } catch { /* skip */ }
