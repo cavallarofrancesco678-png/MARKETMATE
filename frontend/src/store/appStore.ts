@@ -224,6 +224,33 @@ export interface DiarioEntry {
   testo: string;
 }
 
+/* ═══ Round 72 — FATTURE LOG (append-only, immutabile) ═══
+   Collezione PERSISTENTE delle fatture inserite dall'utente. Indipendente
+   dalle giornate: una fattura sopravvive sempre, anche se viene modificata
+   la giornata di riferimento. Permette:
+     • Totale fatture aggiornato in tempo reale nelle Statistiche
+     • Vista "NOTE/FATTURE" con TUTTI i record (non solo l'ultimo)
+     • Distinzione fra "dataEmissione" (data in fattura) e "dataInserimento"
+       (timestamp quando l'utente l'ha registrata nell'app)
+     • Periodo di riferimento esplicito (periodoFrom/periodoTo) inserito
+       dall'utente quando la fattura copre un range (es. abbonamento mensile)
+*/
+export interface Fattura {
+  id: string;                    // unique
+  fornitore: string;             // nome fornitore
+  numeroFattura: string;         // numero documento
+  importo: number;               // importo totale fattura
+  importoFattura?: number;       // quota pagata da fattura (per modo 'misto')
+  importoContanti?: number;      // quota pagata in contanti (per modo 'misto')
+  modoPagamento: 'contanti' | 'fattura' | 'misto';
+  dataEmissione: string;         // ISO YYYY-MM-DD — data della fattura/giornata
+  dataInserimento: string;       // ISO datetime — quando l'utente l'ha registrata
+  periodoFrom?: string;          // ISO — inizio periodo di riferimento (opzionale)
+  periodoTo?: string;            // ISO — fine periodo di riferimento (opzionale)
+  scadenza?: string;             // ISO — scadenza pagamento (opzionale)
+  note?: string;                 // testo libero
+}
+
 /* ═══ Round 61 — SPESE PERIODICHE (Periodic Expenses) ═══
    Collezione SEPARATA da storicoGiornate per gestire spese che vanno
    ripartite su più giorni (settimanale, custom, mensile). Le spese qui
@@ -315,6 +342,9 @@ interface AppState {
   appuntiAgenda: Appunto[];
   ordiniAgenda: Ordine[];
   storicoDiario: DiarioEntry[];
+  /* Round 72 — Log immutabile delle fatture inserite (NON sostituisce
+     fornitoriInfo nelle giornate, lo affianca). */
+  fattureLog: Fattura[];
   speseExtraTags: string[];
   storicoScontrini: ScontrinoRecord[];
   // ═══ SESSIONE SPESE EXTRA (persistente fino a 23:59 del giorno successivo) ═══
@@ -346,7 +376,6 @@ interface AppState {
   addCarburante: (c: Carburante) => void;
   removeCarburante: (index: number) => void;
   clearCarburanteInRange: (fromIso: string, toIso: string) => void;
-  removeCarburante: (index: number) => void;
   /* Round 61 — actions per SpesaPeriodica */
   addSpesaPeriodica: (s: Omit<SpesaPeriodica, 'id' | 'createdAt'>) => void;
   updateSpesaPeriodica: (id: string, patch: Partial<SpesaPeriodica>) => void;
@@ -358,6 +387,11 @@ interface AppState {
   removeOrdine: (data: Date, testo: string) => void;
   addDiario: (d: DiarioEntry) => void;
   removeDiario: (data: Date) => void;
+  /* Round 72 — Actions su fattureLog */
+  addFattura: (f: Omit<Fattura, 'id' | 'dataInserimento'>) => Fattura;
+  upsertFatturaByKey: (key: { fornitore: string; numeroFattura: string }, patch: Partial<Omit<Fattura, 'id' | 'dataInserimento'>>) => Fattura;
+  removeFattura: (id: string) => void;
+  updateFattura: (id: string, patch: Partial<Fattura>) => void;
   getDiarioForDate: (data: Date) => DiarioEntry | undefined;
   addSpeseExtraTag: (tag: string) => void;
   removeSpeseExtraTag: (tag: string) => void;
@@ -420,6 +454,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   appuntiAgenda: [],
   ordiniAgenda: [],
   storicoDiario: [],
+  fattureLog: [],
   speseExtraTags: [],
   storicoScontrini: [],
   speseExtraSession: null,
@@ -707,6 +742,72 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
   },
 
+  /* ═══ Round 72 — FATTURE LOG (append-only) ═══
+     Ogni inserimento crea un record IMMUTABILE. La dedup è su
+     (fornitore + numeroFattura) per evitare doppioni quando l'utente
+     salva la stessa giornata più volte. */
+  addFattura: (f) => {
+    const now = new Date().toISOString();
+    const id = `ft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const item: Fattura = { ...f, id, dataInserimento: now } as Fattura;
+    set((state) => ({ fattureLog: [...(state.fattureLog || []), item] }));
+    get().saveToStorage();
+    return item;
+  },
+
+  upsertFatturaByKey: (key, patch) => {
+    let saved: Fattura | null = null;
+    const now = new Date().toISOString();
+    set((state) => {
+      const log = Array.isArray(state.fattureLog) ? state.fattureLog : [];
+      const normFor = (s: string) => (s || '').trim().toLowerCase();
+      const normNum = (s: string) => (s || '').trim().toLowerCase();
+      const idx = log.findIndex(
+        (x) =>
+          normFor(x.fornitore) === normFor(key.fornitore) &&
+          normNum(x.numeroFattura) === normNum(key.numeroFattura)
+      );
+      if (idx >= 0) {
+        // UPDATE — preserva dataInserimento originale
+        const next = [...log];
+        next[idx] = { ...next[idx], ...patch, fornitore: key.fornitore, numeroFattura: key.numeroFattura } as Fattura;
+        saved = next[idx];
+        return { fattureLog: next };
+      }
+      // INSERT
+      const id = `ft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const importo = (patch as any)?.importo ?? 0;
+      const modoPagamento = (patch as any)?.modoPagamento ?? 'fattura';
+      const dataEmissione = (patch as any)?.dataEmissione ?? now.slice(0, 10);
+      const item: Fattura = {
+        id,
+        dataInserimento: now,
+        fornitore: key.fornitore,
+        numeroFattura: key.numeroFattura,
+        importo,
+        modoPagamento,
+        dataEmissione,
+        ...patch,
+      } as Fattura;
+      saved = item;
+      return { fattureLog: [...log, item] };
+    });
+    get().saveToStorage();
+    return saved as Fattura;
+  },
+
+  removeFattura: (id) => {
+    set((state) => ({ fattureLog: (state.fattureLog || []).filter((x) => x.id !== id) }));
+    get().saveToStorage();
+  },
+
+  updateFattura: (id, patch) => {
+    set((state) => ({
+      fattureLog: (state.fattureLog || []).map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    }));
+    get().saveToStorage();
+  },
+
   addSpeseExtraTag: (tag) => {
     set((state) => {
       if (state.speseExtraTags.includes(tag)) return state;
@@ -838,6 +939,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           return [];
         };
         parsed.storicoDiario = fixArr(parsed.storicoDiario);
+        parsed.fattureLog = fixArr(parsed.fattureLog);
         parsed.storicoScontrini = fixArr(parsed.storicoScontrini);
         parsed.storicoGiornate = fixArr(parsed.storicoGiornate);
         parsed.storicoCarburante = fixArr(parsed.storicoCarburante);
@@ -1028,6 +1130,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         appuntiAgenda: state.appuntiAgenda,
         ordiniAgenda: state.ordiniAgenda || [],
         storicoDiario: state.storicoDiario,
+        fattureLog: state.fattureLog || [],
         speseExtraTags: state.speseExtraTags,
         storicoScontrini: state.storicoScontrini,
         codiciInvito: state.codiciInvito || [],
@@ -1080,6 +1183,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       appuntiAgenda: [],
       ordiniAgenda: [],
       storicoDiario: [],
+      fattureLog: [],
       speseExtraTags: [],
       storicoScontrini: [],
       // Pulisci anche la sessione spese in corso (fatture orphane, ripartizioni)

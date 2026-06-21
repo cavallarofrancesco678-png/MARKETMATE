@@ -284,6 +284,7 @@ function StatsScreenInner() {
   const [showMeteo, setShowMeteo] = useState(false);
   const [showFiere, setShowFiere] = useState(false);
   const [showFornitori, setShowFornitori] = useState(false);
+  const [showFattureLog, setShowFattureLog] = useState(true);
   const [expandedFornitore, setExpandedFornitore] = useState<string | null>(null);
   // Filtro click-to-isolate per il grafico ANDAMENTO NEL TEMPO dei fornitori
   // null = tutti visibili, numero = solo quel fornitore (gli altri spariscono)
@@ -439,6 +440,46 @@ function StatsScreenInner() {
     }).reduce((acc, c) => acc + (Number(c.euro) || 0), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storicoCarburante, filtroTempo, persDateFrom, persDateTo, dataRiferimento]);
+
+  /* ═══ Round 72 — TOTALE FATTURE nel periodo (da fattureLog immutabile) ═══
+     Somma esatta di TUTTE le fatture inserite con dataEmissione nel periodo.
+     Risolve il bug "appare solo l'importo dell'ultima fattura segnata":
+     ora ogni fattura è un record separato e il totale è sempre aggiornato. */
+  const fattureLog = (store as any).fattureLog || [];
+  const fatturePeriodoStats = useMemo(() => {
+    const inRange = (iso: string) => {
+      try {
+        const d = new Date((iso || '') + 'T12:00:00');
+        if (isNaN(d.getTime())) return false;
+        if (filtroTempo === 'Oggi') return isSameDay(d, now);
+        if (filtroTempo === 'Ieri') {
+          const ieri = new Date(now); ieri.setDate(ieri.getDate() - 1);
+          return isSameDay(d, ieri);
+        }
+        if (filtroTempo === 'Sett.') return isSameWeek(d, dataRiferimento);
+        if (filtroTempo === 'Mese') return isSameMonth(d, dataRiferimento);
+        if (filtroTempo === 'Anno') return isSameYear(d, dataRiferimento);
+        if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
+          const from = new Date(persDateFrom); from.setHours(0, 0, 0, 0);
+          const to = new Date(persDateTo); to.setHours(23, 59, 59, 999);
+          return d >= from && d <= to;
+        }
+        return true;
+      } catch { return false; }
+    };
+    const items: any[] = (fattureLog || []).filter((f: any) => inRange(f.dataEmissione));
+    const totale = items.reduce((acc, f) => acc + (Number(f.importo) || 0), 0);
+    // Aggregato per fornitore
+    const perFornitore: Record<string, { count: number; totale: number }> = {};
+    items.forEach((f: any) => {
+      const nome = f.fornitore || '(senza nome)';
+      if (!perFornitore[nome]) perFornitore[nome] = { count: 0, totale: 0 };
+      perFornitore[nome].count++;
+      perFornitore[nome].totale += Number(f.importo) || 0;
+    });
+    return { count: items.length, totale, perFornitore, items };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fattureLog, filtroTempo, persDateFrom, persDateTo, dataRiferimento]);
 
   const filteredData = useMemo(() => {
     if (filtroTipo === 'TUTTO') return filteredByTime;
@@ -1794,6 +1835,43 @@ function StatsScreenInner() {
         {/* ─── AREOGRAMMI ─── */}
         {renderPieBox(t('stats.fixedExpenses'), speseFisseItems, 'fixedExpenses')}
         {renderPieBox(t('stats.extraExpenses'), speseExtraItems, 'extraExpenses')}
+
+        {/* ═══ Round 72 — TOTALE FATTURE nel periodo (immutabile) ═══ */}
+        {fatturePeriodoStats.count > 0 && (
+          <View style={[st.card, { marginBottom: GAP, borderLeftWidth: 4, borderLeftColor: '#E89B4A' }]}>
+            <TouchableOpacity onPress={() => setShowFattureLog(!showFattureLog)} activeOpacity={0.7}>
+              <View style={st.chartHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="document-text" size={16} color="#E89B4A" />
+                  <Text style={st.sectionLabel}>FATTURE</Text>
+                  <View style={{ backgroundColor: '#FBEEDB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#A56A1F' }}>{fatturePeriodoStats.count}</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={[st.sectionTotal, { color: '#E89B4A' }]}>TOT: €{fatturePeriodoStats.totale.toFixed(0)}</Text>
+                  <Ionicons name={showFattureLog ? 'chevron-up' : 'chevron-down'} size={18} color="#E89B4A" />
+                </View>
+              </View>
+            </TouchableOpacity>
+            {showFattureLog && (
+              <View style={{ marginTop: 12, gap: 8 }}>
+                {Object.entries(fatturePeriodoStats.perFornitore).sort((a: any, b: any) => b[1].totale - a[1].totale).map(([nome, info]: any) => (
+                  <View key={nome} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#FDFAF3', borderRadius: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A4040' }}>{nome}</Text>
+                      <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '600' }}>{info.count} {info.count === 1 ? 'fattura' : 'fatture'}</Text>
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: '#A56A1F' }}>€{info.totale.toFixed(0)}</Text>
+                  </View>
+                ))}
+                <Text style={{ fontSize: 10, color: '#9AAAAA', fontStyle: 'italic', textAlign: 'center', marginTop: 6 }}>
+                  💡 Conteggio sempre aggiornato — ogni fattura inserita è permanente.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* ─── FORNITORI: card unico con tutti i dati (Fatturata/Contanti, ripartizione, andamento, voci settimanali/mensili) ─── */}
         <View style={[st.card, { marginBottom: GAP }]}>

@@ -184,11 +184,28 @@ export default function AgendaScreen() {
     const fromDiario = diarioList
       .map((d: any) => ({ data: new Date(d.data), testo: d.testo, src: 'diario' }))
       .filter((n) => !isNaN(n.data.getTime()));
-    return [...fromAppunti, ...fromDiario]
-      .filter((n) => n.testo && n.testo.trim() !== '')
-      .sort((a, b) => b.data.getTime() - a.data.getTime())
+    /* Round 72 — Includi anche le FATTURE nel NOTE archive
+       con data = dataInserimento (timestamp reale di inserimento) */
+    const fromFatture = ((store as any).fattureLog || [])
+      .map((f: any) => {
+        const dataIns = f.dataInserimento ? new Date(f.dataInserimento) : null;
+        if (!dataIns || isNaN(dataIns.getTime())) return null;
+        const imp = Number(f.importo) || 0;
+        const periodoTxt = f.periodoFrom && f.periodoTo && f.periodoFrom !== f.periodoTo
+          ? ` · periodo ${f.periodoFrom.slice(8,10)}/${f.periodoFrom.slice(5,7)} → ${f.periodoTo.slice(8,10)}/${f.periodoTo.slice(5,7)}`
+          : '';
+        return {
+          data: dataIns,
+          testo: `📄 ${f.fornitore} • Fatt. ${f.numeroFattura}${imp > 0 ? ` • €${imp.toFixed(0)}` : ''}${periodoTxt}`,
+          src: 'fattura',
+        };
+      })
+      .filter(Boolean);
+    return [...fromAppunti, ...fromDiario, ...fromFatture]
+      .filter((n: any) => n.testo && n.testo.trim() !== '')
+      .sort((a: any, b: any) => b.data.getTime() - a.data.getTime())
       .slice(0, 50);
-  }, [storicoDiario, appuntiAgenda]);
+  }, [storicoDiario, appuntiAgenda, (store as any).fattureLog]);
 
   /* ═══ ARCHIVIO FIERE (prossime + ricorrenti attive) ═══ */
   const fiereArchive = useMemo(() => {
@@ -227,32 +244,58 @@ export default function AgendaScreen() {
     return arr.sort((a, b) => (a.next?.getTime() || Infinity) - (b.next?.getTime() || Infinity));
   }, [store.fiere]);
 
-  /* ═══ ARCHIVIO FATTURE — letto direttamente dal `storicoGiornate` ═══
-     Per ogni giornata salvata, se un fornitore ha numeroFattura + importo,
-     viene aggiunta una voce all'archivio. Inclusa anche la sessione corrente
-     (fornInfo + speseExtraSession) per mostrare le fatture in corso prima
-     che la giornata venga salvata. */
+  /* ═══ Round 72 — ARCHIVIO FATTURE ═══
+     Fonte PRIMARIA: `fattureLog` (immutabile, conserva TUTTI gli inserimenti).
+     Fonti legacy aggiunte solo se non già coperte da fattureLog (per
+     retrocompatibilità con utenti che hanno dati storici pre-Round 72). */
   const fattureArchive = useMemo(() => {
     const today0 = new Date();
     today0.setHours(0, 0, 0, 0);
-    const items: { id: string; data: Date; fornitore: string; numero: string; importo: string; scadenza: string; overdue: boolean; testo: string; source: 'historic' | 'session' | 'agenda' }[] = [];
+    const items: { id: string; data: Date; dataInserimento?: Date; fornitore: string; numero: string; importo: string; scadenza: string; overdue: boolean; testo: string; source: 'log' | 'historic' | 'session' | 'agenda'; periodoFrom?: string; periodoTo?: string }[] = [];
     const seen = new Set<string>();
+    const seenLogKey = new Set<string>(); // (fornitore_lower|numero_lower) per dedup legacy
 
-    // 1. Fatture archiviate nelle giornate salvate
+    // 0. FATTURE LOG (Round 72) — fonte PRIMARIA, immutabile
+    const log = ((store as any).fattureLog || []) as any[];
+    log.forEach((ft) => {
+      const dd = new Date((ft.dataEmissione || '') + 'T12:00:00');
+      if (isNaN(dd.getTime())) return;
+      const scad = ft.scadenza ? new Date(ft.scadenza + 'T12:00:00') : null;
+      const importoNum = Number(ft.importo) || 0;
+      const dataIns = ft.dataInserimento ? new Date(ft.dataInserimento) : undefined;
+      const key = `log_${ft.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      seenLogKey.add(`${(ft.fornitore || '').toLowerCase()}|${(ft.numeroFattura || '').toLowerCase()}`);
+      items.push({
+        id: key,
+        data: dd,
+        dataInserimento: dataIns,
+        fornitore: ft.fornitore,
+        numero: ft.numeroFattura,
+        importo: String(importoNum),
+        scadenza: ft.scadenza || '',
+        overdue: scad ? scad < today0 : false,
+        testo: `${ft.fornitore} • Fatt. ${ft.numeroFattura}${importoNum > 0 ? ` • €${importoNum.toFixed(0)}` : ''}`,
+        source: 'log',
+        periodoFrom: ft.periodoFrom,
+        periodoTo: ft.periodoTo,
+      });
+    });
+
+    // 1. Fatture archiviate nelle giornate salvate (LEGACY — solo se non già nel log)
     (store.storicoGiornate || []).forEach((g: any) => {
       const info = g.fornitoriInfo || {};
       const dettaglio = g.dettaglio_fornitori || {};
       Object.entries(info).forEach(([forn, fInfo]: [string, any]) => {
         if (!fInfo?.numeroFattura) return;
+        const logKey = `${(forn || '').toLowerCase()}|${(fInfo.numeroFattura || '').toLowerCase()}`;
+        if (seenLogKey.has(logKey)) return; // già nel log
         // Importo: preferisci la fattura, altrimenti contanti, altrimenti 0
         const impFatt = Math.abs(dettaglio[forn] || 0);
         const impCash = Math.abs(dettaglio[`${forn}__libera`] || 0);
         let importoNum = impFatt > 0 ? impFatt : impCash;
         const dd = new Date(g.data);
-        /* Round 67 — i fornitori con detrazione PERIODICA vengono spostati in
-           spesePeriodiche (i dettaglio_fornitori risultano vuoti → importo 0).
-           Recuperiamo l'importo dalla spesa periodica con stesso giorno+nome
-           così la fattura nell'archivio mostra l'importo reale. */
         if (importoNum === 0) {
           try {
             const dayIso = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
@@ -339,7 +382,7 @@ export default function AgendaScreen() {
       });
     });
     return items.sort((a, b) => b.data.getTime() - a.data.getTime());
-  }, [store.storicoGiornate, (store as any).speseExtraSession, ordiniAgenda, (store as any).spesePeriodiche]);
+  }, [store.storicoGiornate, (store as any).speseExtraSession, ordiniAgenda, (store as any).spesePeriodiche, (store as any).fattureLog]);
 
   /* ═══ Combina impegniMese con le fatture (definito DOPO fattureArchive per evitare TDZ) ═══ */
   const impegniMeseFinal = useMemo(() => {
@@ -908,11 +951,25 @@ export default function AgendaScreen() {
                               {ft.overdue ? <Text style={{ color: '#D46A6A', fontWeight: '900' }}> · SCADUTA</Text> : null}
                             </Text>
                           )}
+                          {/* Round 72 — Riga 3: data inserimento + periodo riferimento */}
+                          {(ft.dataInserimento || ft.periodoFrom) && (
+                            <Text style={{ fontSize: 10, color: '#9AAAAA', fontWeight: '500', marginTop: 2 }}>
+                              {ft.dataInserimento ? `📝 Inserita il ${ft.dataInserimento.toLocaleDateString('it-IT')}` : ''}
+                              {ft.dataInserimento && ft.periodoFrom && ft.periodoTo && ft.periodoFrom !== ft.periodoTo ? '  ·  ' : ''}
+                              {ft.periodoFrom && ft.periodoTo && ft.periodoFrom !== ft.periodoTo
+                                ? `📅 ${ft.periodoFrom.slice(8,10)}/${ft.periodoFrom.slice(5,7)} → ${ft.periodoTo.slice(8,10)}/${ft.periodoTo.slice(5,7)}`
+                                : ''}
+                            </Text>
+                          )}
                         </View>
                         <TouchableOpacity
                           onPress={() => {
                             const doDelete = () => {
-                              if (ft.source === 'session') {
+                              if (ft.source === 'log') {
+                                // Round 72 — Rimuovi dal log immutabile
+                                const id = ft.id.startsWith('log_') ? ft.id.slice(4) : ft.id;
+                                (store as any).removeFattura?.(id);
+                              } else if (ft.source === 'session') {
                                 // Rimuovi la fattura dalla sessione spese in corso
                                 const sess = (store as any).speseExtraSession;
                                 if (sess?.fornInfo) {

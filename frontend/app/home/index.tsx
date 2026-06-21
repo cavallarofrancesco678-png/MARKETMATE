@@ -1501,6 +1501,48 @@ export default function HomeScreen() {
         addOrdine({ data: scadenzaDate, testo });
       } catch { /* skip */ }
     });
+
+    /* ═══ Round 72 — APPEND FATTURE LOG (immutabile) ═══
+       Per ogni fornitore con numeroFattura → upsert nel log fatture.
+       L'archivio fatture e il totale Statistiche si basano su questo log,
+       NON sul fornitoriInfo della giornata (che soffre di overwriting). */
+    try {
+      const upsertFattura = (useAppStore.getState() as any).upsertFatturaByKey;
+      const giornataIso = (() => {
+        try {
+          return dataCorrente.toISOString().slice(0, 10);
+        } catch { return new Date().toISOString().slice(0, 10); }
+      })();
+      Object.entries(fornInfo || {}).forEach(([nomeFornitore, info]: any) => {
+        if (!info?.numeroFattura || !String(info.numeroFattura).trim()) return;
+        const imp = dettaglioForn[nomeFornitore] || 0;
+        if (imp <= 0) return;
+        const mode = (pagamentoMode?.[nomeFornitore] || 'fattura') as 'contanti' | 'fattura' | 'misto';
+        const periodoFrom = fornDeductionStartDate?.[nomeFornitore] || giornataIso;
+        const dedDays = fornDeductionDays?.[nomeFornitore] || 0;
+        let periodoTo = periodoFrom;
+        if (dedDays > 0) {
+          try {
+            const d = new Date(periodoFrom + 'T12:00:00');
+            d.setDate(d.getDate() + (dedDays - 1));
+            periodoTo = d.toISOString().slice(0, 10);
+          } catch { /* skip */ }
+        }
+        try {
+          upsertFattura?.(
+            { fornitore: nomeFornitore, numeroFattura: String(info.numeroFattura).trim() },
+            {
+              importo: imp,
+              modoPagamento: mode,
+              dataEmissione: giornataIso,
+              periodoFrom,
+              periodoTo,
+              scadenza: info.scadenza || undefined,
+            }
+          );
+        } catch { /* skip */ }
+      });
+    } catch { /* skip */ }
   }, [dataCorrente, mercatoNome, meteo, mercatoOggi, lordoNum, utile, contanti, pos, speseExtraTotNum, presenze, costiOverride, collaboratori, invendutoNum, invendutoQty, tuttiProdotti, isAlimentare, speseExtraFornitore, vociGeneriche, salvaGiornata, fornInfo, ordiniAgenda, pagamentoMode, fornDeductionType, fornDeductionDays, fornDeductionStartDate, perms.canEditHistory, store.storicoGiornate, isInPiazza]);
 
   /* ── Auto-salvataggio: salva automaticamente quando cambiano i dati principali ── */

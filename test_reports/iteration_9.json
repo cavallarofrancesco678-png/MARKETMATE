@@ -1,0 +1,58 @@
+{
+  "summary": "Round 72 — Tracciamento fatture multiplo verificato via UI seed test. PASS su 6/8 step. CRITICAL bug fix applicato durante il test: fattureLog mancava in saveToStorage() — sarebbe sparito a ogni reload F5. Dopo fix, persistenza OK. Stats card FATTURE arancione mostra correttamente TOT €330 / count=3 / breakdown Fruttivendolo €250 + Macelleria €80, posizionata PRIMA di FORNITORI nel DOM (verificato). Tab Fatture mostra 3 voci distinte con marker '📝 Inserita il GG/MM/AAAA'. Tab NOTE mostra 3 fatture con 📄 ordinate per dataInserimento (17 Giu → 16 Giu → 15 Giu). Update (re-upsert ABC-001 100→200): TOT €430, count=3 invariato, dataInserimento preservata. DELETE non testato via click (icona X visibile, removeFattura(id) implementato correttamente nello store).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Persistenza fattureLog (F5 reload)",
+        "issue": "FIXED — fattureLog non era incluso in saveToStorage() di /app/frontend/src/store/appStore.ts. Tutti i record fatture sarebbero stati persi al primo reload. Fix applicato: aggiunta riga 'fattureLog: state.fattureLog || []' al dataToSave object (riga ~1132).",
+        "affected_testIDs": []
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Agenda → Tab Note",
+        "issues": [
+          "Formato fattura nelle note mostra solo 'Macelleria B • Fatt. DEF-099 • €80' + 'tocca per modificare'. Il suffisso '· periodo GG/MM → GG/MM' descritto nello spec del Round 72 non è visibile quando periodoFrom == periodoTo (probabilmente per design — non verificato il caso periodi multi-giorno). Da chiarire con E1 se è intenzionale o se va sempre mostrato."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/tmp/10_stats_mese_correct.png — Stats Mese view",
+    "/tmp/11_stats_fatture_card.png — FATTURE card with TOT €330",
+    "/tmp/22_note_tab.png — Note tab with 3 fatture sorted by dataInserimento",
+    "/tmp/23_fatture_tab.png — Fatture tab with 3 entries + 'Inserita il' markers",
+    "/tmp/24_after_reload_fatture.png — Persistence after F5",
+    "/tmp/25_stats_after_update.png — TOT €430 after ABC-001 update"
+  ],
+  "action_items": [
+    "(OPZIONALE) Verificare che il formato del Note tab mostri '· periodo GG/MM → GG/MM' anche quando from==to oppure documentare che è nascosto per intenzione.",
+    "(OPZIONALE) Aggiungere testID stabili a: agenda 'Salta la guida', 'ARCHIVIO NOTE', tabs 'Note/Fiere/Fatture', e all'icona × di ogni fattura per facilitare l'automazione futura.",
+    "(OPZIONALE) Step 8 DELETE non automatizzato — pulsante Alert.alert non intercettato da Playwright. Verificare manualmente che dopo conferma la fattura sparisca da stats e agenda."
+  ],
+  "critical_code_review_comments": [
+    "STORE BUG (FIXED durante il test): /app/frontend/src/store/appStore.ts saveToStorage non serializzava fattureLog → persistenza F5 KO. Patch applicata; conferma testata.",
+    "loadFromStorage gestiva già parsed.fattureLog = fixArr(parsed.fattureLog) ma il save mancante invalidava la migrazione.",
+    "upsertFatturaByKey normalizza correttamente fornitore+numeroFattura (trim+lowercase) — dedup robusta.",
+    "fatturePeriodoStats in stats.tsx filtra per dataEmissione (non dataInserimento) → coerente con periodo selezionato.",
+    "noteArchive in agenda.tsx ordina correttamente per data DESC (dataInserimento per fatture) — verificato visivamente."
+  ],
+  "updated_files": [
+    "/app/frontend/src/store/appStore.ts — aggiunto fattureLog al dataToSave di saveToStorage (1 riga)"
+  ],
+  "success_rate": {
+    "backend": "N/A (not tested per request)",
+    "frontend": "85% (6/7 step testati PASS; step 8 DELETE non automatizzabile via Playwright per Alert.alert)"
+  },
+  "seed_data_creation": "Localstorage marketmate_data seeded con isConfigured=true, 2 fornitori (Fruttivendolo A, Macelleria B), 3 fatture (ABC-001 €100, ABC-002 €150, DEF-099 €80) con dataEmissione/dataInserimento giugno 2026.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Round 72 implementation di Fattura/fattureLog/upsertFatturaByKey funziona correttamente. Bug saveToStorage risolto. Eventuali iterazioni successive: usare seed JSON pattern (vedi /tmp screenshots) — il PIN screen non si attiva con isConfigured=true via localStorage. Tab Fatture si raggiunge tappando 'ARCHIVIO NOTE' su /home/agenda.",
+  "rca_of_issue": "ROOT CAUSE Round 72: la nuova proprietà fattureLog è stata aggiunta correttamente a (a) interface AppState (line 347), (b) initial state (line 457), (c) loadFromStorage fixArr (line 942), (d) resetAll (line 1185) — ma è stata DIMENTICATA nella sezione saveToStorage's dataToSave object (line 1102-1140). Conseguenza: ogni saveToStorage() salvava su disk un object SENZA fattureLog, quindi al successivo loadFromStorage il campo era undefined → fixArr lo trasformava in [] → tutte le fatture perse. FIX: aggiunta la riga `fattureLog: state.fattureLog || [],` dopo storicoDiario nel saveToStorage. Verificato post-fix: 3 record persistono attraverso F5."
+}
