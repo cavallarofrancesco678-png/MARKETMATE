@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -689,6 +689,29 @@ function StatsScreenInner() {
     return days;
   };
 
+  /* Round 73 — Restituisce l'indice del bucket di groupData per una data,
+     in base al filtro temporale corrente. Usato per allineare fattureLog
+     ai chart per fornitore quando una fattura cade in una data che NON
+     ha un record in storicoGiornate. -1 = fuori range. */
+  const bucketIndexFor = useCallback((d: Date): number => {
+    if (filtroTempo === 'Anno') {
+      if (d.getFullYear() !== dataRiferimento.getFullYear()) return -1;
+      return d.getMonth();
+    }
+    if (filtroTempo === 'Mese') {
+      const ref = dataRiferimento;
+      if (d.getFullYear() !== ref.getFullYear() || d.getMonth() !== ref.getMonth()) return -1;
+      const firstDay = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const lastDay = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+      const numWeeks = Math.ceil((lastDay.getDate() + firstDay.getDay()) / 7);
+      const weeksCount = Math.min(numWeeks, 5);
+      return Math.min(Math.floor((d.getDate() - 1) / 7), weeksCount - 1);
+    }
+    // 7-bucket view (Oggi/Ieri/Sett./Pers.)
+    const dow = d.getDay();
+    return dow === 0 ? 6 : dow - 1;
+  }, [filtroTempo, dataRiferimento]);
+
   const economicoLines = [
     { label: 'LORDO', color: PALETTE[0], data: groupData(filteredData, (g) => g.lordo || 0) },
     { label: 'NETTO', color: PALETTE[1], data: groupData(filteredData, (g) => g.netto || 0) },
@@ -777,8 +800,33 @@ function StatsScreenInner() {
     //           fornitore quando il dayOfPurchase cade nella giornata `g`.
     //           Prima un fornitore con SOLO ripartite mostrava 0 — non è
     //           più così, ora il totale per periodo è completo.
+    // Round 73: INCLUDE ANCHE le fatture da `fattureLog` filtrate per
+    //           periodo, raggruppate per `dataEmissione`. Così le fatture
+    //           inserite via AddFatturaModal sono visibili anche nel chart
+    //           per fornitore (non solo nei totali).
     const norm = (s: string) => (s || '').trim().toLowerCase();
     const spList = Array.isArray(store.spesePeriodiche) ? store.spesePeriodiche : [];
+    const fattList: any[] = Array.isArray((store as any).fattureLog) ? (store as any).fattureLog : [];
+    const inRangeFattura = (iso: string) => {
+      try {
+        const d = new Date((iso || '') + 'T12:00:00');
+        if (isNaN(d.getTime())) return false;
+        if (filtroTempo === 'Oggi') return isSameDay(d, now);
+        if (filtroTempo === 'Ieri') {
+          const ieri = new Date(now); ieri.setDate(ieri.getDate() - 1);
+          return isSameDay(d, ieri);
+        }
+        if (filtroTempo === 'Sett.') return isSameWeek(d, dataRiferimento);
+        if (filtroTempo === 'Mese') return isSameMonth(d, dataRiferimento);
+        if (filtroTempo === 'Anno') return isSameYear(d, dataRiferimento);
+        if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
+          const from = new Date(persDateFrom); from.setHours(0, 0, 0, 0);
+          const to = new Date(persDateTo); to.setHours(23, 59, 59, 999);
+          return d >= from && d <= to;
+        }
+        return true;
+      } catch { return false; }
+    };
     return fornitori.map((f, i) => {
       const targetNome = norm(f.nome);
       // Indicizza le ripartite di QUESTO fornitore per dayOfPurchase
@@ -790,33 +838,51 @@ function StatsScreenInner() {
         if (!dp) return;
         ripByDay[dp] = (ripByDay[dp] || 0) + (Number(sp.importo) || 0);
       });
+      // Round 73: indicizza le fatture di QUESTO fornitore per bucket del chart
+      const fattByBucket: Record<number, number> = {};
+      fattList.forEach((fa: any) => {
+        if (norm(fa.fornitore || '') !== targetNome) return;
+        if (!inRangeFattura(fa.dataEmissione)) return;
+        try {
+          const d = new Date((fa.dataEmissione || '') + 'T12:00:00');
+          if (isNaN(d.getTime())) return;
+          const idx = bucketIndexFor(d);
+          if (idx < 0) return;
+          fattByBucket[idx] = (fattByBucket[idx] || 0) + (Number(fa.importo) || 0);
+        } catch { /* skip */ }
+      });
+      const baseData = groupData(filteredData, (g) => {
+        let total = 0;
+        // Fornitori DAILY tracciati in dettaglio_fornitori
+        if (g.dettaglio_fornitori) {
+          Object.entries(g.dettaglio_fornitori).forEach(([k, v]) => {
+            const isLibera = k.includes('__libera') && !k.includes('__liberaLabel');
+            const isFatturata = !k.includes('__');
+            if (!isLibera && !isFatturata) return;
+            const baseName = k.replace(/__libera$/, '').replace(/__liberaLabel$/, '');
+            if (norm(baseName) === targetNome) {
+              total += (v as number) || 0;
+            }
+          });
+        }
+        // Round 66: aggiunge le ripartite acquistate proprio in questa giornata.
+        try {
+          const dIso = `${new Date(g.data).getFullYear()}-${String(new Date(g.data).getMonth() + 1).padStart(2, '0')}-${String(new Date(g.data).getDate()).padStart(2, '0')}`;
+          if (ripByDay[dIso]) total += ripByDay[dIso];
+        } catch { /* skip */ }
+        return total;
+      });
+      // Round 73: aggiunge le fatture al bucket appropriato (anche se nessuna
+      // giornata esiste in quel bucket — chart non si "perde" i dati fattura).
+      const finalData = baseData.map((v, idx) => v + (fattByBucket[idx] || 0));
       return {
         label: f.nome,
         color: PALETTE[(i + 1) % PALETTE.length],
-        data: groupData(filteredData, (g) => {
-          let total = 0;
-          // Fornitori DAILY tracciati in dettaglio_fornitori
-          if (g.dettaglio_fornitori) {
-            Object.entries(g.dettaglio_fornitori).forEach(([k, v]) => {
-              const isLibera = k.includes('__libera') && !k.includes('__liberaLabel');
-              const isFatturata = !k.includes('__');
-              if (!isLibera && !isFatturata) return;
-              const baseName = k.replace(/__libera$/, '').replace(/__liberaLabel$/, '');
-              if (norm(baseName) === targetNome) {
-                total += (v as number) || 0;
-              }
-            });
-          }
-          // Round 66: aggiunge le ripartite acquistate proprio in questa giornata.
-          try {
-            const dIso = `${new Date(g.data).getFullYear()}-${String(new Date(g.data).getMonth() + 1).padStart(2, '0')}-${String(new Date(g.data).getDate()).padStart(2, '0')}`;
-            if (ripByDay[dIso]) total += ripByDay[dIso];
-          } catch { /* skip */ }
-          return total;
-        }),
+        data: finalData,
       };
     });
-  }, [filteredData, filtroTempo, fornitori, store.spesePeriodiche]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredData, filtroTempo, fornitori, store.spesePeriodiche, (store as any).fattureLog, persDateFrom, persDateTo, dataRiferimento, bucketIndexFor]);
 
   const speseFisseItems = useMemo(() => {
     /* ═══ Round 64 — ALLINEAMENTO HOME/STATS ═══
@@ -1012,6 +1078,62 @@ function StatsScreenInner() {
         perForn[sp.nome].libera += l;
       });
     } catch { /* skip */ }
+
+    /* ═══ Round 73 — INCLUDE FATTURE DA `fattureLog` ═══
+       Fix bug: gli importi delle fatture inserite via AddFatturaModal
+       devono apparire nel TOT FORNITORI e nella ripartizione per fornitore
+       del periodo. Filtro per `dataEmissione` allineato a `filtroTempo`.
+       Split fattura/contanti:
+         - 'fattura' → tutto in `fatturata`
+         - 'contanti' → tutto in `libera`
+         - 'misto'   → usa importoFattura/importoContanti, resto in libera */
+    try {
+      const inRangeFattura = (iso: string) => {
+        try {
+          const d = new Date((iso || '') + 'T12:00:00');
+          if (isNaN(d.getTime())) return false;
+          if (filtroTempo === 'Oggi') return isSameDay(d, now);
+          if (filtroTempo === 'Ieri') {
+            const ieri = new Date(now); ieri.setDate(ieri.getDate() - 1);
+            return isSameDay(d, ieri);
+          }
+          if (filtroTempo === 'Sett.') return isSameWeek(d, dataRiferimento);
+          if (filtroTempo === 'Mese') return isSameMonth(d, dataRiferimento);
+          if (filtroTempo === 'Anno') return isSameYear(d, dataRiferimento);
+          if (filtroTempo === 'Pers.' && persDateFrom && persDateTo) {
+            const from = new Date(persDateFrom); from.setHours(0, 0, 0, 0);
+            const to = new Date(persDateTo); to.setHours(23, 59, 59, 999);
+            return d >= from && d <= to;
+          }
+          return true;
+        } catch { return false; }
+      };
+      const fattureList: any[] = Array.isArray((store as any).fattureLog) ? (store as any).fattureLog : [];
+      fattureList.forEach((fa: any) => {
+        if (!inRangeFattura(fa.dataEmissione)) return;
+        const imp = Number(fa.importo) || 0;
+        if (imp <= 0) return;
+        const nome = ((fa.fornitore || '').trim()) || '(senza nome)';
+        let f = 0;
+        let l = 0;
+        if (fa.modoPagamento === 'contanti') {
+          l = imp;
+        } else if (fa.modoPagamento === 'misto') {
+          f = Number(fa.importoFattura) || 0;
+          l = Number(fa.importoContanti) || 0;
+          const resto = imp - f - l;
+          if (resto > 0.005) l += resto;
+        } else {
+          // 'fattura' (default)
+          f = imp;
+        }
+        fatturata += f;
+        libera += l;
+        if (!perForn[nome]) perForn[nome] = { fatturata: 0, libera: 0 };
+        perForn[nome].fatturata += f;
+        perForn[nome].libera += l;
+      });
+    } catch { /* skip */ }
     
     return {
       fatturata: Math.round(fatturata),
@@ -1021,7 +1143,8 @@ function StatsScreenInner() {
         nome, fatturata: Math.round(vals.fatturata), libera: Math.round(vals.libera),
       })).sort((a, b) => (b.fatturata + b.libera) - (a.fatturata + a.libera)),
     };
-  }, [filteredData, store.spesePeriodiche]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredData, store.spesePeriodiche, (store as any).fattureLog, filtroTempo, persDateFrom, persDateTo, dataRiferimento]);
 
   /* ═══ VOCI EXTRA PERIODO (fornitori marcati WEEKLY/MONTHLY) ═══
      Queste voci NON vengono detratte dal netto del giorno; vengono
@@ -1950,19 +2073,23 @@ function StatsScreenInner() {
           {showFornitori && (
             <View style={{ marginTop: 12 }}>
 
-              {/* ═══ RIEPILOGO RAPIDO: 3 BADGE GIORN/SETT/MENS ═══ */}
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-                <View style={{ flex: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
+              {/* ═══ RIEPILOGO RAPIDO: 4 BADGE GIORN/SETT/MENS/FATT ═══ */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                <View style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
                   <Text style={{ fontSize: 9, fontWeight: '800', color: '#5A7575', letterSpacing: 0.5 }}>GIORNALIERA</Text>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginTop: 2 }}>€{vociExtraPeriod.totDailyDeducted.toFixed(0)}</Text>
                 </View>
-                <View style={{ flex: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
+                <View style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
                   <Text style={{ fontSize: 9, fontWeight: '800', color: '#5A7575', letterSpacing: 0.5 }}>SETTIMANALE</Text>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginTop: 2 }}>€{vociExtraPeriod.totWeekly.toFixed(0)}</Text>
                 </View>
-                <View style={{ flex: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
+                <View style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: '#F4F8F5', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#E0E8E2' }}>
                   <Text style={{ fontSize: 9, fontWeight: '800', color: '#5A7575', letterSpacing: 0.5 }}>MENSILE</Text>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginTop: 2 }}>€{vociExtraPeriod.totMonthly.toFixed(0)}</Text>
+                </View>
+                <View style={{ flexBasis: '47%', flexGrow: 1, backgroundColor: '#EAF4F4', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#C8DEDE' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#1E7F85', letterSpacing: 0.5 }}>FATTURE</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#1A4040', marginTop: 2 }}>€{fatturePeriodoStats.totale.toFixed(0)}</Text>
                 </View>
               </View>
 
@@ -2347,8 +2474,13 @@ function StatsScreenInner() {
               <View style={{ marginTop: 12, padding: 12, backgroundColor: '#F5EFDC', borderRadius: 10, borderLeftWidth: 4, borderLeftColor: '#1E7F85' }}>
                 <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.6, marginBottom: 4 }}>TOTALE FORNITORI PERIODO</Text>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A3535' }}>
-                  €{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totWeekly + vociExtraPeriod.totMonthly).toFixed(0)}
+                  €{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totWeekly + vociExtraPeriod.totMonthly + fatturePeriodoStats.totale).toFixed(0)}
                 </Text>
+                {fatturePeriodoStats.totale > 0 && (
+                  <Text style={{ fontSize: 10, color: '#7A9090', fontWeight: '700', marginTop: 4 }}>
+                    Include €{fatturePeriodoStats.totale.toFixed(0)} di fatture ({fatturePeriodoStats.count} {fatturePeriodoStats.count === 1 ? 'fattura' : 'fatture'})
+                  </Text>
+                )}
               </View>
             </View>
           )}
