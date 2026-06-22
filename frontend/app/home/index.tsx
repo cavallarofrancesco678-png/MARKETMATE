@@ -195,6 +195,54 @@ export default function HomeScreen() {
   const giorno = dayNames[(dataCorrente.getDay() + 6) % 7]; // dayNames is Mon-Sun, getDay() is Sun=0
   const data = `${dataCorrente.getDate()} ${monthNames[dataCorrente.getMonth()]}`;
 
+  /* ═══ DATE SWIPE PICKER ═══
+     L'utente cambia data scorrendo orizzontalmente la "pillola" della data
+     anziché usare le frecce laterali. Logica a 3 pagine: prev / current / next.
+     Quando lo scroll si ferma su prev o next, aggiorniamo `dataCorrente` e
+     ri-centriamo silenziosamente lo ScrollView. */
+  const DATE_PAGE_WIDTH = 220;
+  const dateScrollRef = useRef<ScrollView>(null);
+  const dateScrollLockRef = useRef<boolean>(false);
+
+  const formatDateLabel = useCallback((d: Date) => {
+    const g = dayNames[(d.getDay() + 6) % 7];
+    return `${g.toUpperCase()} ${d.getDate()} ${monthNames[d.getMonth()].toUpperCase()}`;
+  }, [dayNames, monthNames]);
+
+  const prevDateLabel = useMemo(() => {
+    const d = new Date(dataCorrente);
+    d.setDate(d.getDate() - 1);
+    return formatDateLabel(d);
+  }, [dataCorrente, formatDateLabel]);
+
+  const nextDateLabel = useMemo(() => {
+    const d = new Date(dataCorrente);
+    d.setDate(d.getDate() + 1);
+    return formatDateLabel(d);
+  }, [dataCorrente, formatDateLabel]);
+
+  // Ri-centra lo ScrollView sulla pagina "today" quando la data cambia
+  // (anche se cambiata dal modal calendario o da swipe stesso).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      dateScrollRef.current?.scrollTo({ x: DATE_PAGE_WIDTH, y: 0, animated: false });
+      dateScrollLockRef.current = false;
+    }, 30);
+    return () => clearTimeout(t);
+  }, [dataCorrente]);
+
+  const onDateScrollEnd = useCallback((e: any) => {
+    if (dateScrollLockRef.current) return;
+    const x = e.nativeEvent.contentOffset.x;
+    const page = Math.round(x / DATE_PAGE_WIDTH);
+    if (page === 1) return; // stessa data
+    dateScrollLockRef.current = true;
+    hapticTap();
+    const d = new Date(dataCorrente);
+    d.setDate(d.getDate() + (page - 1));
+    setDataCorrente(d);
+  }, [dataCorrente]);
+
   /* Sincronizza la mappa presenze con la lista dei collaboratori SENZA
      resettare le presenze esistenti.
      IMPORTANTE: il sync polling rigenera l'array collaboratori (nuovo
@@ -1768,37 +1816,41 @@ export default function HomeScreen() {
         </View>
         <View style={s.dateRow} testID="home-date-row" ref={anchorDateRow}>
           <TouchableOpacity
-            onPress={() => {
-              hapticTap();
-              const d = new Date(dataCorrente);
-              d.setDate(d.getDate() - 1);
-              setDataCorrente(d);
-            }}
+            onPress={() => { hapticTap(); setShowCalendar(true); }}
+            activeOpacity={0.7}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-            testID="day-prev-btn"
-            activeOpacity={0.6}
+            style={{ paddingHorizontal: 6, paddingVertical: 4 }}
+            testID="day-calendar-btn"
           >
-            <Ionicons name="chevron-back" size={22} color="#1E7F85" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { hapticTap(); setShowCalendar(true); }} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 }}>
             <Ionicons name="calendar" size={18} color="#1E7F85" />
-            <Text style={s.dateTxt}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              hapticTap();
-              const d = new Date(dataCorrente);
-              d.setDate(d.getDate() + 1);
-              setDataCorrente(d);
-            }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-            testID="day-next-btn"
-            activeOpacity={0.6}
+          <ScrollView
+            ref={dateScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onDateScrollEnd}
+            onScrollEndDrag={onDateScrollEnd}
+            contentOffset={{ x: DATE_PAGE_WIDTH, y: 0 }}
+            decelerationRate="fast"
+            snapToInterval={DATE_PAGE_WIDTH}
+            snapToAlignment="start"
+            style={{ width: DATE_PAGE_WIDTH, maxWidth: DATE_PAGE_WIDTH, flexGrow: 0 }}
+            testID="day-scroll"
+            scrollEventThrottle={16}
+            overScrollMode="never"
+            bounces={true}
           >
-            <Ionicons name="chevron-forward" size={22} color="#1E7F85" />
-          </TouchableOpacity>
+            <View style={{ width: DATE_PAGE_WIDTH, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={[s.dateTxt, { opacity: 0.35 }]} numberOfLines={1}>{prevDateLabel}</Text>
+            </View>
+            <View style={{ width: DATE_PAGE_WIDTH, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={s.dateTxt} numberOfLines={1}>{giorno.toUpperCase()} {data.toUpperCase()}</Text>
+            </View>
+            <View style={{ width: DATE_PAGE_WIDTH, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={[s.dateTxt, { opacity: 0.35 }]} numberOfLines={1}>{nextDateLabel}</Text>
+            </View>
+          </ScrollView>
         </View>
       </View>
 
