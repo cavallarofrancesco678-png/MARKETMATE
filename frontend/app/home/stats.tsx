@@ -1306,7 +1306,11 @@ function StatsScreenInner() {
      `totNetto` era una costante fissa (totNettoBaseline − totCostoMerceProp)
      che non considerava i flag exclude*.
      Ora `totNetto` è un useMemo che parte dal lordo e sottrae SOLO le
-     categorie NON escluse, esattamente come UtileModal in Home. */
+     categorie NON escluse, esattamente come UtileModal in Home.
+     Round 73 — Aggiunta detrazione `fatturePeriodoStats.totale` sotto il
+     flag `excludeFornitori`: le fatture inserite via AddFatturaModal
+     contribuiscono ai costi fornitori del periodo, quindi devono essere
+     scalate dal lordo come tutte le altre voci fornitori. */
   const totNetto = useMemo(() => {
     const totSpeseFisse = arrSum(speseFisseItems.map((i) => i.value));
     const totCollab = arrSum(collabLines.map((l) => arrSum(l.data)));
@@ -1323,7 +1327,11 @@ function StatsScreenInner() {
     if (!excludeSpeseFisse) netto -= totSpeseFisse;
     if (!excludeCollaboratori) netto -= totCollab;
     if (!excludeSpeseExtra) netto -= totSpeseExtra;
-    if (!excludeFornitori) netto -= totFornitoriDaily;
+    if (!excludeFornitori) {
+      netto -= totFornitoriDaily;
+      // Round 73: includi anche fatture da fattureLog
+      netto -= fatturePeriodoStats.totale;
+    }
     if (!excludeInvenduto) netto -= totInvenduto;
     if (!excludeCarburante) netto -= totCarb;
     // Round 62: RIMOSSO `netto -= totCostoMerceProp;` — sostituito da
@@ -1334,7 +1342,7 @@ function StatsScreenInner() {
   }, [
     totLordo, speseFisseItems, collabLines, filteredData, vociExtraPeriod, invendutoLines, carburantePeriodoTotale,
     excludeSpeseFisse, excludeCollaboratori, excludeSpeseExtra, excludeFornitori, excludeInvenduto, excludeCarburante,
-    fornitoriScadenze,
+    fornitoriScadenze, fatturePeriodoStats,
   ]);
 
   /* ── Giorni lavorati vs non lavorati (per grafico) ──

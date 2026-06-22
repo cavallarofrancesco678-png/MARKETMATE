@@ -1061,6 +1061,32 @@ export default function HomeScreen() {
   const speseExtraFornWeekly = speseExtraFornCustom;
   const speseExtraFornMonthly = 0;
 
+  /* ═══ Round 73 — TOTALE FATTURE DEL GIORNO ═══
+     Somma le fatture inserite tramite AddFatturaModal la cui `dataEmissione`
+     coincide con `dataCorrente`. Queste devono:
+       1. Essere sottratte dall'utile/netto del giorno (sotto flag excludeFornitori)
+       2. Essere mostrate nel riquadro "FORNITORI GIORN." del modal UtileModal
+     Il `fattureLog` è un array globale di TUTTE le fatture mai inserite,
+     ognuna con `dataEmissione` (formato ISO `YYYY-MM-DD`). */
+  const fattureOggiTotale = useMemo(() => {
+    try {
+      const list: any[] = Array.isArray((store as any).fattureLog) ? (store as any).fattureLog : [];
+      const d = new Date(dataCorrente);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      let tot = 0;
+      list.forEach((fa) => {
+        if (fa && fa.dataEmissione === iso) {
+          const imp = Number(fa.importo) || 0;
+          if (imp > 0) tot += imp;
+        }
+      });
+      return tot;
+    } catch {
+      return 0;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(store as any).fattureLog, dataCorrente]);
+
   /* ══════════════════════════════════════════════════════════════════
      RIPARTIZIONE GIORNALIERA OGGI (Round 43 — richiesta utente):
      "Non toglie nulla nei giorni successivi" → fix: calcola la quota
@@ -1255,10 +1281,14 @@ export default function HomeScreen() {
   //     (Dal/Al), visualizzata in Statistiche, NON nell'utile giornaliero.
   // Per il giorno: mostriamo solo il DAILY. La quota CUSTOM è informativa
   // (visibile in Spese Extra modal sotto "Totale del giorno").
+  // ⭐ Round 73: aggiungiamo `fattureOggiTotale` alle voci fornitori
+  //    detratte dal netto sotto il flag `excludeFornitori`. Le fatture
+  //    inserite con AddFatturaModal con `dataEmissione` = oggi vengono
+  //    quindi scalate dal lordo del giorno (e mostrate nel UtileModal).
   const utile = lordoNum
     - (excludeSpeseFisse ? 0 : speseFisseTotali)
     - (excludeSpeseExtra ? 0 : speseExtraTotNum)
-    - (excludeFornitori ? 0 : speseExtraFornTotale)
+    - (excludeFornitori ? 0 : (speseExtraFornTotale + fattureOggiTotale))
     - (excludeInvenduto ? 0 : invendutoNum)
     - (excludeCollaboratori ? 0 : costoCollabAttivi);
 
@@ -2729,7 +2759,7 @@ export default function HomeScreen() {
         speseExtra={speseExtraGenTotale}
         excludeSpeseExtra={excludeSpeseExtra}
         toggleExcludeSpeseExtra={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
-        fornitoriDaily={speseExtraFornTotale}
+        fornitoriDaily={speseExtraFornTotale + fattureOggiTotale}
         excludeFornitori={excludeFornitori}
         toggleExcludeFornitori={() => setExcludeFornitori(!excludeFornitori)}
         fornitoriWeekly={speseExtraFornWeekly}

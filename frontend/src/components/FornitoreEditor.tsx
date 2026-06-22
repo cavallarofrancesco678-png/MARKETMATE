@@ -306,7 +306,8 @@ export const FornitoreEditor: React.FC<FornitoreEditorProps> = ({
      per riflettere la media reale invece di restare un valore statico.
      Formula: Σ(costo_i × markup_i) / Σ(costo_i) */
   const weightedAvgMarkup = useMemo(() => {
-    const valid = fornitore.prodotti.filter((p) => (p.costo || 0) > 0 && (p.prezzo || 0) > 0);
+    const prodotti = Array.isArray(fornitore?.prodotti) ? fornitore.prodotti : [];
+    const valid = prodotti.filter((p) => (p.costo || 0) > 0 && (p.prezzo || 0) > 0);
     if (valid.length === 0) return null;
     const totalCost = valid.reduce((s, p) => s + (p.costo || 0), 0);
     if (totalCost <= 0) return null;
@@ -315,7 +316,7 @@ export const FornitoreEditor: React.FC<FornitoreEditorProps> = ({
       0
     );
     return Math.round((sumWeighted / totalCost) * 10) / 10;
-  }, [fornitore.prodotti]);
+  }, [fornitore?.prodotti]);
 
   // Auto-applica la media ponderata al campo "Ricarico Medio" quando i
   // prodotti cambiano (ma NON mentre l'utente sta digitando manualmente
