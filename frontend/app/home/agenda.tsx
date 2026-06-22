@@ -192,11 +192,13 @@ export default function AgendaScreen() {
         if (!dataIns || isNaN(dataIns.getTime())) return null;
         const imp = Number(f.importo) || 0;
         const periodoTxt = f.periodoFrom && f.periodoTo && f.periodoFrom !== f.periodoTo
-          ? ` · periodo ${f.periodoFrom.slice(8,10)}/${f.periodoFrom.slice(5,7)} → ${f.periodoTo.slice(8,10)}/${f.periodoTo.slice(5,7)}`
+          ? ` · periodo ${f.periodoFrom.slice(8,10)}/${f.periodoFrom.slice(5,7)}/${f.periodoFrom.slice(0,4)} → ${f.periodoTo.slice(8,10)}/${f.periodoTo.slice(5,7)}/${f.periodoTo.slice(0,4)}`
           : '';
+        const numTxt = String(f.numeroFattura || '').startsWith('_auto_') ? '(senza n°)' : `Fatt. ${f.numeroFattura}`;
+        const dataEmTxt = f.dataEmissione ? ` · emessa ${f.dataEmissione.slice(8,10)}/${f.dataEmissione.slice(5,7)}/${f.dataEmissione.slice(0,4)}` : '';
         return {
           data: dataIns,
-          testo: `📄 ${f.fornitore} • Fatt. ${f.numeroFattura}${imp > 0 ? ` • €${imp.toFixed(0)}` : ''}${periodoTxt}`,
+          testo: `📄 ${f.fornitore} • ${numTxt}${imp > 0 ? ` • €${imp.toFixed(0)}` : ''}${dataEmTxt}${periodoTxt}`,
           src: 'fattura',
         };
       })
@@ -947,7 +949,7 @@ export default function AgendaScreen() {
                             <Text style={{ fontSize: 11, color: '#7A8585', fontWeight: '700', marginTop: 3 }}>
                               {ft.numero ? `Fatt. ${ft.numero}` : ''}
                               {ft.numero && ft.scadenza ? ' · ' : ''}
-                              {ft.scadenza ? `scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}` : ''}
+                              {ft.scadenza ? `scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}/${ft.scadenza.slice(0,4)}` : ''}
                               {ft.overdue ? <Text style={{ color: '#D46A6A', fontWeight: '900' }}> · SCADUTA</Text> : null}
                             </Text>
                           )}
@@ -957,7 +959,7 @@ export default function AgendaScreen() {
                               {ft.dataInserimento ? `📝 Inserita il ${ft.dataInserimento.toLocaleDateString('it-IT')}` : ''}
                               {ft.dataInserimento && ft.periodoFrom && ft.periodoTo && ft.periodoFrom !== ft.periodoTo ? '  ·  ' : ''}
                               {ft.periodoFrom && ft.periodoTo && ft.periodoFrom !== ft.periodoTo
-                                ? `📅 ${ft.periodoFrom.slice(8,10)}/${ft.periodoFrom.slice(5,7)} → ${ft.periodoTo.slice(8,10)}/${ft.periodoTo.slice(5,7)}`
+                                ? `📅 ${ft.periodoFrom.slice(8,10)}/${ft.periodoFrom.slice(5,7)}/${ft.periodoFrom.slice(0,4)} → ${ft.periodoTo.slice(8,10)}/${ft.periodoTo.slice(5,7)}/${ft.periodoTo.slice(0,4)}`
                                 : ''}
                             </Text>
                           )}

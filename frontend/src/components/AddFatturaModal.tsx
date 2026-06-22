@@ -208,6 +208,9 @@ export const AddFatturaModal: React.FC<Props> = ({ visible, fattura, defaultForn
             {/* Data emissione */}
             <Text style={s.label}>Data emissione *</Text>
             <DateInput value={dataEmissione} onChange={setDataEmissione} />
+            <Text style={{ fontSize: 10, color: '#7A8585', marginTop: -2, marginBottom: 6, fontStyle: 'italic' }}>
+              💡 Puoi inserire anche fatture con date passate (es. il mese scorso).
+            </Text>
 
             {/* Periodo riferimento (opzionale) */}
             <Text style={[s.label, { marginTop: 4 }]}>Periodo riferimento <Text style={{ color: '#9AAAAA', fontWeight: '500' }}>(opzionale)</Text></Text>
@@ -272,30 +275,76 @@ export const AddFatturaModal: React.FC<Props> = ({ visible, fattura, defaultForn
 };
 
 // ─── Sub-component: DateInput (compatibile web + native) ───
-const DateInput: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => {
+// Accetta QUALSIASI data (anche passate). Display sempre in formato italiano
+// GG/MM/AAAA. Internamente salva in ISO YYYY-MM-DD.
+const DateInput: React.FC<{ value: string; onChange: (v: string) => void; allowEmpty?: boolean }> = ({ value, onChange, allowEmpty }) => {
+  // Visualizzazione italiana — converte ISO → GG/MM/AAAA per il display
+  const isoToItalian = (iso: string): string => {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+    return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+  };
+  const italianToIso = (it: string): string => {
+    const cleaned = (it || '').trim();
+    if (!cleaned) return '';
+    // Accetta GG/MM/AAAA o GG-MM-AAAA o GG.MM.AAAA
+    const m = cleaned.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (!m) return '';
+    let [, dd, mm, yy] = m;
+    if (yy.length === 2) yy = (Number(yy) < 50 ? '20' : '19') + yy;
+    const d = dd.padStart(2, '0');
+    const mo = mm.padStart(2, '0');
+    return `${yy}-${mo}-${d}`;
+  };
+
   if (Platform.OS === 'web') {
+    // Web: usa native date picker (browser locale rende già GG/MM/AAAA per IT)
+    // ma NON impone restrizioni min/max — accetta qualsiasi data (anche passate)
     return (
-      // @ts-ignore — input HTML su web
-      <input
-        type="date"
-        value={value}
-        onChange={(e: any) => onChange(e.target.value)}
-        style={{
-          padding: 10, borderRadius: 8, border: '1px solid #C5CFCF',
-          fontSize: 14, color: '#1A4040', backgroundColor: '#FBF8F0',
-          marginBottom: 10, fontFamily: 'inherit',
-        }}
-      />
+      <View>
+        {/* @ts-ignore — input HTML su web */}
+        <input
+          type="date"
+          value={value}
+          onChange={(e: any) => onChange(e.target.value || '')}
+          // Nessun min/max — accetta TUTTE le date passate e future
+          style={{
+            padding: 10, borderRadius: 8, border: '1px solid #C5CFCF',
+            fontSize: 14, color: '#1A4040', backgroundColor: '#FFF',
+            marginBottom: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box',
+          }}
+        />
+        {value && (
+          <Text style={{ fontSize: 10, color: '#7A8585', marginTop: 2, marginBottom: 4 }}>
+            🇮🇹 {isoToItalian(value)}
+          </Text>
+        )}
+      </View>
     );
   }
+  // Native: input testuale GG/MM/AAAA con conversione automatica
+  const [localTxt, setLocalTxt] = React.useState(isoToItalian(value));
+  React.useEffect(() => { setLocalTxt(isoToItalian(value)); }, [value]);
   return (
-    <TextInput
-      style={s.input}
-      value={value}
-      onChangeText={onChange}
-      placeholder="AAAA-MM-GG"
-      placeholderTextColor="#9AAAAA"
-    />
+    <View>
+      <TextInput
+        style={s.input}
+        value={localTxt}
+        onChangeText={(t) => {
+          setLocalTxt(t);
+          if (!t.trim() && allowEmpty) { onChange(''); return; }
+          const iso = italianToIso(t);
+          if (iso) onChange(iso);
+        }}
+        onBlur={() => {
+          // Re-normalizza display al blur
+          if (value) setLocalTxt(isoToItalian(value));
+        }}
+        placeholder="GG/MM/AAAA"
+        placeholderTextColor="#9AAAAA"
+        keyboardType="numeric"
+        maxLength={10}
+      />
+    </View>
   );
 };
 

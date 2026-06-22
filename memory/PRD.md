@@ -70,6 +70,29 @@ MarketMate è un'app mobile per ambulanti e venditori ai mercati italiani. Perme
 - Stripe Subscriptions (LIVE keys attive — NO transazioni di test!)
 - Emergent Auth (Google OAuth), Expo Push Notifications
 
+## Round 74 (Giu 2026) — Date in formato italiano + supporto date passate ✅
+**Richieste utente:**
+1. Permettere inserimento fatture con date antecedenti
+2. Date in stile italiano GG/MM/AAAA (crescente)
+
+**Fix:**
+1. **DateInput** (`AddFatturaModal`) potenziato:
+   - WEB: `<input type="date">` SENZA min/max → accetta QUALSIASI data (anche passate)
+   - WEB: hint sotto al campo `🇮🇹 GG/MM/AAAA` per chiarezza
+   - NATIVE: TextInput numerico con placeholder `GG/MM/AAAA`, accetta separatori `/`, `-`, `.`, conversione automatica a ISO interno
+   - Suffisso esplicito "💡 Puoi inserire anche fatture con date passate" sotto Data emissione
+2. **Display dates** in tutto l'app:
+   - Stats card FATTURE: data emissione ora GG/MM/AAAA (4 cifre anno)
+   - Agenda Tab Fatture: data scadenza + periodo riferimento in GG/MM/AAAA
+   - Agenda Tab Note: testo fattura ora include `· emessa GG/MM/AAAA · periodo GG/MM/AAAA → GG/MM/AAAA`
+   - Tutti i `toLocaleDateString('it-IT')` già usavano formato italiano corretto
+
+**File modificati**
+- `/app/frontend/src/components/AddFatturaModal.tsx` (DateInput con conversione bidirezionale GG/MM/AAAA ↔ ISO, hint past dates)
+- `/app/frontend/app/home/stats.tsx` (anno 4 cifre nel breakdown fatture)
+- `/app/frontend/app/home/agenda.tsx` (scadenza + periodo in GG/MM/AAAA in Tab Fatture e Note)
+- `/app/memory/PRD.md` (Round 74)
+
 ## Round 73 (Giu 2026) — FIX DEFINITIVO Fatture (input dedicato) ✅
 **Reclamo utente (ancora):** "metto il numero fattura e quello rimane, ma non rimane l'importo. In STATISTICHE resta solo l'importo dell'ultima fattura che segno".
 

@@ -1906,7 +1906,7 @@ function StatsScreenInner() {
                                 <View style={{ flex: 1 }}>
                                   <Text style={{ fontSize: 11, color: '#3F5A5A', fontWeight: '700' }}>
                                     {isAuto ? `(senza n°)` : `Fatt. ${f.numeroFattura}`}
-                                    {f.dataEmissione ? `  ·  ${f.dataEmissione.slice(8,10)}/${f.dataEmissione.slice(5,7)}/${f.dataEmissione.slice(2,4)}` : ''}
+                                    {f.dataEmissione ? `  ·  ${f.dataEmissione.slice(8,10)}/${f.dataEmissione.slice(5,7)}/${f.dataEmissione.slice(0,4)}` : ''}
                                   </Text>
                                 </View>
                                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#1A4040' }}>€{Number(f.importo || 0).toFixed(0)}</Text>
