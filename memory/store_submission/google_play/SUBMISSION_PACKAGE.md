@@ -19,7 +19,7 @@
 | **Tag** | Productivity, Finance, Tools |
 | **Email di contatto** | `oldmemoriesshirt@gmail.com` *(o la tua email business)* |
 | **Sito web** | `https://marketmate.app` *(o la tua URL)* |
-| **Privacy Policy URL** | `https://marketmate.app/privacy` *(o usa la pagina web in-app)* |
+| **Privacy Policy URL** | `https://marketmateapp.info/privacy-policy` |
 
 ---
 
@@ -169,11 +169,14 @@ Quando Google Play apre il questionario IARC rispondi così:
 ## 8️⃣ Account demo per il reviewer Google
 
 ```
-Email:    demo.reviewer@marketmate.app
+Email:    demo.reviewer@marketmateapp.info
 Password: MarketMate2026!
-Tipo:     Account Pro pre-attivato (subscription valida)
-PIN app:  1234
+Tipo:     Account Pro pre-attivato (subscription valida fino al 2030-12-31)
+PIN app:  1234 (il reviewer lo imposterà al primo avvio dell'app)
 ```
+
+✅ **Account già creato nel DB di produzione** (script `/app/backend/scripts/seed_demo_reviewer.py`).
+Login verificato il 22/06/2026 — `subscription.status = "active"`, `plan = "annual"`.
 
 Note per il reviewer (campo "Istruzioni per il revisore"):
 ```
@@ -182,18 +185,22 @@ Hi reviewer,
 This is a B2B productivity app for Italian street market vendors (commercianti ambulanti).
 
 To test the app:
-1. Open the app — first screen is a PIN setup. Use PIN: 1234
-2. The app launches with a pre-configured "MarketMate Pro" trial account
-3. Tap "Buongiorno" to test the AI assistant (limited to 10 messages/day on free tier; this demo account has unlimited)
-4. Test screens: Home (daily sales entry), Stats (charts), Agenda (weekly markets), Carburante (fuel tracking)
+1. Open the app — the first screen is a Welcome flow. Pick a language → set up a 6-digit PIN (e.g. 1234)
+2. After the PIN, go to Settings → "Sign in with email" and use the demo account below
+3. The demo account has a pre-activated Pro subscription (valid until 2030), so all premium features (AI unlimited, cloud sync, advanced PDF export) are unlocked
+4. Test screens: Home (daily sales entry), Stats (charts), Agenda (weekly markets), Carburante (fuel tracking), Buongiorno (AI assistant)
+
+Demo login:
+  Email:    demo.reviewer@marketmateapp.info
+  Password: MarketMate2026!
 
 All data is stored encrypted locally + optional encrypted cloud sync.
-No ads, no tracking, no in-app purchases except optional Pro subscription via Stripe.
+No ads, no tracking, no in-app purchases except the optional Pro subscription via Stripe (real payments — the demo account already has Pro so no card is required).
 
-Privacy: https://marketmate.app/privacy
-Terms: https://marketmate.app/terms
+Privacy: https://marketmateapp.info/privacy-policy
+Terms:   https://marketmateapp.info/terms-of-service
 
-If you encounter any issue, please contact us at: oldmemoriesshirt@gmail.com
+If you encounter any issue, please contact us at: contact@marketmateapp.info
 ```
 
 ---
