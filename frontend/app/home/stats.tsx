@@ -313,7 +313,7 @@ function StatsScreenInner() {
     eventClassifica: true,
     eventGiornate: true,
     eventCalendario: true,
-    weatherStats: true,
+    weatherStats: false,
     vociExtra: false,
   });
   const toggleCollapsed = (key: string) =>
@@ -528,6 +528,7 @@ function StatsScreenInner() {
   const fetchWeatherStats = useCallback(async () => {
     if (marketsPeriodo.length === 0) {
       setWeatherError('Nessun mercato registrato nel periodo selezionato');
+      setWeatherStats([]);
       return;
     }
     setLoadingWeather(true);
@@ -547,6 +548,25 @@ function StatsScreenInner() {
     } finally {
       setLoadingWeather(false);
     }
+  }, [marketsPeriodo]);
+
+  /* ═══ Round 74-bis — AUTO-FETCH ═══
+     Carica automaticamente le temperature appena la lista mercati cambia
+     (es. al cambio periodo o al primo mount). Così l'utente vede subito i
+     dati senza dover cliccare un bottone.
+     Nota: il backend ha caching interno → chiamate ripetute sono leggere. */
+  useEffect(() => {
+    if (marketsPeriodo.length === 0) {
+      setWeatherStats([]);
+      setWeatherError(null);
+      return;
+    }
+    // Lieve debounce per evitare burst durante il cambio rapido di periodo
+    const t = setTimeout(() => {
+      fetchWeatherStats();
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketsPeriodo]);
 
   /* ═══════════════════════════════════════════════════════════════════

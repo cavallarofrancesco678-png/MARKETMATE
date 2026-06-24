@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only fix validation for 'METEO MEDIO PER MERCATO' card in /home/stats. Verified that (a) the card is OPEN by default at mount (no longer collapsed) and (b) temperatures auto-fetch via POST /api/weather/historical-markets without any user click. Test injected storicoGiornate via localStorage with markets Magenta (2026-06-05, 2026-06-15) and Milano (2026-06-10), navigated to /home/stats with default 'Mese' filter (June 2026), and observed the card rendering temperatures (Magenta 21.4°C, Milano 21°C) within ~5s of mount, with exactly 1 backend call (status 200) and zero user interaction. The 'Carica meteo per N mercati' manual-trigger button is correctly absent once data arrives, replaced only by the small '↻ Aggiorna' refresh link. Description text 'Temperatura media tra le 06:00 e le 13:00…' is visible from first render (chevron-up icon), confirming collapsed.weatherStats=false default in /app/frontend/app/home/stats.tsx:316 and the new useEffect at lines 558-570 (debounced 250ms auto-fetch on marketsPeriodo change). Backend was NOT retested per main-agent instruction (already 100% pass in iteration_11). Note: required `sudo supervisorctl restart expo` once to pick up the updated bundle; an initial stale-bundle run showed the card still collapsed before the restart — main agent should be aware that hot-reload may not propagate this kind of state-default change without restart.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/tmp/stats_final.png",
+    "/tmp/stats_meteo_check.png"
+  ],
+  "action_items": [
+    "No action required — fix validated end-to-end. The original user complaint ('non mi hai inserito le temperature') is resolved: temperatures now appear automatically on opening the Stats screen, with no manual click needed."
+  ],
+  "critical_code_review_comments": [
+    "stats.tsx is 3512 lines — well above the 700-line guideline. Recommend splitting into smaller modules (e.g., extract Weather/Meteo card, Invenduto card, Charts into dedicated components under /app/frontend/src/components/stats/). Not blocking for this fix.",
+    "fetchWeatherStats useCallback depends on marketsPeriodo (array of objects). Since marketsPeriodo is recomputed via useMemo on every filteredData change, the auto-fetch useEffect can fire whenever filteredData reference changes. The 250ms debounce mitigates burst, and the backend has caching, but consider hashing items to a string key for cleaner dependency tracking if perf becomes an issue.",
+    "Auto-fetch effect ignores transient network failures silently (state set via setWeatherError but no retry). Acceptable for now; user can tap '↻ Aggiorna'."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not retested per instructions)", "frontend": "100% (1/1 scenario pass)"},
+  "seed_data_creation": "Injected via localStorage key 'marketmate_data' a minimal store including storicoGiornate with 6 entries (Magenta/Milano in 2025 and June 2026) to drive marketsPeriodo for the Mese=June 2026 default filter. No backend seed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "If retesting this card, remember the test environment's browser clock is set to 2026-06-24 — the default 'Mese' filter lands on GIUGNO 2026. Inject historical dates in June 2026 (or click Anno to widen the period) so marketsPeriodo is non-empty. Required localStorage key: 'marketmate_data' with isConfigured:true plus storicoGiornate entries containing {data, mercato, lordo}. The auto-fetch POSTs to /api/weather/historical-markets with body {items:[{mercato,dates:[]}]}. Always restart expo (`sudo supervisorctl restart expo`) after edits to stats.tsx default-state hooks — Metro CI mode does not hot-reload such changes reliably.",
+  "rca_of_issue": "Original bug RCA (already fixed by main agent): the weatherStats card had `collapsed.weatherStats: true` default and required tapping a 'Carica meteo per X mercati' button to trigger fetchWeatherStats(). Result: user scrolled past the card seeing only a collapsed header with no temperature info, perceived as 'non mi hai inserito le temperature'. Fix applied in /app/frontend/app/home/stats.tsx: (1) line 316 changed default to `weatherStats: false` (open), (2) lines 558-570 added a debounced useEffect that calls fetchWeatherStats whenever marketsPeriodo changes (mount + period switch). Verified: 1 auto API call observed, °C values rendered, no manual interaction required."
+}
