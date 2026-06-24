@@ -2935,23 +2935,38 @@ export default function HomeScreen() {
             if (pd) set.add(pd);
             return Array.from(set);
           })(),
-          // ── Prossimi 7 giorni: fiere, appuntamenti, ordini ──
-          fiereProssime: (fiereProssime || []).map((f: any) => ({
+          // ── ROUND 75 — TASK 1: SINCRONIZZAZIONE AI ↔ GIORNO SELEZIONATO ──
+          // L'AI deve ricevere SOLO ordini/appuntamenti/pagamenti del giorno
+          // selezionato dalla Home (frecce/calendario), non un range 2-7gg.
+          // Helper per check data ISO === dataCorrente
+          // eslint-disable-next-line no-implicit-coercion
+          fiereProssime: (fiereProssime || []).filter((f: any) => {
+            try { return new Date(f.data).toDateString() === dataCorrente.toDateString(); }
+            catch { return false; }
+          }).map((f: any) => ({
             data: new Date(f.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
             nome: f.nome,
             luogo: f.luogo || '',
           })),
-          appuntiProssimi: (appuntiProssimi || []).map((a: any) => ({
+          appuntiProssimi: (appuntiProssimi || []).filter((a: any) => {
+            try { return new Date(a.data).toDateString() === dataCorrente.toDateString(); }
+            catch { return false; }
+          }).map((a: any) => ({
             data: new Date(a.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
             testo: a.testo || a.titolo || '',
             luogo: a.luogo || '',
           })),
-          ordiniProssimi: (ordiniProssimi || []).map((o: any) => ({
+          ordiniProssimi: (ordiniProssimi || []).filter((o: any) => {
+            try { return new Date(o.data).toDateString() === dataCorrente.toDateString(); }
+            catch { return false; }
+          }).map((o: any) => ({
             data: new Date(o.data).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
             testo: o.testo || o.fornitore || o.titolo || '',
             luogo: o.luogo || '',
           })),
-          pagamentiImminenti: pagamentiImminenti,
+          // Pagamenti: tieni SOLO quelli che scadono ESATTAMENTE il giorno selezionato
+          // (giorniRestanti calcolato come scadenza − dataCorrente, quindi 0 = oggi).
+          pagamentiImminenti: (pagamentiImminenti || []).filter((p: any) => p.giorniRestanti === 0),
           noteOggi: (() => {
             try {
               const today = new Date();

@@ -52,8 +52,14 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
      L'asse Y del grafico settimanale prima mostrava il LORDO in € (errore
      riportato dall'utente: "in statistiche meteo cè un valore in euro").
      Ora mostra la TEMPERATURA MEDIA mattutina (06:00-13:00) recuperata
-     dal backend per il mercato del giorno. */
-  const [weekTemps, setWeekTemps] = useState<Record<string, number | null>>({}); // ISO date → °C
+     dal backend per il mercato del giorno.
+     
+     ═══ Round 75 — Task 2 ═══
+     Temperatura mostrata anche sotto ogni icona meteo nelle viste Settimana
+     e Mese, e media mensile in vista Anno. */
+  const [weekTemps, setWeekTemps] = useState<Record<string, number | null>>({}); // ISO date → °C (settimana)
+  const [monthTemps, setMonthTemps] = useState<Record<string, number | null>>({}); // ISO date → °C (mese)
+  const [yearMonthlyAvg, setYearMonthlyAvg] = useState<Record<number, number | null>>({}); // monthIdx → °C medio
   const [loadingTemps, setLoadingTemps] = useState(false);
 
   const weekData = useMemo(() => {
@@ -136,19 +142,111 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
     const firstDay = new Date(year, month, 1);
     const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
 
-    const grid: ({ day: number; meteo: string } | null)[] = [];
+    // Round 75 Task 2: includi `mercato` + `dateIso` per fetch temperature
+    const grid: ({ day: number; meteo: string; mercato: string; dateIso: string } | null)[] = [];
     for (let i = 0; i < startDayOfWeek; i++) grid.push(null);
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d);
       const match = giornate.find(
         (g) => new Date(g.data).toDateString() === date.toDateString()
       );
-      grid.push({ day: d, meteo: match?.meteo || '' });
+      const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      grid.push({ day: d, meteo: match?.meteo || '', mercato: (match as any)?.mercato || '', dateIso: iso });
     }
     while (grid.length % 7 !== 0) grid.push(null);
 
     return { grid, monthName: monthNames[month], year };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [giornate, t]);
+
+  /* Round 75 Task 2 — Fetch temperature MESE (per ogni cella con mercato).
+     Aggrega per mercato + batch chiamata backend. */
+  useEffect(() => {
+    if (!visible || view !== 'Mese') return;
+    const byMercato: Record<string, string[]> = {};
+    monthData.grid.forEach((cell) => {
+      if (!cell || !cell.mercato) return;
+      if (!byMercato[cell.mercato]) byMercato[cell.mercato] = [];
+      byMercato[cell.mercato].push(cell.dateIso);
+    });
+    const items = Object.entries(byMercato).map(([mercato, dates]) => ({ mercato, dates }));
+    if (items.length === 0) {
+      setMonthTemps({});
+      return;
+    }
+    setLoadingTemps(true);
+    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+    fetch(`${backendUrl}/api/weather/historical-markets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    })
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((data) => {
+        const map: Record<string, number | null> = {};
+        (data.items || []).forEach((it: any) => {
+          (it.days || []).forEach((d: any) => { map[d.date] = d.temp; });
+        });
+        setMonthTemps(map);
+      })
+      .catch(() => setMonthTemps({}))
+      .finally(() => setLoadingTemps(false));
+  }, [visible, view, monthData]);
+
+  /* Round 75 Task 2 — Fetch temperature ANNO aggregate per mese.
+     Per ogni mese dell'anno calcoliamo la temperatura media giornaliera
+     considerando SOLO i giorni con mercato registrato. */
+  useEffect(() => {
+    if (!visible || view !== 'Anno') return;
+    const year = now.getFullYear();
+    // Per ogni mercato raccogliamo TUTTE le date dell'anno (filtered by anno)
+    const byMercato: Record<string, string[]> = {};
+    giornate.forEach((g) => {
+      const d = new Date(g.data);
+      if (d.getFullYear() !== year) return;
+      const m = (g as any).mercato;
+      if (!m) return;
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!byMercato[m]) byMercato[m] = [];
+      byMercato[m].push(iso);
+    });
+    const items = Object.entries(byMercato).map(([mercato, dates]) => ({ mercato, dates }));
+    if (items.length === 0) {
+      setYearMonthlyAvg({});
+      return;
+    }
+    setLoadingTemps(true);
+    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+    fetch(`${backendUrl}/api/weather/historical-markets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    })
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((data) => {
+        // Aggregazione per mese
+        const monthTemps: Record<number, number[]> = {};
+        (data.items || []).forEach((it: any) => {
+          (it.days || []).forEach((d: any) => {
+            if (typeof d.temp !== 'number') return;
+            try {
+              const monthIdx = new Date(d.date + 'T12:00:00').getMonth();
+              if (!monthTemps[monthIdx]) monthTemps[monthIdx] = [];
+              monthTemps[monthIdx].push(d.temp);
+            } catch {/* ignore */}
+          });
+        });
+        const avg: Record<number, number | null> = {};
+        for (let i = 0; i < 12; i++) {
+          const arr = monthTemps[i];
+          avg[i] = arr && arr.length > 0 ? Math.round((arr.reduce((s, v) => s + v, 0) / arr.length) * 10) / 10 : null;
+        }
+        setYearMonthlyAvg(avg);
+      })
+      .catch(() => setYearMonthlyAvg({}))
+      .finally(() => setLoadingTemps(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, view, giornate]);
 
   /* ═══ YEAR VIEW: Monthly weather stats ═══ */
   const yearStats = useMemo(() => {
@@ -255,10 +353,17 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: drawW, marginLeft: padL }}>
           {weekData.map((d, i) => {
             const cfg = METEO_CFG[d.meteo] || METEO_CFG.SOLE;
+            const t = weekTemps[d.dateIso];
             return (
               <View key={i} style={{ alignItems: 'center', width: drawW / 7 }}>
                 <MaterialCommunityIcons name={cfg.icon as any} size={18} color={cfg.color} />
                 <Text style={ms.chartDayLabel}>{d.label}</Text>
+                {/* Round 75 Task 2: temperatura sotto icona meteo settimanale */}
+                {typeof t === 'number' && (
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: '#1E7F85', marginTop: 1 }}>
+                    {Math.round(t)}°C
+                  </Text>
+                )}
               </View>
             );
           })}
@@ -274,8 +379,9 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
   };
 
   const renderMonthGrid = () => {
+    // Round 75 Task 3 (responsive): cellSize più piccolo per evitare overflow su display stretti
     const cellSize = Math.floor((screenW - 80) / 7);
-    const rows: ({ day: number; meteo: string } | null)[][] = [];
+    const rows: ({ day: number; meteo: string; mercato: string; dateIso: string } | null)[][] = [];
     const { grid } = monthData;
 
     for (let i = 0; i < grid.length; i += 7) {
@@ -284,6 +390,12 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
 
     return (
       <View style={{ alignItems: 'center' }}>
+        {loadingTemps && view === 'Mese' && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 }}>
+            <ActivityIndicator size="small" color="#1E7F85" />
+            <Text style={{ fontSize: 10, color: '#5A7575' }}>Caricamento temperature…</Text>
+          </View>
+        )}
         <View style={{ flexDirection: 'row', marginBottom: 6, justifyContent: 'center' }}>
           {shortDays.map((g) => (
             <View key={g} style={{ width: cellSize, alignItems: 'center', justifyContent: 'center' }}>
@@ -295,16 +407,23 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
           <View key={ri} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             {row.map((cell, ci) => {
               if (!cell) {
-                return <View key={ci} style={{ width: cellSize, height: cellSize }} />;
+                return <View key={ci} style={{ width: cellSize, height: cellSize + 8 }} />;
               }
               const cfg = cell.meteo ? METEO_CFG[cell.meteo] : null;
+              const temp = monthTemps[cell.dateIso];
               return (
-                <View key={ci} style={[ms.calCell, { width: cellSize, height: cellSize }]}>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#1A4040', marginBottom: 1 }}>{cell.day}</Text>
+                <View key={ci} style={[ms.calCell, { width: cellSize, height: cellSize + 8 }]}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#1A4040' }}>{cell.day}</Text>
                   {cfg ? (
-                    <MaterialCommunityIcons name={cfg.icon as any} size={16} color={cfg.color} />
+                    <MaterialCommunityIcons name={cfg.icon as any} size={14} color={cfg.color} />
                   ) : (
-                    <View style={{ height: 16 }} />
+                    <View style={{ height: 14 }} />
+                  )}
+                  {/* Round 75 Task 2: temperatura sotto icona meteo */}
+                  {typeof temp === 'number' && (
+                    <Text style={{ fontSize: 8, fontWeight: '700', color: '#1E7F85', marginTop: 1 }}>
+                      {Math.round(temp)}°
+                    </Text>
                   )}
                 </View>
               );
@@ -362,56 +481,75 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
               <View style={ms.card}>
                 <Text style={ms.cardTitle}>{yearStats.year} - {t('stats.weatherLabel')}</Text>
                 <Text style={[ms.cardSub, { marginBottom: 10 }]}>{yearStats.grandTotal} {t('stats.workingDays')}</Text>
+                {loadingTemps && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 }}>
+                    <ActivityIndicator size="small" color="#1E7F85" />
+                    <Text style={{ fontSize: 10, color: '#5A7575' }}>Caricamento temperature…</Text>
+                  </View>
+                )}
 
-                {/* Legend icons */}
+                {/* Legend icons (solo quelli con almeno 1 occorrenza) */}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
-                  {yearStats.meteoKeys.map((k) => {
+                  {yearStats.meteoKeys.filter((k) => yearStats.totals[k] > 0).map((k) => {
                     const cfg = METEO_CFG[k];
-                    const total = yearStats.totals[k];
-                    if (total === 0) return null;
                     return (
                       <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <MaterialCommunityIcons name={cfg.icon as any} size={16} color={cfg.color} />
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>{total}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#1A4040' }}>{yearStats.totals[k]}</Text>
                       </View>
                     );
                   })}
                 </View>
 
-                {/* Monthly breakdown table */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-                  <View>
-                    {/* Header row */}
-                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#D5DDD8', paddingBottom: 6, marginBottom: 6 }}>
-                      <Text style={{ width: 60, fontSize: 9, fontWeight: '800', color: '#1A4040' }}>{t('stats.month')}</Text>
-                      {yearStats.meteoKeys.map((k) => {
-                        const cfg = METEO_CFG[k];
+                {/* Round 75 Task 2+3: Tabella RESPONSIVE no scroll H.
+                    Filtra colonne meteo a quelle effettivamente usate
+                    e aggiunge colonna MEDIA TEMP MENSILE in °C. */}
+                {(() => {
+                  const activeKeys = yearStats.meteoKeys.filter((k) => yearStats.totals[k] > 0);
+                  const monthFlex = 2;
+                  const iconFlex = 1.2;
+                  const totFlex = 1.4;
+                  const tempFlex = 1.6;
+                  return (
+                    <View>
+                      {/* Header row */}
+                      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#D5DDD8', paddingBottom: 6, marginBottom: 6 }}>
+                        <Text style={{ flex: monthFlex, fontSize: 9, fontWeight: '800', color: '#1A4040' }}>{t('stats.month')}</Text>
+                        {activeKeys.map((k) => {
+                          const cfg = METEO_CFG[k];
+                          return (
+                            <View key={k} style={{ flex: iconFlex, alignItems: 'center' }}>
+                              <MaterialCommunityIcons name={cfg.icon as any} size={13} color={cfg.color} />
+                            </View>
+                          );
+                        })}
+                        <Text style={{ flex: totFlex, fontSize: 9, fontWeight: '800', color: '#1A4040', textAlign: 'center' }}>TOT</Text>
+                        <Text style={{ flex: tempFlex, fontSize: 9, fontWeight: '800', color: '#1E7F85', textAlign: 'center' }}>°C med</Text>
+                      </View>
+
+                      {/* Month rows */}
+                      {yearStats.months.map((m, mi) => {
+                        const tempAvg = yearMonthlyAvg[mi];
+                        const hasAnyData = m.total > 0 || typeof tempAvg === 'number';
+                        if (!hasAnyData) return null;
                         return (
-                          <View key={k} style={{ width: 36, alignItems: 'center' }}>
-                            <MaterialCommunityIcons name={cfg.icon as any} size={14} color={cfg.color} />
+                          <View key={mi} style={{ flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 0.5, borderColor: '#E0DBC8', alignItems: 'center' }}>
+                            <Text style={{ flex: monthFlex, fontSize: 10, fontWeight: '700', color: '#1A4040' }}>{m.month.substring(0, 3)}</Text>
+                            {activeKeys.map((k) => (
+                              <Text key={k} style={{ flex: iconFlex, fontSize: 10, fontWeight: '700', color: m.counts[k] > 0 ? METEO_CFG[k].color : '#D5DDD8', textAlign: 'center' }}>
+                                {m.counts[k] > 0 ? m.counts[k] : '-'}
+                              </Text>
+                            ))}
+                            <Text style={{ flex: totFlex, fontSize: 10, fontWeight: '800', color: '#1E7F85', textAlign: 'center' }}>{m.total || '-'}</Text>
+                            <Text style={{ flex: tempFlex, fontSize: 10, fontWeight: '800', color: typeof tempAvg === 'number' ? '#D4AF37' : '#D5DDD8', textAlign: 'center' }}>
+                              {typeof tempAvg === 'number' ? `${tempAvg}°` : '-'}
+                            </Text>
                           </View>
                         );
                       })}
-                      <Text style={{ width: 36, fontSize: 9, fontWeight: '800', color: '#1A4040', textAlign: 'center' }}>TOT</Text>
                     </View>
-
-                    {/* Month rows */}
-                    {yearStats.months.map((m, mi) => {
-                      if (m.total === 0) return null;
-                      return (
-                        <View key={mi} style={{ flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 0.5, borderColor: '#E0DBC8' }}>
-                          <Text style={{ width: 60, fontSize: 10, fontWeight: '700', color: '#1A4040' }}>{m.month.substring(0, 3)}</Text>
-                          {yearStats.meteoKeys.map((k) => (
-                            <Text key={k} style={{ width: 36, fontSize: 10, fontWeight: '700', color: m.counts[k] > 0 ? METEO_CFG[k].color : '#D5DDD8', textAlign: 'center' }}>
-                              {m.counts[k] > 0 ? m.counts[k] : '-'}
-                            </Text>
-                          ))}
-                          <Text style={{ width: 36, fontSize: 10, fontWeight: '800', color: '#1E7F85', textAlign: 'center' }}>{m.total}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
+                  );
+                })()}
               </View>
             )}
           </ScrollView>

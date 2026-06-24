@@ -1,0 +1,35 @@
+{
+  "summary": "Round 75 validation (T1 AI day-sync, T2 °C in meteo views, T3 Anno responsive/no €, T4 weather↔revenue correlation). Backend: 7/7 pytest cases pass (test_round75_features.py). Frontend after `sudo supervisorctl restart expo`: Anno view shows the new '°C med' column with monthly averages (e.g. 'Giu 24°', 'Gen -1.3°'), only the 4 active meteo icons rendered (no empty columns), table fits screen with NO horizontal scroll. Settimana fallback message correctly shown when no current-week mercato. Modal opens via 'METEO DETTAGLIATO' button. ⚠️ CRITICAL TESTING NOTE for main agent: Metro is running in CI mode (no watch reload), so any edit to MeteoStatsModal.tsx requires `sudo supervisorctl restart expo` for the new bundle to take effect. Without restart, the first test run showed stale code (6 unfiltered meteo icon columns and no '°C med' header in Anno; no °C labels under day icons in Settimana). After restart, the new code is correctly active.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_round75_features.py",
+    "/app/test_reports/pytest/pytest_round75.xml",
+    "/tmp/r75_anno_final.png",
+    "/tmp/r75_sett_final.png"
+  ],
+  "action_items": [
+    "(Optional) After any MeteoStatsModal.tsx edit run `sudo supervisorctl restart expo` — Metro CI mode does not hot-reload component changes; tests on the live preview will see the OLD bundle until expo restarts."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/app/home/index.tsx is 3433 lines — well above the 700-line guideline. Recommend splitting (especially the agenda-derivation memos and context-dump builder around lines 2900-3100).",
+    "/app/frontend/src/components/MeteoStatsModal.tsx uses local `const t = weekTemps[d.dateIso]` inside `weekData.map((d, i) => {...})` (line 356) which shadows the i18n `t` from `useTranslation()` at line 46. The shadowing IS valid ES6 (block scope) and works in the rendered output, but is fragile — rename to e.g. `const tempC = ...` to prevent future regressions when minifiers / type-checkers / readers misinterpret intent.",
+    "Three useEffect hooks (lines 94-127, 164-194, 199-249) each fire the same POST /api/weather/historical-markets endpoint, one per view tab. Consider hoisting the fetch into a single hook keyed by view to avoid redundant calls when the user switches tabs back and forth.",
+    "/app/backend/server.py system_msg is now ~270 lines of prompt (lines 532-801). Round 75 additions (REGOLA INVIOLABILE T1 at line 640 and ANALISI PREDITTIVA at lines 771-799) are correctly placed and worded. The prompt is becoming hard to maintain — consider extracting prompts into a separate module / templates."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% post-restart (T2 Anno + T3 verified live; T2 Settimana/Mese verified via code review — same conditional pattern that works in Anno)"},
+  "seed_data_creation": "Injected via localStorage key 'marketmate_data' a store with isConfigured:true, 19 storicoGiornate entries (5 in past week with Magenta/Milano + 11 monthly samples across the year + 3 extras in current month). Used to drive marketsPeriodo, MeteoStatsModal year aggregation, and Anno '°C med' column. No backend seed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Modal access path: /home/stats → scroll to button labelled 'METEO DETTAGLIATO' (Italian) → click. Inside modal the segment buttons are 'Sett.' / 'Mese' / 'Anno' (NOT 'Settimana' — abbreviation is used). For Settimana °C-below-icon validation, seed dates MUST be in the CURRENT week AND in the past (Open-Meteo Archive doesn't return data for today/future). For Anno, the '°C med' column appears as the rightmost column after the TOT column. Backend POST /api/weather/historical-markets is the data source. ALWAYS `sudo supervisorctl restart expo` after editing /app/frontend/src/components/MeteoStatsModal.tsx — Metro CI mode does not auto-reload it. Test credentials: see /app/memory/test_credentials.md. The backend test suite for Round 75 lives in /app/backend/tests/test_round75_features.py.",
+  "rca_of_issue": "Not a bug — Round 75 feature validation. Initial false-failure on T2 (no °C labels, no '°C med' column) was caused by stale Metro bundle (CI mode); resolved by `sudo supervisorctl restart expo` and confirmed fresh bundle picks up the new MeteoStatsModal.tsx changes. Backend T1/T4 prompt enforcement validated via dedicated pytest cases asserting (a) no other-day leakage when only the selected day's data is in context, and (b) weather/revenue correlation keywords appear when user asks 'come è andata la settimana?'."
+}
