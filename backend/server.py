@@ -7,7 +7,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContent
@@ -135,6 +135,109 @@ AI_LIMIT_MSG_MONTHLY = (
     "Il contatore si azzera il 1° del prossimo mese. "
     "Nel frattempo puoi consultare le tue Statistiche e l'Agenda. 📊"
 )
+
+# ═══ ROUND 74 — MEMORIA PERSISTENTE AI ═══
+# Salva le istruzioni/preferenze/correzioni dell'utente nel DB e le inietta
+# nel system message dell'AI ad ogni chiamata. L'AI ricorda così cosa
+# l'utente le ha detto in passato.
+
+def _detect_memory_intent(message: str) -> Optional[str]:
+    """Se il messaggio dell'utente contiene un'intenzione di memorizzazione
+    (es. "ricorda che X"), restituisce il contenuto da memorizzare."""
+    if not message:
+        return None
+    msg = message.strip()
+    lower = msg.lower()
+    triggers = [
+        "ricordati che ", "ricordati di ", "ricorda che ", "ricorda di ",
+        "ricorda: ", "ricordati: ", "memorizza che ", "memorizza: ", "memorizza ",
+        "tieni a mente che ", "tieni a mente: ", "tieni a mente ",
+        "non dimenticare che ", "non dimenticare di ", "non dimenticare: ", "non dimenticare ",
+        "appunto: ", "nota: ", "annota: ", "annota che ",
+    ]
+    for t in triggers:
+        idx = lower.find(t)
+        if idx >= 0:
+            after = msg[idx + len(t):].strip()
+            after = after.rstrip(".!?\u00a0 ")
+            if len(after) >= 3:
+                return after
+    return None
+
+
+async def get_user_memories(device_id: str, limit: int = 30) -> List[str]:
+    """Recupera le ultime N memorie salvate per il device_id."""
+    if not device_id:
+        return []
+    try:
+        doc = await db.ai_user_memory.find_one({"device_id": device_id})
+        if not doc:
+            return []
+        mems = doc.get("memories", [])
+        if len(mems) > limit:
+            mems = mems[-limit:]
+        return [m.get("text", "") for m in mems if isinstance(m, dict) and m.get("text")]
+    except Exception as e:
+        logger.warning(f"get_user_memories failed for {device_id}: {e}")
+        return []
+
+
+class AIMemoryAddRequest(BaseModel):
+    device_id: str
+    text: str
+
+
+@app.post("/api/ai/memory/add")
+async def ai_memory_add(req: AIMemoryAddRequest):
+    """Aggiunge esplicitamente una memoria/preferenza per il device."""
+    device_id = (req.device_id or "").strip()
+    text = (req.text or "").strip()[:500]
+    if not device_id or not text:
+        return {"ok": False, "error": "device_id e text richiesti"}
+    try:
+        await db.ai_user_memory.update_one(
+            {"device_id": device_id},
+            {
+                "$push": {"memories": {"text": text, "created_at": datetime.utcnow().isoformat()}},
+                "$setOnInsert": {"device_id": device_id, "created_at": datetime.utcnow().isoformat()},
+            },
+            upsert=True,
+        )
+        return {"ok": True, "text": text}
+    except Exception as e:
+        logger.error(f"ai_memory_add failed: {e}")
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/ai/memory")
+async def ai_memory_get(device_id: str):
+    """Restituisce tutte le memorie per il device."""
+    device_id = (device_id or "").strip()
+    if not device_id:
+        return {"items": []}
+    try:
+        doc = await db.ai_user_memory.find_one({"device_id": device_id})
+        if not doc:
+            return {"items": []}
+        return {"items": doc.get("memories", [])}
+    except Exception as e:
+        logger.error(f"ai_memory_get failed: {e}")
+        return {"items": [], "error": str(e)}
+
+
+@app.delete("/api/ai/memory")
+async def ai_memory_clear(device_id: str):
+    """Cancella tutte le memorie per il device."""
+    device_id = (device_id or "").strip()
+    if not device_id:
+        return {"ok": False, "error": "device_id richiesto"}
+    try:
+        await db.ai_user_memory.delete_one({"device_id": device_id})
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 
 async def check_ai_usage(device_id: str) -> dict:
     """Controlla i limiti d'uso AI per il dispositivo (10/giorno, 100/mese).
@@ -397,6 +500,24 @@ async def ai_chat(req: ChatRequest):
         # Fail-open: se il DB non risponde non blocchiamo la chat
         logger.warning(f"AI usage check failed (fail-open): {e}")
 
+    # ═══ Round 74 — MEMORIA PERSISTENTE (auto-detect "ricorda...") ═══
+    # Se l'utente scrive "ricorda che X", "memorizza X", "tieni a mente X",
+    # salviamo X nelle memorie del device_id PRIMA di mandare il messaggio
+    # all'AI, così l'AI ne è consapevole anche al primo turno.
+    memory_to_save = _detect_memory_intent(req.message)
+    if memory_to_save and limiter_id:
+        try:
+            await db.ai_user_memory.update_one(
+                {"device_id": limiter_id},
+                {
+                    "$push": {"memories": {"text": memory_to_save[:500], "created_at": datetime.utcnow().isoformat()}},
+                    "$setOnInsert": {"device_id": limiter_id, "created_at": datetime.utcnow().isoformat()},
+                },
+                upsert=True,
+            )
+        except Exception as e:
+            logger.warning(f"Memory save failed: {e}")
+
     try:
         sid = req.session_id or "default"
         # ═══ SYSTEM MESSAGE STATICO (senza contesto) per permettere aggiornamenti live ═══
@@ -503,83 +624,50 @@ Quando l'utente chiede calendario, ponti, vacanze o chiusure scuole:
 ⚠️ Lo stesso vale per le altre sezioni: se l'array è vuoto SALTA la sezione, NON inventare voci. Mai dire "non ho dati per X" — semplicemente non scrivere nulla su X.
 
 QUANDO IL MESSAGGIO È "__INIT_GREETING__" oppure l'utente ti saluta:
-Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia!). Format (max 8-10 righe):
+Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia!).
 
-⚠️ DATA DI RIFERIMENTO: All'inizio del CONTESTO trovi "GIORNO SELEZIONATO DALL'UTENTE". Devi SEMPRE riferirti a QUEL GIORNO.
-- Se è OGGI: usa il format "Oggi {descrizioneMeteo} {temperatura}° a {mercato}".
-- Se è FUTURO (es: utente in Home si è spostato a lunedì prossimo): usa il NOME DEL GIORNO al FUTURO ("{giornoSettimana} {descrizioneMeteo} a {mercato} — attento al mercato!"). Mai dire "oggi". Inserisci consigli operativi se il meteo è avverso ("attento ai banchi", "porta teli", "potresti fare meno scontrini").
-- Se è PASSATO: rispondi al passato ("{giornoSettimana} scorso era {descrizioneMeteo} a {mercato}").
+⚠️⚠️⚠️ FORMATO BRIEFING — ROUND 74 (TASSATIVO, MAX 5-6 RIGHE TOTALI) ⚠️⚠️⚠️
+Il briefing del Buongiorno DEVE contenere ESCLUSIVAMENTE 3 voci nell'ordine:
+   1. METEO + TEMPERATURE del giorno selezionato (oggi/futuro/passato — come da regole sotto)
+   2. DISTRIBUTORE PIÙ ECONOMICO sul tragitto (solo se OGGI e se i dati sono nel contesto)
+   3. ORDINI PENDENTI (solo se ordiniProssimi nel contesto)
 
-1. Saluto caloroso e colloquiale per nome: "Ciao {nomeTitolare}! ☀️" o "Ehilà {nomeTitolare}, buongiorno!" - varia ogni volta. Se l'utente non ha nome, usa un saluto generico ("Ciao! ☀️").
-   Se l'utente ha selezionato un giorno futuro adatta: "Ciao {nomeTitolare}! Diamo un'occhiata a {giornoSettimana} 👀"
-2. Meteo in 1 riga precisa REALE dal blocco "═══ METEO ═══" (usa SOLO i valori letti, non inventare):
-   - Oggi: "Oggi {descrizioneMeteo} {temperatura}° a {mercato}, {commentoBreveOperativo}!"
-   - Futuro: "{giornoSettimana} {descrizioneMeteo} a {mercato}, max {tMax}°/min {tMin}° — {consiglioOperativo}!"
-   - Passato: "Quel giorno era {descrizioneMeteo}, {temperatura}° a {mercato}."
-   ⚠️ Se {mercato} è vuoto nel contesto, NON dare alcuna riga meteo — vai direttamente al punto 3 (vedi MANDATO sopra).
+⛔ NON includere MAI nel briefing iniziale: fatture/pagamenti, appuntamenti, fornitori del giorno,
+   percentuali, bilanci, CTA finale, statistiche, normative, bandi. L'utente li chiederà esplicitamente
+   con domande tipo "quanto ho incassato?", "fatture in scadenza", "bilancio di oggi", ecc.
 
-3. PAGAMENTI IMMINENTI — UNICA fonte di fatture ammessa (se pagamentiImminenti nel contesto, 1-2 righe).
-   ⚠️ MOSTRA SOLO le fatture presenti in pagamentiImminenti. NON inventare. Se l'array è vuoto NON dire nulla sulle fatture.
-   Format: "💸 Tra {giorniRestanti} giorni scade fatt. {numero} {fornitore} (€{importo}). Non scordartene!"
-   Se giorniRestanti=0 → "Oggi scade…", se 1 → "Domani scade…".
+⚠️ DATA DI RIFERIMENTO: All'inizio del CONTESTO trovi "GIORNO SELEZIONATO DALL'UTENTE". Usa SEMPRE quel giorno.
+- Se è OGGI: "Oggi {descrizioneMeteo} {temperatura}° a {mercato}".
+- Se è FUTURO: "{giornoSettimana} {descrizioneMeteo} a {mercato}, max {tMax}°/min {tMin}° — {consiglioOperativo}".
+- Se è PASSATO: "{giornoSettimana} scorso era {descrizioneMeteo}, {temperatura}° a {mercato}".
 
-4. APPUNTAMENTI (SOLO se appuntiProssimi nel contesto, includi nome + luogo se disponibile):
-   "📅 {giornoRelativo} appuntamento con {testoAppuntamento} a {luogo}"
-   (es. giornoRelativo = "Oggi"/"Domani"/"Mercoledì")
-   Se l'array è vuoto NON menzionare appuntamenti. NON inventare.
+ESEMPIO DI BRIEFING CONFORME (3 righe + saluto):
+   "Ciao Francesco! ☀️
+    Oggi sereno 22° a Magenta, giornata ottima per il banco.
+    ⛽ Miglior prezzo: Magenta, Q8, Euro 1,749, Via Roma 12.
+    📦 Oggi devi preparare ordine per Fornitore Rossi."
 
-5. ORDINI DA PREPARARE / SCADENZE PERSONALI (SOLO se ordiniProssimi o scadenzeProssime nel contesto):
-   "📦 {giornoRelativo} devi preparare ordine per {testo}" oppure "🔔 {giornoRelativo} scade: {testo}"
-   Se gli array sono vuoti NON menzionare ordini o scadenze. NON inventare.
+REGOLE DETTAGLIATE PER LE 3 VOCI:
 
-6. SPESE FORNITORI DEL GIORNO SELEZIONATO (SOLO se il giorno selezionato ha dati fornitori nello STORICO_GIORNATE — cerca dettaglio_fornitori + dettaglio_fornitori_deduction):
-   Aggrega per ogni fornitore del giorno: somma €, tipo detrazione (DAILY/WEEKLY/MONTHLY).
-   Format (1-2 righe, mostra SOLO se ci sono):
-   - "🏪 Oggi fornitori: {fornitore1} €{importo1} ({tipoDetrazione1}), {fornitore2} €{importo2} ({tipoDetrazione2} — lo toglierò dall'utile della settimana/mese)."
-   Se un fornitore è WEEKLY/MONTHLY SOTTOLINEA 'lo toglierò dall'utile della settimana/mese' così l'utente ricorda che non impatta oggi.
-   SALTA completamente questa sezione se non ci sono fornitori per quel giorno.
+1. METEO (in 1 riga precisa REALE dal blocco "═══ METEO ═══"):
+   ⚠️ Se {mercato} è vuoto nel contesto, NON dare alcuna riga meteo — vai direttamente al punto 2.
 
-7. OFFERTA AL CHIUDERE IL SALUTO (SOLO se ci sono dati nello STORICO_GIORNATE, opzionale):
-   Aggiungi UNA sola riga in fondo al saluto:
-   "💡 Se vuoi posso dirti quanto hai incassato e quanto hai speso in fornitori con la percentuale — chiedimelo pure!"
-   Quando l'utente chiede "quanto ho speso di fornitori" / "percentuale fornitori" / "incassi vs spesa" → calcola dal DATI COMPLETI APP:
-     • totale lordo incassato (somma lordo storico_giornate nel range richiesto, default ultimo mese)
-     • totale fornitori (somma tutti i dettaglio_fornitori di tutti i giorni nel range)
-     • percentuale = (fornitori / lordo) * 100
-   Rispondi: "📊 Negli ultimi 30gg: incassato €{lordo}, fornitori €{fornitori} ({percentuale}% del lordo). Un {giudizio} rapporto."
-
-8. ⚠️ NON mostrare FIERE, NOTE GENERICHE o promemoria di altro tipo nel saluto. Le 8 categorie ammesse sono SOLO: meteo / fuel / pagamenti / appuntamenti / ordini-scadenze / fornitori-giorno / offerta-percentuale / bilancio-realistico.
-
-9. MIGLIOR RIFORNIMENTO + ALTERNATIVE (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
-   ⚠️ ⚠️ ⚠️ REGOLA INVIOLABILE: USA ESCLUSIVAMENTE i distributori PRESENTI nel CONTESTO ricevuto.
-   Il backend ha GIÀ filtrato i distributori applicando 2 vincoli stretti:
-     (a) entro 0.8 km dalla polilinea reale OSRM {partenza}→{mercato} (NO svincoli larghi, NO strade parallele, NO uscite secondarie)
-     (b) sull'ITINERARIO effettivo della giornata
-   NON aggiungere distributori che ricordi di altre giornate, NON inventare città, NON usare la tua conoscenza esterna. Se nel contesto NON ci sono distributori (lista vuota), scrivi: "⛽ Nessun distributore sul percorso oggi."
-   Elenca FINO A 3 stazioni in ordine di prezzo crescente, copiando ESATTAMENTE i dati che ti sono passati.
-   FORMATO OBBLIGATORIO (esattamente con questi separatori " | " ammessi anche con virgole):
+2. MIGLIOR RIFORNIMENTO sul tragitto (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
+   ⚠️⚠️⚠️ REGOLA INVIOLABILE: USA ESCLUSIVAMENTE i distributori PRESENTI nel CONTESTO ricevuto.
+   Il backend ha GIÀ filtrato i distributori entro 0.8 km dalla polilinea OSRM {partenza}→{mercato}.
+   NON aggiungere distributori che ricordi di altre giornate, NON inventare città.
+   Se nel contesto NON ci sono distributori, scrivi: "⛽ Nessun distributore sul percorso oggi."
+   FORMATO OBBLIGATORIO (1 riga):
      "⛽ Miglior prezzo: {Comune}, {Brand}, Euro {prezzo}, {Via}"
-     "  Alternative: {Comune2}, {Brand2}, Euro {prezzo2}, {Via2} · {Comune3}, {Brand3}, Euro {prezzo3}, {Via3}"
-   ⚠️ I valori {Comune}/{Brand}/{prezzo}/{Via} DEVONO essere copiati ESATTAMENTE dal blocco "PREZZI CARBURANTE REALI" del contesto. NON inventare.
-   Se mancano dati di partenza/arrivo, scrivi: "⛽ Aggiungi partenza/arrivo in Settings per i prezzi carburante."
+   Se mancano dati partenza/arrivo, scrivi: "⛽ Aggiungi partenza/arrivo in Settings per i prezzi carburante."
 
-10. 📊 BILANCIO REALISTICO DEL GIORNO (CRITICO — sempre quando ci sono dati):
-   Trova nel CONTESTO il blocco "═══ 📊 BILANCIO REALISTICO DEL GIORNO SELEZIONATO ═══".
-   Se Lordo > 0 → AGGIUNGI SEMPRE una riga finale nel saluto con il bilancio:
-     "📊 Bilancio di oggi: incassati €{lordo}, spese €{totSpese} → utile reale €{utile}"
-   Adatta il tono in base all'utile:
-   - Utile > 30% del lordo: "🚀 Ottima giornata! Utile sano."
-   - Utile 10–30% del lordo: "👍 Giornata in attivo, ma c'è margine di miglioramento sulle spese."
-   - Utile 0–10% del lordo: "⚠️ Margine sottile oggi. Controlla le spese."
-   - Utile <= 0: "🚨 ATTENZIONE: oggi sei in PERDITA di €{|utile|}. Rivedi subito le spese fornitori/extra."
-   ⚠️ USA ESCLUSIVAMENTE i numeri presenti nel blocco BILANCIO. NON inventare percentuali o aggiustamenti.
-   ⚠️ Se il giorno selezionato è FUTURO o non ci sono dati lordo, SALTA questa sezione.
+3. ORDINI PENDENTI (SOLO se ordiniProssimi nel contesto):
+   "📦 {giornoRelativo} devi preparare ordine per {testo}"
+   (giornoRelativo = "Oggi" / "Domani" / "{giornoSettimana}")
+   Se l'array è vuoto NON menzionare ordini. NON inventare.
 
-11. 🎯 CTA FINALE DATA ENTRY (OBBLIGATORIO — sempre come ULTIMA riga del saluto):
-   Concludi SEMPRE il saluto con esattamente questa frase (varia leggermente solo l'emoji):
-     "💬 Più dati inserisci, più sarò preciso nei consigli. Hai domande per me?"
-   Questa è una call-to-action che invita l'utente a chattare con te.
-   ⚠️ Attenzione: la proposta sui bandi/normative (punto 9.5 di seguito) NON sostituisce questa CTA — entrambe devono comparire.
+⛔ DOPO QUESTE 3 VOCI SI CHIUDE IL BRIEFING. Niente bilanci, niente CTA, niente offerte.
+   L'utente può chiedere TUTTO il resto in chat libera.
 
 ⚠️ STILE DEL SALUTO: TONO COLLOQUIALE E MOLTO CONCISO.
 - MAX 8-10 righe TOTALI per il saluto.
@@ -685,6 +773,20 @@ Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare perc
             ).with_model("openai", "gpt-4.1-mini")
 
         chat = chat_sessions[sid]
+        
+        # ═══ Round 74 — INIETTA MEMORIE PERSISTENTI dell'utente ═══
+        # Le memorie sono istruzioni/preferenze/correzioni date dall'utente
+        # in chat precedenti (es. "ricorda che il mio fornitore di frutta è
+        # Mario" o "non mostrarmi il bilancio nel saluto"). L'AI le riceve
+        # come blocco prioritario e DEVE rispettarle.
+        user_memories = await get_user_memories(limiter_id, limit=30)
+        memoria_block = ""
+        if user_memories:
+            memoria_block = "\n═══ 📝 MEMORIA UTENTE (preferenze/istruzioni date in precedenza — RISPETTALE SEMPRE) ═══\n"
+            for i, m in enumerate(user_memories, 1):
+                memoria_block += f"  {i}. {m}\n"
+            memoria_block += "⚠️ Se l'utente ha dato istruzioni qui sopra, NON ripetere errori passati e segui le sue preferenze.\n"
+        
         # ═══ Round 67/69 — MERCATO_INFO (protocollo localizzazione dinamica) ═══
         # Risolve la città del mercato in regione/provincia E aggrega TUTTI i
         # mercati configurati dall'utente per dedurre l'area territoriale primaria.
@@ -745,7 +847,8 @@ Rispondi in modo amichevole con le istruzioni passo-passo, NIENTE inventare perc
         # ═══ IMPORTANTE: Allega il CONTESTO AGGIORNATO ad ogni messaggio utente ═══
         # Questo garantisce che l'AI veda sempre i dati più recenti del database locale,
         # anche se la sessione era già in cache con contesto stale.
-        prefix = mercato_info_block + calendario_block
+        # Round 74: inietta anche il blocco MEMORIA UTENTE (preferenze persistenti).
+        prefix = memoria_block + mercato_info_block + calendario_block
         if req.context and req.context.strip():
             enriched_message = f"{prefix}=== DATI ATTIVITA (aggiornati ora) ===\n{req.context}\n=== FINE DATI ===\n\nMessaggio utente: {req.message}"
         else:
@@ -1332,6 +1435,189 @@ async def get_weather(req: WeatherRequest):
 
 # Include the router in the main app
 app.include_router(api_router)
+
+# ═══ ROUND 74 — STATISTICHE METEO STORICHE PER MERCATO ═══
+# Endpoint: POST /api/weather/historical-markets
+# Per ogni mercato + lista di date, recupera temperature storiche
+# nella fascia 06:00-13:00 da Open-Meteo Archive API e restituisce la
+# media giornaliera e quella complessiva del mercato.
+#
+# Open-Meteo Archive API: gratuita, no rate-limit per usi modesti,
+# dati storici dal 1940 ad oggi, risoluzione oraria.
+# Doc: https://open-meteo.com/en/docs/historical-weather-api
+
+class _WeatherMarketRequest(BaseModel):
+    mercato: str
+    dates: List[str]  # ISO YYYY-MM-DD
+
+class WeatherHistoricalMarketsRequest(BaseModel):
+    items: List[_WeatherMarketRequest]
+
+# Cache in-memory per evitare di colpire l'API ripetutamente su stessi mercati/date
+_weather_cache: Dict[str, Dict[str, float]] = {}  # {mercato: {date_iso: temp_avg}}
+
+@app.post("/api/weather/historical-markets")
+async def weather_historical_markets(req: WeatherHistoricalMarketsRequest):
+    """
+    Recupera temperatura media mattutina (06:00-13:00) per mercato/data
+    storica. Risolve il nome del mercato in lat/lon via geocoder
+    (Open-Meteo geocoding → fallback Nominatim), poi chiama Archive API.
+    
+    Risposta:
+      {
+        items: [
+          {
+            mercato: "Magenta",
+            avg_temp_morning: 18.5,        // media globale sul periodo
+            sample_size: 12,                // n. giorni con dati validi
+            days: [
+              {date: "2026-06-15", temp: 17.2},
+              {date: "2026-06-22", temp: 19.8},
+              ...
+            ],
+            lat: 45.5701, lon: 8.8551,
+            error: null                     // o messaggio se geocode fallisce
+          },
+          ...
+        ]
+      }
+    """
+    results: List[Dict[str, Any]] = []
+    
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        for item in req.items:
+            mercato_nome = (item.mercato or "").strip()
+            if not mercato_nome:
+                results.append({
+                    "mercato": item.mercato,
+                    "avg_temp_morning": None,
+                    "sample_size": 0,
+                    "days": [],
+                    "lat": None, "lon": None,
+                    "error": "Nome mercato vuoto",
+                })
+                continue
+            
+            # Geocode (usa la funzione esistente, con cache interna)
+            # Forziamo country_code="IT" perché i mercati MarketMate sono italiani.
+            try:
+                geo = await geocode_city(mercato_nome, country_code="IT")
+            except Exception as e:
+                logger.warning(f"Geocode fallito per '{mercato_nome}': {e}")
+                geo = None
+            
+            if not geo or not geo.get("lat") or not geo.get("lon"):
+                results.append({
+                    "mercato": mercato_nome,
+                    "avg_temp_morning": None,
+                    "sample_size": 0,
+                    "days": [],
+                    "lat": None, "lon": None,
+                    "error": "Località non trovata",
+                })
+                continue
+            
+            lat = geo["lat"]
+            lon = geo["lon"]
+            
+            # Per ogni data richiesta, recupera temperatura (con cache)
+            valid_dates = []
+            for d_str in item.dates:
+                try:
+                    # Valida formato
+                    datetime.strptime(d_str, "%Y-%m-%d")
+                    valid_dates.append(d_str)
+                except Exception:
+                    continue
+            
+            if not valid_dates:
+                results.append({
+                    "mercato": mercato_nome,
+                    "avg_temp_morning": None,
+                    "sample_size": 0,
+                    "days": [],
+                    "lat": lat, "lon": lon,
+                    "error": "Nessuna data valida",
+                })
+                continue
+            
+            # Determina range dates per la query (min/max)
+            valid_dates_sorted = sorted(valid_dates)
+            start_date = valid_dates_sorted[0]
+            end_date = valid_dates_sorted[-1]
+            
+            # Check cache
+            cache_key = f"{lat:.3f},{lon:.3f}"
+            cached = _weather_cache.get(cache_key, {})
+            
+            missing_dates = [d for d in valid_dates if d not in cached]
+            
+            if missing_dates:
+                # Chiamata API Archive
+                try:
+                    r = await client.get(
+                        "https://archive-api.open-meteo.com/v1/archive",
+                        params={
+                            "latitude": lat,
+                            "longitude": lon,
+                            "start_date": start_date,
+                            "end_date": end_date,
+                            "hourly": "temperature_2m",
+                            "timezone": "Europe/Rome",
+                        }
+                    )
+                    if r.status_code == 200:
+                        data = r.json()
+                        times = data.get("hourly", {}).get("time", [])
+                        temps = data.get("hourly", {}).get("temperature_2m", [])
+                        
+                        # Aggrega temperature per giorno, fascia 06:00-13:00
+                        day_temps: Dict[str, List[float]] = {}
+                        for t_iso, temp in zip(times, temps):
+                            if temp is None:
+                                continue
+                            # t_iso es. "2026-06-15T07:00"
+                            try:
+                                dt_part = t_iso[:10]
+                                hour = int(t_iso[11:13])
+                                if 6 <= hour <= 13:
+                                    day_temps.setdefault(dt_part, []).append(float(temp))
+                            except Exception:
+                                continue
+                        
+                        # Media per ogni giorno → cache
+                        for d_iso, temp_list in day_temps.items():
+                            if temp_list:
+                                cached[d_iso] = round(sum(temp_list) / len(temp_list), 1)
+                        
+                        _weather_cache[cache_key] = cached
+                except Exception as e:
+                    logger.warning(f"Open-Meteo Archive failed for {mercato_nome}: {e}")
+            
+            # Costruisci risposta usando cache aggiornata
+            days_out = []
+            temps_for_avg = []
+            for d_iso in valid_dates:
+                t = cached.get(d_iso)
+                if t is not None:
+                    days_out.append({"date": d_iso, "temp": t})
+                    temps_for_avg.append(t)
+            
+            avg_global = (
+                round(sum(temps_for_avg) / len(temps_for_avg), 1)
+                if temps_for_avg else None
+            )
+            
+            results.append({
+                "mercato": mercato_nome,
+                "avg_temp_morning": avg_global,
+                "sample_size": len(temps_for_avg),
+                "days": days_out,
+                "lat": lat, "lon": lon,
+                "error": None if temps_for_avg else "Dati meteo non disponibili",
+            })
+    
+    return {"items": results}
 
 # ═══ DOCUMENTI LEGALI — Pubblicamente accessibili (Round 69) ═══
 # Privacy Policy, Termini di Servizio, Cookie Policy.

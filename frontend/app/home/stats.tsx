@@ -13,6 +13,7 @@ import {
   Platform,
   StatusBar,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -293,6 +294,10 @@ function StatsScreenInner() {
   // Filtro click-to-isolate per il grafico ANDAMENTO NEL TEMPO dei fornitori
   // null = tutti visibili, numero = solo quel fornitore (gli altri spariscono)
   const [activeFornIdx, setActiveFornIdx] = useState<number | null>(null);
+  // Round 74 — Statistiche meteo per mercato (temp media 06-13 dal backend)
+  const [weatherStats, setWeatherStats] = useState<any[]>([]);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
   // Collapse state per ogni sezione (default: tutte chiuse "a pacchetto")
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     economico: true,
@@ -308,6 +313,7 @@ function StatsScreenInner() {
     eventClassifica: true,
     eventGiornate: true,
     eventCalendario: true,
+    weatherStats: true,
     vociExtra: false,
   });
   const toggleCollapsed = (key: string) =>
@@ -499,6 +505,49 @@ function StatsScreenInner() {
     const targetDay = GIORNO_MAP[filtroTipo];
     return filteredByTime.filter((g) => new Date(g.data).getDay() === targetDay);
   }, [filteredByTime, filtroTipo, store.fiere]);
+
+  /* ═══ ROUND 74 — MERCATI UNICI NEL PERIODO + DATE ═══
+     Estrae l'elenco dei mercati con le date in cui hanno registrato giornate.
+     Usato dal fetch backend per recuperare le temperature storiche. */
+  const marketsPeriodo = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    filteredData.forEach((g) => {
+      const name = (g.mercato || '').trim();
+      if (!name) return;
+      const gd = new Date(g.data);
+      if (isNaN(gd.getTime())) return;
+      const iso = `${gd.getFullYear()}-${String(gd.getMonth() + 1).padStart(2, '0')}-${String(gd.getDate()).padStart(2, '0')}`;
+      if (!map.has(name)) map.set(name, new Set());
+      map.get(name)!.add(iso);
+    });
+    return Array.from(map.entries())
+      .map(([mercato, dates]) => ({ mercato, dates: Array.from(dates).sort() }))
+      .sort((a, b) => b.dates.length - a.dates.length); // più frequentati primi
+  }, [filteredData]);
+
+  const fetchWeatherStats = useCallback(async () => {
+    if (marketsPeriodo.length === 0) {
+      setWeatherError('Nessun mercato registrato nel periodo selezionato');
+      return;
+    }
+    setLoadingWeather(true);
+    setWeatherError(null);
+    try {
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+      const res = await fetch(`${backendUrl}/api/weather/historical-markets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: marketsPeriodo }),
+      });
+      if (!res.ok) throw new Error(`Errore server (${res.status})`);
+      const data = await res.json();
+      setWeatherStats(data.items || []);
+    } catch (e: any) {
+      setWeatherError(e?.message || 'Errore di rete');
+    } finally {
+      setLoadingWeather(false);
+    }
+  }, [marketsPeriodo]);
 
   /* ═══════════════════════════════════════════════════════════════════
      ALGORITMO PONDERATO COSTI FORNITORI CUSTOM (Round 37)
@@ -2495,6 +2544,105 @@ function StatsScreenInner() {
         </View>
 
         {renderChartBox(t('stats.unsold'), invendutoLines, 'invenduto')}
+
+        {/* ═══ ROUND 74 — STATISTICHE METEO PER MERCATO ═══
+            Temperatura media mattutina (06:00 – 13:00) per ogni mercato
+            del periodo. Fonte: Open-Meteo Historical Archive (backend). */}
+        <View style={[st.card, { marginBottom: GAP }]}>
+          <TouchableOpacity 
+            onPress={() => setCollapsed((c) => ({ ...c, weatherStats: !c.weatherStats }))} 
+            activeOpacity={0.7}
+            style={{ flexDirection: 'row', alignItems: 'center' }}
+          >
+            <Ionicons name="partly-sunny-outline" size={16} color="#1E7F85" />
+            <Text style={[st.sectionLabel, { marginLeft: 6, flex: 1 }]}>METEO MEDIO PER MERCATO</Text>
+            <Ionicons name={collapsed.weatherStats ? 'chevron-down' : 'chevron-up'} size={18} color="#5A7575" />
+          </TouchableOpacity>
+          {!collapsed.weatherStats && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ fontSize: 11, color: '#5A7575', marginBottom: 10, lineHeight: 16 }}>
+                Temperatura media tra le 06:00 e le 13:00 per ogni mercato del periodo selezionato.
+                {' '}Fonte: Open-Meteo Historical Archive.
+              </Text>
+              {weatherStats.length === 0 && (
+                <TouchableOpacity 
+                  onPress={fetchWeatherStats} 
+                  disabled={loadingWeather || marketsPeriodo.length === 0}
+                  activeOpacity={0.7}
+                  style={{ 
+                    backgroundColor: marketsPeriodo.length === 0 ? '#D0D0D0' : '#1E7F85', 
+                    paddingVertical: 12, 
+                    borderRadius: 10, 
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {loadingWeather ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-download-outline" size={16} color="white" />
+                      <Text style={{ color: 'white', fontWeight: '800', fontSize: 13, marginLeft: 8 }}>
+                        {marketsPeriodo.length === 0 
+                          ? 'Nessun mercato nel periodo' 
+                          : `Carica meteo per ${marketsPeriodo.length} ${marketsPeriodo.length === 1 ? 'mercato' : 'mercati'}`}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+              {weatherError && (
+                <View style={{ backgroundColor: '#FFF5F3', borderRadius: 8, padding: 10, marginTop: 6, borderLeftWidth: 3, borderLeftColor: '#D46A6A' }}>
+                  <Text style={{ fontSize: 11, color: '#8A3A3A', fontWeight: '600' }}>⚠️ {weatherError}</Text>
+                </View>
+              )}
+              {weatherStats.length > 0 && weatherStats.map((item: any, i: number) => (
+                <View key={`${item.mercato}-${i}`} style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  paddingVertical: 10, 
+                  borderBottomWidth: i === weatherStats.length - 1 ? 0 : 1, 
+                  borderColor: '#E5E5E0',
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A4040' }} numberOfLines={1}>
+                      {item.mercato}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: '#8A8A85', marginTop: 2 }}>
+                      {item.error 
+                        ? `⚠️ ${item.error}` 
+                        : `${item.sample_size} ${item.sample_size === 1 ? 'rilevazione' : 'rilevazioni'} · ${item.days[0]?.date} → ${item.days[item.days.length - 1]?.date}`
+                      }
+                    </Text>
+                  </View>
+                  {item.avg_temp_morning !== null && item.avg_temp_morning !== undefined ? (
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 20, fontWeight: '900', color: '#1E7F85' }}>
+                        {item.avg_temp_morning}°C
+                      </Text>
+                      <Text style={{ fontSize: 9, color: '#8A8A85' }}>media 06–13</Text>
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 14, color: '#D46A6A', fontWeight: '700' }}>—</Text>
+                  )}
+                </View>
+              ))}
+              {weatherStats.length > 0 && (
+                <TouchableOpacity 
+                  onPress={fetchWeatherStats}
+                  disabled={loadingWeather}
+                  style={{ alignSelf: 'center', marginTop: 8, paddingHorizontal: 16, paddingVertical: 6 }}
+                  activeOpacity={0.6}
+                >
+                  <Text style={{ fontSize: 11, color: '#1E7F85', fontWeight: '700' }}>
+                    {loadingWeather ? 'Aggiornamento...' : '↻ Aggiorna'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* ═══ DETTAGLIO INVENDUTO PER PRODOTTO ═══ */}
         {invendutoBreakdown.items.length > 0 && !collapsed['invenduto'] && (
