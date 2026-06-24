@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Line, Circle, Text as SvgText } from 'react-native-svg';
@@ -21,6 +22,7 @@ interface Giornata {
   data: Date;
   meteo: string;
   lordo: number;
+  mercato?: string;
   [key: string]: any;
 }
 
@@ -46,6 +48,14 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
   const shortDays = getShortDayNames();
   const monthNames = getMonthNames();
 
+  /* ═══ Round 74-ter ═══
+     L'asse Y del grafico settimanale prima mostrava il LORDO in € (errore
+     riportato dall'utente: "in statistiche meteo cè un valore in euro").
+     Ora mostra la TEMPERATURA MEDIA mattutina (06:00-13:00) recuperata
+     dal backend per il mercato del giorno. */
+  const [weekTemps, setWeekTemps] = useState<Record<string, number | null>>({}); // ISO date → °C
+  const [loadingTemps, setLoadingTemps] = useState(false);
+
   const weekData = useMemo(() => {
     const startOfWeek = new Date(now);
     const day = startOfWeek.getDay();
@@ -53,26 +63,70 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
     startOfWeek.setDate(startOfWeek.getDate() + diff);
     startOfWeek.setHours(0, 0, 0, 0);
 
-    const result: { lordo: number; meteo: string; label: string }[] = [];
+    const result: { lordo: number; meteo: string; label: string; mercato: string; dateIso: string }[] = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
       d.setDate(d.getDate() + i);
       const match = giornate.find(
         (g) => new Date(g.data).toDateString() === d.toDateString()
       );
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       result.push({
         lordo: match?.lordo || 0,
         meteo: match?.meteo || 'SOLE',
         label: shortDays[i],
+        mercato: (match as any)?.mercato || '',
+        dateIso: iso,
       });
     }
     return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [giornate, t]);
 
+  /* Fetch temperature settimanali dal backend (Open-Meteo Archive via /api/weather/historical-markets).
+     Aggrega per mercato e fa UNA chiamata batch. Salva risultato in `weekTemps` (ISO date → °C). */
+  useEffect(() => {
+    if (!visible || view !== 'Settimana') return;
+    // Aggrega le date per ogni mercato
+    const byMercato: Record<string, string[]> = {};
+    weekData.forEach((d) => {
+      if (!d.mercato) return;
+      if (!byMercato[d.mercato]) byMercato[d.mercato] = [];
+      byMercato[d.mercato].push(d.dateIso);
+    });
+    const items = Object.entries(byMercato).map(([mercato, dates]) => ({ mercato, dates }));
+    if (items.length === 0) {
+      setWeekTemps({});
+      return;
+    }
+    setLoadingTemps(true);
+    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+    fetch(`${backendUrl}/api/weather/historical-markets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    })
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((data) => {
+        const map: Record<string, number | null> = {};
+        (data.items || []).forEach((it: any) => {
+          (it.days || []).forEach((d: any) => {
+            map[d.date] = d.temp;
+          });
+        });
+        setWeekTemps(map);
+      })
+      .catch(() => setWeekTemps({}))
+      .finally(() => setLoadingTemps(false));
+  }, [visible, view, weekData]);
+
   const weekAvg = useMemo(() => {
-    const working = weekData.filter((d) => d.lordo > 0);
-    return working.length > 0 ? working.reduce((s, d) => s + d.lordo, 0) / working.length : 0;
-  }, [weekData]);
+    // Round 74-ter: media TEMPERATURE (°C) — non più lordo €.
+    const temps = weekData
+      .map((d) => weekTemps[d.dateIso])
+      .filter((t): t is number => typeof t === 'number');
+    return temps.length > 0 ? temps.reduce((s, v) => s + v, 0) / temps.length : 0;
+  }, [weekData, weekTemps]);
 
   const monthData = useMemo(() => {
     const year = now.getFullYear();
@@ -135,41 +189,67 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
     const drawW = chartW - padL - padR;
     const drawH = chartH - padT - padB;
 
-    const values = weekData.map((d) => d.lordo);
-    const maxVal = Math.max(...values, 1);
-    const minVal = Math.min(...values.filter((v) => v > 0), maxVal * 0.5);
-    const range = maxVal - minVal * 0.8 || 1;
+    // Round 74-ter: l'asse Y mostra la TEMPERATURA (°C), non più il lordo €.
+    const values = weekData.map((d) => weekTemps[d.dateIso]);
+    const numericValues = values.filter((v): v is number => typeof v === 'number');
+    const hasData = numericValues.length > 0;
+    const maxVal = hasData ? Math.max(...numericValues, 1) : 30;
+    const minVal = hasData ? Math.min(...numericValues, maxVal - 5) : 0;
+    const range = (maxVal - minVal) || 1;
 
     const points = values.map((v, i) => {
       const x = padL + (i / 6) * drawW;
-      const y = v > 0 ? padT + drawH - ((v - minVal * 0.8) / range) * drawH : padT + drawH;
-      return { x, y, v };
+      if (typeof v !== 'number') {
+        return { x, y: padT + drawH, v: null as number | null, hasVal: false };
+      }
+      const y = padT + drawH - ((v - minVal) / range) * drawH;
+      return { x, y, v, hasVal: true };
     });
 
-    const linePath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
-    const areaPath = linePath + ` L ${points[points.length - 1].x} ${padT + drawH} L ${points[0].x} ${padT + drawH} Z`;
+    // Connetto i punti SOLO quando entrambi hanno valori reali (no segmenti su placeholder)
+    const segments: string[] = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      if (p1.hasVal && p2.hasVal) {
+        segments.push(`M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`);
+      }
+    }
+    const linePath = segments.join(' ');
 
     const yLabels = [0, 1, 2, 3, 4].map((i) => {
-      const val = Math.round(minVal * 0.8 + (range * i) / 4);
+      const val = Math.round(minVal + (range * i) / 4);
       const y = padT + drawH - (drawH * i) / 4;
       return { val, y };
     });
 
     return (
       <View style={{ alignItems: 'center' }}>
+        {loadingTemps && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 }}>
+            <ActivityIndicator size="small" color="#1E7F85" />
+            <Text style={{ fontSize: 10, color: '#5A7575' }}>Caricamento temperature…</Text>
+          </View>
+        )}
         <Svg width={chartW} height={chartH}>
           {yLabels.map((l, i) => (
             <React.Fragment key={i}>
               <Line x1={padL} y1={l.y} x2={chartW - padR} y2={l.y} stroke="#D0D8D4" strokeWidth={0.5} />
               <SvgText x={padL - 5} y={l.y + 3} fill="#7A9090" fontSize={8} textAnchor="end">
-                {l.val > 0 ? `\u20AC${l.val}` : ''}
+                {`${l.val}\u00b0C`}
               </SvgText>
             </React.Fragment>
           ))}
-          <Path d={areaPath} fill="rgba(212,175,55,0.15)" />
-          <Path d={linePath} stroke="#D4AF37" strokeWidth={2.5} fill="none" strokeLinejoin="round" />
+          <Path d={linePath} stroke="#1E7F85" strokeWidth={2.5} fill="none" strokeLinejoin="round" />
           {points.map((p, i) => (
-            <Circle key={i} cx={p.x} cy={p.y} r={4} fill="#D4AF37" stroke="#FFF" strokeWidth={2} />
+            p.hasVal ? (
+              <React.Fragment key={i}>
+                <Circle cx={p.x} cy={p.y} r={4} fill="#1E7F85" stroke="#FFF" strokeWidth={2} />
+                <SvgText x={p.x} y={p.y - 7} fill="#1A4040" fontSize={8} fontWeight="700" textAnchor="middle">
+                  {`${(p.v as number).toFixed(1)}\u00b0`}
+                </SvgText>
+              </React.Fragment>
+            ) : null
           ))}
         </Svg>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: drawW, marginLeft: padL }}>
@@ -183,6 +263,12 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
             );
           })}
         </View>
+        {!loadingTemps && !hasData && (
+          <Text style={{ fontSize: 10, color: '#8A8A85', marginTop: 8, textAlign: 'center', fontStyle: 'italic' }}>
+            Nessuna temperatura disponibile per questa settimana.{'\n'}
+            Aggiungi mercati nelle giornate per recuperarle automaticamente.
+          </Text>
+        )}
       </View>
     );
   };
@@ -256,7 +342,11 @@ export const MeteoStatsModal: React.FC<Props> = ({ visible, onClose, giornate })
             {view === 'Settimana' && (
               <View style={ms.card}>
                 <Text style={ms.cardTitle}>{t('stats.week')}</Text>
-                <Text style={ms.cardSub}>{'\u20AC'}{Math.round(weekAvg)}/gg</Text>
+                <Text style={ms.cardSub}>
+                  {weekAvg > 0
+                    ? `Media settimanale: ${weekAvg.toFixed(1)}\u00b0C (06:00–13:00)`
+                    : 'Nessun mercato registrato in questa settimana'}
+                </Text>
                 {renderWeekChart()}
               </View>
             )}
