@@ -1019,17 +1019,35 @@ export default function HomeScreen() {
        1. Essere sottratte dall'utile/netto del giorno (sotto flag excludeFornitori)
        2. Essere mostrate nel riquadro "FORNITORI GIORN." del modal UtileModal
      Il `fattureLog` è un array globale di TUTTE le fatture mai inserite,
-     ognuna con `dataEmissione` (formato ISO `YYYY-MM-DD`). */
+     ognuna con `dataEmissione` (formato ISO `YYYY-MM-DD`).
+     ⭐ Round 78 (FIX BUG €432): esclude le fatture il cui `fornitore` è
+        già presente in `speseExtraFornitore` per evitare doppio conteggio.
+        Motivo: `handleSalva` chiama `upsertFatturaByKey` per ogni voce di
+        speseExtraFornitore → quelle voci finiscono ANCHE in fattureLog.
+        Se sommassimo entrambi avremmo lo stesso importo conteggiato 2 volte. */
   const fattureOggiTotale = useMemo(() => {
     try {
       const list: any[] = Array.isArray((store as any).fattureLog) ? (store as any).fattureLog : [];
       const d = new Date(dataCorrente);
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      // Set dei fornitori già coperti da speseExtraFornitore (evita doppio conteggio)
+      const fornitoriInModal = new Set<string>();
+      Object.keys(speseExtraFornitore || {}).forEach((k) => {
+        if (k.endsWith('__fattn') || k.endsWith('__liberaLabel')) return;
+        const baseName = k.replace(/__libera$/, '').trim().toLowerCase();
+        // Aggiungi solo se ha un importo > 0 (altrimenti non lo conteggiamo)
+        const impF = parseFloat((speseExtraFornitore[k]?.importo || '0').replace(',', '.')) || 0;
+        if (impF > 0) fornitoriInModal.add(baseName);
+      });
       let tot = 0;
       list.forEach((fa) => {
         if (fa && fa.dataEmissione === iso) {
           const imp = Number(fa.importo) || 0;
-          if (imp > 0) tot += imp;
+          if (imp <= 0) return;
+          // Skip se questo fornitore è già conteggiato in speseExtraFornitore
+          const forn = String(fa.fornitore || '').trim().toLowerCase();
+          if (fornitoriInModal.has(forn)) return;
+          tot += imp;
         }
       });
       return tot;
@@ -1037,7 +1055,7 @@ export default function HomeScreen() {
       return 0;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(store as any).fattureLog, dataCorrente]);
+  }, [(store as any).fattureLog, dataCorrente, speseExtraFornitore]);
 
   /* ══════════════════════════════════════════════════════════════════
      RIPARTIZIONE GIORNALIERA OGGI (Round 43 — richiesta utente):
@@ -1233,10 +1251,11 @@ export default function HomeScreen() {
   //     (Dal/Al), visualizzata in Statistiche, NON nell'utile giornaliero.
   // Per il giorno: mostriamo solo il DAILY. La quota CUSTOM è informativa
   // (visibile in Spese Extra modal sotto "Totale del giorno").
-  // ⭐ Round 73: aggiungiamo `fattureOggiTotale` alle voci fornitori
-  //    detratte dal netto sotto il flag `excludeFornitori`. Le fatture
-  //    inserite con AddFatturaModal con `dataEmissione` = oggi vengono
-  //    quindi scalate dal lordo del giorno (e mostrate nel UtileModal).
+  // ⭐ Round 78 (FIX BUG €432): `fattureOggiTotale` ora esclude le fatture
+  //    di fornitori già conteggiati in `speseExtraFornitore` (evita doppio
+  //    conteggio causato da `handleSalva` → `upsertFatturaByKey`). Sommando
+  //    quindi le 2 voci abbiamo: pagamenti DAILY del giorno (modal home) +
+  //    fatture aggiunte via AddFatturaModal di altri fornitori non in modal.
   const utile = lordoNum
     - (excludeSpeseFisse ? 0 : speseFisseTotali)
     - (excludeSpeseExtra ? 0 : speseExtraTotNum)
@@ -2767,16 +2786,17 @@ export default function HomeScreen() {
             speseFisseProrata: Math.round(speseFisseTotali),
             costoCollaboratoriOggi: Math.round(costoCollabAttivi),
             speseExtraOggi: Math.round(speseExtraGenTotale),
-            fornitoriDailyOggi: Math.round(speseExtraFornTotale),
+            // Round 78: include fattureOggiTotale già deduplicato vs speseExtraFornitore
+            fornitoriDailyOggi: Math.round(speseExtraFornTotale + fattureOggiTotale),
             fornitoriCustomOggi: Math.round(speseExtraFornCustom),
             invendutoOggi: Math.round(parseFloat(invenduto.replace(',', '.')) || 0),
             totSpeseOggi: Math.round(
               speseFisseTotali + costoCollabAttivi + speseExtraGenTotale +
-              speseExtraFornTotale + speseExtraFornCustom + (parseFloat(invenduto.replace(',', '.')) || 0)
+              speseExtraFornTotale + fattureOggiTotale + speseExtraFornCustom + (parseFloat(invenduto.replace(',', '.')) || 0)
             ),
             utileRealisticoOggi: Math.round(
               lordoNum - speseFisseTotali - costoCollabAttivi - speseExtraGenTotale
-              - speseExtraFornTotale - speseExtraFornCustom - (parseFloat(invenduto.replace(',', '.')) || 0)
+              - speseExtraFornTotale - fattureOggiTotale - speseExtraFornCustom - (parseFloat(invenduto.replace(',', '.')) || 0)
             ),
           },
           // ═══ INVENDUTO ULTIMA OCCORRENZA STESSO MERCATO/GIORNO ═══
