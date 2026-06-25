@@ -449,10 +449,19 @@ function StatsScreenInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storicoCarburante, filtroTempo, persDateFrom, persDateTo, dataRiferimento]);
 
-  /* ═══ Round 72 — TOTALE FATTURE nel periodo (da fattureLog immutabile) ═══
+  /* ═══ Round 72 + 77 — TOTALE FATTURE nel periodo (da fattureLog immutabile) ═══
      Somma esatta di TUTTE le fatture inserite con dataEmissione nel periodo.
-     Risolve il bug "appare solo l'importo dell'ultima fattura segnata":
-     ora ogni fattura è un record separato e il totale è sempre aggiornato. */
+     
+     ROUND 77 FIX: separa le voci a seconda di `modoPagamento`:
+       - `totale`         → SOLO le vere fatture (`modoPagamento === 'fattura'`
+                            + parte `importoFattura` di 'misto')
+       - `totaleContanti` → SOLO la parte contanti (`modoPagamento === 'contanti'`
+                            + parte `importoContanti` di 'misto')
+     
+     Prima conteggiavamo TUTTE le righe del fattureLog dentro `.totale` —
+     comprese quelle con modoPagamento='contanti' — facendo apparire le
+     spese contanti come "Fatture €X" e contandole 2 volte (in FATTURE e
+     in CONTANTI all'interno di FORNITORI). */
   const fattureLog = (store as any).fattureLog || [];
   const fatturePeriodoStats = useMemo(() => {
     const inRange = (iso: string) => {
@@ -476,16 +485,48 @@ function StatsScreenInner() {
       } catch { return false; }
     };
     const items: any[] = (fattureLog || []).filter((f: any) => inRange(f.dataEmissione));
-    const totale = items.reduce((acc, f) => acc + (Number(f.importo) || 0), 0);
-    // Aggregato per fornitore
+
+    // ROUND 77 — split per modoPagamento
+    let totaleFatturate = 0;
+    let totaleContanti = 0;
+    let countFatture = 0;     // SOLO righe con almeno una parte fatturata
     const perFornitore: Record<string, { count: number; totale: number }> = {};
+
     items.forEach((f: any) => {
-      const nome = f.fornitore || '(senza nome)';
-      if (!perFornitore[nome]) perFornitore[nome] = { count: 0, totale: 0 };
-      perFornitore[nome].count++;
-      perFornitore[nome].totale += Number(f.importo) || 0;
+      const imp = Number(f.importo) || 0;
+      if (imp <= 0) return;
+      const modo = f.modoPagamento || 'fattura';
+      let fattQuota = 0;
+      let contQuota = 0;
+      if (modo === 'contanti') {
+        contQuota = imp;
+      } else if (modo === 'misto') {
+        fattQuota = Number(f.importoFattura) || 0;
+        contQuota = Number(f.importoContanti) || 0;
+        const resto = imp - fattQuota - contQuota;
+        if (resto > 0.005) contQuota += resto; // safety
+      } else {
+        // 'fattura' (default)
+        fattQuota = imp;
+      }
+      totaleFatturate += fattQuota;
+      totaleContanti += contQuota;
+      if (fattQuota > 0) {
+        countFatture++;
+        const nome = f.fornitore || '(senza nome)';
+        if (!perFornitore[nome]) perFornitore[nome] = { count: 0, totale: 0 };
+        perFornitore[nome].count++;
+        perFornitore[nome].totale += fattQuota;
+      }
     });
-    return { count: items.length, totale, perFornitore, items };
+
+    return {
+      count: countFatture,                   // n° righe con parte fatturata (>=1)
+      totale: totaleFatturate,               // SOLO parte fatturata (per il riquadro FATTURE)
+      totaleContanti,                        // SOLO parte contanti (per TOTALE FORNITORI PERIODO)
+      perFornitore,
+      items,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fattureLog, filtroTempo, persDateFrom, persDateTo, dataRiferimento]);
 
@@ -1337,8 +1378,11 @@ function StatsScreenInner() {
     if (!excludeSpeseExtra) netto -= totSpeseExtra;
     if (!excludeFornitori) {
       netto -= totFornitoriDaily;
-      // Round 73: includi anche fatture da fattureLog
+      // Round 73 + 77: include sia la quota fatture sia la quota contanti
+      // del fattureLog. Entrambe sono spese reali da scalare dal lordo,
+      // anche se ne mostriamo solo il riquadro FATTURE in UI.
       netto -= fatturePeriodoStats.totale;
+      netto -= fatturePeriodoStats.totaleContanti;
     }
     if (!excludeInvenduto) netto -= totInvenduto;
     if (!excludeCarburante) netto -= totCarb;
@@ -2490,11 +2534,17 @@ function StatsScreenInner() {
               <View style={{ marginTop: 12, padding: 12, backgroundColor: '#F5EFDC', borderRadius: 10, borderLeftWidth: 4, borderLeftColor: '#1E7F85' }}>
                 <Text style={{ fontSize: 10, fontWeight: '900', color: '#5A7575', letterSpacing: 0.6, marginBottom: 4 }}>TOTALE FORNITORI PERIODO</Text>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A3535' }}>
-                  €{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totWeekly + vociExtraPeriod.totMonthly + fatturePeriodoStats.totale).toFixed(0)}
+                  €{(vociExtraPeriod.totDailyDeducted + vociExtraPeriod.totWeekly + vociExtraPeriod.totMonthly + fatturePeriodoStats.totale + fatturePeriodoStats.totaleContanti).toFixed(0)}
                 </Text>
-                {fatturePeriodoStats.totale > 0 && (
+                {(fatturePeriodoStats.totale > 0 || fatturePeriodoStats.totaleContanti > 0) && (
                   <Text style={{ fontSize: 10, color: '#7A9090', fontWeight: '700', marginTop: 4 }}>
-                    Include €{fatturePeriodoStats.totale.toFixed(0)} di fatture ({fatturePeriodoStats.count} {fatturePeriodoStats.count === 1 ? 'fattura' : 'fatture'})
+                    {fatturePeriodoStats.totale > 0 && (
+                      <>Include €{fatturePeriodoStats.totale.toFixed(0)} di fatture</>
+                    )}
+                    {fatturePeriodoStats.totale > 0 && fatturePeriodoStats.totaleContanti > 0 && ' + '}
+                    {fatturePeriodoStats.totaleContanti > 0 && (
+                      <>€{fatturePeriodoStats.totaleContanti.toFixed(0)} in contanti</>
+                    )}
                   </Text>
                 )}
               </View>

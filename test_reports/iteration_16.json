@@ -1,0 +1,35 @@
+{
+  "summary": "Round 77 bug fix VERIFIED. Tested the fix that prevents AddFatturaModal spese fornitore in CONTANTI from being double-counted as FATTURE. Seeded localStorage 'marketmate_data' with 3 fattureLog entries (A=fattura/200, B=contanti/100, C=misto/300 split 180/120) all dataEmissione=today, then opened /home/stats. All 4 verifications passed across Sett./Mese/Anno filters. No backend testing performed (frontend-only request).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/home/stats - FATTURE list rows", "issues": ["Each fattura row shows 'Fatt. undefined · 25/06/2026' when numeroFattura is missing. Non-blocking but cosmetic: fallback to '-' or hide the prefix when undefined. Reference: /app/frontend/app/home/stats.tsx around the AddFatturaModal-list rendering."]}
+    ],
+    "react_native_issues": [
+      {"component": "shadow* style props", "issue": "Console warnings: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Repeated many times. Should be migrated to boxShadow on web/RN-Web styles."},
+      {"component": "View pointerEvents prop", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Migrate from prop to style.pointerEvents."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_16.json"],
+  "action_items": [
+    "(Optional) Hide 'Fatt. undefined' prefix when fattura.numeroFattura is missing/empty in /app/frontend/app/home/stats.tsx (FATTURE list rendering).",
+    "(Optional, not part of round 77) Migrate shadow*/pointerEvents to the new style API to silence repeated console deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "fatturePeriodoStats useMemo (stats.tsx lines 466-531) correctly splits modoPagamento into totale (fattura quota) and totaleContanti (cash quota). countFatture only increments when fattQuota>0 — pure-contanti entries excluded from FATTURE count. Verified.",
+    "FORNITORI TOTALE PERIODO (line 2537) sums vociExtraPeriod (DAILY+WEEKLY+MONTHLY) + fatturePeriodoStats.totale + fatturePeriodoStats.totaleContanti — correct double-coverage of cash quota now displayed as 'Include €X di fatture + €Y in contanti' (line 2540-2549). Verified.",
+    "fornitoriTotals (lines 1131-1185) classifies fattureLog into fatturata/libera so the Pie 'Fatturata vs Contanti' shows €380/€220. Verified.",
+    "totNetto (line 1363-1397) subtracts both fatturePeriodoStats.totale and .totaleContanti under !excludeFornitori — prevents netto drift. Verified: NETTO shows €-600 with lordo=0.",
+    "weatherStats state confirmed removed (round 76) — file has only a removal comment at line 297, no setter/getter present.",
+    "File size 3407 lines — exceeds the 700-line guideline. Consider splitting (e.g. extract FORNITORI section, charts, modals into separate components). Already flagged in prior iterations."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not_tested", "frontend": "100%"},
+  "seed_data_creation": "Test seeded localStorage key 'marketmate_data' with isConfigured:true, empty storicoGiornate/spesePeriodiche, 3 fornitori, and 3 fattureLog entries A/B/C as specified. No backend seed touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix Round 77 verified via Playwright with mobile viewport 390x844. Public URL https://marketmate-hub-1.preview.emergentagent.com/. Default filter is 'Sett.' (week of today). Verified results across Sett./Mese/Anno filters: (1) FATTURE TOT=€380 with count=2, (2) FORNITORI TOT=€600, (3) Pie Fatturata €380 / Contanti €220 (63%/37%), (4) 'TOTALE FORNITORI PERIODO €600 — Include €380 di fatture + €220 in contanti', (5) Ripartizione per fornitore: Forn C €300, Forn A €200, Forn B €100. NETTO = €-600 (correct, lordo=0 minus 600 forn). The 'TOTALE FORNITORI PERIODO' and 'Include …' text are inside the FORNITORI expandable section (collapsed['fornLines']=true by default), so the section must be tapped to expand before they become visible — that is by design. No regressions seen. Round 76 weatherStats removal also confirmed (no residual reference in stats.tsx).",
+  "rca_of_issue": "Original bug: fattureLog entries with modoPagamento='contanti' were being summed into the FATTURE total (totale) and ALSO appearing in the FORNITORI 'libera/contanti' bucket, producing double-count. Round 77 fix splits fatturePeriodoStats into `totale` (only modoPagamento==='fattura' + importoFattura of 'misto') and `totaleContanti` (only modoPagamento==='contanti' + importoContanti of 'misto'). The FATTURE riquadro now shows only `totale`, while TOTALE FORNITORI PERIODO sums both quotas + voci extra; netto subtracts both. Period filtering uses dataEmissione against the same boundaries as filteredByTime (isSameDay/Week/Month/Year vs dataRiferimento). Verified end-to-end."
+}
