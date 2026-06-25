@@ -1,0 +1,37 @@
+{
+  "summary": "Round 76 validation — 4 fixes verified. FIX1 (weather morning range): POST /api/weather for Parabiago and Magenta returns the new fields `temperatura_mattina_min` / `temperatura_mattina_max` (range 06:00-13:00 derived from Open-Meteo hourly) and `message` contains the literal 'mattino X.X–Y.Y°C' string. Live response for Parabiago today: tmm_min=25.5, tmm_max=32.4, msg='Parabiago oggi: Parzialmente nuvoloso, mattino 25.5–32.4°C (giornata 24.6–34.8°C), Vento 1.8 km/h'. FIX2 (BuongiornoModal): setWeatherData now builds 'X°C–Y°C nella fascia mattutina (06:00–13:00)' (BuongiornoModal.tsx:245-248), code-reviewed and correct. FIX3 (AI briefing strict): backend system_msg now blocks Confcommercio/FIVA/bandi/vacanze estive/calendario scolastico/Bilancio/Più dati/Suggerimento extra (server.py:641-650). Live POST /api/ai/chat with message='__INIT_GREETING__' returns short response with ZERO forbidden keywords across 3 runs. Briefing length <=9 lines. FIX4 (stats card removed): /home/stats no longer renders the 'METEO MEDIO PER MERCATO' card (stats.tsx:2507-2510 only contains a JSX comment marker). Visual verification post `sudo supervisorctl restart expo`: the string is ABSENT from document.body.innerText across full-page scroll; all other sections (LORDO/NETTO, CASH/POS, FORNITORI, FATTURE, INVENDUTO, COLLABORATORI, STATISTICA METEO, METEO DETTAGLIATO button, REPORT MENSILE) remain intact. 5/5 backend pytest cases PASS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_round76_features.py",
+    "/app/test_reports/pytest/pytest_round76.xml",
+    "/tmp/r76_stats_after_restart_bottom.png"
+  ],
+  "action_items": [
+    "(Reminder, not a bug) Metro is in CI mode — after any edit to stats.tsx / BuongiornoModal.tsx / MeteoStatsModal.tsx, `sudo supervisorctl restart expo` is REQUIRED for the web preview to pick up the new bundle. Initial visual test reported a false-positive ('METEO MEDIO PER MERCATO' visible) until expo was restarted; afterwards it disappeared as expected.",
+    "(Cleanup, optional) /app/frontend/app/home/stats.tsx still keeps 2 internal comments (lines 297 and 508) plus the placeholder JSX comment at 2507 referencing the removed card. Safe to leave, but main agent may strip them once the change is stable."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/server.py is ~2212 lines — exceeds the 700-line guideline. The system prompt block (lines ~530-810) plus the weather endpoint logic (lines ~1300-1560) should be extracted into prompts/ and routes/weather.py modules.",
+    "/app/frontend/app/home/stats.tsx is now 3357 lines (was 3433 before Round 76). The dead state `weatherStats` was correctly removed (line 297 only mentions the removal in a comment); however 2 useMemo blocks and 1 useEffect that fed it may still be present elsewhere — recommend a final pass to ensure no orphaned derivation code remains.",
+    "Weather morning-range computation is duplicated between the FORECAST (lines 1440-1457) and CURRENT (lines 1526-1543) branches. Consider extracting a `_morning_range(hourly, target_date_str, fallback_min, fallback_max)` helper to DRY it up.",
+    "BuongiornoModal.tsx:245-247 uses `data.temperatura_mattina_min ?? data.temperatura_min` (nullish coalescing) for backward compatibility — correct, defensive. However the Pydantic model defaults to 0 (server.py:1361-1362), so the new fields will always be present (0 if computation fails) and the fallback will essentially never trigger. Consider returning Optional[float] = None server-side so the FE fallback to the daily min/max is meaningful when hourly is unavailable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_round76_features.py (new — 5 pytest cases)"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (stats card removed verified visually post expo restart)"},
+  "seed_data_creation": "Frontend: localStorage 'marketmate_data' with isConfigured:true + 6 storicoGiornate samples spanning Jan 2026 / Dec 2025 / Nov 2025 (Magenta & Parabiago) to ensure Stats page renders all sections including the (now-removed) meteo card region. No backend seeding required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Round 76 status: VERIFIED PASS on all 4 fixes. Backend tests live at /app/backend/tests/test_round76_features.py and cover (a) /api/weather morning range for Parabiago & Magenta with assertion on the 'mattino' string in message, (b) /api/ai/chat __INIT_GREETING__ guardrails against 8 forbidden keywords, (c) briefing line-count <=9. Stats page (/home/stats) verified card-free via document.body.innerText after a fresh `sudo supervisorctl restart expo` — without restart the OLD Metro bundle still renders the removed card (false-positive). ALWAYS restart expo after any edit to stats.tsx / BuongiornoModal.tsx / MeteoStatsModal.tsx before visual testing.",
+  "rca_of_issue": "Not a bug — feature validation. One transient false-failure on FIX4 was caused by stale Metro bundle (CI mode, no hot reload); after `sudo supervisorctl restart expo` the new bundle without 'METEO MEDIO PER MERCATO' card was served and the test passed cleanly."
+}

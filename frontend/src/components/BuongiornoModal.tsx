@@ -240,7 +240,12 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
       const data = await res.json();
       if (data.success) {
         const dataLabel = dataSel && data.data ? ` (per ${data.data})` : '';
-        setWeatherData(`METEO REALE ${citta}${dataLabel}: ${data.descrizione}, ${data.temperatura}°C (min ${data.temperatura_min}°C, max ${data.temperatura_max}°C), Vento ${data.vento_kmh} km/h, Precipitazioni ${data.precipitazioni_mm}mm`);
+        // Round 76 — usa il RANGE MATTUTINO (06:00-13:00) invece del valore istantaneo,
+        // che dava l'idea di un dato "fotografato" e fuorviante per chi lavora la mattina.
+        const tMin = data.temperatura_mattina_min ?? data.temperatura_min;
+        const tMax = data.temperatura_mattina_max ?? data.temperatura_max;
+        const rangeStr = `${tMin}°C–${tMax}°C nella fascia mattutina (06:00–13:00)`;
+        setWeatherData(`METEO REALE ${citta}${dataLabel}: ${data.descrizione}, ${rangeStr}; giornata ${data.temperatura_min}–${data.temperatura_max}°C, Vento ${data.vento_kmh} km/h, Precipitazioni ${data.precipitazioni_mm}mm`);
       } else {
         setWeatherData(`Meteo non disponibile per ${citta}`);
       }

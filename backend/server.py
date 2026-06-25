@@ -596,8 +596,14 @@ LISTA RIFERIMENTO (citane SOLO quelle che si applicano al settore/zona):
   (6) **INPS / Agenzia Entrate (autonomi)** —
       Regime forfettario 5%/15%, super deduzione attrezzature (140%), credito imposta acquisto registratore telematico (€100).
 
-⚠️ IMPORTANTE — "anche se ci sono convenzioni interessanti fallo presente":
-Se sai di una convenzione PARTICOLARMENTE UTILE per quel settore (es. RC ambulanti FIVA per chi vende prodotti freschi, sconti carburante Q8 per chi fa 800+ km/sett, voucher digitalizzazione per chi non ha ancora POS), CITALA PROATTIVAMENTE anche se l'utente non l'ha chiesta esplicitamente. Aggiungi marker "💡 Suggerimento extra:".
+⚠️ IMPORTANTE — proattività convenzioni:
+Cita una convenzione PARTICOLARMENTE UTILE (con marker "💡 Suggerimento extra:") SOLO se:
+  (a) l'utente ti sta chiedendo esplicitamente info su spese/bandi/convenzioni/normative,
+  (b) E NON sei nel BRIEFING __INIT_GREETING__.
+⛔ NEL BRIEFING __INIT_GREETING__ è VIETATO menzionare convenzioni, bandi, Confcommercio,
+   FIVA, Camera di Commercio, calendari scolastici, vacanze estive, normative, suggerimenti
+   extra. Il briefing è limitato STRETTAMENTE a 3 voci (meteo, distributore, ordini).
+   Tutto il resto si attiva SOLO se l'utente chiede esplicitamente.
 
 Chiudi sempre con: "⚠️ Le convenzioni e i bandi si rinnovano: verifica importi e scadenze attuali sui portali ufficiali."
 
@@ -626,15 +632,35 @@ Quando l'utente chiede calendario, ponti, vacanze o chiusure scuole:
 QUANDO IL MESSAGGIO È "__INIT_GREETING__" oppure l'utente ti saluta:
 Ti presenti come SE stessi INIZIANDO tu la conversazione (non rispondere, inizia!).
 
-⚠️⚠️⚠️ FORMATO BRIEFING — ROUND 74 (TASSATIVO, MAX 5-6 RIGHE TOTALI) ⚠️⚠️⚠️
+⚠️⚠️⚠️ FORMATO BRIEFING — ROUND 75 (TASSATIVO, MAX 5-6 RIGHE TOTALI) ⚠️⚠️⚠️
 Il briefing del Buongiorno DEVE contenere ESCLUSIVAMENTE 3 voci nell'ordine:
    1. METEO + TEMPERATURE del giorno selezionato (oggi/futuro/passato — come da regole sotto)
    2. DISTRIBUTORE PIÙ ECONOMICO sul tragitto (solo se OGGI e se i dati sono nel contesto)
    3. ORDINI PENDENTI (solo se ordiniProssimi nel contesto)
 
-⛔ NON includere MAI nel briefing iniziale: fatture/pagamenti, appuntamenti, fornitori del giorno,
-   percentuali, bilanci, CTA finale, statistiche, normative, bandi. L'utente li chiederà esplicitamente
-   con domande tipo "quanto ho incassato?", "fatture in scadenza", "bilancio di oggi", ecc.
+⛔ ASSOLUTAMENTE VIETATO nel briefing iniziale (anche se i dati sono nel contesto):
+   ❌ convenzioni, bandi, Confcommercio, FIVA, Camera di Commercio, ASCO
+   ❌ vacanze estive, calendari scolastici, festività regionali
+   ❌ "💡 Suggerimento extra:", "Per il settore X ti segnalo..."
+   ❌ bilancio del giorno, percentuali utile, "Bilancio di oggi: incassati €X..."
+   ❌ fatture in scadenza, appuntamenti, fornitori del giorno
+   ❌ analisi predittiva settimana, correlazione meteo-incasso
+   ❌ CTA finale "Più dati inserisci...", "Hai domande per me?"
+   ❌ proposte di chat ("Ti aiuto io?", "Posso dirti...")
+L'utente chiederà queste cose ESPLICITAMENTE se le vuole.
+
+✅ ESEMPIO CONFORME (max 4-5 righe):
+   "Ciao Francesco! ☀️
+    Oggi a Parabiago dai 22° ai 32°, sereno.
+    ⛽ Miglior prezzo: Parabiago, IP, Euro 1,749, Via Milano 50 (1.2 km dal percorso).
+    📦 Oggi devi preparare ordine per Fornitore Rossi."
+
+❌ ESEMPIO NON CONFORME (questo non lo fare MAI nel briefing):
+   "Ciao Francesco! Oggi sereno 22° a Parabiago...
+    ⚠️ Questa settimana lordo €300 (-90% vs €3075 precedente)...   ← VIETATO
+    Ricorda: vacanze estive in Lombardia fino all'11 settembre... ← VIETATO
+    Per alimentare in Provincia di Milano segnalo convenzioni:    ← VIETATO
+    - Confcommercio + FIVA..."                                    ← VIETATO
 
 ⚠️ DATA DI RIFERIMENTO: All'inizio del CONTESTO trovi "GIORNO SELEZIONATO DALL'UTENTE". Usa SEMPRE quel giorno.
 ⛔ REGOLA INVIOLABILE (Round 75 — Task 1): l'AI DEVE riportare ESCLUSIVAMENTE dati
@@ -656,6 +682,20 @@ ESEMPIO DI BRIEFING CONFORME (3 righe + saluto):
 REGOLE DETTAGLIATE PER LE 3 VOCI:
 
 1. METEO (in 1 riga precisa REALE dal blocco "═══ METEO ═══"):
+   ⚠️ DEVI usare il RANGE MATTUTINO 06:00-13:00, NON la temperatura istantanea.
+   Il blocco meteo del contesto contiene una frase tipo "X°C–Y°C nella fascia mattutina (06:00–13:00)".
+   COPIA QUEL RANGE letteralmente.
+   
+   Format consigliato:
+     OGGI:   "Oggi a {mercato} {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
+     FUTURO: "{giornoSettimana} a {mercato} {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
+     PASSATO: "{giornoSettimana} scorso a {mercato} era {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
+   
+   ⛔ ERRORI DA NON FARE MAI:
+     ❌ NON dire un singolo valore puntuale (es. "25.5°C"). USA SEMPRE IL RANGE.
+     ❌ NON inventare condizioni meteo. Usa LETTERALMENTE descrizioneMeteo del contesto.
+     ❌ Se il contesto dice "sereno" NON dire "parzialmente nuvoloso".
+   
    ⚠️ Se {mercato} è vuoto nel contesto, NON dare alcuna riga meteo — vai direttamente al punto 2.
 
 2. MIGLIOR RIFORNIMENTO sul tragitto (OBBLIGATORIO solo se OGGI; SALTA se futuro/passato):
@@ -1314,6 +1354,12 @@ class WeatherResponse(BaseModel):
     temperatura: float = 0
     temperatura_max: float = 0
     temperatura_min: float = 0
+    # Round 76 — range mattutino (06:00-13:00 ora locale Europe/Rome)
+    # L'utente ha segnalato che "25.5°C" istantaneo era impreciso:
+    # voleva il range della FASCIA DI LAVORO (mattina). Aggiungiamo
+    # qui i due valori derivati direttamente da Open-Meteo `hourly`.
+    temperatura_mattina_min: float = 0
+    temperatura_mattina_max: float = 0
     descrizione: str = ""
     vento_kmh: float = 0
     precipitazioni_mm: float = 0
@@ -1369,6 +1415,7 @@ async def get_weather(req: WeatherRequest):
                         "latitude": geo["lat"],
                         "longitude": geo["lon"],
                         "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,weather_code",
+                        "hourly": "temperature_2m",
                         "timezone": "auto",
                         "forecast_days": days_needed,
                         "models": "best_match",
@@ -1390,16 +1437,36 @@ async def get_weather(req: WeatherRequest):
                 wind = (daily.get("wind_speed_10m_max") or [0])[idx] if idx < len(daily.get("wind_speed_10m_max", [])) else 0
                 prec = (daily.get("precipitation_sum") or [0])[idx] if idx < len(daily.get("precipitation_sum", [])) else 0
                 tavg = round((tmax + tmin) / 2, 1)
+                # Round 76 — range mattutino 06:00-13:00 dal blocco hourly
+                hourly = data.get("hourly", {})
+                hourly_times = hourly.get("time", []) or []
+                hourly_temps = hourly.get("temperature_2m", []) or []
+                morning_temps = []
+                for t_iso, temp in zip(hourly_times, hourly_temps):
+                    if not isinstance(t_iso, str) or temp is None:
+                        continue
+                    if t_iso[:10] != target_str:
+                        continue
+                    try:
+                        hour = int(t_iso[11:13])
+                        if 6 <= hour <= 13:
+                            morning_temps.append(float(temp))
+                    except Exception:
+                        continue
+                temp_morn_min = round(min(morning_temps), 1) if morning_temps else tmin
+                temp_morn_max = round(max(morning_temps), 1) if morning_temps else tmax
                 return WeatherResponse(
                     success=True,
                     temperatura=tavg,
                     temperatura_max=tmax,
                     temperatura_min=tmin,
+                    temperatura_mattina_min=temp_morn_min,
+                    temperatura_mattina_max=temp_morn_max,
                     descrizione=descrizione,
                     vento_kmh=wind,
                     precipitazioni_mm=prec,
                     data=target_str,
-                    message=f"{req.citta} {target_str}: {descrizione}, max {tmax}°C / min {tmin}°C, vento {wind} km/h"
+                    message=f"{req.citta} {target_str}: {descrizione}, mattino {temp_morn_min}–{temp_morn_max}°C (max {tmax}°C / min {tmin}°C), vento {wind} km/h"
                 )
             elif is_past:
                 # ARCHIVE API
@@ -1434,7 +1501,7 @@ async def get_weather(req: WeatherRequest):
                     message=f"{req.citta} {target_str}: {descrizione}, max {tmax}°C / min {tmin}°C"
                 )
             else:
-                # CURRENT (oggi)
+                # CURRENT (oggi) — Round 76: include hourly per range mattutino 06:00-13:00
                 resp = await client_http.get(
                     "https://api.open-meteo.com/v1/forecast",
                     params={
@@ -1442,6 +1509,7 @@ async def get_weather(req: WeatherRequest):
                         "longitude": geo["lon"],
                         "current": "temperature_2m,wind_speed_10m,precipitation,weather_code",
                         "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
+                        "hourly": "temperature_2m",
                         "timezone": "auto",
                         "forecast_days": 1,
                     }
@@ -1453,16 +1521,38 @@ async def get_weather(req: WeatherRequest):
                     weather_code = current.get("weather_code", 0)
                     descrizione = wmo_codes.get(weather_code, f"Codice meteo {weather_code}")
                     today_str = today_d.strftime("%Y-%m-%d")
+                    tmax_d = daily.get("temperature_2m_max", [0])[0] if daily.get("temperature_2m_max") else 0
+                    tmin_d = daily.get("temperature_2m_min", [0])[0] if daily.get("temperature_2m_min") else 0
+                    # Range mattutino dal blocco hourly
+                    hourly = data.get("hourly", {})
+                    hourly_times = hourly.get("time", []) or []
+                    hourly_temps = hourly.get("temperature_2m", []) or []
+                    morning_temps = []
+                    for t_iso, temp in zip(hourly_times, hourly_temps):
+                        if not isinstance(t_iso, str) or temp is None:
+                            continue
+                        if t_iso[:10] != today_str:
+                            continue
+                        try:
+                            hour = int(t_iso[11:13])
+                            if 6 <= hour <= 13:
+                                morning_temps.append(float(temp))
+                        except Exception:
+                            continue
+                    temp_morn_min = round(min(morning_temps), 1) if morning_temps else tmin_d
+                    temp_morn_max = round(max(morning_temps), 1) if morning_temps else tmax_d
                     return WeatherResponse(
                         success=True,
                         temperatura=current.get("temperature_2m", 0),
-                        temperatura_max=daily.get("temperature_2m_max", [0])[0] if daily.get("temperature_2m_max") else 0,
-                        temperatura_min=daily.get("temperature_2m_min", [0])[0] if daily.get("temperature_2m_min") else 0,
+                        temperatura_max=tmax_d,
+                        temperatura_min=tmin_d,
+                        temperatura_mattina_min=temp_morn_min,
+                        temperatura_mattina_max=temp_morn_max,
                         descrizione=descrizione,
                         vento_kmh=current.get("wind_speed_10m", 0),
                         precipitazioni_mm=current.get("precipitation", 0),
                         data=today_str,
-                        message=f"{req.citta}: {descrizione}, {current.get('temperature_2m', 0)}°C, Vento {current.get('wind_speed_10m', 0)} km/h"
+                        message=f"{req.citta} oggi: {descrizione}, mattino {temp_morn_min}–{temp_morn_max}°C (giornata {tmin_d}–{tmax_d}°C), Vento {current.get('wind_speed_10m', 0)} km/h"
                     )
                 return WeatherResponse(success=False, message="Errore API meteo")
     except Exception as e:
