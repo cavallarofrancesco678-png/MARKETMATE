@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { buildCalendarContextBlock, resolveRegion } from '../utils/italianCalendar';
+import { useAppStore } from '../store/appStore';
 
 const REFERRAL_DISMISS_KEY = 'mm_referral_dismissed_at';
 const REFERRAL_COOLDOWN_DAYS = 10;
@@ -130,6 +131,11 @@ export const BuongiornoModal: React.FC<Props> = ({ visible, onClose, storeData }
   const [limitReached, setLimitReached] = useState(false);
   // Round 48: banner Referral con dismiss persistente (10gg cooldown)
   const [showReferralBanner, setShowReferralBanner] = useState(false);
+  // Round 78 — chip rapidi personalizzabili
+  const aiQuickActions = useAppStore((s) => s.aiQuickActions || []);
+  const addAIQuickAction = useAppStore((s) => s.addAIQuickAction);
+  const removeAIQuickAction = useAppStore((s) => s.removeAIQuickAction);
+  const [newChipText, setNewChipText] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const recognitionRef = useRef<any>(null);
   const sessionId = useRef(`session_${Date.now()}`);
@@ -623,33 +629,89 @@ ${storeData.fullContextDump ? '\n\n═══ DATI COMPLETI APP (per rispondere a
             )}
           </ScrollView>
 
-          {/* Round 68 — Quick chip per funzioni dedicate (Bandi / Calendario) */}
+          {/* Round 78 — Quick chip personalizzabili: cancellabili con × e aggiungibili con + */}
           {!loading && (
             <View style={st.quickChipsRow}>
-              <TouchableOpacity
-                style={[st.quickChip, limitReached && { opacity: 0.4 }]}
-                onPress={() => sendMessage('Mostrami bandi e normative attive per la mia zona (Unione Commercianti / ASCO / Camera di Commercio)')}
-                disabled={limitReached}
-                activeOpacity={0.7}
-              >
-                <Text style={st.quickChipTxt}>🏛️ Bandi & Normative</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[st.quickChip, limitReached && { opacity: 0.4 }]}
-                onPress={() => sendMessage('Quali sono le prossime festività e chiusure scolastiche della mia regione? Come impattano i mercati?')}
-                disabled={limitReached}
-                activeOpacity={0.7}
-              >
-                <Text style={st.quickChipTxt}>📅 Feste & Scuole</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[st.quickChip, limitReached && { opacity: 0.4 }]}
-                onPress={() => sendMessage('Come va il mio mese? Dammi un riepilogo strategico')}
-                disabled={limitReached}
-                activeOpacity={0.7}
-              >
-                <Text style={st.quickChipTxt}>📊 Riepilogo mese</Text>
-              </TouchableOpacity>
+              {aiQuickActions.map((chipText) => {
+                const lower = chipText.toLowerCase();
+                let emoji = '💬';
+                if (lower.includes('bandi') || lower.includes('normativ')) emoji = '🏛️';
+                else if (lower.includes('fest') || lower.includes('scuol')) emoji = '📅';
+                else if (lower.includes('riepilogo') || lower.includes('mese') || lower.includes('mens')) emoji = '📊';
+                else if (lower.includes('meteo') || lower.includes('tempo') || lower.includes('pioggia')) emoji = '🌦️';
+                else if (lower.includes('carburante') || lower.includes('benzina') || lower.includes('gasolio')) emoji = '⛽';
+                else if (lower.includes('fornit') || lower.includes('fattur')) emoji = '📦';
+                else if (lower.includes('vendit') || lower.includes('incass') || lower.includes('utile')) emoji = '💶';
+
+                // Mappa i 3 chip "default" verso prompt più completi per l'AI
+                const fullPrompt = (() => {
+                  if (lower === 'bandi & normative') {
+                    return 'Mostrami bandi e normative attive per la mia zona (Unione Commercianti / ASCO / Camera di Commercio)';
+                  }
+                  if (lower === 'feste & scuole') {
+                    return 'Quali sono le prossime festività e chiusure scolastiche della mia regione? Come impattano i mercati?';
+                  }
+                  if (lower === 'riepilogo mese') {
+                    return 'Come va il mio mese? Dammi un riepilogo strategico';
+                  }
+                  return chipText;
+                })();
+
+                return (
+                  <View key={chipText} style={[st.quickChip, limitReached && { opacity: 0.4 }]}>
+                    <TouchableOpacity
+                      onPress={() => sendMessage(fullPrompt)}
+                      disabled={limitReached}
+                      activeOpacity={0.7}
+                      style={st.quickChipMain}
+                    >
+                      <Text style={st.quickChipTxt} numberOfLines={1}>{emoji} {chipText}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => removeAIQuickAction(chipText)}
+                      activeOpacity={0.6}
+                      style={st.quickChipRemove}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close" size={13} color="#1E7F85" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+
+              {/* Input + "+" sempre visibile sotto i chip per aggiungere nuove voci rapide */}
+              <View style={st.addChipRow}>
+                <TextInput
+                  style={st.addChipInput}
+                  placeholder="Aggiungi voce rapida…"
+                  placeholderTextColor="#7A8E89"
+                  value={newChipText}
+                  onChangeText={setNewChipText}
+                  onSubmitEditing={() => {
+                    const cleaned = newChipText.trim();
+                    if (cleaned) {
+                      addAIQuickAction(cleaned);
+                      setNewChipText('');
+                    }
+                  }}
+                  returnKeyType="done"
+                  maxLength={50}
+                />
+                <TouchableOpacity
+                  style={[st.addChipBtn, !newChipText.trim() && { opacity: 0.4 }]}
+                  onPress={() => {
+                    const cleaned = newChipText.trim();
+                    if (cleaned) {
+                      addAIQuickAction(cleaned);
+                      setNewChipText('');
+                    }
+                  }}
+                  disabled={!newChipText.trim()}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={16} color="#FFF" />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -845,18 +907,64 @@ const st = StyleSheet.create({
     backgroundColor: '#E5EDE8',
     borderTopWidth: 1,
     borderTopColor: '#C0D8D0',
+    alignItems: 'center',
   },
   quickChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 4,
     borderRadius: 16,
     backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#1E7F85',
+    maxWidth: 220,
+  },
+  quickChipMain: {
+    flexShrink: 1,
+    paddingVertical: 3,
+    paddingRight: 4,
   },
   quickChipTxt: {
     fontSize: 11,
     fontWeight: '700',
     color: '#1E7F85',
+  },
+  quickChipRemove: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#D8EDE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  // Round 78 — Input per aggiungere nuovo chip rapido (sempre visibile)
+  addChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexBasis: '100%',
+    marginTop: 4,
+  },
+  addChipInput: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1A3535',
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#C0D8D0',
+  },
+  addChipBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1E7F85',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

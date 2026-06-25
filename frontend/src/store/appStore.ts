@@ -347,6 +347,10 @@ interface AppState {
   fattureLog: Fattura[];
   speseExtraTags: string[];
   storicoScontrini: ScontrinoRecord[];
+  /* Round 78 — Chip rapidi dell'AI Buongiorno (personalizzabili).
+     L'utente può cancellarli con "×" o aggiungerne di nuovi via prompt.
+     Default: 3 voci classiche (Bandi & Normative, Feste & Scuole, Riepilogo mese). */
+  aiQuickActions: string[];
   // ═══ SESSIONE SPESE EXTRA (persistente fino a 23:59 del giorno successivo) ═══
   speseExtraSession: {
     speseExtraFornitore: Record<string, { importo: string; periodo: string }>;
@@ -359,6 +363,10 @@ interface AppState {
   
   // Actions
   setConfig: (config: Partial<AppState>) => void;
+  // Round 78 — AI Quick Actions (chip personalizzabili in Buongiorno)
+  addAIQuickAction: (text: string) => void;
+  removeAIQuickAction: (text: string) => void;
+  resetAIQuickActions: () => void;
   addCollaboratore: (c: Collaboratore) => void;
   removeCollaboratore: (nome: string) => void;
   addFornitore: (f: Fornitore) => void;
@@ -458,10 +466,34 @@ export const useAppStore = create<AppState>((set, get) => ({
   speseExtraTags: [],
   storicoScontrini: [],
   speseExtraSession: null,
+  // Round 78 — Chip rapidi AI default
+  aiQuickActions: ['Bandi & Normative', 'Feste & Scuole', 'Riepilogo mese'],
   
   // Actions
   setConfig: (config) => {
     set((state) => ({ ...state, ...config }));
+    get().saveToStorage();
+  },
+
+  // Round 78 — AI Quick Actions (chip personalizzabili in Buongiorno)
+  addAIQuickAction: (text: string) => {
+    const cleaned = (text || '').trim().slice(0, 50);
+    if (!cleaned) return;
+    set((state) => {
+      const list = state.aiQuickActions || [];
+      if (list.some((x) => x.toLowerCase() === cleaned.toLowerCase())) return state;
+      return { aiQuickActions: [...list, cleaned] };
+    });
+    get().saveToStorage();
+  },
+  removeAIQuickAction: (text: string) => {
+    set((state) => ({
+      aiQuickActions: (state.aiQuickActions || []).filter((x) => x !== text),
+    }));
+    get().saveToStorage();
+  },
+  resetAIQuickActions: () => {
+    set({ aiQuickActions: ['Bandi & Normative', 'Feste & Scuole', 'Riepilogo mese'] });
     get().saveToStorage();
   },
   
@@ -1227,6 +1259,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         currentRole: (state as any).currentRole || 'AMMINISTRATORE',
         joinedViaInviteCode: (state as any).joinedViaInviteCode || false,
         speseExtraSession: (state as any).speseExtraSession || null,
+        // Round 78 — Chip rapidi AI personalizzati dall'utente
+        aiQuickActions: state.aiQuickActions || [],
       };
       await storage.setItem('marketmate_data', JSON.stringify(dataToSave));
 
