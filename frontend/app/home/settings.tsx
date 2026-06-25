@@ -743,6 +743,11 @@ function SettingsPageInner() {
         storicoDiario: state.storicoDiario || [],
         storicoScontrini: (state as any).storicoScontrini || [],
         codiciInvito: (state as any).codiciInvito || [],
+        // Round 78 BIS — Includere anche fattureLog e spesePeriodiche nel backup
+        // così l'export è VERAMENTE completo (prima mancavano e l'utente perdeva
+        // queste informazioni al ripristino del backup).
+        fattureLog: (state as any).fattureLog || [],
+        spesePeriodiche: (state as any).spesePeriodiche || [],
         // Impostazioni generali
         partenzaDa: state.partenzaDa || '',
         costoPerKm: (state as any).costoPerKm || 0,
@@ -1856,6 +1861,48 @@ function SettingsPageInner() {
       {/* ─── ACCOUNT CLOUD rimosso: il sync è ora gestito automaticamente
             tramite il sistema team (codice invito + auto-register admin) e
             non serve più una sezione manuale di login/register ─── */}
+
+      {/* ─── Round 78 BIS — RESET FATTURE (avanzato) ─── */}
+      <View style={[s.card, { marginTop: 20 }]}>
+        <View style={s.sectionHeader}>
+          <Ionicons name="receipt-outline" size={20} color="#B08050" />
+          <Text style={s.sectionTitle}>RESET FATTURE</Text>
+        </View>
+        <Text style={{ fontSize: 11, color: '#7A9090', marginBottom: 12, lineHeight: 16 }}>
+          Cancella TUTTE le fatture registrate (utile se in passato sono finiti pagamenti in contanti per errore). I pagamenti nelle giornate salvate restano intatti — viene azzerato solo l'Archivio Fatture.
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#D46A6A', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onPress={() => {
+            const doReset = () => {
+              try {
+                (useAppStore.getState() as any).clearAllFatture?.();
+                if (Platform.OS === 'web') {
+                  window.alert('Fatture resettate ✅');
+                } else {
+                  Alert.alert('Fatture resettate ✅', 'L\'Archivio Fatture è stato azzerato.');
+                }
+              } catch {}
+            };
+            if (Platform.OS === 'web') {
+              if (window.confirm('Cancellare TUTTE le fatture registrate?')) doReset();
+            } else {
+              Alert.alert(
+                'Reset Fatture',
+                'Sei sicuro di voler cancellare TUTTE le fatture registrate? Questa azione non può essere annullata.',
+                [
+                  { text: 'Annulla', style: 'cancel' },
+                  { text: 'Cancella tutto', style: 'destructive', onPress: doReset },
+                ]
+              );
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="trash-outline" size={18} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>RESET TUTTE LE FATTURE</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ─── EXPORT DATI ─── */}
       <View style={[s.card, { marginTop: 20 }]}>

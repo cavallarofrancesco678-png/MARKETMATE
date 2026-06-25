@@ -400,6 +400,8 @@ interface AppState {
   upsertFatturaByKey: (key: { fornitore: string; numeroFattura: string }, patch: Partial<Omit<Fattura, 'id' | 'dataInserimento'>>) => Fattura;
   removeFattura: (id: string) => void;
   updateFattura: (id: string, patch: Partial<Fattura>) => void;
+  // Round 78 BIS — Reset totale fatture (pulsante Settings → Avanzato)
+  clearAllFatture: () => void;
   getDiarioForDate: (data: Date) => DiarioEntry | undefined;
   addSpeseExtraTag: (tag: string) => void;
   removeSpeseExtraTag: (tag: string) => void;
@@ -840,6 +842,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
 
+  // Round 78 BIS — Reset totale fatture (pulsante Settings)
+  clearAllFatture: () => {
+    set({ fattureLog: [] });
+    get().saveToStorage();
+  },
+
   addSpeseExtraTag: (tag) => {
     set((state) => {
       if (state.speseExtraTags.includes(tag)) return state;
@@ -1110,6 +1118,39 @@ export const useAppStore = create<AppState>((set, get) => ({
           parsed.spesePeriodiche = deduped;
         }
 
+        // ═══ Round 78 BIS — AUTO-CLEANUP FATTURE FAKE ═══
+        // BUG R78bis: handleSalva pre-R78bis chiamava upsertFatturaByKey
+        // anche per pagamenti CONTANTI puri, popolando fattureLog di voci
+        // finte (numero `_auto_<data>` o note '(backfill — pagamento senza
+        // fattura)' o '(pagamento senza fattura)'). Queste gonfiavano la
+        // card FORNITORI GIORN. del modal utile e mostravano nell'Archivio
+        // Fatture come 'fatture' che l'utente non aveva mai inserito.
+        // FIX: rimuoviamo a OGNI avvio (idempotente) le voci con:
+        //   - numeroFattura che inizia per '_auto_'  OPPURE
+        //   - note che contiene 'senza fattura'
+        // Le vere fatture (numero esplicito o impFattura>0) restano.
+        if (Array.isArray(parsed.fattureLog) && parsed.fattureLog.length > 0) {
+          const before = parsed.fattureLog.length;
+          parsed.fattureLog = parsed.fattureLog.filter((ft: any) => {
+            if (!ft) return false;
+            const num = String(ft.numeroFattura || '').trim();
+            const note = String(ft.note || '').toLowerCase();
+            const isAuto = num.startsWith('_auto_') || !num;
+            const isNoteNoFattura = note.includes('senza fattura');
+            const impF = Number(ft.importoFattura) || 0;
+            // Mantieni solo se NON è una voce finta:
+            //   • ha numero esplicito (non auto), OPPURE
+            //   • ha un importo fattura > 0 (era veramente una fattura)
+            if (isAuto && impF <= 0) return false;
+            if (isNoteNoFattura && impF <= 0) return false;
+            return true;
+          });
+          const removed = before - parsed.fattureLog.length;
+          if (removed > 0) {
+            console.log(`[Round 78 BIS] Auto-cleanup: rimosse ${removed} fatture finte (contanti scambiati per fatture).`);
+          }
+        }
+
         // ═══ Round 73 — BACKFILL FATTURE LOG da storico esistente ═══
         // Per utenti con dati pre-R72: scansiona storicoGiornate +
         // spesePeriodiche e popola fattureLog con tutti i pagamenti
@@ -1142,6 +1183,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                 if (impTot <= 0) return;
                 const fInfo = info[nomeFornitore] || {};
                 const numF = String(fInfo.numeroFattura || '').trim();
+                // ⭐ Round 78 BIS: backfill SOLO se è una VERA fattura
+                // (con numero fattura esplicito oppure con `impFatt > 0`).
+                // I pagamenti in contanti puri NON devono finire in fattureLog.
+                const isRealFattura = !!numF || Math.abs(impFatt) > 0;
+                if (!isRealFattura) return;
                 const dedupNum = numF || `_auto_${dataIso}`;
                 const dedupKey = `${nomeFornitore.toLowerCase()}|${dedupNum.toLowerCase()}`;
                 if (dedupKeys.has(dedupKey)) return;

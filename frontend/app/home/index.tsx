@@ -1552,11 +1552,17 @@ export default function HomeScreen() {
     });
 
     /* ═══ Round 73 — CATTURA TUTTI I PAGAMENTI FORNITORE NEL LOG ═══
-       FIX critico: in Round 72 il log catturava solo entries con
-       `numeroFattura` valorizzato. L'utente però spesso inserisce
-       pagamenti SENZA numero fattura (ma con periodo di riferimento) →
-       quelle entry venivano perse. Ora catturiamo OGNI fornitore con
-       importo > 0 e creiamo una chiave univoca anche senza numero. */
+    /* ═══ Round 78 BIS — LOG SOLO LE FATTURE VERE ═══
+       BUG: in Round 73 il log catturava OGNI fornitore con importo > 0,
+       includendo i pagamenti in contanti puri. Risultato: dopo il primo
+       salvataggio, anche i pagamenti contanti finivano in `fattureLog`,
+       gonfiando "Fornitori Giorn." e popolando l'Archivio Fatture con
+       voci finte.
+       FIX: ora logghiamo SOLO entries che soddisfano ALMENO UNA di:
+         a) hanno un `numeroFattura` esplicito (l'utente l'ha digitato)
+         b) hanno `modoPagamento` = 'fattura' o 'misto' CON `impFatt > 0`
+       Pagamenti contanti puri vengono semplicemente memorizzati nello
+       storicoGiornate (campo `dettaglio_fornitori`) e NON in `fattureLog`. */
     try {
       const upsertFattura = (useAppStore.getState() as any).upsertFatturaByKey;
       const giornataIso = (() => {
@@ -1583,6 +1589,12 @@ export default function HomeScreen() {
         const info = (fornInfo || {})[nomeFornitore] || {};
         const numF = String(info?.numeroFattura || '').trim();
         const mode = (pagamentoMode?.[nomeFornitore] || (numF ? 'fattura' : 'contanti')) as 'contanti' | 'fattura' | 'misto';
+
+        // ⭐ Round 78 BIS: filtro definitivo per "vera fattura"
+        const hasFatturaImp = Math.abs(impFatt) > 0;
+        const isRealFattura = !!numF || (mode !== 'contanti' && hasFatturaImp);
+        if (!isRealFattura) return; // pagamento contanti puro → niente fattureLog
+
         const periodoFrom = fornDeductionStartDate?.[nomeFornitore] || giornataIso;
         const dedDays = fornDeductionDays?.[nomeFornitore] || 0;
         let periodoTo = periodoFrom;

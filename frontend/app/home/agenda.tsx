@@ -58,6 +58,9 @@ export default function AgendaScreen() {
   const [noteText, setNoteText] = useState('');
   const [showArchive, setShowArchive] = useState(false);
   const [archiveTab, setArchiveTab] = useState<'note' | 'fiere' | 'fatture'>('note');
+  // Round 78 BIS — UI Fatture organizzata in cartelle Fornitore → Mese
+  const [expandedFornitori, setExpandedFornitori] = useState<Record<string, boolean>>({});
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
   // Carica nota di oggi
   React.useEffect(() => {
@@ -385,6 +388,56 @@ export default function AgendaScreen() {
     });
     return items.sort((a, b) => b.data.getTime() - a.data.getTime());
   }, [store.storicoGiornate, (store as any).speseExtraSession, ordiniAgenda, (store as any).spesePeriodiche, (store as any).fattureLog]);
+
+  /* ═══ Round 78 BIS — Raggruppa fatture per Fornitore → Mese ═══
+     Struttura risultante:
+       {
+         "Andrea Pane": {
+           total: 1234,
+           count: 5,
+           months: {
+             "2026-06": { label: "Giugno 2026", total: 500, items: [...] },
+             "2026-05": { label: "Maggio 2026", total: 734, items: [...] },
+           }
+         }
+       }
+     Mesi e fornitori ordinati per recency (più recenti in cima). */
+  const fattureGrouped = useMemo(() => {
+    const MESI_FULL = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+    type Item = (typeof fattureArchive)[number];
+    type MonthBucket = { key: string; label: string; total: number; items: Item[]; lastDate: number };
+    type FornBucket = { nome: string; total: number; count: number; months: Record<string, MonthBucket>; lastDate: number };
+    const acc: Record<string, FornBucket> = {};
+    fattureArchive.forEach((ft) => {
+      const fName = (ft.fornitore || 'Altro').trim() || 'Altro';
+      const mKey = `${ft.data.getFullYear()}-${String(ft.data.getMonth() + 1).padStart(2, '0')}`;
+      const mLabel = `${MESI_FULL[ft.data.getMonth()]} ${ft.data.getFullYear()}`;
+      if (!acc[fName]) acc[fName] = { nome: fName, total: 0, count: 0, months: {}, lastDate: 0 };
+      const f = acc[fName];
+      if (!f.months[mKey]) f.months[mKey] = { key: mKey, label: mLabel, total: 0, items: [], lastDate: 0 };
+      const m = f.months[mKey];
+      const imp = parseFloat(ft.importo) || 0;
+      f.total += imp;
+      f.count += 1;
+      f.lastDate = Math.max(f.lastDate, ft.data.getTime());
+      m.total += imp;
+      m.items.push(ft);
+      m.lastDate = Math.max(m.lastDate, ft.data.getTime());
+    });
+    // Ordina mesi e fornitori per data (più recente in cima)
+    const fornitori = Object.values(acc).sort((a, b) => b.lastDate - a.lastDate);
+    fornitori.forEach((f) => {
+      f.months = Object.fromEntries(
+        Object.values(f.months)
+          .sort((a, b) => b.lastDate - a.lastDate)
+          .map((m) => {
+            m.items.sort((a, b) => b.data.getTime() - a.data.getTime());
+            return [m.key, m];
+          })
+      );
+    });
+    return fornitori;
+  }, [fattureArchive]);
 
   /* ═══ Combina impegniMese con le fatture (definito DOPO fattureArchive per evitare TDZ) ═══ */
   const impegniMeseFinal = useMemo(() => {
@@ -919,101 +972,136 @@ export default function AgendaScreen() {
               </View>
             )}
 
-            {/* ═══ TAB: FATTURE ═══ */}
+            {/* ═══ TAB: FATTURE — Round 78 BIS: Cartelle Fornitore → Mese con X delete ═══ */}
             {archiveTab === 'fatture' && (
               <View style={s.archiveList}>
-                {fattureArchive.length === 0 ? (
-                  <Text style={s.archiveEmpty}>{t('agenda.noFatture') || 'Nessuna fattura in scadenza'}</Text>
+                {fattureGrouped.length === 0 ? (
+                  <Text style={s.archiveEmpty}>{t('agenda.noFatture') || 'Nessuna fattura inserita'}</Text>
                 ) : (
-                  fattureArchive.map((ft, i) => {
-                    const color = ft.overdue ? '#D46A6A' : '#B08050';
+                  fattureGrouped.map((forn) => {
+                    const isFornOpen = !!expandedFornitori[forn.nome];
+                    const fornTotal = Math.round(forn.total);
                     return (
-                      <View key={ft.id + i} style={s.archiveItem}>
-                        <View style={{ backgroundColor: color, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, minWidth: 50, alignItems: 'center' }}>
-                          <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
-                            {ft.data.getDate()} {MESI[ft.data.getMonth()].substring(0, 3)}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          {/* Riga 1: FORNITORE in evidenza + IMPORTO a destra */}
-                          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-                            <Text style={[s.archiveTxt, { color: '#1A4040', flex: 1 }]} numberOfLines={2}>
-                              {ft.fornitore}
-                            </Text>
-                            <Text style={{ fontSize: 15, color, fontWeight: '900' }}>
-                              €{parseFloat(ft.importo).toFixed(0)}
+                      <View key={`f_${forn.nome}`} style={s.fattureFornCard}>
+                        {/* Header Fornitore */}
+                        <TouchableOpacity
+                          onPress={() => setExpandedFornitori((prev) => ({ ...prev, [forn.nome]: !prev[forn.nome] }))}
+                          activeOpacity={0.7}
+                          style={s.fattureFornHeader}
+                        >
+                          <Ionicons name={isFornOpen ? 'folder-open' : 'folder'} size={20} color="#B08050" />
+                          <View style={{ flex: 1, minWidth: 0, marginLeft: 8 }}>
+                            <Text style={s.fattureFornName} numberOfLines={1}>{forn.nome}</Text>
+                            <Text style={s.fattureFornMeta}>
+                              {forn.count} {forn.count === 1 ? 'fattura' : 'fatture'} · €{fornTotal}
                             </Text>
                           </View>
-                          {/* Riga 2: numero fattura + scadenza */}
-                          {(ft.numero || ft.scadenza || ft.overdue) && (
-                            <Text style={{ fontSize: 11, color: '#7A8585', fontWeight: '700', marginTop: 3 }}>
-                              {ft.numero ? `Fatt. ${ft.numero}` : ''}
-                              {ft.numero && ft.scadenza ? ' · ' : ''}
-                              {ft.scadenza ? `scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}/${ft.scadenza.slice(0,4)}` : ''}
-                              {ft.overdue ? <Text style={{ color: '#D46A6A', fontWeight: '900' }}> · SCADUTA</Text> : null}
-                            </Text>
-                          )}
-                          {/* Round 72 — Riga 3: data inserimento + periodo riferimento */}
-                          {(ft.dataInserimento || ft.periodoFrom) && (
-                            <Text style={{ fontSize: 10, color: '#9AAAAA', fontWeight: '500', marginTop: 2 }}>
-                              {ft.dataInserimento ? `📝 Inserita il ${ft.dataInserimento.toLocaleDateString('it-IT')}` : ''}
-                              {ft.dataInserimento && ft.periodoFrom && ft.periodoTo && ft.periodoFrom !== ft.periodoTo ? '  ·  ' : ''}
-                              {ft.periodoFrom && ft.periodoTo && ft.periodoFrom !== ft.periodoTo
-                                ? `📅 ${ft.periodoFrom.slice(8,10)}/${ft.periodoFrom.slice(5,7)}/${ft.periodoFrom.slice(0,4)} → ${ft.periodoTo.slice(8,10)}/${ft.periodoTo.slice(5,7)}/${ft.periodoTo.slice(0,4)}`
-                                : ''}
-                            </Text>
-                          )}
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => {
-                            const doDelete = () => {
-                              if (ft.source === 'log') {
-                                // Round 72 — Rimuovi dal log immutabile
-                                const id = ft.id.startsWith('log_') ? ft.id.slice(4) : ft.id;
-                                (store as any).removeFattura?.(id);
-                              } else if (ft.source === 'session') {
-                                // Rimuovi la fattura dalla sessione spese in corso
-                                const sess = (store as any).speseExtraSession;
-                                if (sess?.fornInfo) {
-                                  const newFornInfo = { ...(sess.fornInfo as Record<string, any>) };
-                                  delete newFornInfo[ft.fornitore];
-                                  const newSpese = { ...(sess.speseExtraFornitore || {}) };
-                                  delete newSpese[ft.fornitore];
-                                  (store as any).setSpeseExtraSession?.({
-                                    ...sess,
-                                    fornInfo: newFornInfo,
-                                    speseExtraFornitore: newSpese,
-                                  });
-                                }
-                              } else if (ft.source === 'historic') {
-                                // Rimuovi la fattura dalla giornata storica
-                                const dayIso = ft.data.toISOString().slice(0, 10);
-                                const updated = (store.storicoGiornate || []).map((g: any) => {
-                                  const gIso = new Date(g.data).toISOString().slice(0, 10);
-                                  if (gIso !== dayIso) return g;
-                                  const info = { ...(g.fornitoriInfo || {}) };
-                                  delete info[ft.fornitore];
-                                  return { ...g, fornitoriInfo: info };
-                                });
-                                store.setConfig({ storicoGiornate: updated });
-                              } else {
-                                removeOrdine(ft.data, ft.testo);
-                              }
-                            };
-                            if (Platform.OS === 'web') {
-                              if (window.confirm(`Eliminare la fattura ${ft.fornitore}${ft.numero ? ' n. ' + ft.numero : ''}?`)) doDelete();
-                            } else {
-                              Alert.alert('Elimina fattura', `Eliminare ${ft.fornitore}${ft.numero ? ' • Fatt. ' + ft.numero : ''}?`, [
-                                { text: 'Annulla', style: 'cancel' },
-                                { text: 'Elimina', style: 'destructive', onPress: doDelete },
-                              ]);
-                            }
-                          }}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          style={{ padding: 2 }}
-                        >
-                          <Ionicons name="close-circle" size={18} color="#D46A6A" />
+                          <Ionicons
+                            name={isFornOpen ? 'chevron-up' : 'chevron-down'}
+                            size={18}
+                            color="#7A8585"
+                          />
                         </TouchableOpacity>
+                        {/* Mesi (visibili solo se fornitore espanso) */}
+                        {isFornOpen && Object.values(forn.months).map((m) => {
+                          const monthKey = `${forn.nome}__${m.key}`;
+                          const isMonthOpen = !!expandedMonths[monthKey];
+                          const monthTotal = Math.round(m.total);
+                          return (
+                            <View key={monthKey} style={s.fattureMonthBlock}>
+                              <TouchableOpacity
+                                onPress={() => setExpandedMonths((prev) => ({ ...prev, [monthKey]: !prev[monthKey] }))}
+                                activeOpacity={0.7}
+                                style={s.fattureMonthHeader}
+                              >
+                                <Ionicons name="calendar-outline" size={15} color="#1E7F85" />
+                                <Text style={s.fattureMonthLabel}>{m.label}</Text>
+                                <Text style={s.fattureMonthTotal}>€{monthTotal}</Text>
+                                <Ionicons
+                                  name={isMonthOpen ? 'chevron-up' : 'chevron-down'}
+                                  size={14}
+                                  color="#7A8585"
+                                />
+                              </TouchableOpacity>
+                              {/* Fatture (visibili solo se mese espanso) */}
+                              {isMonthOpen && m.items.map((ft, idx) => {
+                                const color = ft.overdue ? '#D46A6A' : '#B08050';
+                                return (
+                                  <View key={ft.id + idx} style={s.fattureItemRow}>
+                                    <View style={{ backgroundColor: color, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, minWidth: 44, alignItems: 'center' }}>
+                                      <Text style={{ fontSize: 10, fontWeight: '900', color: '#FFF', letterSpacing: 0.3 }}>
+                                        {ft.data.getDate()} {MESI[ft.data.getMonth()].substring(0, 3)}
+                                      </Text>
+                                    </View>
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Text style={[s.archiveTxt, { color: '#1A4040', flex: 1, fontSize: 12 }]} numberOfLines={1}>
+                                          {ft.numero ? `Fatt. ${ft.numero}` : 'Pagamento'}
+                                        </Text>
+                                        <Text style={{ fontSize: 14, color, fontWeight: '900' }}>
+                                          €{parseFloat(ft.importo).toFixed(0)}
+                                        </Text>
+                                      </View>
+                                      {(ft.scadenza || ft.overdue) && (
+                                        <Text style={{ fontSize: 10, color: '#7A8585', fontWeight: '700', marginTop: 2 }}>
+                                          {ft.scadenza ? `scad. ${ft.scadenza.slice(8,10)}/${ft.scadenza.slice(5,7)}/${ft.scadenza.slice(0,4)}` : ''}
+                                          {ft.overdue ? <Text style={{ color: '#D46A6A', fontWeight: '900' }}> · SCADUTA</Text> : null}
+                                        </Text>
+                                      )}
+                                    </View>
+                                    <TouchableOpacity
+                                      onPress={() => {
+                                        const doDelete = () => {
+                                          if (ft.source === 'log') {
+                                            const id = ft.id.startsWith('log_') ? ft.id.slice(4) : ft.id;
+                                            (store as any).removeFattura?.(id);
+                                          } else if (ft.source === 'session') {
+                                            const sess = (store as any).speseExtraSession;
+                                            if (sess?.fornInfo) {
+                                              const newFornInfo = { ...(sess.fornInfo as Record<string, any>) };
+                                              delete newFornInfo[ft.fornitore];
+                                              const newSpese = { ...(sess.speseExtraFornitore || {}) };
+                                              delete newSpese[ft.fornitore];
+                                              (store as any).setSpeseExtraSession?.({
+                                                ...sess,
+                                                fornInfo: newFornInfo,
+                                                speseExtraFornitore: newSpese,
+                                              });
+                                            }
+                                          } else if (ft.source === 'historic') {
+                                            const dayIso = ft.data.toISOString().slice(0, 10);
+                                            const updated = (store.storicoGiornate || []).map((g: any) => {
+                                              const gIso = new Date(g.data).toISOString().slice(0, 10);
+                                              if (gIso !== dayIso) return g;
+                                              const info = { ...(g.fornitoriInfo || {}) };
+                                              delete info[ft.fornitore];
+                                              return { ...g, fornitoriInfo: info };
+                                            });
+                                            store.setConfig({ storicoGiornate: updated });
+                                          } else {
+                                            removeOrdine(ft.data, ft.testo);
+                                          }
+                                        };
+                                        if (Platform.OS === 'web') {
+                                          if (window.confirm(`Eliminare la fattura ${ft.fornitore}${ft.numero ? ' n. ' + ft.numero : ''}?`)) doDelete();
+                                        } else {
+                                          Alert.alert('Elimina fattura', `Eliminare ${ft.fornitore}${ft.numero ? ' • Fatt. ' + ft.numero : ''}?`, [
+                                            { text: 'Annulla', style: 'cancel' },
+                                            { text: 'Elimina', style: 'destructive', onPress: doDelete },
+                                          ]);
+                                        }
+                                      }}
+                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                      style={{ padding: 2 }}
+                                    >
+                                      <Ionicons name="close-circle" size={18} color="#D46A6A" />
+                                    </TouchableOpacity>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          );
+                        })}
                       </View>
                     );
                   })
@@ -1469,6 +1557,74 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0EBE1',
     minHeight: 44,
+  },
+  // Round 78 BIS — Cartelle Fornitore → Mese per Fatture
+  fattureFornCard: {
+    backgroundColor: '#FBF6E8',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5DDC2',
+  },
+  fattureFornHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    minHeight: 44,
+  },
+  fattureFornName: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#1A4040',
+    letterSpacing: 0.2,
+  },
+  fattureFornMeta: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7A8585',
+    marginTop: 2,
+  },
+  fattureMonthBlock: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#EAE2C8',
+  },
+  fattureMonthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    minHeight: 32,
+  },
+  fattureMonthLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1E7F85',
+  },
+  fattureMonthTotal: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#B08050',
+    marginRight: 4,
+  },
+  fattureItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 7,
+    paddingLeft: 6,
+    paddingRight: 2,
+    borderTopWidth: 1,
+    borderTopColor: '#F2EDD9',
+    minHeight: 38,
   },
   archiveTabs: {
     flexDirection: 'row',

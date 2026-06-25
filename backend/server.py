@@ -682,19 +682,28 @@ ESEMPIO DI BRIEFING CONFORME (3 righe + saluto):
 REGOLE DETTAGLIATE PER LE 3 VOCI:
 
 1. METEO (in 1 riga precisa REALE dal blocco "═══ METEO ═══"):
-   ⚠️ DEVI usare il RANGE MATTUTINO 06:00-13:00, NON la temperatura istantanea.
-   Il blocco meteo del contesto contiene una frase tipo "X°C–Y°C nella fascia mattutina (06:00–13:00)".
-   COPIA QUEL RANGE letteralmente.
+   ⚠️⚠️⚠️ REGOLA INVIOLABILE: leggi LETTERALMENTE i numeri dal blocco "═══ METEO ═══" del CONTESTO.
+   Il blocco contiene una stringa esatta tipo:
+     "METEO REALE Parabiago: Sereno, 18°C–28°C nella fascia mattutina (06:00–13:00); giornata 14–32°C, Vento 8 km/h"
    
-   Format consigliato:
-     OGGI:   "Oggi a {mercato} {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
-     FUTURO: "{giornoSettimana} a {mercato} {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
+   DEVI:
+   • Copiare ESATTAMENTE descrizioneMeteo (es. "Sereno", "Coperto", "Pioggia") senza tradurre o variare.
+   • Copiare ESATTAMENTE il range mattutino "18°C–28°C" (tMin e tMax dalla fascia 06:00–13:00).
+   • NON usare il dato di temperatura istantanea o giornaliero — SOLO il range mattutino.
+   • NON inventare/stimare numeri non presenti nel blocco. Se manca un numero, scrivi "—".
+   • NON usare temperature da memoria di conversazioni passate.
+   
+   Format obbligatorio:
+     OGGI:    "Oggi a {mercato} {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
+     FUTURO:  "{giornoSettimana} a {mercato} {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
      PASSATO: "{giornoSettimana} scorso a {mercato} era {descrizioneMeteo}, dai {tMin}° ai {tMax}° in mattinata."
    
    ⛔ ERRORI DA NON FARE MAI:
      ❌ NON dire un singolo valore puntuale (es. "25.5°C"). USA SEMPRE IL RANGE.
      ❌ NON inventare condizioni meteo. Usa LETTERALMENTE descrizioneMeteo del contesto.
-     ❌ Se il contesto dice "sereno" NON dire "parzialmente nuvoloso".
+     ❌ Se il contesto dice "sereno" NON dire "parzialmente nuvoloso" né "soleggiato".
+     ❌ NON dare temperature di città diverse da {mercato} ricevuto nel CONTESTO.
+     ❌ NON pescare valori da conversazioni precedenti (anche se erano per la stessa città).
    
    ⚠️ Se {mercato} è vuoto nel contesto, NON dare alcuna riga meteo — vai direttamente al punto 2.
 
