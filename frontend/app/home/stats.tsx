@@ -1349,6 +1349,54 @@ function StatsScreenInner() {
     };
   }, [store.spesePeriodiche, filtroTempo, persDateFrom, persDateTo, excludeFornitoreScad, dataRiferimento]);
 
+  /* ═══ Round 78 QUATER — TOTALE FORNITORI PERIODO (deduplicato) ═══
+     L'utente vuole nella voce "FORNITORI" del breakdown NETTO il totale
+     delle fatture inserite nel periodo selezionato + i pagamenti DAILY.
+
+     I pagamenti fornitori vengono salvati in DUE strutture:
+       1) `storicoGiornate[i].dettaglio_fornitori` — fonte canonica per
+          ogni giornata salvata (DAILY+contanti)
+       2) `fattureLog` — log immutabile delle fatture (popolato sia da
+          AddFatturaModal sia da handleSalva quando c'è una fattura vera)
+
+     handleSalva (post-Round 78 BIS) popola ENTRAMBE le strutture quando
+     c'è una vera fattura. Sommarle direttamente → doppio conteggio.
+     SOLUZIONE: per ogni voce in fattureLog del periodo, se il fornitore
+     è GIÀ presente in `dettaglio_fornitori` della stessa data → la
+     consideriamo già conteggiata e la skippiamo. Aggiungiamo solo le
+     fatture INDIPENDENTI (es. da AddFatturaModal). */
+  const fornitoriTotPeriodo = useMemo(() => {
+    let total = vociExtraPeriod.totDailyDeducted;
+
+    // Mappa {dataIso → Set(fornitoreLower)} dai giorni filtrati
+    const fornitoriInGiornate: Record<string, Set<string>> = {};
+    filteredData.forEach((g: any) => {
+      try {
+        const iso = new Date(g.data).toISOString().slice(0, 10);
+        if (!fornitoriInGiornate[iso]) fornitoriInGiornate[iso] = new Set();
+        Object.entries(g.dettaglio_fornitori || {}).forEach(([k, v]) => {
+          if (k.includes('__fattn') || k.includes('__liberaLabel')) return;
+          const imp = parseFloat(String(v)) || 0;
+          if (imp <= 0) return;
+          const base = k.endsWith('__libera') ? k.slice(0, -'__libera'.length) : k;
+          fornitoriInGiornate[iso].add(base.toLowerCase().trim());
+        });
+      } catch { /* skip */ }
+    });
+
+    // Aggiungi solo fatture INDIPENDENTI (non già conteggiate in dettaglio_fornitori)
+    fatturePeriodoStats.items.forEach((f: any) => {
+      const fornL = String(f.fornitore || '').toLowerCase().trim();
+      const iso = f.dataEmissione;
+      if (fornitoriInGiornate[iso] && fornitoriInGiornate[iso].has(fornL)) return;
+      const imp = Number(f.importo) || 0;
+      if (imp <= 0) return;
+      total += imp;
+    });
+
+    return Math.round(total);
+  }, [vociExtraPeriod, filteredData, fatturePeriodoStats]);
+
   /* ═══ ROUND 56 — TOT NETTO RICALCOLATO IN BASE AI FLAG ═══
      L'utente segnalava: nel modal "Calcolo Netto" le voci si flaggano
      visualmente ma il NETTO non si aggiorna. Era perché il vecchio
@@ -1359,16 +1407,16 @@ function StatsScreenInner() {
      Round 73 — Aggiunta detrazione `fatturePeriodoStats.totale` sotto il
      flag `excludeFornitori`: le fatture inserite via AddFatturaModal
      contribuiscono ai costi fornitori del periodo, quindi devono essere
-     scalate dal lordo come tutte le altre voci fornitori. */
+     scalate dal lordo come tutte le altre voci fornitori.
+     Round 78 QUATER — Sostituite le 3 sottrazioni (totDailyDeducted +
+     fatturePeriodoStats.totale + fatturePeriodoStats.totaleContanti) con
+     l'unica `fornitoriTotPeriodo`. Le 3 voci causavano DOPPIO CONTEGGIO
+     perché handleSalva popola sia dettaglio_fornitori sia fattureLog.
+     Vedi commento sopra `fornitoriTotPeriodo`. */
   const totNetto = useMemo(() => {
     const totSpeseFisse = arrSum(speseFisseItems.map((i) => i.value));
     const totCollab = arrSum(collabLines.map((l) => arrSum(l.data)));
     const totSpeseExtra = arrSum(filteredData.map((g) => g.spese_extra || 0));
-    // Round 62: separiamo strettamente DAILY (sottraibili dal netto giornaliero)
-    // dai periodici (gestiti da `fornitoriScadenze`, vedi sotto).
-    // `totCostoMerceProp` (LEGACY) NON viene più applicato qui per evitare
-    // doppio conteggio dopo la migrazione Round 61 in spesePeriodiche.
-    const totFornitoriDaily = vociExtraPeriod.totDailyDeducted;
     const totInvenduto = arrSum(invendutoLines.map((l) => arrSum(l.data)));
     const totCarb = carburantePeriodoTotale;
 
@@ -1377,24 +1425,20 @@ function StatsScreenInner() {
     if (!excludeCollaboratori) netto -= totCollab;
     if (!excludeSpeseExtra) netto -= totSpeseExtra;
     if (!excludeFornitori) {
-      netto -= totFornitoriDaily;
-      // Round 73 + 77: include sia la quota fatture sia la quota contanti
-      // del fattureLog. Entrambe sono spese reali da scalare dal lordo,
-      // anche se ne mostriamo solo il riquadro FATTURE in UI.
-      netto -= fatturePeriodoStats.totale;
-      netto -= fatturePeriodoStats.totaleContanti;
+      // Round 78 QUATER: unica detrazione deduplicata per FORNITORI
+      // (include DAILY da dettaglio_fornitori + fatture indipendenti).
+      netto -= fornitoriTotPeriodo;
     }
     if (!excludeInvenduto) netto -= totInvenduto;
     if (!excludeCarburante) netto -= totCarb;
-    // Round 62: RIMOSSO `netto -= totCostoMerceProp;` — sostituito da
-    // fornitoriScadenze.totSelezionato che usa la collezione spesePeriodiche.
     // Spese Ripartite (CUSTOM/WEEKLY/MONTHLY) — flag per-voce.
     netto -= fornitoriScadenze.totSelezionato;
     return netto;
   }, [
-    totLordo, speseFisseItems, collabLines, filteredData, vociExtraPeriod, invendutoLines, carburantePeriodoTotale,
+    totLordo, speseFisseItems, collabLines, filteredData, fornitoriTotPeriodo,
+    invendutoLines, carburantePeriodoTotale,
     excludeSpeseFisse, excludeCollaboratori, excludeSpeseExtra, excludeFornitori, excludeInvenduto, excludeCarburante,
-    fornitoriScadenze, fatturePeriodoStats,
+    fornitoriScadenze,
   ]);
 
   /* ── Giorni lavorati vs non lavorati (per grafico) ──
@@ -3036,9 +3080,10 @@ function StatsScreenInner() {
                       excluded={excludeSpeseExtra} onToggle={() => setExcludeSpeseExtra(!excludeSpeseExtra)}
                       icon="receipt-outline" iconColor="#D46A6A"
                     />
-                    {/* Round 60+62+63: label allineata a UtileModal "FORNITORI GIORN." */}
+                    {/* Round 78 QUATER — Rinominato in "FORNITORI" e include
+                        il totale fatture del periodo + DAILY (deduplicato) */}
                     <NettoRow
-                      label="FORNITORI GIORN." value={vociExtraPeriod.totDailyDeducted}
+                      label="FORNITORI" value={fornitoriTotPeriodo}
                       excluded={excludeFornitori} onToggle={() => setExcludeFornitori(!excludeFornitori)}
                       icon="storefront-outline" iconColor="#1A4040"
                     />
