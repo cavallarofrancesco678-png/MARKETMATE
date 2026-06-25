@@ -2078,7 +2078,10 @@ function StatsScreenInner() {
                           .filter((f: any) => f.fornitore === nome)
                           .sort((a: any, b: any) => (b.dataEmissione || '').localeCompare(a.dataEmissione || ''))
                           .map((f: any) => {
-                            const isAuto = String(f.numeroFattura || '').startsWith('_auto_');
+                            const numFat = String(f.numeroFattura || '').trim();
+                            const isAuto = numFat === '' || numFat.startsWith('_auto_');
+                            const modo = (f.modoPagamento || 'fattura');
+                            const modoLabel = modo === 'contanti' ? 'Contanti' : (modo === 'misto' ? 'Misto' : 'Fattura');
                             return (
                               <TouchableOpacity
                                 key={f.id}
@@ -2088,7 +2091,7 @@ function StatsScreenInner() {
                               >
                                 <View style={{ flex: 1 }}>
                                   <Text style={{ fontSize: 11, color: '#3F5A5A', fontWeight: '700' }}>
-                                    {isAuto ? `(senza n°)` : `Fatt. ${f.numeroFattura}`}
+                                    {isAuto ? modoLabel : `${modoLabel} n. ${numFat}`}
                                     {f.dataEmissione ? `  ·  ${f.dataEmissione.slice(8,10)}/${f.dataEmissione.slice(5,7)}/${f.dataEmissione.slice(0,4)}` : ''}
                                   </Text>
                                 </View>
